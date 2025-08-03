@@ -1,5 +1,5 @@
 // useFinalPrice.ts
-import { addDays, differenceInCalendarDays, isSameDay } from "date-fns";
+import { addDays, differenceInCalendarDays } from "date-fns";
 
 export const calculateFinalPrice = ({
   startDate,

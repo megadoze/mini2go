@@ -1,20 +1,19 @@
 export type Car = {
-  id: string;
+  id: string | undefined;
   vin: string;
-  model_id: string;
+  modelId: string;
   year?: number | null;
-  fuel_type?: string | null;
+  fuelType?: string | null;
   transmission?: string | null;
   seats?: number | null;
   licensePlate?: string | null;
-  location_id?: string | null;
-  engine_capacity?: number | null;
+  locationId?: string | null;
+  engineCapacity?: number | null;
   status?: string | null;
-  body_type?: string | null;
-  drive_type?: string | null;
+  bodyType?: string | null;
+  driveType?: string | null;
   color?: string | null;
   doors?: number | null;
-  created_at: string;
   photos?: string[];
   content?: string;
   lat?: number;
@@ -40,3 +39,5 @@ export type Car = {
   isPets?: boolean;
   isAbroad?: boolean;
 };
+
+export type CarUpdatePayload = Partial<Omit<Car, "id" | "created_at">>;

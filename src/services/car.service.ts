@@ -6,7 +6,9 @@ import type { CarWithRelations } from "@/types/carWithRelations";
 import type { Extra } from "@/types/extra";
 import type { Feature } from "@/types/feature";
 import type { RawCar } from "@/types/rawCar";
-import type { CarUpdatePayload } from "@/types/сarUpdatePayload";
+// import type { CarUpdatePayload } from "@/types/сarUpdatePayload";
+// ✅ Добавить:
+import type { CarUpdatePayload } from "@/types/car";
 
 const carCache = new Map<string, any>();
 
@@ -73,6 +75,47 @@ function toCamelCar(raw: any) {
   };
 }
 
+function carCamelToSnake(input: CarUpdatePayload) {
+  return {
+    vin: input.vin,
+    model_id: input.modelId,
+    year: input.year,
+    fuel_type: input.fuelType,
+    transmission: input.transmission,
+    seats: input.seats,
+    license_plate: input.licensePlate,
+    engine_capacity: input.engineCapacity,
+    status: input.status,
+    body_type: input.bodyType,
+    drive_type: input.driveType,
+    color: input.color,
+    doors: input.doors,
+    photos: input.photos,
+    content: input.content,
+    location_id: input.locationId,
+    address: input.address,
+    pickup_info: input.pickupInfo,
+    return_info: input.returnInfo,
+    is_delivery: input.isDelivery,
+    delivery_fee: input.deliveryFee,
+    include_mileage: input.includeMileage,
+    price: input.price,
+    deposit: input.deposit,
+    currency: input.currency,
+    open_time: input.openTime,
+    close_time: input.closeTime,
+    min_rent_period: input.minRentPeriod,
+    max_rent_period: input.maxRentPeriod,
+    interval_between_bookings: input.intervalBetweenBookings,
+    age_renters: input.ageRenters,
+    min_driver_license: input.minDriverLicense,
+    is_instant_booking: input.isInstantBooking,
+    is_smoking: input.isSmoking,
+    is_pets: input.isPets,
+    is_abroad: input.isAbroad,
+  };
+}
+
 // Получение списка марок авто
 export async function fetchBrands(): Promise<Brand[]> {
   const { data, error } = await supabase.from("brands").select("*");
@@ -136,8 +179,7 @@ export async function fetchCars(): Promise<CarWithRelations[]> {
       vin: car.vin,
       year: Number(car.year),
       licensePlate: car.license_plate,
-      model_id: car.model_id,
-      created_at: car.created_at,
+      modelId: car.model_id,
       models: {
         name: model?.name || "—",
         brands: {
@@ -200,9 +242,8 @@ export async function addCar(car: NewCar): Promise<CarWithRelations[]> {
       id: car.id,
       vin: car.vin,
       year: Number(car.year),
-      model_id: car.model_id,
-      location_id: car.location_id ?? null,
-      created_at: car.created_at,
+      modelId: car.model_id,
+      locationId: car.location_id ?? null,
       models: {
         name: model?.name || "—",
         brands: {
@@ -260,9 +301,12 @@ export async function deleteCar(car: CarWithRelations) {
 
 // Обновление данных авто
 export async function updateCar(id: string, data: CarUpdatePayload) {
-  const { error } = await supabase.from("cars").update(data).eq("id", id);
+  const snakeData = carCamelToSnake(data);
+
+  const { error } = await supabase.from("cars").update(snakeData).eq("id", id);
+
   if (error) throw error;
-  carCache.delete(id); // ♻️ важная строка
+  carCache.delete(id);
 }
 
 // Загрузка фото авто

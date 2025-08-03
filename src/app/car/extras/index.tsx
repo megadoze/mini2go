@@ -38,7 +38,7 @@ const Extras = () => {
                   <div className="inline-flex">
                     <p
                       className={`${
-                        e.meta.is_available ? "text-green-500" : ""
+                        e.is_available ? "text-green-500" : ""
                       } text-gray-500`}
                     >
                       {e.is_available ? "On" : "Off"}

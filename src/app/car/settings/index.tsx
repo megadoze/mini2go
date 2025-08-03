@@ -362,7 +362,10 @@ export default function BookingSettingsSection() {
     } as const;
 
     try {
-      await updateCar(carId, payload);
+      await updateCar(carId, {
+        ...payload,
+        currency: payload.currency ?? undefined,
+      });
 
       // оптимистичное обновление
       setCar((prev) => {

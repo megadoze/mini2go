@@ -14,7 +14,12 @@ import OrderedList from "@tiptap/extension-ordered-list";
 import ListItem from "@tiptap/extension-list-item";
 // import { v4 as uuidv4 } from "uuid";
 
-function Editor({ value, onChange }) {
+type EditorProps = {
+  value: string;
+  onChange: (val: string) => void;
+};
+
+function Editor({ value, onChange }: EditorProps) {
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -55,14 +60,6 @@ function Editor({ value, onChange }) {
         }
         return false;
       },
-      // handleBeforeInput(view, from, to, text) {
-      //   const currentCount = view.state.doc.textContent.length;
-      //   const limit = 3000;
-      //   if (currentCount + text.length > limit) {
-      //     return true; // блокируем ввод
-      //   }
-      //   return false;
-      // },
     },
   });
 

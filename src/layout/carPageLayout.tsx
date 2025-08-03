@@ -51,7 +51,9 @@ export default function CarPageLayout() {
 
   // 2) Инициализируем локальные стейты уже заполненными значениями
   const [car, setCar] = useState<CarWithModelRelations>(loaderCar);
-  const [globalSettings, setGlobalSettings] = useState<AppSettings>(loaderGS);
+  const [globalSettings, setGlobalSettings] = useState<AppSettings | null>(
+    loaderGS
+  );
   const [extras, setExtras] = useState<CarExtraWithMeta[]>(loaderExtras);
   const [pricingRules, setPricingRules] = useState<PricingRule[]>(loaderPR);
   const [seasonalRates, setSeasonalRates] = useState<SeasonalRate[]>(loaderSR);
@@ -92,7 +94,12 @@ export default function CarPageLayout() {
 
     // производные от car
     setParkingAddress(loaderCar.address);
-    setCoords({ latitude: loaderCar.lat, longitude: loaderCar.long });
+
+    setCoords({
+      latitude: loaderCar.lat ?? 0,
+      longitude: loaderCar.long ?? 0,
+    });
+
     setPickupInfo({
       pickupInfo: loaderCar.pickupInfo,
       returnInfo: loaderCar.returnInfo,

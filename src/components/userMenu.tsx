@@ -10,7 +10,11 @@ import {
 import multiavatar from "@multiavatar/multiavatar/esm";
 import { useNavigate } from "react-router";
 
-function UserMenu({ onClick }) {
+type Props = {
+  onClick: () => void;
+};
+
+function UserMenu({ onClick }: Props) {
   // const { user, LogOut } = useAuth();
 
   const user = useMemo(
@@ -24,14 +28,14 @@ function UserMenu({ onClick }) {
   );
 
   const navigate = useNavigate();
-  const [avatar, setAvatar] = useState(null);
+  const [avatar, setAvatar] = useState<string | null>(null);
 
-  const cutBeforeSpace = (str) => {
+  const cutBeforeSpace = (str: string) => {
     const index = str.indexOf("@");
     return index !== -1 ? str.slice(0, index) : str;
   };
 
-  const toSlug = (str) =>
+  const toSlug = (str: string) =>
     str
       .trim()
       // .toLowerCase()
@@ -44,10 +48,10 @@ function UserMenu({ onClick }) {
 
   // 🔥 Следим за изменением `user` и обновляем `avatar`
   useEffect(() => {
-    setAvatar(user.photoURL || user.uid);
+    setAvatar(user.uid);
   }, [user]);
 
-  const handleMenuClick = (e) => {
+  const handleMenuClick = (e: React.MouseEvent<HTMLButtonElement>) => {
     const id = e.currentTarget.id;
     navigate(`/user/${userName}${id ? `/${id}` : ""}`);
     onClick();
@@ -69,7 +73,7 @@ function UserMenu({ onClick }) {
             <div
               className="size-8"
               // dangerouslySetInnerHTML={{ __html: multiavatar(avatar) }}
-              dangerouslySetInnerHTML={{ __html: multiavatar(avatar) }}
+              dangerouslySetInnerHTML={{ __html: multiavatar(avatar ?? "") }}
             />
             <div>
               <Text size="sm" fw={500}>

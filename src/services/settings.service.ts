@@ -20,17 +20,17 @@ export async function getGlobalSettings(): Promise<AppSettings | null> {
 type UpdatePayload = Partial<
   Pick<
     AppSettings,
-    | "open_time"
-    | "close_time"
-    | "min_rent_period"
-    | "max_rent_period"
-    | "interval_between_bookings"
-    | "age_renters"
-    | "min_driver_license"
-    | "is_instant_booking"
-    | "is_smoking"
-    | "is_pets"
-    | "is_abroad"
+    | "openTime"
+    | "closeTime"
+    | "minRentPeriod"
+    | "maxRentPeriod"
+    | "intervalBetweenBookings"
+    | "ageRenters"
+    | "minDriverLicense"
+    | "isInstantBooking"
+    | "isSmoking"
+    | "isPets"
+    | "isAbroad"
   >
 >;
 

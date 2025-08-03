@@ -27,7 +27,6 @@ const Delivery = () => {
     return deliveryState !== isDelivery || fee !== deliveryFee;
   }, [deliveryState, fee, deliveryFee, isDelivery]);
 
-  if (!car) return null;
   const carId = car.id;
 
   const handleSwitch = () => {
@@ -42,6 +41,7 @@ const Delivery = () => {
     e.preventDefault();
 
     try {
+      if (!carId) return null;
       await updateCar(carId, {
         isDelivery: deliveryState,
         deliveryFee: Number(fee),

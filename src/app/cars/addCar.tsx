@@ -4,14 +4,12 @@ import {
   fetchModelsByBrand,
   addCar,
   fetchCarById,
-  updateCar,
   uploadCarPhotos,
 } from "../../services/car.service";
 import type { Brand } from "@/types/brand";
 import type { Model } from "@/types/model";
 import type { Country } from "@/types/country";
 import type { Location } from "@/types/location";
-import type { Address } from "@/types/address";
 import {
   fuelTypes,
   transmissions,
@@ -25,7 +23,6 @@ import {
 import {
   fetchCountries,
   fetchLocationsByCountry,
-  fetchAddressByLocation,
 } from "../locations/location.service";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
@@ -47,12 +44,20 @@ type CarFormData = {
   doors: string;
   photos: string[];
   address: string;
+  pickupInfo: string;
+  returnInfo: string;
+  isDelivery: boolean;
+  deliveryFee: number;
+  includeMileage: number;
+  price: number;
+  deposit: number;
 };
 
 export default function AddCarPage() {
   const navigate = useNavigate();
 
   const { id } = useParams();
+  const carId = id;
 
   const isEditMode = Boolean(id);
 
@@ -60,11 +65,11 @@ export default function AddCarPage() {
   const [models, setModels] = useState<Model[]>([]);
   const [countries, setCountries] = useState<Country[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
-  const [addresses, setAddresses] = useState<Address[]>([]);
+  // const [addresses, setAddresses] = useState<Address[]>([]);
   const [photos, setPhotos] = useState<File[]>([]);
 
   const [countryId, setCountryId] = useState<string | null>(null);
-  const [locationId, setLocationId] = useState<string | null>(null);
+  // const [locationId, setLocationId] = useState<string | null>(null);
   const [brandId, setBrandId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -87,6 +92,13 @@ export default function AddCarPage() {
       doors: "",
       photos: [],
       address: "",
+      pickupInfo: "",
+      returnInfo: "",
+      isDelivery: false,
+      deliveryFee: 0,
+      includeMileage: 100,
+      price: 0,
+      deposit: 0,
     };
   };
 
@@ -129,7 +141,7 @@ export default function AddCarPage() {
 
         // Установим нужные зависимости для select'ов
         setCountryId(car.location.country_id);
-        setLocationId(car.location_id);
+        // setLocationId(car.location_id);
         setBrandId(car.model.brand_id);
 
         // Заполняем форму
@@ -152,6 +164,13 @@ export default function AddCarPage() {
           doors: car.doors ? String(car.doors) : "",
           photos: car.photos ?? [],
           address: car.address ?? "",
+          pickupInfo: car.pickupInfo ?? "",
+          returnInfo: car.returnInfo ?? "",
+          isDelivery: car.isDelivery ?? false,
+          deliveryFee: car.deliveryFee ?? 0,
+          includeMileage: car.includeMileage ?? 100,
+          price: car.price ?? 0,
+          deposit: car.deposit ?? 0,
         });
       } catch (e) {
         console.error("Ошибка при загрузке авто", e);
@@ -176,7 +195,7 @@ export default function AddCarPage() {
     try {
       const carPayload = {
         vin: form.vin,
-        model_id: form.model_id,
+        modelId: form.model_id,
         year: form.year ? Number(form.year) : null,
         fuel_type: form.fuel_type || null,
         transmission: form.transmission || null,
@@ -193,21 +212,21 @@ export default function AddCarPage() {
         doors: form.doors ? Number(form.doors) : null,
         photos: [], // Пока не загружаем — сначала файл, потом URL
         address: form.address || "",
+        pickupInfo: form.pickupInfo || "",
+        returnInfo: form.pickupInfo || "",
+        isDelivery: form.isDelivery || false,
+        deliveryFee: form.deliveryFee || 0,
+        includeMileage: form.includeMileage || 100,
+        price: form.price || 0,
+        deposit: form.deposit || 0,
       };
 
-      let carId: string;
-
-      if (isEditMode && id) {
-        carId = id;
-        await updateCar(carId, carPayload);
-      } else {
-        const result = await addCar(carPayload);
-        if (!result || !result[0]?.id) {
-          throw new Error("Не удалось добавить авто");
-        }
-        carId = result[0].id;
+      const result = await addCar(carPayload);
+      if (!result || !result[0]?.id) {
+        throw new Error("Не удалось добавить авто");
       }
-
+      // carId = result[0].id;
+      if (!carId) return null;
       // 1. Загружаем новые фото, если есть
       let uploadedUrls: string[] = [];
       if (photos.length) {
@@ -257,7 +276,7 @@ export default function AddCarPage() {
           onChange={(e) => {
             const value = e.target.value;
             handleChange("location_id", value); // ✅ обновляем форму
-            setLocationId(value || null); // ✅ и триггерим загрузку адресов
+            // setLocationId(value || null); // ✅ и триггерим загрузку адресов
           }}
           disabled={!countryId}
           className="border p-2 rounded"
@@ -269,20 +288,6 @@ export default function AddCarPage() {
             </option>
           ))}
         </select>
-
-        {/* <select
-          value={form.address_id}
-          onChange={(e) => handleChange("address_id", e.target.value)} // ✅ просто адрес
-          disabled={!locationId}
-          className="border p-2 rounded"
-        >
-          <option value="">Выберите адрес</option>
-          {addresses.map((adr) => (
-            <option key={adr.id} value={adr.id}>
-              {adr.name}
-            </option>
-          ))}
-        </select> */}
 
         <input
           type="text"

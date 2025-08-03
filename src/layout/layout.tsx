@@ -1,4 +1,4 @@
-import { AppShell, Badge, Burger } from "@mantine/core";
+import { AppShell, Burger } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { NavLink, Outlet } from "react-router-dom";
 import {
@@ -58,7 +58,7 @@ export default function Layout() {
   const SidebarMenu = () => {
     return (
       <ul className="flex flex-col gap-1 text-left">
-        {menuItems.map(({ to, icon, label, exact, count, onClick }) => (
+        {menuItems.map(({ to, icon, label, exact, onClick }) => (
           <li key={to} className="rounded-md hover:bg-zinc-100 cursor-pointer">
             <NavLink
               to={to}
@@ -74,7 +74,7 @@ export default function Layout() {
                 {icon}
                 {label}
               </div>
-              {count > 0 && <Badge variant="default">{count}</Badge>}
+              {/* {count > 0 && <Badge variant="default">{count}</Badge>} */}
             </NavLink>
           </li>
         ))}

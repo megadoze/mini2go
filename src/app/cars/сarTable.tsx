@@ -67,7 +67,7 @@ export default function CarListView({ cars, search, onDelete }: Props) {
                   {highlightMatch(car.models?.name, search)}
                 </div>
                 <div className=" border border-black rounded-sm text-black font-medium px-1 w-fit text-sm  mt-1">
-                  {highlightMatch(car.licensePlate, search)}
+                  {highlightMatch(car.licensePlate ?? "", search)}
                 </div>
                 <div className="text-sm text-zinc-600">
                   {car.locations?.name}

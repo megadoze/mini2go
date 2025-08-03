@@ -35,7 +35,7 @@ export default function CarsPage() {
     const textFiltered = cars.filter((car) => {
       const text = `${car.models?.brands?.name ?? ""} ${
         car.models?.name ?? ""
-      } ${car.license_plate}`.toLowerCase();
+      } ${car.licensePlate}`.toLowerCase();
       return text.includes(search.toLowerCase());
     });
 

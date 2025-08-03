@@ -15,7 +15,6 @@ const Distance = () => {
     return distance !== includeMileage;
   }, [distance, includeMileage]);
 
-  if (!car) return null;
   const carId = car.id;
 
   const handleChangeDistance = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -26,6 +25,7 @@ const Distance = () => {
     e.preventDefault();
 
     try {
+      if (!carId) return null;
       await updateCar(carId, { includeMileage: distance });
 
       setSaved(true);

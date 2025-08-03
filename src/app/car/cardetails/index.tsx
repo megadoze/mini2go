@@ -24,6 +24,7 @@ import {
 import Editor from "./editor";
 import type { Feature } from "@/types/feature";
 import { useCarContext } from "@/context/carContext";
+import type { CarUpdatePayload } from "@/types/car";
 
 /** ВНУТРЕННИЙ формат формы — CAMEL */
 type CarFormData = {
@@ -87,23 +88,23 @@ function toFormFromCar(car: any): CarFormData {
 }
 
 /** Адаптер: форма (camel) -> payload для API (snake) */
-function toApiPayload(form: CarFormData) {
+function toApiPayload(form: CarFormData): CarUpdatePayload {
   return {
-    vin: form.vin || null,
-    model_id: form.modelId || null,
-    year: form.year ? Number(form.year) : null,
-    fuel_type: form.fuelType || null,
-    transmission: form.transmission || null,
-    seats: form.seats ? Number(form.seats) : null,
-    license_plate: form.licensePlate || null,
-    engine_capacity: form.engineCapacity ? Number(form.engineCapacity) : null,
-    status: form.status || null,
-    body_type: form.bodyType || null,
-    drive_type: form.driveType || null,
-    color: form.color || null,
-    doors: form.doors ? Number(form.doors) : null,
-    photos: form.photos || [],
-    content: form.content || "",
+    vin: form.vin || undefined,
+    modelId: form.modelId || undefined,
+    year: form.year ? Number(form.year) : undefined,
+    fuelType: form.fuelType || undefined,
+    transmission: form.transmission || undefined,
+    seats: form.seats ? Number(form.seats) : undefined,
+    licensePlate: form.licensePlate || undefined,
+    engineCapacity: form.engineCapacity ?? undefined,
+    status: form.status || undefined,
+    bodyType: form.bodyType || undefined,
+    driveType: form.driveType || undefined,
+    color: form.color || undefined,
+    doors: form.doors ? Number(form.doors) : undefined,
+    photos: form.photos ?? [],
+    content: form.content ?? "",
   };
 }
 
@@ -194,8 +195,8 @@ export default function CarDetails() {
 
     setLoading(true);
     try {
-      const carPayload = toApiPayload(form);
-      await updateCar(carId, carPayload);
+      const payload = toApiPayload(form);
+      await updateCar(carId, payload);
       await updateCarFeatures(carId, selectedFeatureIds);
 
       // Обновляем локальный контекст (минимально и аккуратно)
@@ -203,7 +204,6 @@ export default function CarDetails() {
         setCar((prev: any) => ({
           ...prev,
           vin: form.vin,
-          // model остаётся как есть; modelId берём из связки, если нужно — prev.model.id
           year: form.year ? Number(form.year) : prev?.year,
           fuelType: form.fuelType,
           transmission: form.transmission,
@@ -384,15 +384,15 @@ export default function CarDetails() {
         ))}
       </div>
 
-      {/* <p className="text-lg font-medium text-gray-800 mt-8 mb-2">Description</p>
+      <p className="text-lg font-medium text-gray-800 mt-8 mb-2">Description</p>
       <p className="mb-5">
         Tell guests what makes your car unique and why they'll love driving it.
-      </p> */}
+      </p>
 
-      {/* <Editor
+      <Editor
         value={form.content}
         onChange={(e: string | number) => handleChange("content", e)}
-      /> */}
+      />
 
       <div className="text-right w-full">
         <button

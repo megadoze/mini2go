@@ -200,6 +200,7 @@ function Parking() {
     }
 
     try {
+      if (!carId) return null;
       await updateCar(carId, {
         address: fullAddress,
         lat: coords.latitude,

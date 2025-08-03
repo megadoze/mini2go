@@ -56,13 +56,13 @@ export default function SettingsGlobal() {
   const initial = useMemo(
     () => ({
       currency: (settings as any)?.currency ?? "EUR",
-      openTimeMin: String(settings?.open_time ?? 540),
-      closeTimeMin: String(settings?.close_time ?? 1260),
-      minDays: String(settings?.min_rent_period ?? 1),
-      maxDays: String(settings?.max_rent_period ?? 90),
-      bufferMinutes: String(settings?.interval_between_bookings ?? 0),
-      minAge: String(settings?.age_renters ?? 21),
-      minLicenseYears: String(settings?.min_driver_license ?? 2),
+      openTimeMin: String(settings?.openTime ?? 540),
+      closeTimeMin: String(settings?.closeTime ?? 1260),
+      minDays: String(settings?.minRentPeriod ?? 1),
+      maxDays: String(settings?.maxRentPeriod ?? 90),
+      bufferMinutes: String(settings?.intervalBetweenBookings ?? 0),
+      minAge: String(settings?.ageRenters ?? 21),
+      minLicenseYears: String(settings?.minDriverLicense ?? 2),
     }),
     [settings]
   );
@@ -112,10 +112,10 @@ export default function SettingsGlobal() {
     form.setValues(initial);
     form.resetDirty(initial);
 
-    const ib = Boolean(settings?.is_instant_booking ?? false);
-    const sm = Boolean(settings?.is_smoking ?? false);
-    const pt = Boolean(settings?.is_pets ?? false);
-    const ab = Boolean(settings?.is_abroad ?? false);
+    const ib = Boolean(settings?.isInstantBooking ?? false);
+    const sm = Boolean(settings?.isSmoking ?? false);
+    const pt = Boolean(settings?.isPets ?? false);
+    const ab = Boolean(settings?.isAbroad ?? false);
 
     setInstantBooking(ib);
     setAllowSmoking(sm);
