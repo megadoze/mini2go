@@ -13,5 +13,5 @@ export type AppSettings = {
   isSmoking: boolean;
   isPets: boolean;
   isAbroad: boolean;
-  updated_at: string;
+  updatedAt: string;
 };

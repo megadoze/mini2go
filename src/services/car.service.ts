@@ -6,9 +6,7 @@ import type { CarWithRelations } from "@/types/carWithRelations";
 import type { Extra } from "@/types/extra";
 import type { Feature } from "@/types/feature";
 import type { RawCar } from "@/types/rawCar";
-// import type { CarUpdatePayload } from "@/types/сarUpdatePayload";
-// ✅ Добавить:
-import type { CarUpdatePayload } from "@/types/car";
+import type { CarUpdatePayload } from "@/types/сarUpdatePayload";
 
 const carCache = new Map<string, any>();
 
@@ -150,9 +148,13 @@ export async function fetchCars(): Promise<CarWithRelations[]> {
   locations(name, countries(name)),
   photos,
   address,
-  isDelivery, 
-  deliveryFee, 
-  includeMileage, 
+  lat,
+  long,
+  pickup_info,
+  return_info,
+  is_delivery, 
+  delivery_fee, 
+  include_mileage, 
   price, 
   deposit
 `
@@ -194,13 +196,13 @@ export async function fetchCars(): Promise<CarWithRelations[]> {
       },
       photos: car.photos || [],
       address: car.address || "",
-      lat: car.lat,
-      long: car.long,
-      pickupInfo: car.pickupInfo || "",
-      returnInfo: car.returnInfo || "",
-      isDelivery: car.isDelivery || false,
-      deliveryFee: car.deliveryFee || 0,
-      includeMileage: car.includeMileage || 100,
+      lat: car.lat ?? null,
+      long: car.long ?? null,
+      pickupInfo: car.pickup_info || "",
+      returnInfo: car.return_info || "",
+      isDelivery: car.is_delivery || false,
+      deliveryFee: car.delivery_fee || 0,
+      includeMileage: car.include_mileage || 100,
       price: car.price || 0,
       deposit: car.deposit || 0,
     };
@@ -257,11 +259,11 @@ export async function addCar(car: NewCar): Promise<CarWithRelations[]> {
         },
       },
       address: car.address || "",
-      pickupInfo: car.pickupInfo || "",
-      returnInfo: car.returnInfo || "",
-      isDelivery: car.isDelivery || false,
-      deliveryFee: car.deliveryFee || 0,
-      includeMileage: car.includeMileage || 100,
+      pickupInfo: car.pickup_info || "",
+      returnInfo: car.return_info || "",
+      isDelivery: car.is_delivery || false,
+      deliveryFee: car.delivery_fee || 0,
+      includeMileage: car.include_mileage || 100,
       price: car.price || 0,
       deposit: car.deposit || 0,
     };

@@ -24,7 +24,8 @@ import {
 import Editor from "./editor";
 import type { Feature } from "@/types/feature";
 import { useCarContext } from "@/context/carContext";
-import type { CarUpdatePayload } from "@/types/car";
+import type { CarUpdatePayload } from "@/types/сarUpdatePayload";
+
 
 /** ВНУТРЕННИЙ формат формы — CAMEL */
 type CarFormData = {

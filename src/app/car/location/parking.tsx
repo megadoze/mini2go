@@ -181,10 +181,10 @@ function Parking() {
   };
 
   // Меняем адрес вручную
-  const handleChangeAddress = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setAddress(value);
-  };
+  // const handleChangeAddress = (e: React.ChangeEvent<HTMLInputElement>) => {
+  //   const value = e.target.value;
+  //   setAddress(value);
+  // };
 
   const handleChangeInfo = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInfo((prev) => ({ ...prev, [e.target.id]: e.target.value }));
@@ -262,7 +262,7 @@ function Parking() {
               longitude={coords.longitude}
               latitude={coords.latitude}
               draggable
-              onDragEnd={(e) => {
+              onDragEnd={async (e) => {
                 const lngLat = e.lngLat;
                 const newCoords = {
                   latitude: lngLat.lat,
@@ -271,7 +271,22 @@ function Parking() {
                   bearing: coords.bearing,
                   pitch: coords.pitch,
                 };
+
                 setLocalCoords(newCoords);
+
+                try {
+                  const addr = await fetchAddressFromCoords(
+                    lngLat.lat,
+                    lngLat.lng
+                  );
+                  if (addr) {
+                    setAddress(addr);
+                    setFullAddress(addr);
+                    setParkingAddress(addr); // ← ключевая строка
+                  }
+                } catch (err) {
+                  console.error("Failed to fetch address by pin drag", err);
+                }
               }}
             >
               <Pin />
@@ -310,10 +325,8 @@ function Parking() {
               placeholder="Address"
               type="text"
               autoComplete="address-line1"
-              onChange={(e) => {
-                handleChangeAddress(e);
-              }}
-              value={address}
+              value={parkingAddress}
+              onChange={(e) => setParkingAddress(e.target.value)}
               className="outline-none pl-2 py-2 w-full border border-gray-300 hover:border-gray-400 focus:border-green-300"
             />
           </AddressAutofillWrapper>

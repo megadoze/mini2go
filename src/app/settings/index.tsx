@@ -8,6 +8,7 @@ import {
   upsertGlobalSettings,
 } from "@/services/settings.service";
 import { toast } from "sonner";
+import type { AppSettingsUpdatePayload } from "@/types/appSettingsUpdatePayload";
 
 // ===== Helpers =====
 const minutesToLabel = (m: number) => {
@@ -152,32 +153,19 @@ export default function SettingsGlobal() {
       return;
     }
 
-    const payload: Partial<AppSettings> & {
-      currency?: string;
-      open_time: number;
-      close_time: number;
-      min_rent_period: number;
-      max_rent_period: number;
-      interval_between_bookings: number;
-      age_renters: number;
-      min_driver_license: number;
-      is_instant_booking: boolean;
-      is_smoking: boolean;
-      is_pets: boolean;
-      is_abroad: boolean;
-    } = {
+    const payload: AppSettingsUpdatePayload = {
       currency,
-      open_time: openTime,
-      close_time: closeTime,
-      min_rent_period: minDays,
-      max_rent_period: maxDays,
-      interval_between_bookings: Number(form.values.bufferMinutes),
-      age_renters: Number(form.values.minAge),
-      min_driver_license: Number(form.values.minLicenseYears),
-      is_instant_booking: instantBooking,
-      is_smoking: allowSmoking,
-      is_pets: allowPets,
-      is_abroad: allowAbroad,
+      openTime,
+      closeTime,
+      minRentPeriod: minDays,
+      maxRentPeriod: maxDays,
+      intervalBetweenBookings: Number(form.values.bufferMinutes),
+      ageRenters: Number(form.values.minAge),
+      minDriverLicense: Number(form.values.minLicenseYears),
+      isInstantBooking: instantBooking,
+      isSmoking: allowSmoking,
+      isPets: allowPets,
+      isAbroad: allowAbroad,
     };
 
     try {
