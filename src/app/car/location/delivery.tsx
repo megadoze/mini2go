@@ -1,0 +1,156 @@
+import { useMemo, useState } from "react";
+import { motion, type Transition } from "framer-motion";
+import { useNavigate } from "react-router-dom";
+import { useCarContext } from "@/context/carContext";
+import { updateCar } from "@/services/car.service";
+import { toast } from "sonner";
+import { NativeSelect } from "@mantine/core";
+import { optionsDeliveryFee } from "@/constants/carOptions";
+
+const Delivery = () => {
+  const { car, setIsDelivery, setDeliveryFee, isDelivery, deliveryFee } =
+    useCarContext();
+
+  const navigate = useNavigate();
+
+  const [deliveryState, setDeliveryState] = useState(isDelivery ?? false);
+  const [fee, setFee] = useState<number>(deliveryFee ?? 0);
+  const [saved, setSaved] = useState(false);
+
+  const spring: Transition = {
+    type: "spring",
+    stiffness: 700,
+    damping: 30,
+  };
+
+  const isChanged = useMemo(() => {
+    return deliveryState !== isDelivery || fee !== deliveryFee;
+  }, [deliveryState, fee, deliveryFee, isDelivery]);
+
+  if (!car) return null;
+  const carId = car.id;
+
+  const handleSwitch = () => {
+    setDeliveryState(!deliveryState);
+  };
+
+  const handleChangeDeliveryFee = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setFee(Number(e.target.value));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    try {
+      await updateCar(carId, {
+        isDelivery: deliveryState,
+        deliveryFee: Number(fee),
+      });
+
+      setIsDelivery(deliveryState);
+      setDeliveryFee(fee);
+
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+      toast.success("Location saved successfully!");
+    } catch (error) {
+      console.error(error);
+      toast.error("Something went wrong while saving!");
+    }
+  };
+
+  return (
+    <div className="mb-4 w-full xl:max-w-2xl">
+      <div className="font-semibold text-2xl text-gray-800">
+        Location & delivery
+      </div>
+      <div className="border-b border-gray-100 mt-5 shadow-sm"></div>
+
+      <div className="mt-5">
+        <p className="text-lg font-medium text-gray-800">Delivery</p>
+        <p className="mt-2 text-gray-600">
+          Offering delivery is a great way to promote your car on search results
+          and makes renting cars even more convenient for our members.
+        </p>
+        <div
+          className={`${
+            deliveryState ? "border-green-200 bg-green-50/40" : ""
+          } flex justify-between items-center mt-8 rounded-2xl border bg-gray-50 py-5 px-6`}
+        >
+          <p
+            className={`${
+              deliveryState ? "text-green-500" : ""
+            } text-lg text-gray-500`}
+          >
+            Enable delivery
+          </p>
+          <div
+            // data-ison={isSelected}
+            className={`${
+              deliveryState
+                ? "bg-green-400 justify-end"
+                : "justify-start bg-gray-300"
+            } cursor-pointer w-16 h-10 flex items-center rounded-full p-1`}
+            onClick={() => handleSwitch()}
+          >
+            <motion.div
+              layout
+              transition={spring}
+              className="bg-white w-8 h-8 rounded-full shadow-md"
+            />
+          </div>
+        </div>
+        <div className="mt-8">
+          <div className="flex flex-col">
+            <p className=" text-sm mb-1">Delivery fee</p>
+            <div className="flex  ">
+              <NativeSelect
+                leftSection={"$"}
+                value={fee}
+                onChange={(data) => handleChangeDeliveryFee(data)}
+                data={optionsDeliveryFee}
+                disabled={!deliveryState}
+                styles={{
+                  input: {
+                    color: "black",
+                    width: "180px",
+                  },
+                }}
+              />
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              includes pickup & return
+            </p>
+          </div>
+        </div>
+        <div className="mt-8 text-right">
+          <button
+            type="button"
+            className={`border-gray-300 border rounded-md px-6 py-2 mr-2`}
+            onClick={() => navigate(-1)}
+          >
+            Back
+          </button>
+          <button
+            className={`${
+              isChanged
+                ? "border-green-300"
+                : "border-gray-300 cursor-not-allowed"
+            } border rounded-md px-8 py-2`}
+            disabled={!isChanged}
+            onClick={handleSubmit}
+          >
+            Save
+          </button>
+          {saved && (
+            <span className="text-green-500 font-medium text-sm animate-fade-in pl-2">
+              ✓ Saved
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default Delivery;

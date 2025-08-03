@@ -1,0 +1,453 @@
+import { supabase } from "@/lib/supabase";
+import type { Brand } from "@/types/brand";
+import type { Car } from "@/types/car";
+import type { CarExtraWithMeta } from "@/types/carExtra";
+import type { CarWithRelations } from "@/types/carWithRelations";
+import type { Extra } from "@/types/extra";
+import type { Feature } from "@/types/feature";
+import type { RawCar } from "@/types/rawCar";
+import type { CarUpdatePayload } from "@/types/сarUpdatePayload";
+
+const carCache = new Map<string, any>();
+
+function toCamelCar(raw: any) {
+  const model = Array.isArray(raw.model) ? raw.model[0] : raw.model;
+  const brands = model
+    ? Array.isArray(model.brands)
+      ? model.brands[0]
+      : model.brands
+    : null;
+  const location = Array.isArray(raw.location) ? raw.location[0] : raw.location;
+
+  return {
+    id: raw.id,
+    vin: raw.vin ?? null,
+    year: raw.year != null ? Number(raw.year) : null,
+    licensePlate: raw.license_plate ?? raw.licensePlate ?? null,
+    fuelType: raw.fuel_type ?? raw.fuelType ?? null,
+    transmission: raw.transmission ?? null,
+    seats: raw.seats != null ? Number(raw.seats) : null,
+    engineCapacity: raw.engine_capacity ?? raw.engineCapacity ?? null,
+    bodyType: raw.body_type ?? raw.bodyType ?? null,
+    driveType: raw.drive_type ?? raw.driveType ?? null,
+    color: raw.color ?? null,
+    doors: raw.doors != null ? Number(raw.doors) : null,
+
+    model: model
+      ? { id: model.id, name: model.name, brand_id: model.brand_id, brands }
+      : null,
+    location: location ?? null,
+
+    address: raw.address ?? "",
+    lat: raw.lat ?? raw.latitude ?? null,
+    long: raw.long ?? raw.longitude ?? null,
+    pickupInfo: raw.pickupInfo ?? raw.pickup_info ?? "",
+    returnInfo: raw.returnInfo ?? raw.return_info ?? "",
+
+    isDelivery: raw.isDelivery ?? raw.is_delivery ?? false,
+    deliveryFee: raw.deliveryFee ?? raw.delivery_fee ?? 0,
+    includeMileage: raw.includeMileage ?? raw.include_mileage ?? 0,
+
+    price: raw.price ?? null,
+    deposit: raw.deposit ?? null,
+
+    currency: raw.currency ?? null,
+    openTime: raw.open_time ?? raw.openTime ?? undefined,
+    closeTime: raw.close_time ?? raw.closeTime ?? undefined,
+    minRentPeriod: raw.min_rent_period ?? raw.minRentPeriod ?? undefined,
+    maxRentPeriod: raw.max_rent_period ?? raw.maxRentPeriod ?? undefined,
+    intervalBetweenBookings:
+      raw.interval_between_bookings ?? raw.intervalBetweenBookings ?? undefined,
+    ageRenters: raw.age_renters ?? raw.ageRenters ?? undefined,
+    minDriverLicense:
+      raw.min_driver_license ?? raw.minDriverLicense ?? undefined,
+    isInstantBooking:
+      raw.is_instant_booking ?? raw.isInstantBooking ?? undefined,
+    isSmoking: raw.is_smoking ?? raw.isSmoking ?? undefined,
+    isPets: raw.is_pets ?? raw.isPets ?? undefined,
+    isAbroad: raw.is_abroad ?? raw.isAbroad ?? undefined,
+
+    photos: raw.photos ?? [],
+    content: raw.content ?? "",
+    status: raw.status ?? "",
+  };
+}
+
+// Получение списка марок авто
+export async function fetchBrands(): Promise<Brand[]> {
+  const { data, error } = await supabase.from("brands").select("*");
+  if (error) throw error;
+  return data;
+}
+
+// Получение списка моделей конкретной марки авто
+export async function fetchModelsByBrand(brandId: string) {
+  const { data, error } = await supabase
+    .from("models")
+    .select("*")
+    .eq("brand_id", brandId); // ← теперь это string
+  if (error) throw error;
+  return data;
+}
+
+// Получение списка авто
+export async function fetchCars(): Promise<CarWithRelations[]> {
+  const { data } = await supabase
+    .from("cars")
+    .select(
+      `
+  id,
+  vin,
+  model_id,
+  year,
+  license_plate,
+  created_at,
+  location_id,
+  models(name, brands(name)),
+  locations(name, countries(name)),
+  photos,
+  address,
+  isDelivery, 
+  deliveryFee, 
+  includeMileage, 
+  price, 
+  deposit
+`
+    )
+    .throwOnError();
+
+  if (!data) return [];
+
+  return (data as unknown as RawCar[]).map((car): CarWithRelations => {
+    const modelArray = car.models;
+    const model = Array.isArray(modelArray) ? modelArray[0] : modelArray;
+
+    const brandArray = model?.brands;
+    const brand = Array.isArray(brandArray) ? brandArray[0] : brandArray;
+
+    const locationArr = car.locations;
+    const location = Array.isArray(locationArr) ? locationArr[0] : locationArr;
+
+    const countryArr = location?.countries;
+    const country = Array.isArray(countryArr) ? countryArr[0] : countryArr;
+
+    return {
+      id: car.id,
+      vin: car.vin,
+      year: Number(car.year),
+      licensePlate: car.license_plate,
+      model_id: car.model_id,
+      created_at: car.created_at,
+      models: {
+        name: model?.name || "—",
+        brands: {
+          name: brand?.name || "—",
+        },
+      },
+      locations: {
+        name: location?.name || "-",
+        countries: {
+          name: country?.name || "-",
+        },
+      },
+      photos: car.photos || [],
+      address: car.address || "",
+      lat: car.lat,
+      long: car.long,
+      pickupInfo: car.pickupInfo || "",
+      returnInfo: car.returnInfo || "",
+      isDelivery: car.isDelivery || false,
+      deliveryFee: car.deliveryFee || 0,
+      includeMileage: car.includeMileage || 100,
+      price: car.price || 0,
+      deposit: car.deposit || 0,
+    };
+  });
+}
+
+export type NewCar = Omit<Car, "id" | "created_at">;
+
+// Добавление нового авто
+export async function addCar(car: NewCar): Promise<CarWithRelations[]> {
+  const { data, error } = await supabase.from("cars").insert(car).select(`
+      id,
+      vin,
+      year,
+      created_at,
+      model_id,
+      location_id,
+      models(name, brands(name)),
+      locations(name, countries(name))
+    `);
+
+  if (error) throw error;
+  if (!data) return [];
+
+  return (data as RawCar[]).map((car): CarWithRelations => {
+    const model = Array.isArray(car.models) ? car.models[0] : car.models;
+    const brand = Array.isArray(model?.brands)
+      ? model.brands[0]
+      : model?.brands;
+
+    const location = Array.isArray(car.locations)
+      ? car.locations[0]
+      : car.locations;
+    const country = Array.isArray(location?.countries)
+      ? location.countries[0]
+      : location?.countries;
+
+    return {
+      id: car.id,
+      vin: car.vin,
+      year: Number(car.year),
+      model_id: car.model_id,
+      location_id: car.location_id ?? null,
+      created_at: car.created_at,
+      models: {
+        name: model?.name || "—",
+        brands: {
+          name: brand?.name || "—",
+        },
+      },
+      locations: {
+        name: location?.name || "—",
+        countries: {
+          name: country?.name || "—",
+        },
+      },
+      address: car.address || "",
+      pickupInfo: car.pickupInfo || "",
+      returnInfo: car.returnInfo || "",
+      isDelivery: car.isDelivery || false,
+      deliveryFee: car.deliveryFee || 0,
+      includeMileage: car.includeMileage || 100,
+      price: car.price || 0,
+      deposit: car.deposit || 0,
+    };
+  });
+}
+
+export async function fetchCarById(id: string) {
+  if (carCache.has(id)) return carCache.get(id);
+
+  const { data, error } = await supabase
+    .from("cars")
+    .select(
+      `
+      *,
+      model:models(id, name, brand_id, brands(*)),
+      location:locations(*, country_id)
+    `
+    )
+    .eq("id", id)
+    .single();
+
+  if (error) throw error;
+
+  const camel = toCamelCar(data);
+  carCache.set(id, camel);
+  return camel;
+}
+
+//Удаление авто
+export async function deleteCar(car: CarWithRelations) {
+  const { error } = await supabase.from("cars").delete().eq("id", car.id);
+
+  if (error) {
+    throw new Error("Ошибка при удалении автомобиля: " + error.message);
+  }
+}
+
+// Обновление данных авто
+export async function updateCar(id: string, data: CarUpdatePayload) {
+  const { error } = await supabase.from("cars").update(data).eq("id", id);
+  if (error) throw error;
+  carCache.delete(id); // ♻️ важная строка
+}
+
+// Загрузка фото авто
+export async function uploadCarPhotos(files: File[], carId: string) {
+  const uploadedUrls: string[] = [];
+
+  for (const file of files) {
+    if (!file || !(file instanceof File)) {
+      console.error("Некорректный файл:", file);
+      throw new Error("Некорректный файл для загрузки");
+    }
+
+    const fileExt = file.name.split(".").pop();
+    const filePath = `cars/${carId}/${Date.now()}-${Math.random()
+      .toString(36)
+      .slice(2, 10)}.${fileExt}`;
+
+    const { error } = await supabase.storage
+      .from("car-photos")
+      .upload(filePath, file);
+
+    if (error) {
+      console.error("Ошибка Supabase Storage:", error);
+      throw new Error("Ошибка при загрузке изображения");
+    }
+
+    const { data: publicUrlData } = supabase.storage
+      .from("car-photos")
+      .getPublicUrl(filePath);
+
+    if (publicUrlData?.publicUrl) {
+      uploadedUrls.push(publicUrlData.publicUrl);
+    }
+  }
+
+  return uploadedUrls;
+}
+
+// Обновление массива photos у авто
+export async function updateCarPhotos(carId: string, photos: string[]) {
+  const { error } = await supabase
+    .from("cars")
+    .update({ photos })
+    .eq("id", carId);
+  if (error) throw error;
+  carCache.delete(carId); // ♻️
+}
+
+// Получение всех доступных опций авто
+export async function fetchFeatures(): Promise<Feature[]> {
+  const { data, error } = await supabase.from("features").select("*");
+
+  if (error) {
+    console.error("Ошибка при загрузке фич:", error);
+    throw error;
+  }
+
+  return data ?? [];
+}
+
+// Загрузка опций конретного авто
+export async function fetchCarFeatures(carId: string): Promise<string[]> {
+  const { data, error } = await supabase
+    .from("car_features")
+    .select("feature_id")
+    .eq("car_id", carId);
+
+  if (error) throw error;
+
+  return data.map((item) => item.feature_id);
+}
+
+// Обновление опций авто
+export async function updateCarFeatures(carId: string, featureIds: string[]) {
+  // Удаляем все старые связи
+  const { error: deleteError } = await supabase
+    .from("car_features")
+    .delete()
+    .eq("car_id", carId);
+
+  if (deleteError) throw deleteError;
+
+  // Добавляем новые связи
+  const inserts = featureIds.map((featureId) => ({
+    car_id: carId,
+    feature_id: featureId,
+  }));
+
+  const { error: insertError } = await supabase
+    .from("car_features")
+    .insert(inserts);
+
+  if (insertError) throw insertError;
+}
+
+// Получение всех extras
+export async function fetchExtras(): Promise<Extra[]> {
+  const { data, error } = await supabase.from("extras").select("*");
+
+  if (error) {
+    console.error("Ошибка при загрузке фич:", error);
+    throw error;
+  }
+
+  return data ?? [];
+}
+
+type ExtraDetails = {
+  id: string;
+  name: string;
+  description: string;
+  price_type: "per_day" | "per_rental" | "per_unit";
+  is_active: boolean;
+};
+
+// Получение extras авто
+export async function fetchCarExtras(
+  carId: string
+): Promise<CarExtraWithMeta[]> {
+  const { data, error } = await supabase
+    .from("car_extras")
+    .select(
+      `
+      extra_id,
+      price,
+      extras (
+        id,
+        name,
+        description,
+        price_type,
+        is_active
+      )
+    `
+    )
+    .eq("car_id", carId);
+
+  if (error || !data) throw error ?? new Error("No data");
+
+  const result: CarExtraWithMeta[] = data.map((item) => {
+    const extra: ExtraDetails = Array.isArray(item.extras)
+      ? (item.extras[0] as ExtraDetails)
+      : (item.extras as ExtraDetails);
+
+    return {
+      extra_id: item.extra_id as string,
+      price: Number(item.price),
+      is_available: true,
+      meta: {
+        id: extra.id,
+        name: extra.name,
+        description: extra.description,
+        price_type: extra.price_type,
+        is_active: extra.is_active,
+      },
+    };
+  });
+
+  return result;
+}
+
+// Обновляем авто с extras
+export async function upsertCarExtra({
+  car_id,
+  extra_id,
+  price,
+  is_available,
+}: {
+  car_id: string;
+  extra_id: string;
+  price: number;
+  is_available: boolean;
+}) {
+  if (!is_available) {
+    const { error } = await supabase
+      .from("car_extras")
+      .delete()
+      .eq("car_id", car_id)
+      .eq("extra_id", extra_id);
+    if (error) throw error;
+    carCache.delete(car_id); // ♻️
+    return;
+  }
+  const { error } = await supabase
+    .from("car_extras")
+    .upsert({ car_id, extra_id, price }, { onConflict: "car_id,extra_id" });
+  if (error) throw error;
+  carCache.delete(car_id); // ♻️
+}
