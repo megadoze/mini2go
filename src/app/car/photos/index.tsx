@@ -61,15 +61,15 @@ function SortablePhoto({
       style={style}
       {...attributes}
       {...listeners}
-      className="draggable-photo select-none"
+      className=" select-none"
       onContextMenu={(e) => e.preventDefault()}
-      onTouchStart={(e) => {
-        if (e.touches.length > 1) {
-          e.preventDefault(); // pinch
-        }
-      }}
-      onTouchEnd={(e) => e.preventDefault()}
-      onTouchMove={(e) => e.preventDefault()}
+      // onTouchStart={(e) => {
+      //   if (e.touches.length > 1) {
+      //     e.preventDefault(); // pinch
+      //   }
+      // }}
+      // onTouchEnd={(e) => e.preventDefault()}
+      // onTouchMove={(e) => e.preventDefault()}
     >
       <Image
         src={photo.url}
@@ -79,7 +79,7 @@ function SortablePhoto({
         draggable={false}
         onDragStart={(e) => e.preventDefault()}
         onContextMenu={(e) => e.preventDefault()}
-        className="select-none pointer-events-none"
+        className=" pointer-events-none"
       />
 
       <button

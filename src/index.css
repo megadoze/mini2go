@@ -6,12 +6,12 @@ img {
   -webkit-touch-callout: none;
   -webkit-user-select: none;
   user-select: none;
-  touch-action: none;
+  touch-action: manipulation;
 }
 
-.draggable-photo {
+/* .draggable-photo {
   -webkit-touch-callout: none;
   -webkit-user-select: none;
   user-select: none;
   touch-action: manipulation;
-}
+} */
