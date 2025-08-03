@@ -1,9 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import {
-  uploadCarPhotos,
-  updateCarPhotos,
-} from "@/services/car.service";
+import { uploadCarPhotos, updateCarPhotos } from "@/services/car.service";
 import { toast } from "sonner";
 import { Dropzone, IMAGE_MIME_TYPE } from "@mantine/dropzone";
 import { Image, SimpleGrid, Text, Button, Modal, Group } from "@mantine/core";
@@ -13,6 +10,7 @@ import {
   MouseSensor,
   useSensor,
   useSensors,
+  TouchSensor,
 } from "@dnd-kit/core";
 import {
   arrayMove,
@@ -84,7 +82,15 @@ export default function Photos() {
   const [loading, setLoading] = useState(false);
   const [photoToDelete, setPhotoToDelete] = useState<PhotoItem | null>(null);
 
-  const sensors = useSensors(useSensor(MouseSensor));
+  const sensors = useSensors(
+    useSensor(MouseSensor),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 250, // чтобы не срабатывало случайно при скролле
+        tolerance: 5,
+      },
+    })
+  );
 
   useEffect(() => {
     if (!id) return;
