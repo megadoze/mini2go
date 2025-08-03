@@ -56,16 +56,22 @@ function SortablePhoto({
   };
 
   return (
-    <div ref={setNodeRef} style={style} {...attributes}>
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      className="select-none touch-none" // Tailwind-классы для отключения выделения и жестов
+      onContextMenu={(e) => e.preventDefault()}
+    >
       <div {...listeners}>
         <Image
           src={photo.url}
-          h="140"
           radius="md"
+          h="140"
           alt={`photo-${index}`}
-          onContextMenu={(e) => e.preventDefault()}
-          onDragStart={(e) => e.preventDefault()}
           draggable={false}
+          onDragStart={(e) => e.preventDefault()}
+          onContextMenu={(e) => e.preventDefault()}
           className="select-none touch-none"
         />
       </div>
