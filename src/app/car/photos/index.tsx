@@ -60,21 +60,28 @@ function SortablePhoto({
       ref={setNodeRef}
       style={style}
       {...attributes}
-      className="select-none touch-none" // Tailwind-классы для отключения выделения и жестов
+      {...listeners}
+      className="draggable-photo select-none"
       onContextMenu={(e) => e.preventDefault()}
+      onTouchStart={(e) => {
+        if (e.touches.length > 1) {
+          e.preventDefault(); // pinch
+        }
+      }}
+      onTouchEnd={(e) => e.preventDefault()}
+      onTouchMove={(e) => e.preventDefault()}
     >
-      <div {...listeners}>
-        <Image
-          src={photo.url}
-          radius="md"
-          h="140"
-          alt={`photo-${index}`}
-          draggable={false}
-          onDragStart={(e) => e.preventDefault()}
-          onContextMenu={(e) => e.preventDefault()}
-          className="select-none touch-none"
-        />
-      </div>
+      <Image
+        src={photo.url}
+        radius="md"
+        h="140"
+        alt={`photo-${index}`}
+        draggable={false}
+        onDragStart={(e) => e.preventDefault()}
+        onContextMenu={(e) => e.preventDefault()}
+        className="select-none pointer-events-none"
+      />
+
       <button
         type="button"
         onClick={(e) => {
