@@ -58,7 +58,16 @@ function SortablePhoto({
   return (
     <div ref={setNodeRef} style={style} {...attributes}>
       <div {...listeners}>
-        <Image src={photo.url} radius="md" h="140" alt={`photo-${index}`} />
+        <Image
+          src={photo.url}
+          h="140"
+          radius="md"
+          alt={`photo-${index}`}
+          onContextMenu={(e) => e.preventDefault()}
+          onDragStart={(e) => e.preventDefault()}
+          draggable={false}
+          className="select-none touch-none"
+        />
       </div>
       <button
         type="button"
