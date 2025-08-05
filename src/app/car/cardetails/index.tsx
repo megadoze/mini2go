@@ -233,9 +233,8 @@ export default function CarDetails() {
       <div className="border-b border-gray-100 mt-5 shadow-sm"></div>
       <div className="flex justify-between items-center mt-5">
         <p className="text-lg font-medium text-gray-800">Your car</p>
-        <p className=" text-sm text-gray-600  bg-gray-50/80 px-1">{form.vin}</p>
+        <p className=" text-sm text-gray-500">{form.vin}</p>
       </div>
-
       <div className="grid grid-cols-2 gap-x-4 md:gap-x-5 gap-y-4 mt-5">
         <Input.Wrapper label="Mark">
           <Input
