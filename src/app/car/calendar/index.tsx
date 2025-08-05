@@ -329,7 +329,7 @@ export default function Calendar() {
       )}
 
       {!selectedBlockId && (
-        <div className="mt-4 flex justify-end gap-4">
+        <div className="mt-4 flex justify-end gap-2">
           {(selectedRange.start || selectedRange.end) && (
             <button
               className="px-4 py-2 border rounded text-sm"
@@ -356,13 +356,20 @@ export default function Calendar() {
             {format(parseISO(selectedBlock.start_at), "dd MMM yyyy, HH:mm")} →{" "}
             {format(parseISO(selectedBlock.end_at), "dd MMM yyyy, HH:mm")}
           </p>
-
-          <button
-            onClick={() => handleRemoveBlock(selectedBlock.id)}
-            className="mt-2 text-red-600 text-sm hover:underline"
-          >
-            Remove
-          </button>
+          <div className="flex justify-end items-center gap-2 mt-2 ">
+            <button
+              className="px-2 py-2 border rounded text-sm"
+              onClick={() => setSelectedBlockId(null)}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => handleRemoveBlock(selectedBlock.id)}
+              className="px-2 py-2 border rounded text-red-600 text-sm"
+            >
+              Remove
+            </button>
+          </div>
         </div>
       )}
     </div>
