@@ -26,7 +26,6 @@ import type { Feature } from "@/types/feature";
 import { useCarContext } from "@/context/carContext";
 import type { CarUpdatePayload } from "@/types/сarUpdatePayload";
 
-
 /** ВНУТРЕННИЙ формат формы — CAMEL */
 type CarFormData = {
   vin: string;
@@ -232,8 +231,11 @@ export default function CarDetails() {
     <div className="mb-4 w-full xl:max-w-2xl">
       <h1 className="font-openSans text-2xl font-bold">Car details</h1>
       <div className="border-b border-gray-100 mt-5 shadow-sm"></div>
+      <div className="flex justify-between items-center mt-5">
+        <p className="text-lg font-medium text-gray-800">Your car</p>
+        <p className=" text-sm text-gray-600  bg-gray-50/80 px-1">{form.vin}</p>
+      </div>
 
-      <p className="text-lg font-medium text-gray-800 mt-5">Your car</p>
       <div className="grid grid-cols-2 gap-x-4 md:gap-x-5 gap-y-4 mt-5">
         <Input.Wrapper label="Mark">
           <Input
@@ -283,14 +285,14 @@ export default function CarDetails() {
           data={transmissions}
         />
 
-        <Input.Wrapper label="VIN">
+        {/* <Input.Wrapper label="VIN">
           <Input
             value={form.vin}
             onChange={(e) => handleChange("vin", e.target.value)}
             disabled
             styles={{ input: { backgroundColor: "#f3f4f6", color: "black" } }}
           />
-        </Input.Wrapper>
+        </Input.Wrapper> */}
       </div>
 
       <p className="text-lg font-medium text-gray-800 mt-10">
