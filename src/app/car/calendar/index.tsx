@@ -267,9 +267,12 @@ export default function Calendar() {
             return false;
           })();
 
+          const isHover = hoveredDate && isSameDay(hoveredDate, date);
+
           const className = [
             "aspect-square flex items-center justify-center border-r border-b border-gray-200",
             selected ? " bg-lime-100 " : "",
+            isHover ? " bg-gray-50 " : "",
             inRange || isHoveredRange ? "bg-lime-100" : "",
             isBookedDay ? "bg-green-200" : "",
             isBlockedDay ? "bg-lime-200/90" : "",
@@ -287,6 +290,7 @@ export default function Calendar() {
               onClick={() => {
                 if (!isDisabled) handleSelect(date);
               }}
+              onMouseOver={onDayHover}
               onMouseEnter={onDayHover}
               onTouchStart={onDayHover}
               onMouseLeave={() => setHoveredDate(null)}
