@@ -329,14 +329,7 @@ export default function Calendar() {
       )}
 
       {!selectedBlockId && (
-        <div className="mt-4 flex gap-4">
-          <button
-            disabled={!selectedRange.start || !selectedRange.end}
-            onClick={handleBlock}
-            className="px-4 py-2 border rounded text-sm disabled:opacity-50"
-          >
-            Block selected period
-          </button>
+        <div className="mt-4 flex justify-end gap-4">
           {(selectedRange.start || selectedRange.end) && (
             <button
               className="px-4 py-2 border rounded text-sm"
@@ -345,6 +338,13 @@ export default function Calendar() {
               Cancel
             </button>
           )}
+          <button
+            disabled={!selectedRange.start || !selectedRange.end}
+            onClick={handleBlock}
+            className="px-4 py-2 border rounded text-sm disabled:opacity-50"
+          >
+            Block selected period
+          </button>
         </div>
       )}
 
