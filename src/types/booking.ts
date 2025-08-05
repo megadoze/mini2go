@@ -1,12 +1,12 @@
 export type Booking = {
   id: string;
-  carId: string;
-  userId: string;
-  startDate: string;
-  endDate: string;
-  startTime: { value: number; label: string };
-  endTime: { value: number; label: string };
+  user_id?: string | null;
+  car_id: string | null;
+  start_at: string; // ISO-строка
+  end_at: string; // ISO-строка
+  price_per_day?: number | null;
+  price_total?: number | null;
+  status?: string | null;
   mark: "booking" | "block";
-  status: { value: string; label: string; isActive: boolean };
-  createdAt?: string;
+  created_at?: string | null;
 };

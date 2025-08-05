@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Select } from "@mantine/core";
 import {
   eachDayOfInterval,
@@ -14,18 +14,12 @@ import {
   isWithinInterval,
 } from "date-fns";
 import { useCarContext } from "@/context/carContext";
-
-export type Booking = {
-  id: string;
-  carId: string;
-  userId: string;
-  startDate: string;
-  endDate: string;
-  startTime: { value: number; label: string };
-  endTime: { value: number; label: string };
-  mark: "booking" | "block";
-  status: { value: string; label: string; isActive: boolean };
-};
+import type { Booking } from "@/types/booking";
+import {
+  createBooking,
+  deleteBooking,
+  fetchBookingsByCarId,
+} from "./calendar.service";
 
 const TIME_OPTIONS = Array.from({ length: 24 * 2 }, (_, i) => {
   const hours = Math.floor((i * 30) / 60);
@@ -59,14 +53,21 @@ export default function Calendar() {
     [allBookings]
   );
 
+  useEffect(() => {
+    if (!carId) return;
+    fetchBookingsByCarId(carId).then((bookings) => {
+      setCar((prev) => ({ ...prev, bookings }));
+    });
+  }, [carId]);
+
   const bookedDays = useMemo(
     () =>
       allBookings
-        .filter((b) => b.mark === "booking" && b.status?.isActive)
+        .filter((b) => b.mark === "booking" && b.status === "active")
         .flatMap((b) =>
           eachDayOfInterval({
-            start: parseISO(b.startDate),
-            end: parseISO(b.endDate),
+            start: parseISO(b.start_at),
+            end: parseISO(b.end_at),
           })
         ),
     [allBookings]
@@ -76,8 +77,8 @@ export default function Calendar() {
     () =>
       blockedBookings.flatMap((b) =>
         eachDayOfInterval({
-          start: parseISO(b.startDate),
-          end: parseISO(b.endDate),
+          start: parseISO(b.start_at),
+          end: parseISO(b.end_at),
         })
       ),
     [blockedBookings]
@@ -87,12 +88,15 @@ export default function Calendar() {
   const isBlocked = (date: Date) => blockedDays.some((d) => isSameDay(d, date));
 
   const findBlockByDate = (date: Date) =>
-    blockedBookings.find((b) =>
-      isWithinInterval(date, {
-        start: parseISO(b.startDate),
-        end: parseISO(b.endDate),
-      })
-    );
+    blockedBookings.find((b) => {
+      const start = parseISO(b.start_at);
+      const end = parseISO(b.end_at);
+      return (
+        isSameDay(date, start) ||
+        isSameDay(date, end) ||
+        isWithinInterval(date, { start, end })
+      );
+    });
 
   const handleSelect = (date: Date) => {
     const block = findBlockByDate(date);
@@ -127,31 +131,41 @@ export default function Calendar() {
     }
   };
 
-  const handleBlock = () => {
-    if (!selectedRange.start || !selectedRange.end) return;
+  const handleBlock = async () => {
+    if (!selectedRange.start || !selectedRange.end || !carId) return;
 
-    if (!carId) return null;
+    const start = new Date(selectedRange.start);
+    const end = new Date(selectedRange.end);
 
-    const newBlock: Booking = {
-      id: crypto.randomUUID(),
-      carId: carId,
-      userId: "host",
-      startDate: selectedRange.start.toISOString(),
-      endDate: selectedRange.end.toISOString(),
-      startTime: TIME_OPTIONS.find((t) => t.value.toString() === startTime)!,
-      endTime: TIME_OPTIONS.find((t) => t.value.toString() === endTime)!,
+    const startHours = Math.floor(Number(startTime) / 100);
+    const startMinutes = Number(startTime) % 100;
+    start.setHours(startHours, startMinutes);
+
+    const endHours = Math.floor(Number(endTime) / 100);
+    const endMinutes = Number(endTime) % 100;
+    end.setHours(endHours, endMinutes);
+
+    const newBlock: Omit<Booking, "id"> = {
+      car_id: carId,
+      start_at: start.toISOString(),
+      end_at: end.toISOString(),
       mark: "block",
-      status: { value: "block", label: "Blocked", isActive: true },
+      status: "block",
+      user_id: null,
     };
 
-    setCar({ ...car, bookings: [...(car?.bookings ?? []), newBlock] });
-    setSelectedRange({ start: null, end: null });
-    setHoveredDate(null);
-    setStartTime("0");
-    setEndTime("2330");
+    const result = await createBooking(newBlock);
+    if (result) {
+      setCar({ ...car, bookings: [...(car?.bookings ?? []), result] });
+      setSelectedRange({ start: null, end: null });
+      setHoveredDate(null);
+      setStartTime("0");
+      setEndTime("2330");
+    }
   };
 
-  const handleRemoveBlock = (id: string) => {
+  const handleRemoveBlock = async (id: string) => {
+    await deleteBooking(id);
     setCar({ ...car, bookings: allBookings.filter((b) => b.id !== id) });
     setSelectedBlockId(null);
   };
@@ -337,12 +351,12 @@ export default function Calendar() {
       {selectedBlock && (
         <div className="mt-6 p-4 border rounded bg-gray-50">
           <p className="text-sm font-medium">Blocked period:</p>
+
           <p className="text-sm">
-            {format(parseISO(selectedBlock.startDate), "dd MMM yyyy")} →{" "}
-            {format(parseISO(selectedBlock.endDate), "dd MMM yyyy")}
-            <br />
-            {selectedBlock.startTime.label} - {selectedBlock.endTime.label}
+            {format(parseISO(selectedBlock.start_at), "dd MMM yyyy, HH:mm")} →{" "}
+            {format(parseISO(selectedBlock.end_at), "dd MMM yyyy, HH:mm")}
           </p>
+
           <button
             onClick={() => handleRemoveBlock(selectedBlock.id)}
             className="mt-2 text-red-600 text-sm hover:underline"
