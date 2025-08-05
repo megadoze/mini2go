@@ -1,3 +1,4 @@
+import type { Booking } from "./booking";
 import type { Car } from "./car";
 
 export type CarWithModelRelations = Car & {
@@ -17,4 +18,5 @@ export type CarWithModelRelations = Car & {
   address?: {
     name: string;
   } | null;
+  bookings?: Booking[];
 };

@@ -54,7 +54,7 @@ export default function CarListView({ cars, search, onDelete }: Props) {
                 <img
                   src={car.photos[0]}
                   alt="Фото авто"
-                  className="w-32 h-20 object-cover rounded"
+                  className="w-32 h-20 object-cover rounded-md"
                 />
               ) : (
                 <div className="w-32 h-20 bg-gray-100 flex items-center justify-center">

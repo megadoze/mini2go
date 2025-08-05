@@ -117,7 +117,7 @@ export default function CarsPage() {
         <Button
           p={8}
           variant="light"
-          color="cyan"
+          color="lime"
           radius="xs"
           onClick={() => {
             setSearch("");
