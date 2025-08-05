@@ -254,7 +254,7 @@ export default function Calendar() {
           })();
 
           const className = [
-            "h-12 flex items-center justify-center border-r border-b border-gray-200",
+            "aspect-square flex items-center justify-center border-r border-b border-gray-200",
             selected ? "bg-indigo-300" : "",
             inRange || isHoveredRange ? "bg-indigo-100" : "",
             isBookedDay ? "bg-green-200" : "",
