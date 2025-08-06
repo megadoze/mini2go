@@ -72,9 +72,11 @@ export default function CarsPage() {
       </div>
       <div className="flex gap-2 items-center w-full mb-6">
         <NativeSelect
+          variant="unstyled"
           value={countryId ?? ""}
           onChange={(e) => setCountryId(e.target.value || null)}
           radius="xs"
+          className=" pl-2  border  border-gray-800"
         >
           <option>Country</option>
           {countries.map((c) => (
@@ -85,6 +87,7 @@ export default function CarsPage() {
         </NativeSelect>
 
         <NativeSelect
+          // variant="unstyled"
           data={[
             { label: "Location", value: "" },
             { label: "Santander", value: "Santander" },
@@ -92,30 +95,37 @@ export default function CarsPage() {
           ]}
           value={locationFilter}
           onChange={(e) => setLocationFilter(e.currentTarget.value)}
-          radius="xs"
+          radius="none"
           disabled={!countryId}
+          className="   border border-gray-800"
           styles={
             !countryId
               ? {
-                  input: { backgroundColor: "#f3f4f6", color: "black" },
+                  input: {
+                    backgroundColor: "#f3f4f6",
+                    color: "black",
+                    border: "0px",
+                  },
                 }
-              : undefined // 👈 а не false
+              : {
+                  input: { border: "0px" },
+                }
           }
         />
 
         <TextInput
+          variant="unstyled"
           placeholder="Поиск по марке, модели или номеру"
           value={search}
           onChange={(e) => setSearch(e.currentTarget.value)}
           radius="xs"
-          className="flex-1 md:flex-none w-80"
+          className="flex-1 md:flex-none w-80 border border-gray-800"
           leftSection={<MagnifyingGlassIcon className="size-4" />}
         />
         <Button
           p={8}
-          variant="light"
-          color="gray"
-          radius="xs"
+          variant="white"
+          color="black"
           onClick={() => {
             setSearch("");
             setCountryId("");

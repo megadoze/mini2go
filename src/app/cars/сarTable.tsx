@@ -15,7 +15,7 @@ export default function CarListView({ cars, search }: Props) {
           <NavLink
             key={car.id}
             to={`/cars/${car.id}`}
-            className="block border border-zinc-200 rounded-lg p-2 shadow-sm bg-white hover:shadow-md transition cursor-pointer relative"
+            className="block border border-gray-800 p-2 shadow-sm bg-white hover:shadow-md transition cursor-pointer relative"
           >
             <div className="flex gap-4 h-28">
               <div className="">
@@ -23,7 +23,7 @@ export default function CarListView({ cars, search }: Props) {
                   <img
                     src={car.photos[0]}
                     alt="Фото авто"
-                    className=" w-40 h-full object-cover rounded-md"
+                    className=" w-40 h-full object-cover "
                   />
                 ) : (
                   <div className="w-40 h-full bg-gray-100 rounded-md flex items-center justify-center">
