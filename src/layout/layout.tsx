@@ -2,9 +2,10 @@ import { AppShell, Burger } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { NavLink, Outlet } from "react-router-dom";
 import {
+  AdjustmentsHorizontalIcon,
+  BanknotesIcon,
+  CalendarDaysIcon,
   ChartBarSquareIcon,
-  DocumentTextIcon,
-  FireIcon,
   RocketLaunchIcon,
   UserGroupIcon,
 } from "@heroicons/react/24/outline";
@@ -23,21 +24,21 @@ export default function Layout() {
     },
     {
       to: "/bookings",
-      icon: <DocumentTextIcon className="size-5" />,
+      icon: <CalendarDaysIcon className="size-5" />,
       label: "Bookings",
       onClick: toggle,
       // count: unviewedCounts.draft,
     },
     {
       to: "/cars",
-      icon: <FireIcon className="size-5" />,
+      icon: <RocketLaunchIcon className="size-5" />,
       label: "Cars",
       onClick: toggle,
       // count: mainNews.length,
     },
     {
       to: "/finance",
-      icon: <RocketLaunchIcon className="size-5" />,
+      icon: <BanknotesIcon className="size-5" />,
       label: "Finance",
       onClick: toggle,
     },
@@ -49,7 +50,7 @@ export default function Layout() {
     },
     {
       to: "/settings",
-      icon: <UserGroupIcon className="size-5" />,
+      icon: <AdjustmentsHorizontalIcon className="size-5" />,
       label: "Settings",
       onClick: toggle,
     },

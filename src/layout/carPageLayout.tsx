@@ -3,11 +3,14 @@ import { NavLink, Outlet, useParams, useLoaderData } from "react-router-dom";
 import { AppShell, Burger } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import {
-  ChartBarSquareIcon,
-  DocumentTextIcon,
-  FireIcon,
-  RocketLaunchIcon,
-  UserGroupIcon,
+  AdjustmentsHorizontalIcon,
+  CalendarDateRangeIcon,
+  CameraIcon,
+  Cog8ToothIcon,
+  CurrencyEuroIcon,
+  MapIcon,
+  MapPinIcon,
+  SquaresPlusIcon,
 } from "@heroicons/react/24/outline";
 import UserMenu from "@/components/userMenu";
 import { CarContext } from "@/context/carContext";
@@ -172,50 +175,50 @@ export default function CarPageLayout() {
     () => [
       {
         to: "cardetails",
-        icon: <ChartBarSquareIcon className="size-5" />,
+        icon: <Cog8ToothIcon className="size-5" />,
         label: "Car Details",
         exact: true,
         onClick: toggle,
       },
       {
         to: "calendar",
-        icon: <FireIcon className="size-5" />,
+        icon: <CalendarDateRangeIcon className="size-5" />,
         label: "Calendar",
         onClick: toggle,
       },
       {
         to: "pricing",
-        icon: <RocketLaunchIcon className="size-5" />,
+        icon: <CurrencyEuroIcon className="size-5" />,
         label: "Pricing",
         onClick: toggle,
       },
       {
         to: "distance",
-        icon: <RocketLaunchIcon className="size-5" />,
+        icon: <MapIcon className="size-5" />,
         label: "Distance",
         onClick: toggle,
       },
       {
         to: "photos",
-        icon: <RocketLaunchIcon className="size-5" />,
+        icon: <CameraIcon className="size-5" />,
         label: "Photos",
         onClick: toggle,
       },
       {
         to: "extra",
-        icon: <DocumentTextIcon className="size-5" />,
+        icon: <SquaresPlusIcon className="size-5" />,
         label: "Extra",
         onClick: toggle,
       },
       {
         to: "location",
-        icon: <UserGroupIcon className="size-5" />,
+        icon: <MapPinIcon className="size-5" />,
         label: "Location & delivery",
         onClick: toggle,
       },
       {
         to: "settings",
-        icon: <UserGroupIcon className="size-5" />,
+        icon: <AdjustmentsHorizontalIcon className="size-5" />,
         label: "Booking settings",
         onClick: toggle,
       },
