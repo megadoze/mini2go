@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { deleteCar, fetchCars } from "../../services/car.service";
+import { fetchCars } from "../../services/car.service";
 import CarTable from "./сarTable";
 import type { CarWithRelations } from "@/types/carWithRelations";
 import { Badge, Button, Loader, NativeSelect, TextInput } from "@mantine/core";
@@ -53,17 +53,6 @@ export default function CarsPage() {
     navigate("/cars/add");
   };
 
-  async function handleDelete(car: CarWithRelations) {
-    try {
-      await deleteCar(car);
-      setCars((prev) => prev.filter((c) => c.id !== car.id));
-      setFiltered((prev) => prev.filter((c) => c.id !== car.id));
-    } catch (error) {
-      console.error(error);
-      alert("Не удалось удалить автомобиль");
-    }
-  }
-
   return (
     <>
       <div className="flex justify-between items-center mb-4">
@@ -105,7 +94,15 @@ export default function CarsPage() {
           onChange={(e) => setLocationFilter(e.currentTarget.value)}
           radius="xs"
           disabled={!countryId}
+          styles={
+            !countryId
+              ? {
+                  input: { backgroundColor: "#f3f4f6", color: "black" },
+                }
+              : undefined // 👈 а не false
+          }
         />
+
         <TextInput
           placeholder="Поиск по марке, модели или номеру"
           value={search}
@@ -117,7 +114,7 @@ export default function CarsPage() {
         <Button
           p={8}
           variant="light"
-          color="lime"
+          color="gray"
           radius="xs"
           onClick={() => {
             setSearch("");
@@ -134,7 +131,7 @@ export default function CarsPage() {
           <Loader size="sm" color="gray" /> Loading...
         </div>
       ) : filtered.length > 0 ? (
-        <CarTable cars={filtered} search={search} onDelete={handleDelete} />
+        <CarTable cars={filtered} search={search} />
       ) : (
         <p className="text-zinc-500 text-sm mt-10">Cars not found</p>
       )}

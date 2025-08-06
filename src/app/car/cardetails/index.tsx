@@ -4,6 +4,7 @@ import {
   fetchFeatures,
   fetchCarFeatures,
   updateCarFeatures,
+  deleteCar,
 } from "@/services/car.service";
 import {
   fuelTypes,
@@ -13,11 +14,13 @@ import {
   bodyTypes,
   driveTypes,
   doorOptions,
+  statuses,
 } from "@/constants/carOptions";
 import {
   Checkbox,
   Input,
   Loader,
+  Modal,
   NativeSelect,
   NumberInput,
 } from "@mantine/core";
@@ -25,6 +28,7 @@ import Editor from "./editor";
 import type { Feature } from "@/types/feature";
 import { useCarContext } from "@/context/carContext";
 import type { CarUpdatePayload } from "@/types/сarUpdatePayload";
+import { useNavigate } from "react-router";
 
 /** ВНУТРЕННИЙ формат формы — CAMEL */
 type CarFormData = {
@@ -109,12 +113,15 @@ function toApiPayload(form: CarFormData): CarUpdatePayload {
 }
 
 export default function CarDetails() {
+  const navigate = useNavigate();
+
   const { car, setCar } = useCarContext();
-  const carId = String((car as any)?.id ?? "");
+  const carId = car?.id;
 
   const [features, setFeatures] = useState<Feature[]>([]);
   const [selectedFeatureIds, setSelectedFeatureIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const [form, setForm] = useState<CarFormData>(() =>
     car
@@ -227,6 +234,19 @@ export default function CarDetails() {
     }
   };
 
+  async function handleDelete() {
+    try {
+      if (!carId) return null;
+      await deleteCar(carId);
+      setTimeout(() => {
+        navigate("/cars");
+      }, 2000);
+    } catch (error) {
+      console.error(error);
+      alert("Не удалось удалить автомобиль");
+    }
+  }
+
   return (
     <div className="mb-4 w-full xl:max-w-2xl">
       <h1 className="font-openSans text-2xl font-bold">Car details</h1>
@@ -283,15 +303,6 @@ export default function CarDetails() {
           onChange={(e) => handleChange("transmission", e.target.value)}
           data={transmissions}
         />
-
-        {/* <Input.Wrapper label="VIN">
-          <Input
-            value={form.vin}
-            onChange={(e) => handleChange("vin", e.target.value)}
-            disabled
-            styles={{ input: { backgroundColor: "#f3f4f6", color: "black" } }}
-          />
-        </Input.Wrapper> */}
       </div>
 
       <p className="text-lg font-medium text-gray-800 mt-10">
@@ -355,14 +366,6 @@ export default function CarDetails() {
             label: String(d),
           }))}
         />
-
-        {/* Статус, если нужно
-        <NativeSelect
-          label="Status"
-          value={form.status}
-          onChange={(e) => handleChange("status", e.target.value)}
-          data={statuses}
-        /> */}
       </div>
 
       <p className="text-lg font-medium text-gray-800 mt-10">Features</p>
@@ -396,18 +399,59 @@ export default function CarDetails() {
         onChange={(e: string | number) => handleChange("content", e)}
       />
 
-      <div className="text-right w-full">
+      <div className="mt-5 w-fit">
+        <NativeSelect
+          label="Availability"
+          value={form.status}
+          onChange={(e) => handleChange("status", e.target.value)}
+          data={statuses}
+        />
+      </div>
+
+      <div className="mt-5 flex items-center justify-between text-right w-full">
+        <button
+          onClick={(e) => {
+            e.preventDefault(); // отменяет переход
+            e.stopPropagation(); // останавливает всплытие
+            setConfirmDelete(true);
+          }}
+          className=" h-10 px-4 py-2 border rounded cursor-pointer"
+        >
+          Удалить
+        </button>
         <button
           type="button"
           onClick={handleSubmit}
           disabled={loading || !form.modelId}
-          className="w-32 h-10 bg-black text-white px-4 py-2 rounded hover:bg-gray-900 disabled:opacity-50 cursor-pointer mt-4"
+          className="w-32 h-10 bg-black text-white px-4 py-2 rounded hover:bg-gray-900 disabled:opacity-50 cursor-pointer"
         >
           <p className="flex justify-center">
             {loading ? <Loader type="dots" size="sm" /> : "Save"}
           </p>
         </button>
       </div>
+      <Modal
+        opened={confirmDelete}
+        onClose={() => setConfirmDelete(false)}
+        title="Удаление автомобиля"
+        centered
+      >
+        <p className="mb-4">Вы уверены, что хотите удалить этот автомобиль?</p>
+        <div className="flex justify-end gap-2">
+          <button
+            className="px-4 py-2 border border-zinc-300 hover:bg-zinc-100 transition"
+            onClick={() => setConfirmDelete(false)}
+          >
+            Отмена
+          </button>
+          <button
+            className="px-4 py-2 bg-red-500 text-white hover:bg-red-600 transition"
+            onClick={handleDelete}
+          >
+            Удалить
+          </button>
+        </div>
+      </Modal>
     </div>
   );
 }

@@ -451,6 +451,7 @@ export default function BookingSettingsSection() {
             searchable={false}
             disabled={useGlobalCurrency}
             {...form.getInputProps("currency")}
+            allowDeselect={false}
           />
         </div>
       </section>
@@ -486,6 +487,7 @@ export default function BookingSettingsSection() {
               searchable={false}
               disabled={useGlobalOpenTime}
               {...form.getInputProps("openTimeMin")}
+              allowDeselect={false}
             />
           </div>
 
@@ -510,6 +512,7 @@ export default function BookingSettingsSection() {
               searchable={false}
               disabled={useGlobalCloseTime}
               {...form.getInputProps("closeTimeMin")}
+              allowDeselect={false}
             />
           </div>
         </div>
@@ -545,6 +548,7 @@ export default function BookingSettingsSection() {
               searchable={false}
               disabled={useGlobalMinDays}
               {...form.getInputProps("minDays")}
+              allowDeselect={false}
             />
           </div>
 
@@ -569,6 +573,7 @@ export default function BookingSettingsSection() {
               searchable={false}
               disabled={useGlobalMaxDays}
               {...form.getInputProps("maxDays")}
+              allowDeselect={false}
             />
           </div>
         </div>
@@ -606,6 +611,7 @@ export default function BookingSettingsSection() {
               searchable={false}
               disabled={useGlobalBuffer}
               {...form.getInputProps("bufferMinutes")}
+              allowDeselect={false}
             />
           </div>
         </div>
@@ -639,6 +645,7 @@ export default function BookingSettingsSection() {
               searchable={false}
               disabled={useGlobalMinAge}
               {...form.getInputProps("minAge")}
+              allowDeselect={false}
             />
           </div>
         </div>
@@ -676,6 +683,7 @@ export default function BookingSettingsSection() {
               searchable={false}
               disabled={useGlobalLicense}
               {...form.getInputProps("minLicenseYears")}
+              allowDeselect={false}
             />
           </div>
         </div>

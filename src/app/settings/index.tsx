@@ -211,6 +211,7 @@ export default function SettingsGlobal() {
             searchable={false}
             {...form.getInputProps("currency")}
             disabled={loading /* пока грузим */}
+            allowDeselect={false}
           />
         </div>
         <p className="text-xs text-gray-500 mt-2">
@@ -237,6 +238,7 @@ export default function SettingsGlobal() {
               searchable={false}
               {...form.getInputProps("openTimeMin")}
               disabled={loading}
+              allowDeselect={false}
             />
           </div>
           <div className="w-[220px]">
@@ -248,6 +250,7 @@ export default function SettingsGlobal() {
               searchable={false}
               {...form.getInputProps("closeTimeMin")}
               disabled={loading}
+              allowDeselect={false}
             />
           </div>
         </div>
@@ -271,6 +274,7 @@ export default function SettingsGlobal() {
               searchable={false}
               {...form.getInputProps("minDays")}
               disabled={loading}
+              allowDeselect={false}
             />
           </div>
           <div className="w-[220px]">
@@ -282,6 +286,7 @@ export default function SettingsGlobal() {
               searchable={false}
               {...form.getInputProps("maxDays")}
               disabled={loading}
+              allowDeselect={false}
             />
           </div>
         </div>
@@ -305,6 +310,7 @@ export default function SettingsGlobal() {
               searchable={false}
               {...form.getInputProps("bufferMinutes")}
               disabled={loading}
+              allowDeselect={false}
             />
           </div>
         </div>
@@ -328,6 +334,7 @@ export default function SettingsGlobal() {
               searchable={false}
               {...form.getInputProps("minAge")}
               disabled={loading}
+              allowDeselect={false}
             />
           </div>
         </div>
@@ -353,6 +360,7 @@ export default function SettingsGlobal() {
               searchable={false}
               {...form.getInputProps("minLicenseYears")}
               disabled={loading}
+              allowDeselect={false}
             />
           </div>
         </div>

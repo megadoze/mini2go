@@ -4,7 +4,7 @@ export type RawCar = {
   year: number | string | null;
   license_plate: string | null;
   model_id: string;
-  created_at: string;
+  status: string;
   location_id: string;
   lat?: number;
   long?: number;

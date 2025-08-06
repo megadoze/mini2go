@@ -43,14 +43,6 @@ type CarFormData = {
   color: string;
   doors: string;
   photos: string[];
-  address: string;
-  pickupInfo: string;
-  returnInfo: string;
-  isDelivery: boolean;
-  deliveryFee: number;
-  includeMileage: number;
-  price: number;
-  deposit: number;
 };
 
 export default function AddCarPage() {
@@ -91,14 +83,6 @@ export default function AddCarPage() {
       color: "",
       doors: "",
       photos: [],
-      address: "",
-      pickupInfo: "",
-      returnInfo: "",
-      isDelivery: false,
-      deliveryFee: 0,
-      includeMileage: 100,
-      price: 0,
-      deposit: 0,
     };
   };
 
@@ -163,14 +147,6 @@ export default function AddCarPage() {
           color: car.color ?? "",
           doors: car.doors ? String(car.doors) : "",
           photos: car.photos ?? [],
-          address: car.address ?? "",
-          pickupInfo: car.pickupInfo ?? "",
-          returnInfo: car.returnInfo ?? "",
-          isDelivery: car.isDelivery ?? false,
-          deliveryFee: car.deliveryFee ?? 0,
-          includeMileage: car.includeMileage ?? 100,
-          price: car.price ?? 0,
-          deposit: car.deposit ?? 0,
         });
       } catch (e) {
         console.error("Ошибка при загрузке авто", e);
@@ -195,37 +171,26 @@ export default function AddCarPage() {
     try {
       const carPayload = {
         vin: form.vin,
-        modelId: form.model_id,
+        model_id: form.model_id,
         year: form.year ? Number(form.year) : null,
         fuel_type: form.fuel_type || null,
         transmission: form.transmission || null,
         seats: form.seats ? Number(form.seats) : null,
         license_plate: form.license_plate || null,
         location_id: form.location_id || null,
-        engine_capacity: form.engine_capacity
-          ? Number(form.engine_capacity)
-          : null,
+        engine_capacity: form.engine_capacity || null,
         status: form.status || null,
         body_type: form.body_type || null,
         drive_type: form.drive_type || null,
-        color: form.color || null,
         doors: form.doors ? Number(form.doors) : null,
         photos: [], // Пока не загружаем — сначала файл, потом URL
-        address: form.address || "",
-        pickupInfo: form.pickupInfo || "",
-        returnInfo: form.pickupInfo || "",
-        isDelivery: form.isDelivery || false,
-        deliveryFee: form.deliveryFee || 0,
-        includeMileage: form.includeMileage || 100,
-        price: form.price || 0,
-        deposit: form.deposit || 0,
       };
 
       const result = await addCar(carPayload);
       if (!result || !result[0]?.id) {
         throw new Error("Не удалось добавить авто");
       }
-      // carId = result[0].id;
+
       if (!carId) return null;
       // 1. Загружаем новые фото, если есть
       let uploadedUrls: string[] = [];

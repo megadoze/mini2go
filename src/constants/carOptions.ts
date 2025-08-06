@@ -12,7 +12,7 @@ export const bodyTypes = [
   "Минивэн",
   "Пикап",
 ] as const;
-export const statuses = ["Доступен", "Занят", "В ремонте"] as const;
+export const statuses = ["Available", "Busy", "Under repair"] as const;
 export const colors = [
   "Белый",
   "Чёрный",

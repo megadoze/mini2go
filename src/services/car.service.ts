@@ -3,6 +3,7 @@ import type { Brand } from "@/types/brand";
 import type { Car } from "@/types/car";
 import type { CarExtraWithMeta } from "@/types/carExtra";
 import type { CarWithRelations } from "@/types/carWithRelations";
+import type { CreatedCar } from "@/types/createdCar";
 import type { Extra } from "@/types/extra";
 import type { Feature } from "@/types/feature";
 import type { RawCar } from "@/types/rawCar";
@@ -146,6 +147,7 @@ export async function fetchCars(): Promise<CarWithRelations[]> {
   location_id,
   models(name, brands(name)),
   locations(name, countries(name)),
+  status,
   photos,
   address,
   lat,
@@ -194,6 +196,7 @@ export async function fetchCars(): Promise<CarWithRelations[]> {
           name: country?.name || "-",
         },
       },
+      status: car.status,
       photos: car.photos || [],
       address: car.address || "",
       lat: car.lat ?? null,
@@ -209,16 +212,23 @@ export async function fetchCars(): Promise<CarWithRelations[]> {
   });
 }
 
-export type NewCar = Omit<Car, "id" | "created_at">;
+export type NewCar = Omit<
+  Car,
+  "id" | "address" | "pickupInfo" | "returnInfo" | "created_at"
+>;
 
 // Добавление нового авто
-export async function addCar(car: NewCar): Promise<CarWithRelations[]> {
+export async function addCar(
+  car: Partial<NewCar>
+): Promise<Promise<CreatedCar[]>> {
   const { data, error } = await supabase.from("cars").insert(car).select(`
       id,
       vin,
       year,
       created_at,
       model_id,
+      status,
+      license_plate,
       location_id,
       models(name, brands(name)),
       locations(name, countries(name))
@@ -227,7 +237,7 @@ export async function addCar(car: NewCar): Promise<CarWithRelations[]> {
   if (error) throw error;
   if (!data) return [];
 
-  return (data as RawCar[]).map((car): CarWithRelations => {
+  return (data as RawCar[]).map((car): CreatedCar => {
     const model = Array.isArray(car.models) ? car.models[0] : car.models;
     const brand = Array.isArray(model?.brands)
       ? model.brands[0]
@@ -258,14 +268,6 @@ export async function addCar(car: NewCar): Promise<CarWithRelations[]> {
           name: country?.name || "—",
         },
       },
-      address: car.address || "",
-      pickupInfo: car.pickup_info || "",
-      returnInfo: car.return_info || "",
-      isDelivery: car.is_delivery || false,
-      deliveryFee: car.delivery_fee || 0,
-      includeMileage: car.include_mileage || 100,
-      price: car.price || 0,
-      deposit: car.deposit || 0,
     };
   });
 }
@@ -293,8 +295,8 @@ export async function fetchCarById(id: string) {
 }
 
 //Удаление авто
-export async function deleteCar(car: CarWithRelations) {
-  const { error } = await supabase.from("cars").delete().eq("id", car.id);
+export async function deleteCar(carId: string) {
+  const { error } = await supabase.from("cars").delete().eq("id", carId);
 
   if (error) {
     throw new Error("Ошибка при удалении автомобиля: " + error.message);
