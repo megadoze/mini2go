@@ -12,7 +12,7 @@ export const bodyTypes = [
   "Минивэн",
   "Пикап",
 ] as const;
-export const statuses = ["Available", "Busy", "Under repair"] as const;
+export const statuses = ["available", "busy", "repair"] as const;
 export const colors = [
   "Белый",
   "Чёрный",
@@ -63,4 +63,25 @@ export const optionsExtraPrices = [
   "40",
   "45",
   "50",
+];
+
+export const optionsOwnerCar = [
+  {
+    name: "me",
+    label: "I own the car",
+    description: "The car is registered for private use",
+    value: "me",
+  },
+  {
+    name: "leasing",
+    label: "I lease the car",
+    description: "The car is leased for private use",
+    value: "leasing",
+  },
+  {
+    name: "business",
+    label: "Business",
+    description: "I will rent out as a registered business",
+    value: "business",
+  },
 ];

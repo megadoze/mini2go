@@ -18,12 +18,12 @@ export default function CarListView({ cars, search }: Props) {
             className="block border border-gray-600 p-2 shadow-sm bg-white hover:shadow-md transition cursor-pointer relative"
           >
             <div className="flex gap-4 h-28">
-              <div className="">
+              <div className="  ">
                 {car.photos?.[0] ? (
                   <img
                     src={car.photos[0]}
                     alt="Фото авто"
-                    className=" w-40 h-full object-cover "
+                    className=" w-40 h-28 object-cover"
                   />
                 ) : (
                   <div className="w-40 h-full bg-gray-100 rounded-md flex items-center justify-center">
@@ -32,7 +32,7 @@ export default function CarListView({ cars, search }: Props) {
                 )}
               </div>
 
-              <div>
+              <div className=" flex-1">
                 <p className="font-bold text-base leading-5">
                   {highlightMatch(car.models?.brands?.name, search)}{" "}
                   {highlightMatch(car.models?.name, search)}
@@ -45,7 +45,7 @@ export default function CarListView({ cars, search }: Props) {
                 </p>
                 <p
                   className={`text-sm leading-6 ${
-                    car.status === "Available"
+                    car.status === "available"
                       ? "text-lime-600"
                       : "text-zinc-600"
                   }`}

@@ -3,211 +3,178 @@ import {
   fetchBrands,
   fetchModelsByBrand,
   addCar,
-  fetchCarById,
   uploadCarPhotos,
-} from "../../services/car.service";
-import type { Brand } from "@/types/brand";
-import type { Model } from "@/types/model";
-import type { Country } from "@/types/country";
-import type { Location } from "@/types/location";
+} from "@/services/car.service";
+import { supabase } from "@/lib/supabase";
 import {
   fuelTypes,
   transmissions,
-  seatOptions,
-  statuses,
-  colors,
   bodyTypes,
-  driveTypes,
-  doorOptions,
+  optionsOwnerCar,
 } from "@/constants/carOptions";
+import type { Brand } from "@/types/brand";
+import type { Model } from "@/types/model";
+import { useNavigate } from "react-router-dom";
 import {
-  fetchCountries,
-  fetchLocationsByCountry,
-} from "../../services/location.service";
-import { useNavigate, useParams } from "react-router-dom";
-import { supabase } from "@/lib/supabase";
+  Map,
+  Marker,
+  FullscreenControl,
+  ScaleControl,
+  NavigationControl,
+  GeolocateControl,
+} from "react-map-gl/mapbox";
+import Pin from "@/components/pin";
+import { AddressAutofill } from "@mapbox/search-js-react";
+import "mapbox-gl/dist/mapbox-gl.css";
+import { fetchAddressFromCoords } from "../car/location/geo.service";
+import { AnimatePresence, motion } from "framer-motion";
+import { toast } from "sonner";
+import { Checkbox } from "@mantine/core";
 
-type CarFormData = {
-  vin: string;
-  model_id: string;
-  year: string;
-  fuel_type: string;
-  transmission: string;
-  seats: string;
-  license_plate: string;
-  location_id: string;
-  engine_capacity: string;
-  status: string;
-  body_type: string;
-  drive_type: string;
-  color: string;
-  doors: string;
-  photos: string[];
+type MapboxFeature = {
+  place_type?: string[];
+  place_name?: string;
+  geometry: {
+    coordinates: [number, number];
+  };
+  properties: {
+    [key: string]: any;
+    full_address?: string;
+  };
 };
 
-export default function AddCarPage() {
+type AddressAutofillWrapperProps = {
+  accessToken: string;
+  onRetrieve?: (event: { features: MapboxFeature[]; query: string }) => void;
+  browserAutofillEnabled?: boolean;
+  children?: React.ReactNode;
+};
+
+const AddressAutofillWrapper =
+  AddressAutofill as React.FC<AddressAutofillWrapperProps>;
+
+export default function AddCarWizard() {
+  const [step, setStep] = useState(1);
   const navigate = useNavigate();
 
-  const { id } = useParams();
-  const carId = id;
-
-  const isEditMode = Boolean(id);
+  const [form, setForm] = useState({
+    owner: "",
+    vin: "",
+    brandId: "",
+    modelId: "",
+    year: "",
+    fuelType: "",
+    bodyType: "",
+    transmission: "",
+    licensePlate: "",
+    countryId: "",
+    countryName: "",
+    locationId: "",
+    cityName: "",
+    address: "",
+    lat: null as number | null,
+    long: null as number | null,
+    price: "",
+    photos: [] as File[],
+    agreed: false,
+  });
 
   const [brands, setBrands] = useState<Brand[]>([]);
   const [models, setModels] = useState<Model[]>([]);
-  const [countries, setCountries] = useState<Country[]>([]);
-  const [locations, setLocations] = useState<Location[]>([]);
-  // const [addresses, setAddresses] = useState<Address[]>([]);
-  const [photos, setPhotos] = useState<File[]>([]);
 
-  const [countryId, setCountryId] = useState<string | null>(null);
-  // const [locationId, setLocationId] = useState<string | null>(null);
-  const [brandId, setBrandId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const getDefForm = () => {
-    return {
-      vin: "",
-      model_id: "",
-      year: "",
-      fuel_type: "",
-      transmission: "",
-      seats: "",
-      license_plate: "",
-      location_id: "",
-      address_id: "",
-      engine_capacity: "",
-      status: "",
-      body_type: "",
-      drive_type: "",
-      color: "",
-      doors: "",
-      photos: [],
-    };
-  };
+  const nextStep = () => setStep((s) => Math.min(s + 1, 6));
+  const prevStep = () => setStep((s) => Math.max(s - 1, 1));
 
-  const [form, setForm] = useState<CarFormData>(getDefForm());
-
-  useEffect(() => {
-    fetchBrands().then(setBrands).catch(console.error);
-    fetchCountries().then(setCountries).catch(console.error);
-  }, []);
-
-  useEffect(() => {
-    if (brandId) {
-      fetchModelsByBrand(brandId).then(setModels).catch(console.error);
-    } else {
-      setModels([]);
-    }
-    setForm((prev) => ({ ...prev, model_id: "" }));
-  }, [brandId]);
-
-  useEffect(() => {
-    if (countryId) {
-      fetchLocationsByCountry(countryId)
-        .then(setLocations)
-        .catch(console.error);
-    } else {
-      setLocations([]);
-    }
-    setForm((prev) => ({ ...prev, location_id: "" }));
-  }, [countryId]);
-
-  useEffect(() => {
-    if (!isEditMode || !id) return;
-    setPhotos([]);
-
-    (async () => {
-      setLoading(true);
-      try {
-        const car = await fetchCarById(id);
-        setPhotos([]);
-
-        // Установим нужные зависимости для select'ов
-        setCountryId(car.location.country_id);
-        // setLocationId(car.location_id);
-        setBrandId(car.model.brand_id);
-
-        // Заполняем форму
-        setForm({
-          vin: car.vin ?? "",
-          model_id: car.model_id,
-          year: String(car.year ?? ""),
-          fuel_type: car.fuel_type ?? "",
-          transmission: car.transmission ?? "",
-          seats: car.seats ? String(car.seats) : "",
-          license_plate: car.license_plate ?? "",
-          location_id: car.location_id ?? "",
-          engine_capacity: car.engine_capacity
-            ? String(car.engine_capacity)
-            : "",
-          status: car.status ?? "",
-          body_type: car.body_type ?? "",
-          drive_type: car.drive_type ?? "",
-          color: car.color ?? "",
-          doors: car.doors ? String(car.doors) : "",
-          photos: car.photos ?? [],
-        });
-      } catch (e) {
-        console.error("Ошибка при загрузке авто", e);
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, [id, isEditMode]);
-
-  const handleChange = (field: keyof CarFormData, value: string) => {
+  const handleChange = (field: keyof typeof form, value: any) => {
     setForm((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleSubmit = async () => {
-    if (!form.model_id || !form.location_id) {
-      alert("Пожалуйста, заполните все обязательные поля");
-      return;
+  useEffect(() => {
+    fetchBrands().then(setBrands).catch(console.error);
+  }, []);
+
+  useEffect(() => {
+    if (form.brandId) {
+      fetchModelsByBrand(form.brandId).then(setModels).catch(console.error);
+    } else {
+      setModels([]);
     }
+  }, [form.brandId]);
 
+  useEffect(() => {
+    const loadInitialAddress = async () => {
+      if (!form.lat || !form.long) return;
+
+      const res = await fetchAddressFromCoords(form.lat, form.long);
+      if (!res) return;
+
+      handleChange("address", res.address);
+      handleChange("countryName", res.country);
+      handleChange("cityName", res.city);
+    };
+
+    loadInitialAddress();
+  }, [form.lat, form.long]);
+
+  useEffect(() => {
+    if (form.lat && form.long) return;
+
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude, longitude } = pos.coords;
+        handleChange("lat", latitude);
+        handleChange("long", longitude);
+      },
+      (err) => {
+        console.warn("Geolocation error", err);
+      },
+      { enableHighAccuracy: true }
+    );
+  }, []);
+
+  const handleSubmit = async () => {
     setLoading(true);
-
     try {
-      const carPayload = {
+      const payload = {
         vin: form.vin,
-        model_id: form.model_id,
+        model_id: form.modelId,
         year: form.year ? Number(form.year) : null,
-        fuel_type: form.fuel_type || null,
+        fuel_type: form.fuelType || null,
         transmission: form.transmission || null,
-        seats: form.seats ? Number(form.seats) : null,
-        license_plate: form.license_plate || null,
-        location_id: form.location_id || null,
-        engine_capacity: form.engine_capacity || null,
-        status: form.status || null,
-        body_type: form.body_type || null,
-        drive_type: form.drive_type || null,
-        doors: form.doors ? Number(form.doors) : null,
-        photos: [], // Пока не загружаем — сначала файл, потом URL
+        license_plate: form.licensePlate || null,
+        location_id: form.locationId || null,
+        address: form.address,
+        lat: form.lat,
+        long: form.long,
+        body_type: form.bodyType || null,
+        price: form.price ? Number(form.price) : 0,
+        photos: [],
+        status: "available",
       };
 
-      const result = await addCar(carPayload);
+      const result = await addCar(payload);
+
       if (!result || !result[0]?.id) {
-        throw new Error("Не удалось добавить авто");
+        throw new Error("Ошибка добавления авто");
       }
 
-      if (!carId) return null;
-      // 1. Загружаем новые фото, если есть
+      const carId = result[0].id;
+
       let uploadedUrls: string[] = [];
-      if (photos.length) {
-        uploadedUrls = await uploadCarPhotos(photos, carId);
+      if (form.photos.length) {
+        uploadedUrls = await uploadCarPhotos(form.photos, carId);
       }
 
-      // 2. Объединяем старые (из form.photos) и новые
-      const existingPhotos = Array.isArray(form.photos)
-        ? form.photos.filter((url): url is string => typeof url === "string")
-        : [];
+      if (uploadedUrls.length) {
+        await supabase
+          .from("cars")
+          .update({ photos: uploadedUrls })
+          .eq("id", carId);
+      }
 
-      const allPhotos = [...existingPhotos, ...uploadedUrls];
-
-      // 3. Обновляем поле photos
-      await supabase.from("cars").update({ photos: allPhotos }).eq("id", carId);
-
+      toast.success("Car is added!");
       navigate("/cars");
     } catch (e) {
       console.error(e);
@@ -217,250 +184,387 @@ export default function AddCarPage() {
     }
   };
 
+  const isStepValid = (s: number) => {
+    switch (s) {
+      case 1:
+        return !!form.owner;
+      case 2:
+        return (
+          !!form.vin &&
+          !!form.brandId &&
+          !!form.modelId &&
+          !!form.year &&
+          !!form.licensePlate
+        );
+      case 3:
+        return !!form.address && !!form.lat && !!form.long;
+      case 4:
+        return !!form.price && Number(form.price) > 0;
+      case 5:
+        return form.photos.length > 0;
+      case 6:
+        return form.agreed;
+      default:
+        return false;
+    }
+  };
+
+  const steps = [
+    { title: "Владелец", key: "owner" },
+    { title: "Тех. данные", key: "vin" },
+    { title: "Адрес", key: "address" },
+    { title: "Цена", key: "price" },
+    { title: "Фото", key: "photos" },
+    { title: "Согласие", key: "agreed" },
+  ];
+
   return (
-    <div className="p-4 border rounded mb-6 w-full max-w-md">
-      <h3 className="text-lg font-semibold mb-4">
-        {isEditMode ? "Редактировать автомобиль" : "Добавить автомобиль"}
-      </h3>
-      <div className="flex flex-col gap-3">
-        <select
-          value={countryId ?? ""}
-          onChange={(e) => setCountryId(e.target.value || null)}
-          className="border p-2 rounded"
-        >
-          <option value="">Выберите страну</option>
-          {countries.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </select>
-
-        <select
-          value={form.location_id}
-          onChange={(e) => {
-            const value = e.target.value;
-            handleChange("location_id", value); // ✅ обновляем форму
-            // setLocationId(value || null); // ✅ и триггерим загрузку адресов
-          }}
-          disabled={!countryId}
-          className="border p-2 rounded"
-        >
-          <option value="">Выберите локацию</option>
-          {locations.map((loc) => (
-            <option key={loc.id} value={loc.id}>
-              {loc.name}
-            </option>
-          ))}
-        </select>
-
-        <input
-          type="text"
-          placeholder="VIN"
-          value={form.vin}
-          onChange={(e) => handleChange("vin", e.target.value)}
-          className="border p-2 rounded"
-        />
-
-        <select
-          value={brandId ?? ""}
-          onChange={(e) => setBrandId(e.target.value || null)}
-          className="border p-2 rounded"
-        >
-          <option value="">Выберите бренд</option>
-          {brands.map((b) => (
-            <option key={b.id} value={b.id}>
-              {b.name}
-            </option>
-          ))}
-        </select>
-
-        <select
-          value={form.model_id}
-          onChange={(e) => handleChange("model_id", e.target.value)}
-          disabled={!brandId}
-          className="border p-2 rounded"
-        >
-          <option value="">Выберите модель</option>
-          {models.map((m) => (
-            <option key={m.id} value={m.id}>
-              {m.name}
-            </option>
-          ))}
-        </select>
-
-        <input
-          type="number"
-          placeholder="Год выпуска"
-          value={form.year}
-          onChange={(e) => handleChange("year", e.target.value)}
-          className="border p-2 rounded"
-        />
-        <input
-          type="text"
-          placeholder="Номер авто"
-          value={form.license_plate}
-          onChange={(e) => handleChange("license_plate", e.target.value)}
-          className="border p-2 rounded"
-        />
-
-        <select
-          value={form.fuel_type}
-          onChange={(e) => handleChange("fuel_type", e.target.value)}
-          className="border p-2 rounded"
-        >
-          <option value="">Тип топлива</option>
-          {fuelTypes.map((f) => (
-            <option key={f} value={f}>
-              {f}
-            </option>
-          ))}
-        </select>
-
-        <select
-          value={form.transmission}
-          onChange={(e) => handleChange("transmission", e.target.value)}
-          className="border p-2 rounded"
-        >
-          <option value="">Коробка передач</option>
-          {transmissions.map((t) => (
-            <option key={t} value={t}>
-              {t}
-            </option>
-          ))}
-        </select>
-
-        <select
-          value={form.seats}
-          onChange={(e) => handleChange("seats", e.target.value)}
-          className="border p-2 rounded"
-        >
-          <option value="">Количество мест</option>
-          {seatOptions.map((s) => (
-            <option key={s} value={s}>
-              {s}
-            </option>
-          ))}
-        </select>
-
-        <input
-          type="number"
-          placeholder="Объём двигателя"
-          value={form.engine_capacity}
-          onChange={(e) => handleChange("engine_capacity", e.target.value)}
-          className="border p-2 rounded"
-        />
-
-        <select
-          value={form.status}
-          onChange={(e) => handleChange("status", e.target.value)}
-          className="border p-2 rounded"
-        >
-          <option value="">Статус</option>
-          {statuses.map((s) => (
-            <option key={s} value={s}>
-              {s}
-            </option>
-          ))}
-        </select>
-
-        <select
-          value={form.body_type}
-          onChange={(e) => handleChange("body_type", e.target.value)}
-          className="border p-2 rounded"
-        >
-          <option value="">Тип кузова</option>
-          {bodyTypes.map((b) => (
-            <option key={b} value={b}>
-              {b}
-            </option>
-          ))}
-        </select>
-
-        <select
-          value={form.drive_type}
-          onChange={(e) => handleChange("drive_type", e.target.value)}
-          className="border p-2 rounded"
-        >
-          <option value="">Привод</option>
-          {driveTypes.map((d) => (
-            <option key={d} value={d}>
-              {d}
-            </option>
-          ))}
-        </select>
-
-        <select
-          value={form.color}
-          onChange={(e) => handleChange("color", e.target.value)}
-          className="border p-2 rounded"
-        >
-          <option value="">Цвет</option>
-          {colors.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
-          ))}
-        </select>
-
-        <select
-          value={form.doors}
-          onChange={(e) => handleChange("doors", e.target.value)}
-          className="border p-2 rounded"
-        >
-          <option value="">Количество дверей</option>
-          {doorOptions.map((d) => (
-            <option key={d} value={d}>
-              {d}
-            </option>
-          ))}
-        </select>
-
-        <input
-          type="file"
-          accept="image/*"
-          multiple
-          onChange={(e) => {
-            const files = e.target.files;
-            if (files) {
-              setPhotos((prev) => [...prev, ...Array.from(files)]);
-            }
+    <div className="max-w-xl mx-auto p-0">
+      <h1 className="text-2xl font-semibold text-gray-900">List your car</h1>
+      <div className="bg-slate-100 h-2 rounded shadow-inner overflow-hidden mt-10">
+        <div
+          className="h-full bg-violet-600 transition-all duration-300"
+          style={{
+            width: `${(step / steps.length) * 100}%`,
           }}
         />
+      </div>
 
-        {photos.map((file, idx) => (
-          <img
-            key={idx}
-            src={URL.createObjectURL(file)}
-            className="h-32 object-cover"
-          />
+      {/* <div className="flex items-center justify-between gap-2 mb-6">
+        {steps.map((s, index) => (
+          <div
+            key={index}
+            className={`flex-1 text-center py-1 px-2 rounded text-xs font-medium border ${
+              step === index + 1
+                ? "bg-violet-600 text-white"
+                : "bg-gray-100 text-gray-600"
+            }`}
+          >
+            {index + 1}. {s.title}
+          </div>
         ))}
+      </div> */}
 
-        {Array.isArray(form.photos) &&
-          form.photos.map(
-            (url, idx) =>
-              typeof url === "string" && (
-                <img
-                  key={`existing-${idx}`}
-                  src={url}
-                  alt={`car-photo-${idx}`}
-                  className="h-32 object-cover rounded"
-                />
-              )
+      <div className="text-right font-bold mt-4 mb-4">Step {step} / 6</div>
+
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={step}
+          initial={{ opacity: 0, x: 50 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: -50 }}
+          transition={{ duration: 0.2 }}
+        >
+          {step === 1 && (
+            <div>
+              <p className="font-bold text-lg">Who owns the car?</p>
+              {optionsOwnerCar.map((v) => (
+                <label key={v.name} className="block mt-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name={v.name}
+                    value={v.value}
+                    checked={form.owner === v.value}
+                    onChange={(e) => handleChange("owner", e.target.value)}
+                    className="mr-3"
+                  />
+                  {v.label}
+                </label>
+              ))}
+            </div>
           )}
 
-        <button
-          type="button"
-          onClick={handleSubmit}
-          disabled={loading || !form.model_id}
-          className="bg-black text-white px-4 py-2 rounded hover:bg-gray-900 disabled:opacity-50"
-        >
-          {loading
-            ? "Сохраняю..."
-            : isEditMode
-            ? "Сохранить изменения"
-            : "Добавить"}
-        </button>
+          {step === 2 && (
+            <div className="space-y-3">
+              <input
+                placeholder="VIN"
+                className="border p-2 w-full"
+                value={form.vin}
+                onChange={(e) => handleChange("vin", e.target.value)}
+              />
+              <select
+                className="border p-2 w-full"
+                value={form.brandId}
+                onChange={(e) => handleChange("brandId", e.target.value)}
+              >
+                <option value="">Выбери бренд</option>
+                {brands.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.name}
+                  </option>
+                ))}
+              </select>
+              <select
+                className="border p-2 w-full"
+                value={form.modelId}
+                onChange={(e) => handleChange("modelId", e.target.value)}
+                disabled={!form.brandId}
+              >
+                <option value="">Выбери модель</option>
+                {models.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.name}
+                  </option>
+                ))}
+              </select>
+              <input
+                placeholder="Год выпуска"
+                className="border p-2 w-full"
+                value={form.year}
+                onChange={(e) => handleChange("year", e.target.value)}
+                type="number"
+              />
+              <select
+                className="border p-2 w-full"
+                value={form.fuelType}
+                onChange={(e) => handleChange("fuelType", e.target.value)}
+              >
+                <option value="">Тип топлива</option>
+                {fuelTypes.map((f) => (
+                  <option key={f} value={f}>
+                    {f}
+                  </option>
+                ))}
+              </select>
+              <select
+                className="border p-2 w-full"
+                value={form.bodyType}
+                onChange={(e) => handleChange("bodyType", e.target.value)}
+              >
+                <option value="">Тип авто</option>
+                {bodyTypes.map((b) => (
+                  <option key={b} value={b}>
+                    {b}
+                  </option>
+                ))}
+              </select>
+              <select
+                className="border p-2 w-full"
+                value={form.transmission}
+                onChange={(e) => handleChange("transmission", e.target.value)}
+              >
+                <option value="">Коробка</option>
+                {transmissions.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </select>
+              <input
+                placeholder="Гос. номер"
+                className="border p-2 w-full"
+                value={form.licensePlate}
+                onChange={(e) => handleChange("licensePlate", e.target.value)}
+              />
+            </div>
+          )}
+
+          {step === 3 && (
+            <div className="space-y-4">
+              <p className="font-bold text-lg">Местоположение авто</p>
+
+              <div className="h-60 rounded-xl overflow-hidden">
+                <Map
+                  initialViewState={{
+                    latitude: form.lat ?? 50.45,
+                    longitude: form.long ?? 30.52,
+                    zoom: 12,
+                  }}
+                  style={{ width: "100%", height: "100%" }}
+                  mapStyle="mapbox://styles/megadoze/cldamjew5003701p5mbqrrwkc"
+                  mapboxAccessToken={import.meta.env.VITE_MAPBOX_TOKEN}
+                >
+                  <Marker
+                    longitude={form.long ?? 30.52}
+                    latitude={form.lat ?? 50.45}
+                    draggable
+                    onDragEnd={async (e) => {
+                      const { lat, lng } = e.lngLat;
+
+                      console.log("📍 New coords:", lat, lng);
+
+                      handleChange("lat", lat);
+                      handleChange("long", lng);
+
+                      const res = await fetchAddressFromCoords(lat, lng);
+                      console.log("🌍 Address result:", res);
+
+                      if (!res) return;
+
+                      handleChange("address", res.address);
+                      handleChange("countryName", res.country);
+                      handleChange("cityName", res.city);
+                    }}
+                  >
+                    <Pin />
+                  </Marker>
+
+                  <GeolocateControl
+                    trackUserLocation
+                    showUserHeading
+                    onGeolocate={async (pos) => {
+                      const lat = pos.coords.latitude;
+                      const lng = pos.coords.longitude;
+
+                      handleChange("lat", lat);
+                      handleChange("long", lng);
+
+                      const res = await fetchAddressFromCoords(lat, lng);
+                      if (!res) return;
+
+                      handleChange("address", res.address);
+                      handleChange("countryName", res.country);
+                      handleChange("cityName", res.city);
+                    }}
+                  />
+
+                  <NavigationControl />
+                  <ScaleControl />
+                  <FullscreenControl />
+                </Map>
+              </div>
+
+              <AddressAutofillWrapper
+                accessToken={import.meta.env.VITE_MAPBOX_TOKEN}
+                onRetrieve={async (res) => {
+                  const f = res.features?.[0];
+                  if (!f?.geometry?.coordinates) return;
+
+                  const [lng, lat] = f.geometry.coordinates;
+
+                  handleChange("lat", lat);
+                  handleChange("long", lng);
+
+                  const addr = await fetchAddressFromCoords(lat, lng);
+                  if (!addr) return;
+
+                  handleChange("address", addr.address);
+                  handleChange("countryName", addr.country);
+                  handleChange("cityName", addr.city);
+                }}
+              >
+                <input
+                  name="address"
+                  id="address"
+                  type="text"
+                  value={form.address || ""}
+                  onChange={(e) => handleChange("address", e.target.value)}
+                  placeholder="Введите адрес"
+                  autoComplete="address-line1"
+                  className="border w-full p-2 mt-2"
+                />
+              </AddressAutofillWrapper>
+
+              <div className="text-sm text-gray-600 space-y-1">
+                <p>
+                  Страна:{" "}
+                  <span className="font-semibold">
+                    {form.countryName || "—"}
+                  </span>
+                </p>
+                <p>
+                  Город:{" "}
+                  <span className="font-semibold">{form.cityName || "—"}</span>
+                </p>
+                {/* <p>
+                  Координаты:{" "}
+                  <span className="font-mono">
+                    {form.lat?.toFixed(5) || "—"},{" "}
+                    {form.long?.toFixed(5) || "—"}
+                  </span>
+                </p> */}
+              </div>
+            </div>
+          )}
+
+          {step === 4 && (
+            <div>
+              <input
+                placeholder="Цена за сутки ($)"
+                type="number"
+                className="border p-2 w-full"
+                value={form.price}
+                onChange={(e) => handleChange("price", e.target.value)}
+              />
+            </div>
+          )}
+
+          {step === 5 && (
+            <div className="space-y-2">
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={(e) => {
+                  const files = e.target.files;
+                  if (files) {
+                    handleChange("photos", [
+                      ...form.photos,
+                      ...Array.from(files),
+                    ]);
+                  }
+                }}
+              />
+              {form.photos.map((file, i) => (
+                <img
+                  key={i}
+                  src={URL.createObjectURL(file)}
+                  className="h-32 object-cover rounded"
+                  alt="preview"
+                />
+              ))}
+            </div>
+          )}
+
+          {step === 6 && (
+            <div>
+              <Checkbox
+                checked={form.agreed}
+                label="Я соглашаюсь с условиями размещения"
+                onChange={(e) =>
+                  handleChange("agreed", e.currentTarget.checked)
+                }
+                size="md"
+                color="black"
+                radius="md"
+              />
+            </div>
+          )}
+        </motion.div>
+      </AnimatePresence>
+
+      <div className="flex justify-between pt-6">
+        {step > 1 ? (
+          <button
+            onClick={prevStep}
+            className="bg-gray-100 px-4 py-3 rounded-2xl w-20"
+          >
+            Prev
+          </button>
+        ) : (
+          <div />
+        )}
+        {step < 6 ? (
+          <button
+            onClick={nextStep}
+            disabled={!isStepValid(step)}
+            className={`w-20 py-3 rounded-2xl ${
+              isStepValid(step)
+                ? "bg-violet-500 text-white"
+                : "bg-gray-100 text-gray-500 cursor-not-allowed"
+            }`}
+          >
+            Next
+          </button>
+        ) : (
+          <button
+            onClick={handleSubmit}
+            className="bg-violet-600 text-white px-4 py-3 rounded-2xl w-20"
+            disabled={!form.agreed || loading}
+          >
+            {loading ? "Saving..." : "Save"}
+          </button>
+        )}
       </div>
     </div>
   );

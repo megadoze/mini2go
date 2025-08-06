@@ -100,13 +100,13 @@ function Parking() {
   useEffect(() => {
     const updateAddress = async () => {
       try {
-        const addr = await fetchAddressFromCoords(
+        const data = await fetchAddressFromCoords(
           coords.latitude,
           coords.longitude
         );
-        if (addr) {
-          setFullAddress(addr);
-          setAddress(addr);
+        if (data) {
+          setFullAddress(data.address);
+          setAddress(data.address);
         }
       } catch (err) {
         console.error("Failed to fetch address", err);
@@ -132,10 +132,10 @@ function Parking() {
         };
 
         try {
-          const addr = await fetchAddressFromCoords(latitude, longitude);
-          if (addr) {
-            setFullAddress(addr);
-            setAddress(addr);
+          const data = await fetchAddressFromCoords(latitude, longitude);
+          if (data) {
+            setFullAddress(data.address);
+            setAddress(data.address);
             setLocalCoords(newCoords);
           }
         } catch (err) {
@@ -275,14 +275,14 @@ function Parking() {
                 setLocalCoords(newCoords);
 
                 try {
-                  const addr = await fetchAddressFromCoords(
+                  const data = await fetchAddressFromCoords(
                     lngLat.lat,
                     lngLat.lng
                   );
-                  if (addr) {
-                    setAddress(addr);
-                    setFullAddress(addr);
-                    setParkingAddress(addr); // ← ключевая строка
+                  if (data) {
+                    setAddress(data.address);
+                    setFullAddress(data.address);
+                    setParkingAddress(data.address); // ← ключевая строка
                   }
                 } catch (err) {
                   console.error("Failed to fetch address by pin drag", err);
