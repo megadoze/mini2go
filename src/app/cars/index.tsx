@@ -6,7 +6,7 @@ import { Badge, Button, Loader, NativeSelect, TextInput } from "@mantine/core";
 import { useNavigate } from "react-router-dom";
 import { MagnifyingGlassIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import type { Country } from "@/types/country";
-import { fetchCountries } from "../locations/location.service";
+import { fetchCountries } from "../../services/location.service";
 
 export default function CarsPage() {
   const navigate = useNavigate();

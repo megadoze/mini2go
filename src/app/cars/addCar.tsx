@@ -23,7 +23,7 @@ import {
 import {
   fetchCountries,
   fetchLocationsByCountry,
-} from "../locations/location.service";
+} from "../../services/location.service";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 

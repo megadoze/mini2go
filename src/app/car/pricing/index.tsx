@@ -282,7 +282,7 @@ const Pricing = () => {
                 Recommended: {formatCurrency(recommendedPrice)}
               </p>
             </div>
-            <div className=" w-full  ml-auto mt-4 rounded-xl p-4 bg-green-50 text-sm flex items-center h-fit md:w-80">
+            <div className=" w-full  ml-auto mt-4 rounded-xl p-4 bg-lime-50 text-sm flex items-center h-fit md:w-80">
               <FaceSmileIcon className="w-5 h-5 mx-2" />
               <p className="pl-2 flex-1">
                 That's a really good price! Your car is very likely to get
@@ -389,7 +389,7 @@ const Pricing = () => {
             ))}
           </div>
 
-          <div className="mt-4 rounded-xl p-4 bg-green-50 text-sm flex items-center h-fit w-full md:w-80">
+          <div className="mt-4 rounded-xl p-4 bg-lime-50 text-sm flex items-center h-fit w-full md:w-80">
             <HandThumbUpIcon className="w-5 h-5 mx-2" />
             <p className="pl-2 flex-1">
               Offer weekly/monthly discounts to increase occupancy.
@@ -490,7 +490,7 @@ const Pricing = () => {
             ))}
           </div>
 
-          <div className="mt-4 rounded-xl p-4 bg-green-50 text-sm flex items-center h-fit w-full md:w-80">
+          <div className="mt-4 rounded-xl p-4 bg-lime-50 text-sm flex items-center h-fit w-full md:w-80">
             <HandThumbUpIcon className="w-5 h-5 mx-2" />
             <p className="pl-2 flex-1">
               Offer seasonal discounts to increase occupancy.
@@ -529,7 +529,7 @@ const Pricing = () => {
                 Recommended: {formatCurrency(400)}
               </p>
             </div>
-            <div className=" w-full md:w-80 mt-4 ml-auto rounded-xl p-4 bg-green-50 text-sm flex items-center h-fit ">
+            <div className=" w-full md:w-80 mt-4 ml-auto rounded-xl p-4 bg-lime-50 text-sm flex items-center h-fit ">
               <FaceSmileIcon className="w-5 mx-2" />
               <p className="pl-2 flex-1">
                 A smaller deposit often increases conversion.

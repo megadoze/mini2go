@@ -1,7 +1,0 @@
-export default function Location() {
-  return (
-    <div className="flex justify-between items-center mb-4">
-      <h1 className=" font-openSans text-2xl font-bold">Location & delivery</h1>
-    </div>
-  );
-}

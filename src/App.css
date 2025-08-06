@@ -1,0 +1,9 @@
+.bg-hatched {
+  background-image: repeating-linear-gradient(
+    135deg,
+    rgba(190, 242, 100, 1),
+    rgba(190, 242, 100, 0.3) 1px,
+    transparent 1px,
+    transparent 2px
+  );
+}

@@ -3,7 +3,6 @@ import { createBrowserRouter, Navigate } from "react-router-dom";
 import Layout from "./layout/layout";
 import Dashboard from "./app/dashboard";
 import CarsPage from "./app/cars";
-import ExtrasPage from "./app/extras";
 import BookingsPage from "./app/bookings";
 import UsersPage from "./app/users";
 import UserPage from "./app/user";
@@ -27,6 +26,7 @@ import SettingsGlobal from "./app/settings";
 import { carLayoutLoader } from "@/routes/carLayoutLoader";
 import HydrateFallback from "./components/hydrateFallback";
 import CarErrorBoundary from "./components/carErrorBoundary";
+import Finance from "./app/finance";
 
 export const router = createBrowserRouter([
   {
@@ -39,7 +39,7 @@ export const router = createBrowserRouter([
       { path: "dashboard", element: <Dashboard /> },
       { path: "cars", element: <CarsPage /> },
       { path: "cars/add", element: <AddCarPage /> },
-      { path: "extras", element: <ExtrasPage /> },
+      { path: "finance", element: <Finance /> },
       { path: "bookings", element: <BookingsPage /> },
       { path: "users", element: <UsersPage /> },
       { path: "settings", element: <SettingsGlobal /> },

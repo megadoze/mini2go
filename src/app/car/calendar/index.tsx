@@ -271,11 +271,11 @@ export default function Calendar() {
 
           const className = [
             "aspect-square flex items-center justify-center border-r border-b border-gray-200",
-            selected ? " bg-lime-100 " : "",
+            selected ? " bg-lime-100/80" : "",
             isHover ? " bg-gray-50 " : "",
-            inRange || isHoveredRange ? "bg-lime-100" : "",
+            inRange || isHoveredRange ? "bg-lime-50" : "",
             isBookedDay ? "bg-green-200" : "",
-            isBlockedDay ? "bg-lime-200/90" : "",
+            isBlockedDay ? "bg-white bg-hatched" : "",
             isDisabled ? "opacity-40 cursor-not-allowed" : "cursor-pointer",
           ].join(" ");
 

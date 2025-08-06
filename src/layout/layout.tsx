@@ -36,9 +36,9 @@ export default function Layout() {
       // count: mainNews.length,
     },
     {
-      to: "/extras",
+      to: "/finance",
       icon: <RocketLaunchIcon className="size-5" />,
-      label: "Extras",
+      label: "Finance",
       onClick: toggle,
     },
     {
