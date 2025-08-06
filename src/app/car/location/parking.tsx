@@ -327,7 +327,7 @@ function Parking() {
               autoComplete="address-line1"
               value={parkingAddress}
               onChange={(e) => setParkingAddress(e.target.value)}
-              className="outline-none pl-2 py-2 w-full border border-gray-300 hover:border-gray-400 focus:border-green-300"
+              className="outline-none pl-2 py-2 w-full border border-gray-300 hover:border-gray-400 focus:border-lime-300"
             />
           </AddressAutofillWrapper>
           {error.address && (
@@ -376,7 +376,7 @@ function Parking() {
               type="submit"
               className={`border rounded-md px-8 py-2 ${
                 isChanged
-                  ? "border-green-300 hover:bg-green-50"
+                  ? "border-lime-300 text-lime-500"
                   : "border-gray-300 cursor-not-allowed"
               }`}
               disabled={!isChanged}
@@ -384,7 +384,7 @@ function Parking() {
               Save
             </button>
             {saved && (
-              <span className="text-green-600 font-medium text-sm animate-fade-in">
+              <span className="text-lime-600 font-medium text-sm animate-fade-in">
                 ✓ Saved
               </span>
             )}

@@ -268,8 +268,6 @@ const Pricing = () => {
                 </span>
                 <input
                   id="price"
-                  type="number"
-                  step="0.1"
                   className=" outline-none text-center w-40"
                   value={price}
                   min={0}
@@ -283,10 +281,10 @@ const Pricing = () => {
               </p>
             </div>
             <div className=" w-full  ml-auto mt-4 rounded-xl p-4 bg-lime-50 text-sm flex items-center h-fit md:w-80">
-              <FaceSmileIcon className="w-5 h-5 mx-2" />
-              <p className="pl-2 flex-1">
+              <FaceSmileIcon className="w-5 h-5 mx-2 text-lime-600" />
+              <p className="pl-2 flex-1 text-lime-700">
                 That's a really good price! Your car is very likely to get
-                rented out.
+                rented out
               </p>
             </div>
           </div>
@@ -294,7 +292,7 @@ const Pricing = () => {
             <button
               className={`${
                 isChangedPrice
-                  ? "border-green-300"
+                  ? "border-lime-400 text-lime-500"
                   : "border-gray-300 cursor-not-allowed"
               } border rounded-md px-8 py-2`}
               disabled={!isChangedPrice}
@@ -302,11 +300,13 @@ const Pricing = () => {
             >
               {savingPrice ? "Saving..." : "Save price"}
             </button>
-            {savingPrice && (
-              <span className="text-green-500 font-medium text-sm animate-fade-in pl-2">
-                ✓ Saved
-              </span>
-            )}
+            <span
+              className={`text-lime-500 font-medium text-sm transition-opacity duration-500 ml-2 ${
+                savingPrice ? "opacity-100" : "opacity-0 pointer-events-none"
+              }`}
+            >
+              ✓ Saved
+            </span>
           </div>
         </div>
       </section>
@@ -390,9 +390,9 @@ const Pricing = () => {
           </div>
 
           <div className="mt-4 rounded-xl p-4 bg-lime-50 text-sm flex items-center h-fit w-full md:w-80">
-            <HandThumbUpIcon className="w-5 h-5 mx-2" />
-            <p className="pl-2 flex-1">
-              Offer weekly/monthly discounts to increase occupancy.
+            <HandThumbUpIcon className="w-5 h-5 mx-2 text-lime-600" />
+            <p className="pl-2 flex-1 text-lime-700">
+              Offer weekly/monthly discounts to increase occupancy
             </p>
           </div>
         </div>
@@ -425,7 +425,7 @@ const Pricing = () => {
               }}
               valueFormat="DD.MM.YYYY"
               locale="ru"
-              placeholder="Выберите диапазон дат"
+              placeholder="Choose dates"
               allowSingleDateInRange
             />
           </div>
@@ -491,9 +491,9 @@ const Pricing = () => {
           </div>
 
           <div className="mt-4 rounded-xl p-4 bg-lime-50 text-sm flex items-center h-fit w-full md:w-80">
-            <HandThumbUpIcon className="w-5 h-5 mx-2" />
-            <p className="pl-2 flex-1">
-              Offer seasonal discounts to increase occupancy.
+            <HandThumbUpIcon className="w-5 h-5 mx-2 text-lime-600" />
+            <p className="pl-2 flex-1 text-lime-700">
+              Offer seasonal discounts to increase occupancy
             </p>
           </div>
         </div>
@@ -530,9 +530,9 @@ const Pricing = () => {
               </p>
             </div>
             <div className=" w-full md:w-80 mt-4 ml-auto rounded-xl p-4 bg-lime-50 text-sm flex items-center h-fit ">
-              <FaceSmileIcon className="w-5 mx-2" />
-              <p className="pl-2 flex-1">
-                A smaller deposit often increases conversion.
+              <FaceSmileIcon className="w-5 mx-2 text-lime-600" />
+              <p className="pl-2 flex-1 text-lime-700">
+                A smaller deposit often increases conversion
               </p>
             </div>
           </div>
@@ -540,7 +540,7 @@ const Pricing = () => {
             <button
               className={`${
                 isChangedDeposit
-                  ? "border-green-300"
+                  ? "border-lime-400 text-lime-500"
                   : "border-gray-300 cursor-not-allowed"
               } border rounded-md px-8 py-2`}
               disabled={!isChangedDeposit}
@@ -548,11 +548,13 @@ const Pricing = () => {
             >
               {savingDeposit ? "Saving..." : "Save deposit"}
             </button>
-            {savingDeposit && (
-              <span className="text-green-500 font-medium text-sm animate-fade-in pl-2">
-                ✓ Saved
-              </span>
-            )}
+            <span
+              className={`text-lime-500 font-medium text-sm transition-opacity duration-500 ml-2 ${
+                savingDeposit ? "opacity-100" : "opacity-0 pointer-events-none"
+              }`}
+            >
+              ✓ Saved
+            </span>
           </div>
         </div>
       </section>

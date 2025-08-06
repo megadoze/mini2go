@@ -18,7 +18,7 @@ const Location = () => {
           <p className="mt-2 text-gray-600">
             Where your car is normally parked, parking space and instructions.
           </p>
-          <p className="mt-2 text-violet-500 font-medium">
+          <p className="mt-2 text-fuchsia-800 font-medium">
             Instruction for location?
           </p>
           <Link
@@ -30,7 +30,7 @@ const Location = () => {
               <p className="pl-5 font-medium">
                 {parkingAddress ?? "Set the location of your car"}
               </p>
-              <p className="ml-auto mr-5 text-violet-700">Change</p>
+              <p className="ml-auto mr-5 text-fuchsia-700">Change</p>
             </div>
           </Link>
         </div>
@@ -40,7 +40,7 @@ const Location = () => {
             Earn more by offering to deliver and collect your car at a location
             of the renter’s choosing.
           </p>
-          <p className="mt-2 text-violet-500 font-medium">
+          <p className="mt-2 text-fuchsia-800 font-medium">
             Instruction for delivery?
           </p>
           <Link
@@ -53,13 +53,13 @@ const Location = () => {
                 <p className="font-medium">Delivery to guest location </p>
                 <p
                   className={`${
-                    isDelivery ? "text-green-500" : ""
+                    isDelivery ? "text-lime-500" : ""
                   } text-gray-500`}
                 >
                   {isDelivery ? "On" : "Off"}
                 </p>
               </div>
-              <div className="ml-auto mr-5 text-violet-700">Change</div>
+              <div className="ml-auto mr-5 text-fuchsia-700">Change</div>
             </div>
           </Link>
         </div>

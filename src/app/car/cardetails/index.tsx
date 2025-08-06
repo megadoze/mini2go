@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   updateCar,
   fetchFeatures,
@@ -19,7 +19,7 @@ import {
 import {
   Checkbox,
   Input,
-  Loader,
+  // Loader,
   Modal,
   NativeSelect,
   NumberInput,
@@ -29,6 +29,7 @@ import type { Feature } from "@/types/feature";
 import { useCarContext } from "@/context/carContext";
 import type { CarUpdatePayload } from "@/types/сarUpdatePayload";
 import { useNavigate } from "react-router";
+import { toast } from "sonner";
 
 /** ВНУТРЕННИЙ формат формы — CAMEL */
 type CarFormData = {
@@ -122,6 +123,7 @@ export default function CarDetails() {
   const [selectedFeatureIds, setSelectedFeatureIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [saved, setSaved] = useState(false);
 
   const [form, setForm] = useState<CarFormData>(() =>
     car
@@ -134,7 +136,6 @@ export default function CarDetails() {
           transmission: "",
           seats: "",
           licensePlate: "",
-          locationId: "",
           engineCapacity: 0,
           status: "",
           bodyType: "",
@@ -145,6 +146,40 @@ export default function CarDetails() {
           content: "",
         }
   );
+
+  const initialFeatureIdsRef = useRef<string[] | null>(null);
+
+  useEffect(() => {
+    const loadCarFeatures = async (id: string) => {
+      if (!carId) return;
+      const featureIds = await fetchCarFeatures(id);
+      setSelectedFeatureIds(featureIds);
+      if (initialFeatureIdsRef.current === null) {
+        initialFeatureIdsRef.current = featureIds;
+      }
+    };
+
+    if (carId) loadCarFeatures(carId);
+  }, [carId]);
+
+  const isChanged = useMemo(() => {
+    if (!car) return false;
+
+    const formFromCar = toFormFromCar(car);
+    const baseForm = JSON.stringify(formFromCar);
+    const currentForm = JSON.stringify(form);
+
+    const originalFeatureIds = (initialFeatureIdsRef.current ?? [])
+      .slice()
+      .sort();
+    const currentFeatureIds = selectedFeatureIds.slice().sort();
+
+    const featuresChanged =
+      JSON.stringify(currentFeatureIds) !== JSON.stringify(originalFeatureIds);
+    const formChanged = baseForm !== currentForm;
+
+    return formChanged || featuresChanged;
+  }, [car, form, selectedFeatureIds]);
 
   // Синхронизируем форму, если в контексте пришёл новый car (сменили :id или обновили лоадером)
   useEffect(() => {
@@ -161,19 +196,19 @@ export default function CarDetails() {
   }, []);
 
   // Загружаем текущие фичи авто
-  useEffect(() => {
-    const loadCarFeatures = async (id: string) => {
-      try {
-        if (!carId) return;
-        const featureIds = await fetchCarFeatures(id);
-        setSelectedFeatureIds(featureIds);
-      } catch (err) {
-        console.error("Ошибка при загрузке фич:", err);
-      }
-    };
+  // useEffect(() => {
+  //   const loadCarFeatures = async (id: string) => {
+  //     try {
+  //       if (!carId) return;
+  //       const featureIds = await fetchCarFeatures(id);
+  //       setSelectedFeatureIds(featureIds);
+  //     } catch (err) {
+  //       console.error("Ошибка при загрузке фич:", err);
+  //     }
+  //   };
 
-    if (carId) loadCarFeatures(carId);
-  }, [carId]);
+  //   if (carId) loadCarFeatures(carId);
+  // }, [carId]);
 
   // Универсальный апдейтер полей формы
   const handleChange = (
@@ -191,6 +226,8 @@ export default function CarDetails() {
   };
 
   const handleSubmit = async () => {
+    if (!isChanged) return;
+
     if (!form.modelId) {
       alert("Пожалуйста, заполните все обязательные поля");
       return;
@@ -206,7 +243,7 @@ export default function CarDetails() {
       await updateCar(carId, payload);
       await updateCarFeatures(carId, selectedFeatureIds);
 
-      // Обновляем локальный контекст (минимально и аккуратно)
+      // Обновляем car и сбрасываем сравнение
       if (setCar) {
         setCar((prev: any) => ({
           ...prev,
@@ -226,6 +263,13 @@ export default function CarDetails() {
           content: form.content,
         }));
       }
+
+      initialFeatureIdsRef.current = [...selectedFeatureIds]; // ✅ вот достаточно
+
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+
+      toast.success("Car saved successfully!");
     } catch (e) {
       console.error(e);
       alert("Ошибка при сохранении");
@@ -275,7 +319,6 @@ export default function CarDetails() {
         <NumberInput
           label="Year"
           value={form.year}
-          // Mantine NumberInput onChange может вернуть number | string | null
           onChange={(v) => handleChange("year", v === null ? "" : String(v))}
           disabled
           styles={{ input: { backgroundColor: "#f3f4f6", color: "black" } }}
@@ -419,16 +462,27 @@ export default function CarDetails() {
         >
           Удалить
         </button>
-        <button
-          type="button"
-          onClick={handleSubmit}
-          disabled={loading || !form.modelId}
-          className="w-32 h-10 bg-black text-white px-4 py-2 rounded hover:bg-gray-900 disabled:opacity-50 cursor-pointer"
-        >
-          <p className="flex justify-center">
-            {loading ? <Loader type="dots" size="sm" /> : "Save"}
-          </p>
-        </button>
+        <div className="">
+          <span
+            className={`text-lime-500 font-medium text-sm transition-opacity duration-500 mr-2 ${
+              saved ? "opacity-100" : "opacity-0 pointer-events-none"
+            }`}
+          >
+            ✓ Saved
+          </span>
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={!isChanged || loading || !form.modelId}
+            className={`border rounded-md px-8 py-2 transition-opacity duration-500 ${
+              isChanged
+                ? "border-lime-300 text-lime-500 opacity-100"
+                : "border-gray-300 opacity-50 cursor-not-allowed"
+            }`}
+          >
+            Save
+          </button>
+        </div>
       </div>
       <Modal
         opened={confirmDelete}

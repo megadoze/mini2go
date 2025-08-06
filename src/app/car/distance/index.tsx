@@ -88,10 +88,17 @@ const Distance = () => {
           </p>
         </div>
         <div className="mt-8 text-right">
+          <span
+            className={`text-lime-500 font-medium text-sm transition-opacity duration-500 mr-2 ${
+              saved ? "opacity-100" : "opacity-0 pointer-events-none"
+            }`}
+          >
+            ✓ Saved
+          </span>
           <button
             className={`${
               isChanged
-                ? "border-green-300"
+                ? "border-lime-300 text-lime-500"
                 : "border-gray-300 cursor-not-allowed"
             } border rounded-md px-8 py-2`}
             disabled={!isChanged}
@@ -99,11 +106,6 @@ const Distance = () => {
           >
             Save
           </button>
-          {saved && (
-            <span className="text-green-500 font-medium text-sm animate-fade-in pl-2">
-              ✓ Saved
-            </span>
-          )}
         </div>
       </div>
     </div>

@@ -102,12 +102,12 @@ const ExtraComponent = () => {
 
         <div
           className={`${
-            isAvailable ? "border-green-200 bg-green-50/40" : ""
+            isAvailable ? "border-lime-200 bg-lime-50/40" : ""
           } flex justify-between items-center mt-8 rounded-2xl border bg-gray-50 py-5 px-6`}
         >
           <p
             className={`${
-              isAvailable ? "text-green-500" : ""
+              isAvailable ? "text-lime-500" : ""
             } text-lg text-gray-500`}
           >
             Enable extra
@@ -115,7 +115,7 @@ const ExtraComponent = () => {
           <div
             className={`${
               isAvailable
-                ? "bg-green-400 justify-end"
+                ? "bg-lime-400 justify-end"
                 : "justify-start bg-gray-300"
             } cursor-pointer w-16 h-10 flex items-center rounded-full p-1`}
             onClick={handleSwitch}
@@ -163,7 +163,7 @@ const ExtraComponent = () => {
           <button
             className={`${
               isChanged
-                ? "border-green-300"
+                ? "border-lime-300 text-lime-500"
                 : "border-gray-300 cursor-not-allowed"
             } border rounded-md px-8 py-2`}
             disabled={!isChanged}
@@ -172,7 +172,7 @@ const ExtraComponent = () => {
             Save
           </button>
           {saved && (
-            <span className="text-green-500 font-medium text-sm animate-fade-in pl-2">
+            <span className="text-lime-500 font-medium text-sm animate-fade-in pl-2">
               ✓ Saved
             </span>
           )}
