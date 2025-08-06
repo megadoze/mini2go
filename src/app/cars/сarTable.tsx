@@ -15,7 +15,7 @@ export default function CarListView({ cars, search }: Props) {
           <NavLink
             key={car.id}
             to={`/cars/${car.id}`}
-            className="block border border-gray-800 p-2 shadow-sm bg-white hover:shadow-md transition cursor-pointer relative"
+            className="block border border-gray-600 p-2 shadow-sm bg-white hover:shadow-md transition cursor-pointer relative"
           >
             <div className="flex gap-4 h-28">
               <div className="">
@@ -32,17 +32,19 @@ export default function CarListView({ cars, search }: Props) {
                 )}
               </div>
 
-              <div className="">
+              <div>
                 <p className="font-bold text-base leading-5">
                   {highlightMatch(car.models?.brands?.name, search)}{" "}
                   {highlightMatch(car.models?.name, search)}
                 </p>
-                <p className=" border border-black rounded-sm text-black font-medium px-1 w-fit text-sm  mt-1">
+                <p className=" border border-black text-black font-medium px-1 w-fit text-sm  mt-1">
                   {highlightMatch(car.licensePlate ?? "", search)}
                 </p>
-                <p className="text-sm text-zinc-600">{car.locations?.name}</p>
+                <p className="text-sm text-zinc-600 pt-1">
+                  {car.locations?.name}
+                </p>
                 <p
-                  className={`text-sm pt-1 ${
+                  className={`text-sm leading-6 ${
                     car.status === "Available"
                       ? "text-lime-600"
                       : "text-zinc-600"

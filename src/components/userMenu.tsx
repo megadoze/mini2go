@@ -79,7 +79,7 @@ function UserMenu({ onClick }: Props) {
               <Text size="sm" fw={500}>
                 {userName}
               </Text>
-              <Text c="cyan" size="sm">
+              <Text c="lime" size="sm">
                 {user?.email}
               </Text>
             </div>

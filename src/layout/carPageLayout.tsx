@@ -239,7 +239,13 @@ export default function CarPageLayout() {
           <p className="mt-2 px-1 rounded-sm border border-black w-fit text-sm">
             {car.licensePlate}
           </p>
-          <p className="pt-1 text-sm">{car?.status}</p>
+          <p
+            className={`text-sm pt-1 ${
+              car.status === "Available" ? "text-lime-600" : "text-zinc-600"
+            }`}
+          >
+            ◉ {car.status}
+          </p>
         </div>
       </div>
 

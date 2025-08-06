@@ -114,7 +114,7 @@ export default function Layout() {
 
       <AppShell.Navbar p="md">
         <div>{SidebarMenu()}</div>
-        <div className="lg:hidden fixed bottom-0">
+        <div className="lg:hidden fixed bottom-2">
           <UserMenu onClick={toggle} />
         </div>
       </AppShell.Navbar>

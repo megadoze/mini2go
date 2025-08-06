@@ -76,7 +76,7 @@ export default function CarsPage() {
           value={countryId ?? ""}
           onChange={(e) => setCountryId(e.target.value || null)}
           radius="xs"
-          className=" pl-2  border  border-gray-800"
+          className=" pl-2  border  border-gray-600"
         >
           <option>Country</option>
           {countries.map((c) => (
@@ -97,7 +97,7 @@ export default function CarsPage() {
           onChange={(e) => setLocationFilter(e.currentTarget.value)}
           radius="none"
           disabled={!countryId}
-          className="   border border-gray-800"
+          className="   border border-gray-600"
           styles={
             !countryId
               ? {
@@ -119,7 +119,7 @@ export default function CarsPage() {
           value={search}
           onChange={(e) => setSearch(e.currentTarget.value)}
           radius="xs"
-          className="flex-1 md:flex-none w-80 border border-gray-800"
+          className="flex-1 md:flex-none w-80 border border-gray-600"
           leftSection={<MagnifyingGlassIcon className="size-4" />}
         />
         <Button
