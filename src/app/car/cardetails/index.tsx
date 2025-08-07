@@ -19,6 +19,7 @@ import {
 import {
   Checkbox,
   Input,
+  Loader,
   // Loader,
   Modal,
   NativeSelect,
@@ -195,21 +196,6 @@ export default function CarDetails() {
     loadFeatures();
   }, []);
 
-  // Загружаем текущие фичи авто
-  // useEffect(() => {
-  //   const loadCarFeatures = async (id: string) => {
-  //     try {
-  //       if (!carId) return;
-  //       const featureIds = await fetchCarFeatures(id);
-  //       setSelectedFeatureIds(featureIds);
-  //     } catch (err) {
-  //       console.error("Ошибка при загрузке фич:", err);
-  //     }
-  //   };
-
-  //   if (carId) loadCarFeatures(carId);
-  // }, [carId]);
-
   // Универсальный апдейтер полей формы
   const handleChange = (
     field: keyof CarFormData,
@@ -229,11 +215,17 @@ export default function CarDetails() {
     if (!isChanged) return;
 
     if (!form.modelId) {
-      alert("Пожалуйста, заполните все обязательные поля");
+      alert("Please fill in all required fields");
       return;
     }
+
+    if (!form.licensePlate?.trim()) {
+      toast.error("Please enter the vehicle registration number");
+      return;
+    }
+
     if (!carId) {
-      alert("Не найден ID авто");
+      alert("Car ID not found");
       return;
     }
 
@@ -264,30 +256,32 @@ export default function CarDetails() {
         }));
       }
 
-      initialFeatureIdsRef.current = [...selectedFeatureIds]; // ✅ вот достаточно
-
+      initialFeatureIdsRef.current = [...selectedFeatureIds];
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
-
       toast.success("Car saved successfully!");
     } catch (e) {
       console.error(e);
-      alert("Ошибка при сохранении");
+      alert("Error while saving");
     } finally {
       setLoading(false);
     }
   };
 
   async function handleDelete() {
+    setLoading(true);
+
     try {
-      if (!carId) return null;
+      if (!carId) throw new Error("No car ID");
+
       await deleteCar(carId);
-      setTimeout(() => {
-        navigate("/cars");
-      }, 2000);
+      toast.success("Car deleted");
+      navigate("/cars");
     } catch (error) {
       console.error(error);
-      alert("Не удалось удалить автомобиль");
+      alert("Failed to remove vehicle");
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -501,8 +495,16 @@ export default function CarDetails() {
           <button
             className="px-4 py-2 bg-red-500 text-white hover:bg-red-600 transition"
             onClick={handleDelete}
+            disabled={loading}
           >
-            Удалить
+            {loading ? (
+              <div className="flex items-center gap-2">
+                <Loader size={16} color="white" />
+                Удаление...
+              </div>
+            ) : (
+              "Удалить"
+            )}
           </button>
         </div>
       </Modal>

@@ -11,6 +11,7 @@ export type CarWithRelations = Car & {
     name: string;
     countries: {
       name: string;
+      id: string;
     };
   } | null;
 };

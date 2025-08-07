@@ -1,6 +1,6 @@
-export const fuelTypes = ["Бензин", "Дизель", "Электро", "Гибрид"] as const;
-export const transmissions = ["Механика", "Автомат"] as const;
-export const driveTypes = ["Передний", "Задний", "Полный"] as const;
+export const fuelTypes = ["Gasoline", "Diesel", "Electro", "Hybrid"] as const;
+export const transmissions = ["Mechanical", "Automatic"] as const;
+export const driveTypes = ["Front", "Rear", "Full"] as const;
 export const bodyTypes = [
   "Седан",
   "Хэтчбек",

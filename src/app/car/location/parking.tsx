@@ -15,7 +15,7 @@ import Pin from "@/components/pin";
 import { updateCar } from "@/services/car.service";
 import { useCarContext } from "@/context/carContext";
 import { toast } from "sonner";
-import { fetchAddressFromCoords } from "./geo.service";
+import { fetchAddressFromCoords } from "../../../services/geo.service";
 
 type MapboxFeature = {
   place_type?: string[];

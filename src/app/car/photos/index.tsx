@@ -131,6 +131,7 @@ export default function Photos() {
     }
   };
 
+
   const handleConfirmRemove = () => {
     if (!photoToDelete) return;
     setPhotos((prev) => prev.filter((p) => p.id !== photoToDelete.id));

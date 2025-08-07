@@ -146,7 +146,7 @@ export async function fetchCars(): Promise<CarWithRelations[]> {
   created_at,
   location_id,
   models(name, brands(name)),
-  locations(name, countries(name)),
+  locations(name, countries(id, name)),
   status,
   photos,
   address,
@@ -165,7 +165,7 @@ export async function fetchCars(): Promise<CarWithRelations[]> {
 
   if (!data) return [];
 
-  return (data as unknown as RawCar[]).map((car): CarWithRelations => {
+  return data.map((car: any): CarWithRelations => {
     const modelArray = car.models;
     const model = Array.isArray(modelArray) ? modelArray[0] : modelArray;
 
@@ -194,6 +194,7 @@ export async function fetchCars(): Promise<CarWithRelations[]> {
         name: location?.name || "-",
         countries: {
           name: country?.name || "-",
+          id: country?.id || "-",
         },
       },
       status: car.status,
@@ -231,13 +232,13 @@ export async function addCar(
       license_plate,
       location_id,
       models(name, brands(name)),
-      locations(name, countries(name))
+      locations(name, countries(id, name))
     `);
 
   if (error) throw error;
   if (!data) return [];
 
-  return (data as RawCar[]).map((car): CreatedCar => {
+  return (data as unknown as RawCar[]).map((car): CreatedCar => {
     const model = Array.isArray(car.models) ? car.models[0] : car.models;
     const brand = Array.isArray(model?.brands)
       ? model.brands[0]

@@ -1,20 +1,8 @@
-import { useEffect, useState } from "react";
-import {
-  fetchBrands,
-  fetchModelsByBrand,
-  addCar,
-  uploadCarPhotos,
-} from "@/services/car.service";
+import React, { useEffect, useState } from "react";
+import { addCar, uploadCarPhotos } from "@/services/car.service";
 import { supabase } from "@/lib/supabase";
-import {
-  fuelTypes,
-  transmissions,
-  bodyTypes,
-  optionsOwnerCar,
-} from "@/constants/carOptions";
-import type { Brand } from "@/types/brand";
-import type { Model } from "@/types/model";
-import { useNavigate } from "react-router-dom";
+import { optionsOwnerCar } from "@/constants/carOptions";
+import { Link, useNavigate } from "react-router-dom";
 import {
   Map,
   Marker,
@@ -26,10 +14,24 @@ import {
 import Pin from "@/components/pin";
 import { AddressAutofill } from "@mapbox/search-js-react";
 import "mapbox-gl/dist/mapbox-gl.css";
-import { fetchAddressFromCoords } from "../car/location/geo.service";
+import {
+  ensureCountryAndLocationExist,
+  fetchAddressFromCoords,
+} from "../../services/geo.service";
 import { AnimatePresence, motion } from "framer-motion";
 import { toast } from "sonner";
-import { Checkbox } from "@mantine/core";
+import {
+  Checkbox,
+  Image,
+  InputLabel,
+  Radio,
+  SimpleGrid,
+  Stack,
+  TextInput,
+} from "@mantine/core";
+import { Dropzone, IMAGE_MIME_TYPE } from "@mantine/dropzone";
+import Step3 from "./step3";
+import { IMaskInput } from "react-imask";
 
 type MapboxFeature = {
   place_type?: string[];
@@ -53,6 +55,13 @@ type AddressAutofillWrapperProps = {
 const AddressAutofillWrapper =
   AddressAutofill as React.FC<AddressAutofillWrapperProps>;
 
+type PhotoItem = {
+  id: string;
+  file?: File;
+  url: string;
+  isNew?: boolean;
+};
+
 export default function AddCarWizard() {
   const [step, setStep] = useState(1);
   const navigate = useNavigate();
@@ -62,11 +71,10 @@ export default function AddCarWizard() {
     vin: "",
     brandId: "",
     modelId: "",
+    licensePlate: "",
     year: "",
     fuelType: "",
-    bodyType: "",
     transmission: "",
-    licensePlate: "",
     countryId: "",
     countryName: "",
     locationId: "",
@@ -79,29 +87,16 @@ export default function AddCarWizard() {
     agreed: false,
   });
 
-  const [brands, setBrands] = useState<Brand[]>([]);
-  const [models, setModels] = useState<Model[]>([]);
-
   const [loading, setLoading] = useState(false);
 
-  const nextStep = () => setStep((s) => Math.min(s + 1, 6));
+  const [photos, setPhotos] = useState<PhotoItem[]>([]);
+
+  const nextStep = () => setStep((s) => Math.min(s + 1, steps.length));
   const prevStep = () => setStep((s) => Math.max(s - 1, 1));
 
   const handleChange = (field: keyof typeof form, value: any) => {
     setForm((prev) => ({ ...prev, [field]: value }));
   };
-
-  useEffect(() => {
-    fetchBrands().then(setBrands).catch(console.error);
-  }, []);
-
-  useEffect(() => {
-    if (form.brandId) {
-      fetchModelsByBrand(form.brandId).then(setModels).catch(console.error);
-    } else {
-      setModels([]);
-    }
-  }, [form.brandId]);
 
   useEffect(() => {
     const loadInitialAddress = async () => {
@@ -126,9 +121,19 @@ export default function AddCarWizard() {
         const { latitude, longitude } = pos.coords;
         handleChange("lat", latitude);
         handleChange("long", longitude);
+
+        const addr = await fetchAddressFromCoords(latitude, longitude);
+        if (!addr) return;
+
+        handleChange("address", addr.address);
+        handleChange("countryName", addr.country);
+        handleChange("cityName", addr.city);
       },
       (err) => {
         console.warn("Geolocation error", err);
+        toast.warning(
+          "Unable to determine geolocation. Please select address manually."
+        );
       },
       { enableHighAccuracy: true }
     );
@@ -137,21 +142,31 @@ export default function AddCarWizard() {
   const handleSubmit = async () => {
     setLoading(true);
     try {
+      const locationId = await ensureCountryAndLocationExist(
+        form.countryName,
+        form.cityName
+      );
+
+      if (!locationId) {
+        toast.error("Ошибка при определении локации");
+        return;
+      }
+
       const payload = {
         vin: form.vin,
         model_id: form.modelId,
+        license_plate: form.licensePlate,
         year: form.year ? Number(form.year) : null,
         fuel_type: form.fuelType || null,
         transmission: form.transmission || null,
-        license_plate: form.licensePlate || null,
-        location_id: form.locationId || null,
+        location_id: locationId,
         address: form.address,
         lat: form.lat,
         long: form.long,
-        body_type: form.bodyType || null,
         price: form.price ? Number(form.price) : 0,
         photos: [],
         status: "available",
+        owner: form.owner,
       };
 
       const result = await addCar(payload);
@@ -163,8 +178,13 @@ export default function AddCarWizard() {
       const carId = result[0].id;
 
       let uploadedUrls: string[] = [];
-      if (form.photos.length) {
-        uploadedUrls = await uploadCarPhotos(form.photos, carId);
+
+      if (photos.length) {
+        const files = photos
+          .filter((p) => p.isNew && p.file)
+          .map((p) => p.file as File);
+
+        uploadedUrls = await uploadCarPhotos(files, carId);
       }
 
       if (uploadedUrls.length) {
@@ -189,20 +209,17 @@ export default function AddCarWizard() {
       case 1:
         return !!form.owner;
       case 2:
-        return (
-          !!form.vin &&
-          !!form.brandId &&
-          !!form.modelId &&
-          !!form.year &&
-          !!form.licensePlate
-        );
+        return /^[A-ZА-Я]{2}\d{4}[A-ZА-Я]{2}$/.test(form.licensePlate.trim());
+
       case 3:
-        return !!form.address && !!form.lat && !!form.long;
+        return !!form.vin && !!form.brandId && !!form.modelId && !!form.year;
       case 4:
-        return !!form.price && Number(form.price) > 0;
+        return !!form.address && !!form.lat && !!form.long;
       case 5:
-        return form.photos.length > 0;
+        return !!form.price && Number(form.price) > 0;
       case 6:
+        return photos.length > 0;
+      case 7:
         return form.agreed;
       default:
         return false;
@@ -211,19 +228,63 @@ export default function AddCarWizard() {
 
   const steps = [
     { title: "Владелец", key: "owner" },
-    { title: "Тех. данные", key: "vin" },
+    { title: "Госномер", key: "licensePlate" },
+    { title: "VIN и авто", key: "vin" },
     { title: "Адрес", key: "address" },
     { title: "Цена", key: "price" },
     { title: "Фото", key: "photos" },
     { title: "Согласие", key: "agreed" },
   ];
 
+  const cards = optionsOwnerCar.map((item) => (
+    <Radio.Card
+      radius="md"
+      value={item.name}
+      key={item.name}
+      className="overflow-hidden"
+    >
+      <div className="p-4 flex gap-4 items-center hover:bg-gray-50 transition ease-in-out">
+        <Radio.Indicator color="black" />
+        <div>
+          <p className=" font-medium">{item.label}</p>
+          <p className=" text-sm text-gray-700">{item.description}</p>
+        </div>
+      </div>
+    </Radio.Card>
+  ));
+
+  const MAX_PHOTOS = 3;
+
+  const handleDropzone = (files: File[]) => {
+    const availableSlots = MAX_PHOTOS - photos.length;
+
+    if (availableSlots <= 0) {
+      toast.error(`You can upload up to ${MAX_PHOTOS} photos`);
+      return;
+    }
+
+    const slicedFiles = files.slice(0, availableSlots);
+
+    const newItems: PhotoItem[] = slicedFiles.map((file, idx) => ({
+      id: `new-${Date.now()}-${idx}`,
+      file,
+      url: URL.createObjectURL(file),
+      isNew: true,
+    }));
+
+    setPhotos((prev) => [...prev, ...newItems]);
+    setForm((prev) => ({
+      ...prev,
+      photos: [...prev.photos, ...slicedFiles],
+    }));
+  };
+
   return (
     <div className="max-w-xl mx-auto p-0">
       <h1 className="text-2xl font-semibold text-gray-900">List your car</h1>
       <div className="bg-slate-100 h-2 rounded shadow-inner overflow-hidden mt-10">
         <div
-          className="h-full bg-violet-600 transition-all duration-300"
+          className="h-full bg-fuchsia-600 transition-all duration-300"
           style={{
             width: `${(step / steps.length) * 100}%`,
           }}
@@ -245,7 +306,7 @@ export default function AddCarWizard() {
         ))}
       </div> */}
 
-      <div className="text-right font-bold mt-4 mb-4">Step {step} / 6</div>
+      <div className="text-right font-bold mt-4 mb-4">Step {step} / 7</div>
 
       <AnimatePresence mode="wait">
         <motion.div
@@ -258,110 +319,60 @@ export default function AddCarWizard() {
           {step === 1 && (
             <div>
               <p className="font-bold text-lg">Who owns the car?</p>
-              {optionsOwnerCar.map((v) => (
-                <label key={v.name} className="block mt-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name={v.name}
-                    value={v.value}
-                    checked={form.owner === v.value}
-                    onChange={(e) => handleChange("owner", e.target.value)}
-                    className="mr-3"
-                  />
-                  {v.label}
-                </label>
-              ))}
+              <Radio.Group
+                value={form.owner}
+                onChange={(e) => handleChange("owner", e)}
+              >
+                <Stack pt="md" gap="xs">
+                  {cards}
+                </Stack>
+              </Radio.Group>
             </div>
           )}
 
           {step === 2 && (
-            <div className="space-y-3">
-              <input
-                placeholder="VIN"
-                className="border p-2 w-full"
-                value={form.vin}
-                onChange={(e) => handleChange("vin", e.target.value)}
-              />
-              <select
-                className="border p-2 w-full"
-                value={form.brandId}
-                onChange={(e) => handleChange("brandId", e.target.value)}
-              >
-                <option value="">Выбери бренд</option>
-                {brands.map((b) => (
-                  <option key={b.id} value={b.id}>
-                    {b.name}
-                  </option>
-                ))}
-              </select>
-              <select
-                className="border p-2 w-full"
-                value={form.modelId}
-                onChange={(e) => handleChange("modelId", e.target.value)}
-                disabled={!form.brandId}
-              >
-                <option value="">Выбери модель</option>
-                {models.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.name}
-                  </option>
-                ))}
-              </select>
-              <input
-                placeholder="Год выпуска"
-                className="border p-2 w-full"
-                value={form.year}
-                onChange={(e) => handleChange("year", e.target.value)}
-                type="number"
-              />
-              <select
-                className="border p-2 w-full"
-                value={form.fuelType}
-                onChange={(e) => handleChange("fuelType", e.target.value)}
-              >
-                <option value="">Тип топлива</option>
-                {fuelTypes.map((f) => (
-                  <option key={f} value={f}>
-                    {f}
-                  </option>
-                ))}
-              </select>
-              <select
-                className="border p-2 w-full"
-                value={form.bodyType}
-                onChange={(e) => handleChange("bodyType", e.target.value)}
-              >
-                <option value="">Тип авто</option>
-                {bodyTypes.map((b) => (
-                  <option key={b} value={b}>
-                    {b}
-                  </option>
-                ))}
-              </select>
-              <select
-                className="border p-2 w-full"
-                value={form.transmission}
-                onChange={(e) => handleChange("transmission", e.target.value)}
-              >
-                <option value="">Коробка</option>
-                {transmissions.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
-                ))}
-              </select>
-              <input
-                placeholder="Гос. номер"
-                className="border p-2 w-full"
-                value={form.licensePlate}
-                onChange={(e) => handleChange("licensePlate", e.target.value)}
-              />
+            <div>
+              <p className="font-bold text-lg mb-2">
+                Enter your license plate number
+              </p>
+
+              <InputLabel>
+                License plate
+                <IMaskInput
+                  autoFocus
+                  mask="aa0000aa"
+                  definitions={{
+                    a: /[A-ZА-Я]/,
+                    0: /\d/,
+                  }}
+                  value={form.licensePlate}
+                  unmask={true}
+                  maxLength={8}
+                  onAccept={(val: string) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      licensePlate: val.toUpperCase().replace(/[^A-Z0-9]/g, ""),
+                    }))
+                  }
+                  placeholder="AA1234AA"
+                  className="w-full mt-1 border rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black placeholder:text-gray-400"
+                />
+              </InputLabel>
+
+              <p className="text-sm text-gray-500 mt-2">
+                Госномер будет использоваться для модерации и не может быть
+                изменён после публикации.
+              </p>
             </div>
           )}
 
-          {step === 3 && (
+          {step === 3 && <Step3 form={form} handleChange={handleChange} />}
+
+          {step === 4 && (
             <div className="space-y-4">
-              <p className="font-bold text-lg">Местоположение авто</p>
+              <p className="font-bold text-lg">
+                Where is your car normally parked?
+              </p>
 
               <div className="h-60 rounded-xl overflow-hidden">
                 <Map
@@ -386,14 +397,12 @@ export default function AddCarWizard() {
                       handleChange("lat", lat);
                       handleChange("long", lng);
 
-                      const res = await fetchAddressFromCoords(lat, lng);
-                      console.log("🌍 Address result:", res);
+                      const addr = await fetchAddressFromCoords(lat, lng);
+                      if (!addr) return;
 
-                      if (!res) return;
-
-                      handleChange("address", res.address);
-                      handleChange("countryName", res.country);
-                      handleChange("cityName", res.city);
+                      handleChange("address", addr.address);
+                      handleChange("countryName", addr.country);
+                      handleChange("cityName", addr.city);
                     }}
                   >
                     <Pin />
@@ -409,12 +418,12 @@ export default function AddCarWizard() {
                       handleChange("lat", lat);
                       handleChange("long", lng);
 
-                      const res = await fetchAddressFromCoords(lat, lng);
-                      if (!res) return;
+                      const addr = await fetchAddressFromCoords(lat, lng);
+                      if (!addr) return;
 
-                      handleChange("address", res.address);
-                      handleChange("countryName", res.country);
-                      handleChange("cityName", res.city);
+                      handleChange("address", addr.address);
+                      handleChange("countryName", addr.country);
+                      handleChange("cityName", addr.city);
                     }}
                   />
 
@@ -457,83 +466,156 @@ export default function AddCarWizard() {
 
               <div className="text-sm text-gray-600 space-y-1">
                 <p>
-                  Страна:{" "}
+                  Country:{" "}
                   <span className="font-semibold">
                     {form.countryName || "—"}
                   </span>
                 </p>
                 <p>
-                  Город:{" "}
+                  City:{" "}
                   <span className="font-semibold">{form.cityName || "—"}</span>
                 </p>
-                {/* <p>
-                  Координаты:{" "}
-                  <span className="font-mono">
-                    {form.lat?.toFixed(5) || "—"},{" "}
-                    {form.long?.toFixed(5) || "—"}
-                  </span>
-                </p> */}
               </div>
             </div>
           )}
 
-          {step === 4 && (
+          {step === 5 && (
             <div>
-              <input
-                placeholder="Цена за сутки ($)"
+              <p className="font-bold text-lg mt-5">
+                This will be your daily price
+              </p>
+              <p className=" text-gray-700 mt-4 mb-3">
+                Our price suggestion is based on checking your specific car
+                model against current market prices and demand.
+              </p>
+              <TextInput
+                placeholder="Price per day ($)"
                 type="number"
-                className="border p-2 w-full"
                 value={form.price}
                 onChange={(e) => handleChange("price", e.target.value)}
-              />
-            </div>
-          )}
-
-          {step === 5 && (
-            <div className="space-y-2">
-              <input
-                type="file"
-                accept="image/*"
-                multiple
-                onChange={(e) => {
-                  const files = e.target.files;
-                  if (files) {
-                    handleChange("photos", [
-                      ...form.photos,
-                      ...Array.from(files),
-                    ]);
-                  }
+                size="md"
+                radius={0}
+                leftSectionPointerEvents="none"
+                rightSection="EUR"
+                className=" font-semibold"
+                classNames={{
+                  input: "placeholder:text-gray-400 placeholder:font-normal",
+                }}
+                styles={{
+                  section: { color: "black", paddingRight: "10px" },
+                  input: { textAlign: "center" },
                 }}
               />
-              {form.photos.map((file, i) => (
-                <img
-                  key={i}
-                  src={URL.createObjectURL(file)}
-                  className="h-32 object-cover rounded"
-                  alt="preview"
-                />
-              ))}
+              <p className=" text-gray-700 mt-5">
+                We recommend that you use this price to maximize your earnings,
+                but if you want to change it you can do so once you're
+                successfully listed your car.
+              </p>
             </div>
           )}
 
           {step === 6 && (
-            <div>
-              <Checkbox
-                checked={form.agreed}
-                label="Я соглашаюсь с условиями размещения"
-                onChange={(e) =>
-                  handleChange("agreed", e.currentTarget.checked)
-                }
-                size="md"
-                color="black"
-                radius="md"
-              />
+            <div className="space-y-2">
+              <p className="font-bold text-lg mt-5 mb-5">
+                Upload up to 3 photos of your car
+              </p>
+              <Dropzone
+                onDrop={handleDropzone}
+                onReject={() => {
+                  toast.error(`You can upload up to ${MAX_PHOTOS} photos`);
+                }}
+                accept={IMAGE_MIME_TYPE}
+                loading={loading}
+                loaderProps={{ color: "gray", type: "oval", size: "sm" }}
+                multiple
+                maxFiles={Math.max(0, MAX_PHOTOS - photos.length)}
+                disabled={photos.length >= MAX_PHOTOS}
+                className="mt-4"
+              >
+                <p className=" text-center">
+                  {photos.length >= MAX_PHOTOS
+                    ? `Max ${MAX_PHOTOS} photos uploaded`
+                    : "Drag and drop images or click to select"}
+                </p>
+              </Dropzone>
+
+              <SimpleGrid
+                cols={{ base: 2, sm: 3 }}
+                spacing="md"
+                mt={photos.length > 0 ? "md" : 0}
+              >
+                {photos.map((item, index) => {
+                  const imageUrl =
+                    item.isNew && item.file
+                      ? URL.createObjectURL(item.file)
+                      : item.url;
+
+                  return (
+                    <div
+                      key={item.id}
+                      className="relative rounded overflow-hidden"
+                    >
+                      <Image
+                        src={imageUrl}
+                        alt={`preview-${index}`}
+                        className="object-cover w-full h-32"
+                        onLoad={() => {
+                          if (item.isNew && item.file) {
+                            URL.revokeObjectURL(imageUrl);
+                          }
+                        }}
+                      />
+                      <button
+                        onClick={() =>
+                          setPhotos((prev) =>
+                            prev.filter((_, idx) => idx !== index)
+                          )
+                        }
+                        className="absolute top-1 right-1 bg-white text-black rounded-full w-6 h-6 flex items-center justify-center shadow-md hover:bg-gray-100"
+                        title="Удалить"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  );
+                })}
+              </SimpleGrid>
             </div>
+          )}
+
+          {step === 7 && (
+            <>
+              <p className="font-bold text-lg">One last thing!</p>
+              <p className=" text-gray-600 pt-3">
+                Before you can share your car with others we need you to accept
+                our terms below.
+              </p>
+              <div className="mt-5">
+                <Checkbox
+                  checked={form.agreed}
+                  label={
+                    <p className="text-gray-800">
+                      I accept the{" "}
+                      <span className=" text-green-500">
+                        <Link to={""}>car rental terms</Link>{" "}
+                      </span>{" "}
+                      on MINI2go.
+                    </p>
+                  }
+                  onChange={(e) =>
+                    handleChange("agreed", e.currentTarget.checked)
+                  }
+                  size="md"
+                  color="black"
+                  radius="md"
+                />
+              </div>
+            </>
           )}
         </motion.div>
       </AnimatePresence>
 
-      <div className="flex justify-between pt-6">
+      <div className="flex justify-between mt-6">
         {step > 1 ? (
           <button
             onClick={prevStep}
@@ -544,13 +626,13 @@ export default function AddCarWizard() {
         ) : (
           <div />
         )}
-        {step < 6 ? (
+        {step < 7 ? (
           <button
             onClick={nextStep}
             disabled={!isStepValid(step)}
             className={`w-20 py-3 rounded-2xl ${
               isStepValid(step)
-                ? "bg-violet-500 text-white"
+                ? "bg-black text-white"
                 : "bg-gray-100 text-gray-500 cursor-not-allowed"
             }`}
           >
@@ -559,7 +641,12 @@ export default function AddCarWizard() {
         ) : (
           <button
             onClick={handleSubmit}
-            className="bg-violet-600 text-white px-4 py-3 rounded-2xl w-20"
+            // className="bg-black text-white px-4 py-3 rounded-2xl w-20"
+            className={`w-20 py-3 rounded-2xl ${
+              isStepValid(step)
+                ? "bg-black text-white"
+                : "bg-gray-100 text-gray-500 cursor-not-allowed"
+            }`}
             disabled={!form.agreed || loading}
           >
             {loading ? "Saving..." : "Save"}

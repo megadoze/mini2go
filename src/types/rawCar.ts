@@ -26,6 +26,7 @@ export type RawCar = {
   locations: {
     name: string;
     countries: {
+      id: string;
       name: string;
     }[];
   }[];

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { fetchCars } from "../../services/car.service";
 import CarTable from "./сarTable";
 import type { CarWithRelations } from "@/types/carWithRelations";
@@ -6,7 +6,11 @@ import { Badge, Button, Loader, NativeSelect, TextInput } from "@mantine/core";
 import { useNavigate } from "react-router-dom";
 import { MagnifyingGlassIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import type { Country } from "@/types/country";
-import { fetchCountries } from "../../services/location.service";
+import type { Location } from "@/types/location";
+import {
+  fetchCountries,
+  fetchLocationsByCountry,
+} from "@/services/geo.service";
 
 export default function CarsPage() {
   const navigate = useNavigate();
@@ -15,15 +19,16 @@ export default function CarsPage() {
   const [countries, setCountries] = useState<Country[]>([]);
   const [countryId, setCountryId] = useState<string | null>(null);
 
-  const [filtered, setFiltered] = useState<CarWithRelations[]>([]);
+  const [locations, setLocations] = useState<Location[]>([]);
   const [locationFilter, setLocationFilter] = useState("");
+
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const load = async () => {
-      const cars = await fetchCars();
-      const countries = await fetchCountries();
+      const [cars, countries]: [CarWithRelations[], Country[]] =
+        await Promise.all([fetchCars(), fetchCountries()]);
       setCars(cars);
       setCountries(countries);
       setLoading(false);
@@ -32,6 +37,19 @@ export default function CarsPage() {
   }, []);
 
   useEffect(() => {
+    if (!countryId) {
+      setLocations([]);
+      return;
+    }
+
+    const load = async () => {
+      const locations = await fetchLocationsByCountry(countryId);
+      setLocations(locations);
+    };
+    load();
+  }, [countryId]);
+
+  const filteredCars = useMemo(() => {
     const textFiltered = cars.filter((car) => {
       const text = `${car.models?.brands?.name ?? ""} ${
         car.models?.name ?? ""
@@ -39,15 +57,17 @@ export default function CarsPage() {
       return text.includes(search.toLowerCase());
     });
 
-    const finalFilter = textFiltered.filter((car) => {
+    const countryFilter = countryId
+      ? textFiltered.filter((car) => car.locations?.countries.id === countryId)
+      : textFiltered;
+
+    return countryFilter.filter((car) => {
       const location = car.locations?.name?.toLowerCase() ?? "";
       return (
         locationFilter === "" || location.includes(locationFilter.toLowerCase())
       );
     });
-
-    setFiltered(finalFilter);
-  }, [search, locationFilter, cars]);
+  }, [cars, search, countryId, locationFilter]);
 
   const addNewCar = () => {
     navigate("/cars/add");
@@ -78,7 +98,7 @@ export default function CarsPage() {
           radius="xs"
           className=" pl-2  border  border-gray-600"
         >
-          <option>Country</option>
+          <option value="">Country</option>
           {countries.map((c) => (
             <option key={c.id} value={c.id}>
               {c.name}
@@ -87,31 +107,26 @@ export default function CarsPage() {
         </NativeSelect>
 
         <NativeSelect
-          // variant="unstyled"
-          data={[
-            { label: "Location", value: "" },
-            { label: "Santander", value: "Santander" },
-            { label: "Sitges", value: "Sitges" },
-          ]}
-          value={locationFilter}
+          value={locationFilter ?? ""}
           onChange={(e) => setLocationFilter(e.currentTarget.value)}
           radius="none"
           disabled={!countryId}
           className="   border border-gray-600"
-          styles={
-            !countryId
-              ? {
-                  input: {
-                    backgroundColor: "#f3f4f6",
-                    color: "black",
-                    border: "0px",
-                  },
-                }
-              : {
-                  input: { border: "0px" },
-                }
-          }
-        />
+          styles={{
+            input: {
+              backgroundColor: !countryId ? "#f3f4f6" : undefined,
+              color: "black",
+              border: "0px",
+            },
+          }}
+        >
+          <option value="">Location</option>
+          {locations.map((l) => (
+            <option key={l.id} value={l.name}>
+              {l.name}
+            </option>
+          ))}
+        </NativeSelect>
 
         <TextInput
           variant="unstyled"
@@ -128,7 +143,7 @@ export default function CarsPage() {
           color="black"
           onClick={() => {
             setSearch("");
-            setCountryId("");
+            setCountryId(null);
             setLocationFilter("");
           }}
         >
@@ -140,8 +155,8 @@ export default function CarsPage() {
         <div className="flex justify-center items-center gap-2 text-center text-zinc-500 mt-10">
           <Loader size="sm" color="gray" /> Loading...
         </div>
-      ) : filtered.length > 0 ? (
-        <CarTable cars={filtered} search={search} />
+      ) : filteredCars.length > 0 ? (
+        <CarTable cars={filteredCars} search={search} />
       ) : (
         <p className="text-zinc-500 text-sm mt-10">Cars not found</p>
       )}
