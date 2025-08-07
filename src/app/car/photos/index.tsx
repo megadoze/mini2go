@@ -3,7 +3,7 @@ import { useParams } from "react-router-dom";
 import { uploadCarPhotos, updateCarPhotos } from "@/services/car.service";
 import { toast } from "sonner";
 import { Dropzone, IMAGE_MIME_TYPE } from "@mantine/dropzone";
-import { Image, SimpleGrid, Text, Button, Modal, Group } from "@mantine/core";
+import { SimpleGrid, Text, Button, Modal, Group } from "@mantine/core";
 import {
   DndContext,
   closestCenter,
@@ -30,11 +30,9 @@ type PhotoItem = {
 
 function SortablePhoto({
   photo,
-  index,
   onRequestRemove,
 }: {
   photo: PhotoItem;
-  index: number;
   onRequestRemove: (photo: PhotoItem) => void;
 }) {
   const {
@@ -44,15 +42,15 @@ function SortablePhoto({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: photo.id });
+  } = useSortable({
+    id: photo.id,
+  });
 
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
-    zIndex: isDragging ? 10 : 1,
+    zIndex: isDragging ? 999 : "auto",
     position: "relative",
-    cursor: "grab",
-    overflow: "visible",
   };
 
   return (
@@ -60,35 +58,23 @@ function SortablePhoto({
       ref={setNodeRef}
       style={style}
       {...attributes}
-      {...listeners}
-      className=" select-none"
-      onContextMenu={(e) => e.preventDefault()}
-      // onTouchStart={(e) => {
-      //   if (e.touches.length > 1) {
-      //     e.preventDefault(); // pinch
-      //   }
-      // }}
-      // onTouchEnd={(e) => e.preventDefault()}
-      // onTouchMove={(e) => e.preventDefault()}
+      className="relative group select-none"
     >
-      <Image
+      {/* DRAG только на изображении */}
+      <img
         src={photo.url}
-        radius="md"
-        h="140"
-        alt={`photo-${index}`}
+        {...listeners}
+        alt=""
+        className="w-full h-[140px] object-cover rounded-md cursor-grab"
         draggable={false}
-        onDragStart={(e) => e.preventDefault()}
-        onContextMenu={(e) => e.preventDefault()}
-        className=" pointer-events-none"
       />
 
       <button
-        type="button"
         onClick={(e) => {
           e.stopPropagation();
           onRequestRemove(photo);
         }}
-        className="absolute top-1 right-1 bg-white text-black text-xs px-1 rounded z-20 opacity-0 group-hover:opacity-100"
+        className="absolute top-1 right-1 z-50 bg-white text-black text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition"
       >
         ✕
       </button>
@@ -237,11 +223,11 @@ export default function Photos() {
           strategy={rectSortingStrategy}
         >
           <SimpleGrid cols={{ base: 2, sm: 3 }} mt="lg">
-            {photos.map((photo, index) => (
+            {photos.map((photo) => (
               <div key={photo.id} className="group relative">
                 <SortablePhoto
                   photo={photo}
-                  index={index}
+                  // index={index}
                   onRequestRemove={(p) => {
                     setPhotoToDelete(p);
                   }}
@@ -255,7 +241,7 @@ export default function Photos() {
       <div className="mt-8 text-center">
         <button
           onClick={handleSave}
-          disabled={loading || photos.length === 0}
+          // disabled={loading || photos.length === 0}
           className="bg-black text-white py-2 px-4 rounded w-full sm:w-auto disabled:opacity-50"
         >
           {loading ? "Saving..." : "Save changes"}
