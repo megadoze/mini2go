@@ -55,7 +55,7 @@ const Distance = () => {
           Higher value vehicles that qualify for Deluxe and Super Deluxe Class
           can set lower daily distances.
         </p>
-        <p className="mt-2 text-violet-500 font-medium">
+        <p className="mt-2 text-fuchsia-700 font-medium">
           How daily distance calculated?
         </p>
         <div className="mt-5">
@@ -83,7 +83,7 @@ const Distance = () => {
             If your guest drives farther than the distance included, they’ll be
             charged a fee per mile calculated using your daily price.
           </p>
-          <p className="mt-2 text-violet-500 font-medium">
+          <p className="mt-2 text-fuchsia-700 font-medium">
             How additional distance calculated?
           </p>
         </div>

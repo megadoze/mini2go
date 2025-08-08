@@ -291,7 +291,7 @@ export default function CarDetails() {
       <div className="border-b border-gray-100 mt-5 shadow-sm"></div>
       <div className="flex justify-between items-center mt-5">
         <p className="text-lg font-medium text-gray-800">Your car</p>
-        <p className=" text-sm text-gray-500">{form.vin}</p>
+        <p className="text-sm text-neutral-500">VIN: {form.vin}</p>
       </div>
       <div className="grid grid-cols-2 gap-x-4 md:gap-x-5 gap-y-4 mt-5">
         <Input.Wrapper label="Mark">
@@ -452,7 +452,7 @@ export default function CarDetails() {
             e.stopPropagation(); // останавливает всплытие
             setConfirmDelete(true);
           }}
-          className=" h-10 px-4 py-2 border rounded cursor-pointer"
+          className="border rounded-md px-4 text-neutral-500 py-2 "
         >
           Удалить
         </button>

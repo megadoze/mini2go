@@ -152,7 +152,7 @@ const ExtraComponent = () => {
           </div>
         </div>
 
-        <div className="mt-8 text-right">
+        <div className="flex justify-between items-centermt-8 text-right mt-10">
           <button
             type="button"
             className={`border-gray-300 border rounded-md px-6 py-2 mr-2`}
@@ -160,22 +160,24 @@ const ExtraComponent = () => {
           >
             Back
           </button>
-          <button
-            className={`${
-              isChanged
-                ? "border-lime-300 text-lime-500"
-                : "border-gray-300 cursor-not-allowed"
-            } border rounded-md px-8 py-2`}
-            disabled={!isChanged}
-            onClick={handleSubmit}
-          >
-            Save
-          </button>
-          {saved && (
-            <span className="text-lime-500 font-medium text-sm animate-fade-in pl-2">
-              ✓ Saved
-            </span>
-          )}
+          <div>
+            {saved && (
+              <span className="text-lime-500 font-medium text-sm animate-fade-in mr-2">
+                ✓ Saved
+              </span>
+            )}
+            <button
+              className={`${
+                isChanged
+                  ? "border-lime-300 text-lime-500"
+                  : "border-gray-300 cursor-not-allowed"
+              } border rounded-md px-8 py-2`}
+              disabled={!isChanged}
+              onClick={handleSubmit}
+            >
+              Save
+            </button>
+          </div>
         </div>
       </div>
     </div>

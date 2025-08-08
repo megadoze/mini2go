@@ -364,30 +364,32 @@ function Parking() {
             />
           </div>
 
-          <div className="mt-8 text-right flex items-center justify-end gap-3">
+          <div className="flex justify-between items-centermt-8 text-right mt-10">
             <button
               type="button"
-              className="border-gray-300 border rounded-md px-6 py-2"
+              className={`border-gray-300 border rounded-md px-6 py-2 mr-2`}
               onClick={() => navigate(-1)}
             >
               Back
             </button>
-            <button
-              type="submit"
-              className={`border rounded-md px-8 py-2 ${
-                isChanged
-                  ? "border-lime-300 text-lime-500"
-                  : "border-gray-300 cursor-not-allowed"
-              }`}
-              disabled={!isChanged}
-            >
-              Save
-            </button>
-            {saved && (
-              <span className="text-lime-600 font-medium text-sm animate-fade-in">
-                ✓ Saved
-              </span>
-            )}
+            <div>
+              {saved && (
+                <span className="text-lime-500 font-medium text-sm animate-fade-in mr-2">
+                  ✓ Saved
+                </span>
+              )}
+              <button
+                className={`${
+                  isChanged
+                    ? "border-lime-300 text-lime-500"
+                    : "border-gray-300 cursor-not-allowed"
+                } border rounded-md px-8 py-2`}
+                disabled={!isChanged}
+                onClick={handleSubmit}
+              >
+                Save
+              </button>
+            </div>
           </div>
         </form>
       </div>
