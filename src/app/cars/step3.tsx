@@ -14,6 +14,20 @@ export default function Step3({ form, handleChange }: any) {
   const [showManualFields, setShowManualFields] = useState(false);
   const [brands, setBrands] = useState<Brand[]>([]);
   const [models, setModels] = useState<Model[]>([]);
+  const [lastDecodedVin, setLastDecodedVin] = useState<string | null>(null);
+
+  const resetDecodedVinFields = () => {
+    handleChange("brand", "");
+    handleChange("model", "");
+    handleChange("brandId", "");
+    handleChange("modelId", "");
+    handleChange("year", "");
+    handleChange("fuelType", "");
+    handleChange("transmission", "");
+    setShowManualFields(false);
+    setVinError(null);
+    setLastDecodedVin(null);
+  };
 
   useEffect(() => {
     const brand = brands.find((b) => b.id === form.brandId);
@@ -36,6 +50,14 @@ export default function Step3({ form, handleChange }: any) {
       setModels([]);
     }
   }, [form.brandId]);
+
+  useEffect(() => {
+    const vin = form.vin.trim().toUpperCase();
+
+    if (lastDecodedVin && vin !== lastDecodedVin) {
+      resetDecodedVinFields();
+    }
+  }, [form.vin]);
 
   const handleDecodeVin = async () => {
     setVinError(null);
@@ -79,6 +101,7 @@ export default function Step3({ form, handleChange }: any) {
       handleChange("transmission", result.transmission || "");
 
       setShowManualFields(!result.brandMatched || !result.modelMatched);
+      setLastDecodedVin(vin);
     } catch (err) {
       setVinError("Ошибка при получении данных");
       setShowManualFields(true);
@@ -105,16 +128,27 @@ export default function Step3({ form, handleChange }: any) {
       <TextInput
         label="What's your car’s VIN number?"
         placeholder="Write your VIN"
+        radius={0}
         value={form.vin}
-        onChange={(e) => handleChange("vin", e.currentTarget.value)}
+        onChange={(e) => {
+          handleChange("vin", e.currentTarget.value.toUpperCase());
+        }}
         onKeyDown={(e) => {
           if (e.key === "Enter") handleDecodeVin();
+        }}
+        // className=" font-semibold"
+        classNames={{
+          input:
+            "placeholder:text-gray-400 placeholder:font-normal, placeholder:text-base focus:border-gray-600",
+        }}
+        styles={{
+          input: { textAlign: "center", fontSize: "18px" },
         }}
       />
 
       <button
         onClick={handleDecodeVin}
-        className=" border border-black rounded px-4 py-2 text-sm"
+        className=" border bg-fuchsia-600 text-white rounded px-2 py-2 text-sm"
         type="button"
         disabled={vinLoading || !form.vin}
       >

@@ -239,7 +239,7 @@ export default function AddCarWizard() {
       radius="md"
       value={item.name}
       key={item.name}
-      className="overflow-hidden"
+      className="overflow-hidden radio-card"
     >
       <div className="p-4 flex gap-4 items-center hover:bg-gray-50 transition ease-in-out">
         <Radio.Indicator color="black" />
@@ -296,21 +296,6 @@ export default function AddCarWizard() {
         />
       </div>
 
-      {/* <div className="flex items-center justify-between gap-2 mb-6">
-        {steps.map((s, index) => (
-          <div
-            key={index}
-            className={`flex-1 text-center py-1 px-2 rounded text-xs font-medium border ${
-              step === index + 1
-                ? "bg-violet-600 text-white"
-                : "bg-gray-100 text-gray-600"
-            }`}
-          >
-            {index + 1}. {s.title}
-          </div>
-        ))}
-      </div> */}
-
       <div className="text-right font-bold mt-4 mb-4">Step {step} / 7</div>
 
       <AnimatePresence mode="wait">
@@ -346,6 +331,7 @@ export default function AddCarWizard() {
                 label="License Plate"
                 placeholder="e.g. AB-123-CD or 1234 ABC"
                 value={form.licensePlate}
+                radius={0}
                 onChange={(e) =>
                   handleChange(
                     "licensePlate",
@@ -358,7 +344,8 @@ export default function AddCarWizard() {
                     : undefined
                 }
                 classNames={{
-                  input: "placeholder:text-gray-400, placeholder:text-base",
+                  input:
+                    "placeholder:text-gray-400, placeholder:text-base focus:border-gray-600",
                 }}
                 styles={{
                   input: { textAlign: "center", fontSize: "18px" },
@@ -466,7 +453,7 @@ export default function AddCarWizard() {
                   onChange={(e) => handleChange("address", e.target.value)}
                   placeholder="Введите адрес"
                   autoComplete="address-line1"
-                  className="border w-full p-2 mt-2"
+                  className=" w-full p-2 mt-2 outline-none border border-gray-300 focus:border-gray-600"
                 />
               </AddressAutofillWrapper>
 
@@ -503,13 +490,14 @@ export default function AddCarWizard() {
                 radius={0}
                 leftSectionPointerEvents="none"
                 rightSection="EUR"
-                className=" font-semibold"
+                // className=" font-semibold"
                 classNames={{
-                  input: "placeholder:text-gray-400 placeholder:font-normal",
+                  input:
+                    "placeholder:text-gray-400 placeholder:font-normal, placeholder:text-base focus:border-gray-600",
                 }}
                 styles={{
                   section: { color: "black", paddingRight: "10px" },
-                  input: { textAlign: "center" },
+                  input: { textAlign: "center", fontSize: "18px" },
                 }}
               />
               <p className=" text-gray-700 mt-5">

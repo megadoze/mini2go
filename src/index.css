@@ -8,3 +8,12 @@ img {
   user-select: none;
   touch-action: manipulation;
 }
+
+@layer components {
+  .radio-card {
+    @apply transition-colors duration-500;
+  }
+  .radio-card[data-checked] {
+    @apply border-black;
+  }
+}

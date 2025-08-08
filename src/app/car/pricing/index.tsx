@@ -11,8 +11,6 @@ import {
   upsertSeasonalRate,
   deletePricingRule,
   deleteSeasonalRate,
-  type PricingRule,
-  type SeasonalRate,
 } from "./pricing.service";
 import { useCarContext } from "@/context/carContext";
 import { updateCar } from "@/services/car.service";
@@ -67,16 +65,26 @@ const Pricing = () => {
   const [savingSeason, setSavingSeason] = useState(false);
 
   // Локальные формы для добавления/редактирования записи
-  const [ruleDraft, setRuleDraft] = useState<PricingRule>({
+  const [ruleDraft, setRuleDraft] = useState<{
+    car_id: string;
+    min_days: number;
+    discount_percent: string;
+  }>({
     car_id: carId,
     min_days: 3,
-    discount_percent: -10,
+    discount_percent: "-10",
   });
-  const [seasonDraft, setSeasonDraft] = useState<SeasonalRate>({
+
+  const [seasonDraft, setSeasonDraft] = useState<{
+    car_id: string;
+    start_date: string;
+    end_date: string;
+    adjustment_percent: string;
+  }>({
     car_id: carId,
     start_date: "",
     end_date: "",
-    adjustment_percent: 25,
+    adjustment_percent: "25",
   });
 
   const seasonRange = useMemo<[Date | null, Date | null]>(() => {
@@ -149,7 +157,11 @@ const Pricing = () => {
     if (!carId) return;
     setSavingRule(true);
     try {
-      const saved = await upsertPricingRule({ ...ruleDraft, car_id: carId });
+      const saved = await upsertPricingRule({
+        ...ruleDraft,
+        car_id: carId,
+        discount_percent: parseFloat(ruleDraft.discount_percent) || 0,
+      });
       setPricingRules((prev) => {
         const exists = prev.some((r) => r.id === saved.id);
         const list = exists
@@ -157,7 +169,7 @@ const Pricing = () => {
           : [...prev, saved];
         return [...list].sort((a, b) => a.min_days - b.min_days);
       });
-      setRuleDraft({ car_id: carId, min_days: 3, discount_percent: -10 });
+      setRuleDraft({ car_id: carId, min_days: 3, discount_percent: "-10" });
       toast.success("Discount rule saved");
     } catch (e) {
       console.log(e);
@@ -183,12 +195,19 @@ const Pricing = () => {
 
   const handleAddOrUpdateSeason = async () => {
     if (!carId) return;
+
+    const parsedPercent = parseFloat(seasonDraft.adjustment_percent);
+    const isValidPercent = !isNaN(parsedPercent);
+
     if (
       !seasonDraft.start_date ||
       !seasonDraft.end_date ||
-      !isValidDateRange(seasonDraft.start_date, seasonDraft.end_date)
-    )
+      !isValidDateRange(seasonDraft.start_date, seasonDraft.end_date) ||
+      !isValidPercent
+    ) {
+      toast.error("Проверь корректность данных");
       return;
+    }
 
     setSavingSeason(true);
     try {
@@ -199,15 +218,21 @@ const Pricing = () => {
         const end = toDay(seasonDraft.end_date);
         const sStart = toDay(s.start_date);
         const sEnd = toDay(s.end_date);
-        const disjoint = end <= sStart || start >= sEnd; // стык разрешён
+        const disjoint = end <= sStart || start >= sEnd;
         return !disjoint;
       });
+
       if (overlaps) {
         toast.warning("Новый сезон пересекается с существующим периодом");
         return;
       }
 
-      const saved = await upsertSeasonalRate({ ...seasonDraft, car_id: carId });
+      const saved = await upsertSeasonalRate({
+        ...seasonDraft,
+        car_id: carId,
+        adjustment_percent: parsedPercent, // <-- преобразование тут
+      });
+
       setSeasonalRates((prev) => {
         const exists = prev.some((r) => r.id === saved.id);
         const list = exists
@@ -222,8 +247,9 @@ const Pricing = () => {
         car_id: carId,
         start_date: "",
         end_date: "",
-        adjustment_percent: 25,
+        adjustment_percent: "25", // потому что теперь это string
       });
+
       toast.success("Season saved");
     } catch (e) {
       console.error(e);
@@ -323,7 +349,7 @@ const Pricing = () => {
             <div>
               <label className="text-xs text-gray-500">Min days</label>
               <input
-                type="number"
+                // type="number"
                 min={1}
                 value={ruleDraft.min_days}
                 onChange={(e) =>
@@ -343,7 +369,7 @@ const Pricing = () => {
                 onChange={(e) =>
                   setRuleDraft((p) => ({
                     ...p,
-                    discount_percent: Number(e.target.value),
+                    discount_percent: e.target.value,
                   }))
                 }
                 className="h-9 block border outline-none border-gray-300 rounded-md px-3 py-1 w-24 text-center"
@@ -408,7 +434,7 @@ const Pricing = () => {
         </p>
 
         <div className="mt-4 flex items-end gap-2 w-full">
-          <div>
+          <div className="flex-1 md:flex-none">
             <label className="text-xs text-gray-500">Season dates</label>
             <DatePickerInput
               type="range"
@@ -423,7 +449,7 @@ const Pricing = () => {
                   end_date: end ? toISODate(end) : "",
                 }));
               }}
-              valueFormat="DD.MM.YYYY"
+              valueFormat="DD.MM.YY"
               locale="ru"
               placeholder="Choose dates"
               allowSingleDateInRange
@@ -437,10 +463,10 @@ const Pricing = () => {
               onChange={(e) =>
                 setSeasonDraft((p) => ({
                   ...p,
-                  adjustment_percent: Number(e.target.value),
+                  adjustment_percent: e.target.value,
                 }))
               }
-              className=" h-9 w-24 border outline-none border-gray-300 rounded-md px-3 py-1 text-center"
+              className=" h-9 w-20 border outline-none border-gray-300 rounded-md px-3 py-1 text-center"
             />
           </div>
 
