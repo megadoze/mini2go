@@ -23,6 +23,7 @@ import { toast } from "sonner";
 import {
   Checkbox,
   Image,
+  Loader,
   Radio,
   SimpleGrid,
   Stack,
@@ -635,15 +636,21 @@ export default function AddCarWizard() {
         ) : (
           <button
             onClick={handleSubmit}
-            // className="bg-black text-white px-4 py-3 rounded-2xl w-20"
-            className={`w-20 py-3 rounded-2xl ${
+            className={`min-w-20 py-3 px-2 rounded-2xl ${
               isStepValid(step)
                 ? "bg-black text-white"
                 : "bg-gray-100 text-gray-500 cursor-not-allowed"
             }`}
             disabled={!form.agreed || loading}
           >
-            {loading ? "Saving..." : "Save"}
+            {loading ? (
+              <div className="flex items-center gap-2">
+                <Loader size={16} color="white" />
+                Удаление...
+              </div>
+            ) : (
+              "Удалить"
+            )}
           </button>
         )}
       </div>
