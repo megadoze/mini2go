@@ -102,7 +102,6 @@ export default function Step3({ form, handleChange }: any) {
   return (
     <div className="space-y-4">
       <p className="font-bold text-lg">Tell us about your car</p>
-      <p>3VVPX7B29NM086594</p>
       <TextInput
         label="What's your car’s VIN number?"
         placeholder="Write your VIN"

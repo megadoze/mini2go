@@ -23,7 +23,6 @@ import { toast } from "sonner";
 import {
   Checkbox,
   Image,
-  InputLabel,
   Radio,
   SimpleGrid,
   Stack,
@@ -31,7 +30,6 @@ import {
 } from "@mantine/core";
 import { Dropzone, IMAGE_MIME_TYPE } from "@mantine/dropzone";
 import Step3 from "./step3";
-import { IMaskInput } from "react-imask";
 
 type MapboxFeature = {
   place_type?: string[];
@@ -209,7 +207,7 @@ export default function AddCarWizard() {
       case 1:
         return !!form.owner;
       case 2:
-        return /^[A-ZА-Я]{2}\d{4}[A-ZА-Я]{2}$/.test(form.licensePlate.trim());
+        return isValidEuPlate(form.licensePlate);
 
       case 3:
         return !!form.vin && !!form.brandId && !!form.modelId && !!form.year;
@@ -279,6 +277,13 @@ export default function AddCarWizard() {
     }));
   };
 
+  const euPlateRegex =
+    /^[A-Z]{1,3}[- ]?[A-Z]{1,2}[- ]?\d{1,4}$|^[A-Z]{2}[- ]?\d{3}[- ]?[A-Z]{2}$|^\d{4}[- ]?[A-Z]{3}$/i;
+
+  function isValidEuPlate(plate: string) {
+    return euPlateRegex.test(plate.trim().toUpperCase());
+  }
+
   return (
     <div className="max-w-xl mx-auto p-0">
       <h1 className="text-2xl font-semibold text-gray-900">List your car</h1>
@@ -336,32 +341,33 @@ export default function AddCarWizard() {
                 Enter your license plate number
               </p>
 
-              <InputLabel>
-                License plate
-                <IMaskInput
-                  autoFocus
-                  mask="aa0000aa"
-                  definitions={{
-                    a: /[A-ZА-Я]/,
-                    0: /\d/,
-                  }}
-                  value={form.licensePlate}
-                  unmask={true}
-                  maxLength={8}
-                  onAccept={(val: string) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      licensePlate: val.toUpperCase().replace(/[^A-Z0-9]/g, ""),
-                    }))
-                  }
-                  placeholder="AA1234AA"
-                  className="w-full mt-1 border rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black placeholder:text-gray-400"
-                />
-              </InputLabel>
+              <TextInput
+                autoFocus
+                label="License Plate"
+                placeholder="e.g. AB-123-CD or 1234 ABC"
+                value={form.licensePlate}
+                onChange={(e) =>
+                  handleChange(
+                    "licensePlate",
+                    e.currentTarget.value.toLocaleUpperCase()
+                  )
+                }
+                error={
+                  form.licensePlate && !isValidEuPlate(form.licensePlate)
+                    ? "Invalid EU plate format"
+                    : undefined
+                }
+                classNames={{
+                  input: "placeholder:text-gray-400, placeholder:text-base",
+                }}
+                styles={{
+                  input: { textAlign: "center", fontSize: "18px" },
+                }}
+              />
 
               <p className="text-sm text-gray-500 mt-2">
-                Госномер будет использоваться для модерации и не может быть
-                изменён после публикации.
+                The license number will be used for moderation and cannot be
+                changed after publication.
               </p>
             </div>
           )}
