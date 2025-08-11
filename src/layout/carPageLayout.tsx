@@ -244,7 +244,7 @@ export default function CarPageLayout() {
           </p>
           <p
             className={`text-sm pt-1 ${
-              car.status === "available" ? "text-lime-600" : "text-zinc-600"
+              car.status === "available" ? "text-lime-500" : "text-zinc-500"
             }`}
           >
             ◉ {car.status}

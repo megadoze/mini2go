@@ -646,10 +646,10 @@ export default function AddCarWizard() {
             {loading ? (
               <div className="flex items-center gap-2">
                 <Loader size={16} color="white" />
-                Удаление...
+                Adding...
               </div>
             ) : (
-              "Удалить"
+              "Add"
             )}
           </button>
         )}

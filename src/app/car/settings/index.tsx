@@ -752,20 +752,22 @@ export default function BookingSettingsSection() {
 
       {/* Save */}
       <div className="mt-8 text-right">
+        {saved && (
+          <span className="text-lime-400 font-medium text-sm animate-fade-in mr-2">
+            ✓ Saved
+          </span>
+        )}
         <button
           className={`${
-            dirty ? "border-green-300" : "border-gray-300 cursor-not-allowed"
+            dirty
+              ? "border-gray-600 text-gray-700"
+              : "border-gray-300 text-gray-400 cursor-not-allowed"
           } border rounded-md px-8 py-2`}
           disabled={!dirty}
           onClick={handleSave}
         >
           Save
         </button>
-        {saved && (
-          <span className="text-green-500 font-medium text-sm animate-fade-in pl-2">
-            ✓ Saved
-          </span>
-        )}
       </div>
     </main>
   );
@@ -794,7 +796,7 @@ function ToggleWithGlobal({
   return (
     <div
       className={`${
-        checked && !useGlobal ? "border-green-200 bg-green-50/40" : ""
+        checked && !useGlobal ? "border-lime-300 bg-white" : ""
       } mt-8 rounded-2xl border bg-gray-50 p-4`}
       aria-disabled={disabled}
     >
@@ -802,7 +804,7 @@ function ToggleWithGlobal({
         <div className="flex-1">
           <p
             className={`${
-              checked && !useGlobal ? "text-green-500" : ""
+              checked && !useGlobal ? "text-lime-500" : ""
             } text-lg font-medium`}
           >
             {label}
@@ -825,7 +827,7 @@ function ToggleWithGlobal({
 
         <div
           className={`${
-            checked ? "bg-green-400 justify-end" : "justify-start bg-gray-300"
+            checked ? "bg-lime-300 justify-end" : "justify-start bg-gray-300"
           } w-16 h-10 flex items-center rounded-full p-1 ${
             disabled ? "opacity-50 pointer-events-none" : "cursor-pointer"
           }`}

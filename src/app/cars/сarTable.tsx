@@ -46,8 +46,8 @@ export default function CarListView({ cars, search }: Props) {
                 <p
                   className={`text-sm leading-6 ${
                     car.status === "available"
-                      ? "text-lime-600"
-                      : "text-zinc-600"
+                      ? "text-lime-500"
+                      : "text-zinc-500"
                   }`}
                 >
                   ◉ {car.status}

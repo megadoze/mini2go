@@ -74,7 +74,7 @@ const Delivery = () => {
         </p>
         <div
           className={`${
-            deliveryState ? "border-lime-200 bg-lime-50/40" : ""
+            deliveryState ? "border-lime-300 bg-white" : ""
           } flex justify-between items-center mt-8 rounded-2xl border bg-gray-50 py-5 px-6`}
         >
           <p
@@ -88,7 +88,7 @@ const Delivery = () => {
             // data-ison={isSelected}
             className={`${
               deliveryState
-                ? "bg-lime-400 justify-end"
+                ? "bg-lime-300 justify-end"
                 : "justify-start bg-gray-300"
             } cursor-pointer w-16 h-10 flex items-center rounded-full p-1`}
             onClick={() => handleSwitch()}
@@ -140,8 +140,8 @@ const Delivery = () => {
             <button
               className={`${
                 isChanged
-                  ? "border-lime-300 text-lime-500"
-                  : "border-gray-300 cursor-not-allowed"
+                  ? "border-gray-600 text-gray-700"
+                  : "border-gray-300 text-gray-400 cursor-not-allowed"
               } border rounded-md px-8 py-2`}
               disabled={!isChanged}
               onClick={handleSubmit}

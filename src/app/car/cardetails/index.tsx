@@ -470,8 +470,8 @@ export default function CarDetails() {
             disabled={!isChanged || loading || !form.modelId}
             className={`border rounded-md px-8 py-2 transition-opacity duration-500 ${
               isChanged
-                ? "border-lime-300 text-lime-500 opacity-100"
-                : "border-gray-300 opacity-50 cursor-not-allowed"
+                ? "border-black text-gray-700 opacity-100"
+                : "border-gray-300 text-gray-400  cursor-not-allowed"
             }`}
           >
             Save

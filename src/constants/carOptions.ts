@@ -1,28 +1,28 @@
 export const fuelTypes = ["Gasoline", "Diesel", "Electro", "Hybrid"] as const;
-export const transmissions = ["Mechanical", "Automatic"] as const;
+export const transmissions = ["Manual", "Automatic"] as const;
 export const driveTypes = ["Front", "Rear", "Full"] as const;
 export const bodyTypes = [
-  "Седан",
-  "Хэтчбек",
-  "Универсал",
-  "Кроссовер",
-  "Внедорожник",
-  "Купе",
-  "Кабриолет",
-  "Минивэн",
-  "Пикап",
+  "Sedan",
+  "Hatchback",
+  "Station wagon",
+  "Crossover",
+  "SUV",
+  "Coupe",
+  "Convertible",
+  "Minivan",
+  "Pickup",
 ] as const;
 export const statuses = ["available", "busy", "repair"] as const;
 export const colors = [
-  "Белый",
-  "Чёрный",
-  "Серый",
-  "Синий",
-  "Красный",
-  "Зелёный",
-  "Жёлтый",
-  "Оранжевый",
-  "Коричневый",
+  "White",
+  "Black",
+  "Gray",
+  "Blue",
+  "Red",
+  "Green",
+  "Yellow",
+  "Orange",
+  "Brown",
 ] as const;
 export const doorOptions = [2, 3, 4, 5] as const;
 export const seatOptions = [2, 4, 5, 6, 7, 8] as const;

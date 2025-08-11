@@ -294,7 +294,7 @@ const Pricing = () => {
                 </span>
                 <input
                   id="price"
-                  className=" outline-none text-center w-40"
+                  className=" outline-none text-center w-40 "
                   value={price}
                   min={0}
                   onChange={(e) =>
@@ -318,8 +318,8 @@ const Pricing = () => {
             <button
               className={`${
                 isChangedPrice
-                  ? "border-lime-400 text-lime-500"
-                  : "border-gray-300 cursor-not-allowed"
+                  ? "border-gray-600 text-gray-700"
+                  : "border-gray-300 text-gray-400 cursor-not-allowed"
               } border rounded-md px-8 py-2`}
               disabled={!isChangedPrice}
               onClick={handleSavePrice}
@@ -566,8 +566,8 @@ const Pricing = () => {
             <button
               className={`${
                 isChangedDeposit
-                  ? "border-lime-400 text-lime-500"
-                  : "border-gray-300 cursor-not-allowed"
+                  ? "border-gray-600 text-gray-700"
+                  : "border-gray-300 text-gray-400 cursor-not-allowed"
               } border rounded-md px-8 py-2`}
               disabled={!isChangedDeposit}
               onClick={handleSaveDeposit}

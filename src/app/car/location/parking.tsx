@@ -342,7 +342,7 @@ function Parking() {
               id="pickupInfo"
               maxLength={500}
               rows={5}
-              className="py-1 w-full border border-gray-300 hover:border-gray-400 focus:border-green-300 outline-none pl-2 mt-2"
+              className="py-1 w-full border border-gray-300 hover:border-gray-400 focus:border-lime-300 outline-none pl-2 mt-2"
               value={info.pickupInfo ?? ""}
               onChange={handleChangeInfo}
               placeholder="Pick-up information"
@@ -357,7 +357,7 @@ function Parking() {
               id="returnInfo"
               maxLength={500}
               rows={5}
-              className="py-1 w-full border border-gray-300 hover:border-gray-400 focus:border-green-300 outline-none pl-2 mt-2"
+              className="py-1 w-full border border-gray-300 hover:border-gray-400 focus:border-lime-300 outline-none pl-2 mt-2"
               value={info.returnInfo ?? ""}
               onChange={handleChangeInfo}
               placeholder="Return information"
@@ -381,8 +381,8 @@ function Parking() {
               <button
                 className={`${
                   isChanged
-                    ? "border-lime-300 text-lime-500"
-                    : "border-gray-300 cursor-not-allowed"
+                    ? "border-gray-600 text-gray-700"
+                    : "border-gray-300 text-gray-400 cursor-not-allowed"
                 } border rounded-md px-8 py-2`}
                 disabled={!isChanged}
                 onClick={handleSubmit}

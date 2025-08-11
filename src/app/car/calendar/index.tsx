@@ -336,7 +336,7 @@ export default function Calendar() {
         <div className="mt-4 flex justify-end gap-2">
           {(selectedRange.start || selectedRange.end) && (
             <button
-              className="px-4 py-2 border rounded text-sm"
+              className="px-4 py-2 border border-gray-500 rounded text-sm"
               onClick={() => setSelectedRange({ start: null, end: null })}
             >
               Cancel
@@ -345,7 +345,7 @@ export default function Calendar() {
           <button
             disabled={!selectedRange.start || !selectedRange.end}
             onClick={handleBlock}
-            className="px-4 py-2 border rounded text-sm disabled:opacity-50"
+            className="px-4 py-2 border border-gray-500 rounded text-sm disabled:opacity-50"
           >
             Block selected period
           </button>
