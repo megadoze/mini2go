@@ -12,6 +12,7 @@ import {
   addMonths,
   subMonths,
   isWithinInterval,
+  differenceInMinutes,
 } from "date-fns";
 import { useCarContext } from "@/context/carContext";
 import type { Booking } from "@/types/booking";
@@ -21,7 +22,7 @@ import {
   fetchBookingsByCarId,
   updateBooking,
 } from "./calendar.service";
-import { calculateFinalPrice } from "@/hooks/useFinalPrice";
+import { calculateFinalPriceProRated } from "@/hooks/useFinalPriceHourly";
 
 const TIME_OPTIONS = Array.from({ length: 24 * 2 }, (_, i) => {
   const hours = Math.floor((i * 30) / 60);
@@ -291,12 +292,20 @@ export default function Calendar() {
 
     const basePrice = car?.price ?? 0;
 
-    const price_total = calculateFinalPrice({
-      startDate: start,
-      endDate: end,
-      basePrice,
-      pricingRules,
-      seasonalRates,
+    // const price_total = calculateFinalPrice({
+    //   startDate: start,
+    //   endDate: end,
+    //   basePrice,
+    //   pricingRules,
+    //   seasonalRates,
+    // });
+
+    const { total } = calculateFinalPriceProRated({
+      startAt: start,
+      endAt: end,
+      baseDailyPrice: basePrice,
+      pricingRules, // из контекста
+      seasonalRates, // из контекста
     });
 
     const payload: Omit<Booking, "id"> = {
@@ -305,9 +314,9 @@ export default function Calendar() {
       end_at: end.toISOString(),
       mark: "booking",
       status: "active",
-      user_id: null, // сюда можно подставить реального user_id
-      price_per_day: basePrice || null,
-      price_total: price_total ?? null,
+      user_id: /* текущий пользователь */ null,
+      price_per_day: basePrice,
+      price_total: total,
     };
 
     const result = await createBooking(payload);
@@ -385,17 +394,26 @@ export default function Calendar() {
     if (editMode === "booking") {
       const basePrice = car?.price ?? 0;
 
-      const price_total = calculateFinalPrice({
-        startDate: s,
-        endDate: e,
-        basePrice,
-        pricingRules,
-        seasonalRates,
+      // const price_total = calculateFinalPrice({
+      //   startDate: s,
+      //   endDate: e,
+      //   basePrice,
+      //   pricingRules,
+      //   seasonalRates,
+      // });
+
+      const { total } = calculateFinalPriceProRated({
+        startAt: s,
+        endAt: e,
+        baseDailyPrice: basePrice,
+        pricingRules, // из контекста
+        seasonalRates, // из контекста
       });
+
       patch = {
         ...patch,
         price_per_day: basePrice || null,
-        price_total: price_total ?? null,
+        price_total: total ?? null,
       };
     }
 
@@ -636,8 +654,20 @@ export default function Calendar() {
           <p className="text-sm font-medium">Booking:</p>
           <p className="text-sm">
             {format(parseISO(selectedBooking.start_at), "dd MMM yyyy, HH:mm")} →{" "}
-            {format(parseISO(selectedBooking.end_at), "dd MMM yyyy, HH:mm")}
+            {format(parseISO(selectedBooking.end_at), "dd MMM yyyy, HH:mm")}{" "}
+            {(() => {
+              const mins = differenceInMinutes(
+                parseISO(selectedBooking.end_at),
+                parseISO(selectedBooking.start_at)
+              );
+              const days = Math.floor(mins / 1440);
+              const hours = Math.floor((mins % 1440) / 60);
+              return `(${days} day${days !== 1 ? "s" : ""} ${hours} hour${
+                hours !== 1 ? "s" : ""
+              })`;
+            })()}
           </p>
+
           {selectedBooking.price_total != null && (
             <p className="text-sm mt-1 font-medium">
               Total: {selectedBooking.price_total} {currency}
