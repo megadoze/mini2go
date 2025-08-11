@@ -332,19 +332,19 @@ export default function Calendar() {
   };
 
   // редактирование
-  const startEditBlock = () => {
-    if (!selectedBlock) return;
-    setEditMode("block");
-    setSelectedBookingId(null);
-    // заполним диапазон и время
-    const s = parseISO(selectedBlock.start_at);
-    const e = parseISO(selectedBlock.end_at);
-    setSelectedRange({ start: s, end: e });
-    const sVal = s.getHours() * 100 + s.getMinutes();
-    const eVal = e.getHours() * 100 + e.getMinutes();
-    setStartTime(String(sVal));
-    setEndTime(String(eVal));
-  };
+  // const startEditBlock = () => {
+  //   if (!selectedBlock) return;
+  //   setEditMode("block");
+  //   setSelectedBookingId(null);
+  //   // заполним диапазон и время
+  //   const s = parseISO(selectedBlock.start_at);
+  //   const e = parseISO(selectedBlock.end_at);
+  //   setSelectedRange({ start: s, end: e });
+  //   const sVal = s.getHours() * 100 + s.getMinutes();
+  //   const eVal = e.getHours() * 100 + e.getMinutes();
+  //   setStartTime(String(sVal));
+  //   setEndTime(String(eVal));
+  // };
 
   const startEditBooking = () => {
     if (!selectedBooking) return;
@@ -506,7 +506,7 @@ export default function Calendar() {
             "aspect-square flex items-center justify-center border-r border-b border-gray-200",
             selected ? " bg-lime-200/80" : "",
             isHover ? " bg-gray-50 " : "",
-            inRange || isHoveredRange ? "bg-lime-100" : "",
+            inRange || isHoveredRange ? "bg-lime-200/80" : "",
             isBookedDay ? "bg-white bg-hatched-booked" : "",
             isBlockedDay ? "bg-white bg-hatched-blocked" : "",
             isDisabled ? "opacity-40 cursor-not-allowed" : "cursor-pointer",
@@ -571,7 +571,7 @@ export default function Calendar() {
 
       {/* Кнопки действий: создание/блокировка (когда не открыты карточки и не редактируем) */}
       {!selectedBlockId && !selectedBookingId && !editMode && (
-        <div className="mt-4 flex justify-end gap-2">
+        <div className="mt-6 flex justify-between">
           {(selectedRange.start || selectedRange.end) && (
             <button
               className="px-4 py-2 border border-gray-500 rounded text-sm"
@@ -580,20 +580,22 @@ export default function Calendar() {
               Cancel
             </button>
           )}
-          <button
-            disabled={!selectedRange.start || !selectedRange.end}
-            onClick={handleCreateBooking}
-            className="px-4 py-2 border border-gray-500 rounded text-sm disabled:opacity-50"
-          >
-            Book
-          </button>
-          <button
-            disabled={!selectedRange.start || !selectedRange.end}
-            onClick={handleBlock}
-            className="px-4 py-2 border border-gray-500 rounded text-sm disabled:opacity-50"
-          >
-            Block
-          </button>
+          <div className="flex gap-2 justify-end w-full">
+            <button
+              disabled={!selectedRange.start || !selectedRange.end}
+              onClick={handleBlock}
+              className="px-4 py-2 border border-gray-600 rounded text-sm disabled:border-gray-300 disabled:text-gray-400"
+            >
+              Block
+            </button>
+            <button
+              disabled={!selectedRange.start || !selectedRange.end}
+              onClick={handleCreateBooking}
+              className="px-5 py-2 border border-lime-500 text-lime-600 rounded text-sm disabled:border-gray-300 disabled:text-gray-400"
+            >
+              Book
+            </button>
+          </div>
         </div>
       )}
 
@@ -612,12 +614,12 @@ export default function Calendar() {
             >
               Close
             </button>
-            <button
+            {/* <button
               className="px-2 py-2 border rounded text-sm"
               onClick={startEditBlock}
             >
               Edit
-            </button>
+            </button> */}
             <button
               onClick={() => handleRemoveBlock(selectedBlock.id)}
               className="px-2 py-2 border rounded text-red-600 text-sm"
