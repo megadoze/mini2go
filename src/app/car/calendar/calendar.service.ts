@@ -29,3 +29,20 @@ export async function deleteBooking(id: string): Promise<void> {
 
   if (error) throw error;
 }
+
+// calendar.service.ts
+
+export async function updateBooking(
+  id: string,
+  patch: Partial<Booking>
+): Promise<Booking> {
+  const { data, error } = await supabase
+    .from("bookings")
+    .update(patch)
+    .eq("id", id)
+    .select("*")
+    .single();
+
+  if (error) throw error;
+  return data as Booking;
+}

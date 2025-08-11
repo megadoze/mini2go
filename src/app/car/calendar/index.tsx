@@ -19,7 +19,9 @@ import {
   createBooking,
   deleteBooking,
   fetchBookingsByCarId,
+  updateBooking,
 } from "./calendar.service";
+import { calculateFinalPrice } from "@/hooks/useFinalPrice";
 
 const TIME_OPTIONS = Array.from({ length: 24 * 2 }, (_, i) => {
   const hours = Math.floor((i * 30) / 60);
@@ -32,16 +34,33 @@ const TIME_OPTIONS = Array.from({ length: 24 * 2 }, (_, i) => {
   return { value, label };
 });
 
+type EditMode = null | "block" | "booking";
+
 export default function Calendar() {
-  const { car, setCar } = useCarContext();
+  const {
+    car,
+    setCar,
+    pricingRules = [],
+    seasonalRates = [],
+    effectiveCurrency,
+  } = useCarContext();
   const carId = car?.id;
 
+  const currency = effectiveCurrency ?? "EUR";
+
+  // локальные состояния
   const [selectedRange, setSelectedRange] = useState<{
     start: Date | null;
     end: Date | null;
   }>({ start: null, end: null });
-  const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
   const [hoveredDate, setHoveredDate] = useState<Date | null>(null);
+
+  const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
+  const [selectedBookingId, setSelectedBookingId] = useState<string | null>(
+    null
+  );
+
+  const [editMode, setEditMode] = useState<EditMode>(null); // edit target type
   const [startTime, setStartTime] = useState("0");
   const [endTime, setEndTime] = useState("2330");
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -52,27 +71,31 @@ export default function Calendar() {
     () => allBookings.filter((b) => b.mark === "block"),
     [allBookings]
   );
+  const activeBookings = useMemo(
+    () =>
+      allBookings.filter((b) => b.mark === "booking" && b.status === "active"),
+    [allBookings]
+  );
 
+  // первичная подгрузка
   useEffect(() => {
     if (!carId) return;
     fetchBookingsByCarId(carId).then((bookings) => {
       setCar((prev) => ({ ...prev, bookings }));
     });
-  }, [carId]);
+  }, [carId, setCar]);
 
+  // дни
   const bookedDays = useMemo(
     () =>
-      allBookings
-        .filter((b) => b.mark === "booking" && b.status === "active")
-        .flatMap((b) =>
-          eachDayOfInterval({
-            start: parseISO(b.start_at),
-            end: parseISO(b.end_at),
-          })
-        ),
-    [allBookings]
+      activeBookings.flatMap((b) =>
+        eachDayOfInterval({
+          start: parseISO(b.start_at),
+          end: parseISO(b.end_at),
+        })
+      ),
+    [activeBookings]
   );
-
   const blockedDays = useMemo(
     () =>
       blockedBookings.flatMap((b) =>
@@ -87,6 +110,13 @@ export default function Calendar() {
   const isBooked = (date: Date) => bookedDays.some((d) => isSameDay(d, date));
   const isBlocked = (date: Date) => blockedDays.some((d) => isSameDay(d, date));
 
+  // текущие выбранные объекты
+  const selectedBlock =
+    blockedBookings.find((b) => b.id === selectedBlockId) || null;
+  const selectedBooking =
+    activeBookings.find((b) => b.id === selectedBookingId) || null;
+
+  // поиск по дате
   const findBlockByDate = (date: Date) =>
     blockedBookings.find((b) => {
       const start = parseISO(b.start_at);
@@ -97,17 +127,97 @@ export default function Calendar() {
         isWithinInterval(date, { start, end })
       );
     });
+  const findBookingByDate = (date: Date) =>
+    activeBookings.find((b) => {
+      const start = parseISO(b.start_at);
+      const end = parseISO(b.end_at);
+      return (
+        isSameDay(date, start) ||
+        isSameDay(date, end) ||
+        isWithinInterval(date, { start, end })
+      );
+    });
 
+  // пул занятых дат c учётом редактирования (исключаем сам редактируемый объект)
+  const unavailableDatesPool = useMemo(() => {
+    const pool: Date[] = [];
+    // брони
+    activeBookings.forEach((b) => {
+      if (editMode === "booking" && selectedBooking?.id === b.id) return; // исключаем редактируемую бронь
+      pool.push(
+        ...eachDayOfInterval({
+          start: parseISO(b.start_at),
+          end: parseISO(b.end_at),
+        })
+      );
+    });
+    // блоки
+    blockedBookings.forEach((b) => {
+      if (editMode === "block" && selectedBlock?.id === b.id) return; // исключаем редактируемый блок
+      pool.push(
+        ...eachDayOfInterval({
+          start: parseISO(b.start_at),
+          end: parseISO(b.end_at),
+        })
+      );
+    });
+    return pool;
+  }, [
+    activeBookings,
+    blockedBookings,
+    editMode,
+    selectedBlock,
+    selectedBooking,
+  ]);
+
+  const isUnavailable = (date: Date) =>
+    unavailableDatesPool.some((d) => isSameDay(d, date));
+
+  // ограничители выбора (первый занятый день до/после)
+  const firstUnavailableAfterStart = useMemo(() => {
+    if (!selectedRange.start || selectedRange.end) return null;
+    const sorted = unavailableDatesPool
+      .filter((d) => d > selectedRange.start!)
+      .sort((a, b) => a.getTime() - b.getTime());
+    return sorted[0] ?? null;
+  }, [unavailableDatesPool, selectedRange.start, selectedRange.end]);
+
+  const firstUnavailableBeforeStart = useMemo(() => {
+    if (!selectedRange.start || selectedRange.end) return null;
+    const sorted = unavailableDatesPool
+      .filter((d) => d < selectedRange.start!)
+      .sort((a, b) => b.getTime() - a.getTime());
+    return sorted[0] ?? null;
+  }, [unavailableDatesPool, selectedRange.start, selectedRange.end]);
+
+  // навигация месяцев
+  const monthStart = startOfMonth(currentMonth);
+  const monthEnd = endOfMonth(currentMonth);
+  const calendarStart = startOfWeek(monthStart, { weekStartsOn: 1 });
+  const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 1 });
+  const days = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
+
+  // выбор даты
   const handleSelect = (date: Date) => {
-    const block = findBlockByDate(date);
-    if (block) {
-      setSelectedBlockId(block.id);
-      setSelectedRange({ start: null, end: null });
-      return;
+    // при клике на существующий блок/бронь — показываем карточку и выходим (если не в режиме редактирования)
+    if (!editMode) {
+      const block = findBlockByDate(date);
+      if (block) {
+        setSelectedBlockId(block.id);
+        setSelectedBookingId(null);
+        setSelectedRange({ start: null, end: null });
+        return;
+      }
+      const booking = findBookingByDate(date);
+      if (booking) {
+        setSelectedBookingId(booking.id);
+        setSelectedBlockId(null);
+        setSelectedRange({ start: null, end: null });
+        return;
+      }
     }
 
-    setSelectedBlockId(null);
-
+    // обычный/редакционный выбор диапазона
     if (!selectedRange.start || (selectedRange.start && selectedRange.end)) {
       setSelectedRange({ start: date, end: null });
     } else {
@@ -116,84 +226,207 @@ export default function Calendar() {
         start: date < start ? date : start,
         end: date > start ? date : start,
       });
-
-      const hasBlocked = range.some((d) => isBlocked(d));
-
-      if (hasBlocked) {
+      const hasUnavailable = range.some((d) => isUnavailable(d));
+      if (hasUnavailable) {
+        // сбрасываем, как договаривались
         setSelectedRange({ start: null, end: null });
       } else {
         setSelectedRange(
-          date < start
-            ? { start: date, end: start }
-            : { start: start, end: date }
+          date < start ? { start: date, end: start } : { start, end: date }
         );
       }
     }
   };
 
+  // создания записей
   const handleBlock = async () => {
     if (!selectedRange.start || !selectedRange.end || !carId) return;
 
     const start = new Date(selectedRange.start);
     const end = new Date(selectedRange.end);
 
-    const startHours = Math.floor(Number(startTime) / 100);
-    const startMinutes = Number(startTime) % 100;
-    start.setHours(startHours, startMinutes);
+    const sH = Math.floor(Number(startTime) / 100);
+    const sM = Number(startTime) % 100;
+    start.setHours(sH, sM);
 
-    const endHours = Math.floor(Number(endTime) / 100);
-    const endMinutes = Number(endTime) % 100;
-    end.setHours(endHours, endMinutes);
+    const eH = Math.floor(Number(endTime) / 100);
+    const eM = Number(endTime) % 100;
+    end.setHours(eH, eM);
 
-    const newBlock: Omit<Booking, "id"> = {
+    const payload: Omit<Booking, "id"> = {
       car_id: carId,
       start_at: start.toISOString(),
       end_at: end.toISOString(),
       mark: "block",
       status: "block",
       user_id: null,
+      price_per_day: null,
+      price_total: null,
     };
 
-    const result = await createBooking(newBlock);
+    const result = await createBooking(payload);
     if (result) {
       setCar({ ...car, bookings: [...(car?.bookings ?? []), result] });
-      setSelectedRange({ start: null, end: null });
-      setHoveredDate(null);
-      setStartTime("0");
-      setEndTime("2330");
+      resetSelection();
     }
   };
 
+  const handleCreateBooking = async () => {
+    if (!selectedRange.start || !selectedRange.end || !carId) return;
+
+    const start = new Date(selectedRange.start);
+    const end = new Date(selectedRange.end);
+
+    const sH = Math.floor(Number(startTime) / 100);
+    const sM = Number(startTime) % 100;
+    start.setHours(sH, sM);
+
+    const eH = Math.floor(Number(endTime) / 100);
+    const eM = Number(endTime) % 100;
+    end.setHours(eH, eM);
+
+    // ещё раз проверим пересечение
+    const rangeDays = eachDayOfInterval({ start, end });
+    if (rangeDays.some((d) => isUnavailable(d))) return;
+
+    const basePrice = car?.price ?? 0;
+
+    const price_total = calculateFinalPrice({
+      startDate: start,
+      endDate: end,
+      basePrice,
+      pricingRules,
+      seasonalRates,
+    });
+
+    const payload: Omit<Booking, "id"> = {
+      car_id: carId,
+      start_at: start.toISOString(),
+      end_at: end.toISOString(),
+      mark: "booking",
+      status: "active",
+      user_id: null, // сюда можно подставить реального user_id
+      price_per_day: basePrice || null,
+      price_total: price_total ?? null,
+    };
+
+    const result = await createBooking(payload);
+    if (result) {
+      setCar({ ...car, bookings: [...(car?.bookings ?? []), result] });
+      resetSelection();
+    }
+  };
+
+  // удаление
   const handleRemoveBlock = async (id: string) => {
     await deleteBooking(id);
     setCar({ ...car, bookings: allBookings.filter((b) => b.id !== id) });
     setSelectedBlockId(null);
+    if (editMode === "block") setEditMode(null);
+  };
+  const handleRemoveBooking = async (id: string) => {
+    await deleteBooking(id);
+    setCar({ ...car, bookings: allBookings.filter((b) => b.id !== id) });
+    setSelectedBookingId(null);
+    if (editMode === "booking") setEditMode(null);
   };
 
-  const monthStart = startOfMonth(currentMonth);
-  const monthEnd = endOfMonth(currentMonth);
-  const calendarStart = startOfWeek(monthStart, { weekStartsOn: 1 });
-  const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 1 });
+  // редактирование
+  const startEditBlock = () => {
+    if (!selectedBlock) return;
+    setEditMode("block");
+    setSelectedBookingId(null);
+    // заполним диапазон и время
+    const s = parseISO(selectedBlock.start_at);
+    const e = parseISO(selectedBlock.end_at);
+    setSelectedRange({ start: s, end: e });
+    const sVal = s.getHours() * 100 + s.getMinutes();
+    const eVal = e.getHours() * 100 + e.getMinutes();
+    setStartTime(String(sVal));
+    setEndTime(String(eVal));
+  };
 
-  const days = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
+  const startEditBooking = () => {
+    if (!selectedBooking) return;
+    setEditMode("booking");
+    setSelectedBlockId(null);
+    const s = parseISO(selectedBooking.start_at);
+    const e = parseISO(selectedBooking.end_at);
+    setSelectedRange({ start: s, end: e });
+    const sVal = s.getHours() * 100 + s.getMinutes();
+    const eVal = e.getHours() * 100 + e.getMinutes();
+    setStartTime(String(sVal));
+    setEndTime(String(eVal));
+  };
 
-  const selectedBlock = blockedBookings.find((b) => b.id === selectedBlockId);
+  const saveEdit = async () => {
+    if (!editMode) return;
+    if (!selectedRange.start || !selectedRange.end) return;
 
-  const firstBlockedAfterStart = useMemo(() => {
-    if (!selectedRange.start || selectedRange.end) return null;
-    const sorted = blockedDays
-      .filter((d) => d > selectedRange.start!)
-      .sort((a, b) => a.getTime() - b.getTime());
-    return sorted[0] ?? null;
-  }, [blockedDays, selectedRange.start, selectedRange.end]);
+    const s = new Date(selectedRange.start);
+    const e = new Date(selectedRange.end);
 
-  const firstBlockedBeforeStart = useMemo(() => {
-    if (!selectedRange.start || selectedRange.end) return null;
-    const sorted = blockedDays
-      .filter((d) => d < selectedRange.start!)
-      .sort((a, b) => b.getTime() - a.getTime());
-    return sorted[0] ?? null;
-  }, [blockedDays, selectedRange.start, selectedRange.end]);
+    const sH = Math.floor(Number(startTime) / 100);
+    const sM = Number(startTime) % 100;
+    s.setHours(sH, sM);
+
+    const eH = Math.floor(Number(endTime) / 100);
+    const eM = Number(endTime) % 100;
+    e.setHours(eH, eM);
+
+    const id = editMode === "block" ? selectedBlock?.id : selectedBooking?.id;
+    if (!id) return;
+
+    let patch: Partial<Booking> = {
+      start_at: s.toISOString(),
+      end_at: e.toISOString(),
+    };
+
+    if (editMode === "booking") {
+      const basePrice = car?.price ?? 0;
+
+      const price_total = calculateFinalPrice({
+        startDate: s,
+        endDate: e,
+        basePrice,
+        pricingRules,
+        seasonalRates,
+      });
+      patch = {
+        ...patch,
+        price_per_day: basePrice || null,
+        price_total: price_total ?? null,
+      };
+    }
+
+    const updated = await updateBooking(id, patch);
+    // локально обновим
+    setCar({
+      ...car,
+      bookings: (car.bookings ?? []).map((b: Booking) =>
+        b.id === id ? { ...b, ...updated } : b
+      ),
+    });
+
+    // выходим из редактирования
+    setEditMode(null);
+    setSelectedBlockId(null);
+    setSelectedBookingId(null);
+    resetSelection();
+  };
+
+  const cancelEdit = () => {
+    setEditMode(null);
+    resetSelection();
+  };
+
+  // утилиты
+  const resetSelection = () => {
+    setSelectedRange({ start: null, end: null });
+    setHoveredDate(null);
+    setStartTime("0");
+    setEndTime("2330");
+  };
 
   return (
     <div className="mb-4 w-full xl:max-w-2xl">
@@ -247,35 +480,35 @@ export default function Calendar() {
                 date < selectedRange.start &&
                 date >= hoveredDate));
 
-          const isBookedDay = isBooked(date);
-          const isBlockedDay = isBlocked(date);
-
+          // дисабл для «ползунка» выбора
           const isDisabled = (() => {
             if (!selectedRange.start || selectedRange.end) return false;
             if (
-              firstBlockedAfterStart &&
+              firstUnavailableAfterStart &&
               date > selectedRange.start &&
-              date >= firstBlockedAfterStart
+              date >= firstUnavailableAfterStart
             )
               return true;
             if (
-              firstBlockedBeforeStart &&
+              firstUnavailableBeforeStart &&
               date < selectedRange.start &&
-              date <= firstBlockedBeforeStart
+              date <= firstUnavailableBeforeStart
             )
               return true;
             return false;
           })();
 
           const isHover = hoveredDate && isSameDay(hoveredDate, date);
+          const isBookedDay = isBooked(date);
+          const isBlockedDay = isBlocked(date);
 
           const className = [
             "aspect-square flex items-center justify-center border-r border-b border-gray-200",
-            selected ? " bg-lime-100/80" : "",
+            selected ? " bg-lime-200/80" : "",
             isHover ? " bg-gray-50 " : "",
-            inRange || isHoveredRange ? "bg-lime-50" : "",
-            isBookedDay ? "bg-green-200" : "",
-            isBlockedDay ? "bg-white bg-hatched" : "",
+            inRange || isHoveredRange ? "bg-lime-100" : "",
+            isBookedDay ? "bg-white bg-hatched-booked" : "",
+            isBlockedDay ? "bg-white bg-hatched-blocked" : "",
             isDisabled ? "opacity-40 cursor-not-allowed" : "cursor-pointer",
           ].join(" ");
 
@@ -301,7 +534,11 @@ export default function Calendar() {
         })}
       </div>
 
-      {!selectedBlockId && (
+      {/* Выбор времени показываем:
+          - когда нет открытой карточки блока/брони
+          - и когда редактируем (editMode != null)
+      */}
+      {(!selectedBlockId && !selectedBookingId) || editMode ? (
         <div className="grid grid-cols-2 gap-4 mt-4">
           <div>
             <label className="block text-sm font-medium mb-1">Start time</label>
@@ -330,9 +567,10 @@ export default function Calendar() {
             />
           </div>
         </div>
-      )}
+      ) : null}
 
-      {!selectedBlockId && (
+      {/* Кнопки действий: создание/блокировка (когда не открыты карточки и не редактируем) */}
+      {!selectedBlockId && !selectedBookingId && !editMode && (
         <div className="mt-4 flex justify-end gap-2">
           {(selectedRange.start || selectedRange.end) && (
             <button
@@ -344,18 +582,25 @@ export default function Calendar() {
           )}
           <button
             disabled={!selectedRange.start || !selectedRange.end}
+            onClick={handleCreateBooking}
+            className="px-4 py-2 border border-gray-500 rounded text-sm disabled:opacity-50"
+          >
+            Book
+          </button>
+          <button
+            disabled={!selectedRange.start || !selectedRange.end}
             onClick={handleBlock}
             className="px-4 py-2 border border-gray-500 rounded text-sm disabled:opacity-50"
           >
-            Block selected period
+            Block
           </button>
         </div>
       )}
 
-      {selectedBlock && (
+      {/* Карточка БЛОКА */}
+      {selectedBlock && !editMode && (
         <div className="mt-6 p-4 border rounded bg-gray-50">
           <p className="text-sm font-medium">Blocked period:</p>
-
           <p className="text-sm">
             {format(parseISO(selectedBlock.start_at), "dd MMM yyyy, HH:mm")} →{" "}
             {format(parseISO(selectedBlock.end_at), "dd MMM yyyy, HH:mm")}
@@ -365,7 +610,13 @@ export default function Calendar() {
               className="px-2 py-2 border rounded text-sm"
               onClick={() => setSelectedBlockId(null)}
             >
-              Cancel
+              Close
+            </button>
+            <button
+              className="px-2 py-2 border rounded text-sm"
+              onClick={startEditBlock}
+            >
+              Edit
             </button>
             <button
               onClick={() => handleRemoveBlock(selectedBlock.id)}
@@ -374,6 +625,61 @@ export default function Calendar() {
               Remove
             </button>
           </div>
+        </div>
+      )}
+
+      {/* Карточка БРОНИ */}
+      {selectedBooking && !editMode && (
+        <div className="mt-6 p-4 border rounded bg-gray-50">
+          <p className="text-sm font-medium">Booking:</p>
+          <p className="text-sm">
+            {format(parseISO(selectedBooking.start_at), "dd MMM yyyy, HH:mm")} →{" "}
+            {format(parseISO(selectedBooking.end_at), "dd MMM yyyy, HH:mm")}
+          </p>
+          {selectedBooking.price_total != null && (
+            <p className="text-sm mt-1 font-medium">
+              Total: {selectedBooking.price_total} {currency}
+            </p>
+          )}
+          <div className="flex justify-end items-center gap-2 mt-2 ">
+            <button
+              className="px-2 py-2 border rounded text-sm"
+              onClick={() => setSelectedBookingId(null)}
+            >
+              Close
+            </button>
+            <button
+              className="px-2 py-2 border rounded text-sm"
+              onClick={startEditBooking}
+            >
+              Edit
+            </button>
+            <button
+              onClick={() => handleRemoveBooking(selectedBooking.id)}
+              className="px-2 py-2 border rounded text-red-600 text-sm"
+            >
+              Remove
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* РЕЖИМ РЕДАКТИРОВАНИЯ — общие кнопки */}
+      {editMode && (
+        <div className="mt-4 flex justify-end gap-2">
+          <button
+            className="px-4 py-2 border border-gray-500 rounded text-sm"
+            onClick={cancelEdit}
+          >
+            Cancel
+          </button>
+          <button
+            disabled={!selectedRange.start || !selectedRange.end}
+            onClick={saveEdit}
+            className="px-4 py-2 border border-gray-500 rounded text-sm disabled:opacity-50"
+          >
+            Save
+          </button>
         </div>
       )}
     </div>

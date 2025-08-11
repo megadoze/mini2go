@@ -386,7 +386,7 @@ export default function AddCarWizard() {
                     onDragEnd={async (e) => {
                       const { lat, lng } = e.lngLat;
 
-                      console.log("📍 New coords:", lat, lng);
+                      // console.log("📍 New coords:", lat, lng);
 
                       handleChange("lat", lat);
                       handleChange("long", lng);

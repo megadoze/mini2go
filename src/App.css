@@ -1,4 +1,4 @@
-.bg-hatched {
+.bg-hatched-booked {
   background-image: repeating-linear-gradient(
     135deg,
     rgba(190, 242, 100, 1),
@@ -8,3 +8,12 @@
   );
 }
 
+.bg-hatched-blocked {
+  background-image: repeating-linear-gradient(
+    135deg,
+    rgba(217, 10, 206, 0.1),
+    rgba(217, 10, 206, 0.6) 0.8px,
+    transparent 1px,
+    transparent 2px
+  );
+}
