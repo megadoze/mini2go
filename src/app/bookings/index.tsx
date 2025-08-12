@@ -236,11 +236,13 @@ export default function BookingsList({ owner, title = "Bookings" }: Props) {
                   </p>
                 </div>
 
-                <div className="flex items-center gap-5 sm:ml-auto mt-2 sm:mt-0 mr-2 md:mr-auto">
-                  <StatusPill status={b.status} />
-                  <div className="hidden sm:block text-base mr-2 text-gray-700">
+                <div className="flex md:flex-1 justify-between items-center sm:ml-auto mt-2 sm:mt-0 mr-2 md:mr-auto">
+                  <p>
+                    <StatusPill status={b.status} />
+                  </p>
+                  <p className="hidden sm:block text-base mr-2 text-gray-700">
                     Details
-                  </div>
+                  </p>
                 </div>
               </Link>
             ))}
@@ -255,7 +257,7 @@ function StatusPill({ status }: { status: BookingCard["status"] }) {
   const { label, cls } = useMemo(() => {
     const s = (status || "").toLowerCase();
     if (s === "active" || s === "confirmed") {
-      return { label: "Active", cls: "text-green-600" };
+      return { label: "Active", cls: "text-lime-500" };
     }
     if (s === "cancelled" || s === "canceled") {
       return { label: "Cancelled", cls: "text-red-700" };
@@ -266,5 +268,5 @@ function StatusPill({ status }: { status: BookingCard["status"] }) {
     return { label: status || "—", cls: "text-gray-600" };
   }, [status]);
 
-  return <div className={`${cls} text-sm`}>{label}</div>;
+  return <div className={`${cls} `}>{label}</div>;
 }
