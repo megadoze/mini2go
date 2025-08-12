@@ -202,7 +202,7 @@ export default function BookingsList({ owner, title = "Bookings" }: Props) {
                   )}
                 </div>
 
-                <div className="flex-1 min-w-0 pl-4">
+                <div className="flex-1 min-w-0 pl-4 pr-2">
                   <p className="font-medium text-sm md:text-base truncate">
                     {b.car?.brand} {b.car?.model}
                   </p>
@@ -236,7 +236,7 @@ export default function BookingsList({ owner, title = "Bookings" }: Props) {
                   </p>
                 </div>
 
-                <div className="flex items-center gap-3 sm:ml-auto mt-2 sm:mt-0 mr-2 md:mr-auto">
+                <div className="flex items-center gap-5 sm:ml-auto mt-2 sm:mt-0 mr-2 md:mr-auto">
                   <StatusPill status={b.status} />
                   <div className="hidden sm:block text-base mr-2 text-gray-700">
                     Details
