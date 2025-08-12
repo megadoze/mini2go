@@ -3,7 +3,6 @@ import { createBrowserRouter, Navigate } from "react-router-dom";
 import Layout from "./layout/layout";
 import Dashboard from "./app/dashboard";
 import CarsPage from "./app/cars";
-import BookingsPage from "./app/bookings";
 import UsersPage from "./app/users";
 import UserPage from "./app/user";
 import UserSettings from "./app/user/userSettings";
@@ -27,6 +26,8 @@ import { carLayoutLoader } from "@/routes/carLayoutLoader";
 import HydrateFallback from "./components/hydrateFallback";
 import CarErrorBoundary from "./components/carErrorBoundary";
 import Finance from "./app/finance";
+import BookingsList from "./app/bookings";
+import BookingPage from "./app/bookings/bookingPage";
 
 export const router = createBrowserRouter([
   {
@@ -40,7 +41,8 @@ export const router = createBrowserRouter([
       { path: "cars", element: <CarsPage /> },
       { path: "cars/add", element: <AddCarPage /> },
       { path: "finance", element: <Finance /> },
-      { path: "bookings", element: <BookingsPage /> },
+      { path: "bookings", element: <BookingsList owner="me"/> },
+      { path: "bookings/:id", element: <BookingPage /> },
       { path: "users", element: <UsersPage /> },
       { path: "settings", element: <SettingsGlobal /> },
       {

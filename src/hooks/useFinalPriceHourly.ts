@@ -1,4 +1,3 @@
-// pricing/calcFinalPriceProRated.ts
 import {
   addDays,
   differenceInMinutes,
@@ -67,7 +66,7 @@ export function calculateFinalPriceProRated({
     total += dayPrice * (remainderMin / 1440);
   }
 
-  // Скидка (у тебя хранится со знаком минус)
+  // Скидка (хранится со знаком минус)
   const rule = pricingRules
     .filter((r) => r.min_days <= totalDaysFloat)
     .sort((a, b) => b.min_days - a.min_days)[0];
