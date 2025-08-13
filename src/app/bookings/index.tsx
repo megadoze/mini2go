@@ -292,7 +292,7 @@ function StatusPill({ status }: { status: BookingCard["status"] }) {
   }, [status]);
 
   return (
-    <Badge fw={500} variant="outline" color={cls}>
+    <Badge fw={500} variant="dot" color={cls}>
       {label}
     </Badge>
   );
