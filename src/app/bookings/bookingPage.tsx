@@ -747,7 +747,7 @@ const BookingCard: React.FC = () => {
 
           {/* Deposit */}
           {typeof deposit === "number" && (
-            <section id="deposit" className="mt-6 text-gray-800">
+            <section id="deposit" className="mt-4 text-gray-800">
               <p className="font-semibold text-base sm:text-lg ">Deposit</p>
               <div className="mt-1 ">
                 <p className="text-lg font-medium">
@@ -916,17 +916,18 @@ const BookingCard: React.FC = () => {
             </div>
             <ul className="mt-3 text-sm sm:text-base">
               <li className="flex justify-between items-center mb-1">
-                Phone number <CheckCircleIcon className="w-5 text-violet-500" />
+                Phone number{" "}
+                <CheckCircleIcon className="w-5 text-fuchsia-600" />
               </li>
               <li className="flex justify-between items-center mb-1">
-                Email <CheckCircleIcon className="w-5 text-violet-500" />
+                Email <CheckCircleIcon className="w-5 text-fuchsia-600" />
               </li>
               <li className="flex justify-between items-center mb-1">
-                Passport <CheckCircleIcon className="w-5 text-violet-500" />
+                Passport <CheckCircleIcon className="w-5 text-fuchsia-600" />
               </li>
               <li className="flex justify-between items-center">
                 Driver's license{" "}
-                <CheckCircleIcon className="w-5 text-violet-500" />
+                <CheckCircleIcon className="w-5 text-fuchsia-600" />
               </li>
             </ul>
           </div>

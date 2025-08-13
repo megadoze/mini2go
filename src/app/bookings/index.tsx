@@ -222,7 +222,9 @@ export default function BookingsList({ owner, title = "Bookings" }: Props) {
                     {b.car?.brand} {b.car?.model}
                   </p>
                   {b.car?.year && (
-                    <p className="text-sm text-gray-600">{b.car.year}</p>
+                    <p className="text-sm text-gray-800 border border-gray-500 rounded-sm w-fit p-1 ">
+                      {b.car.licensePlate}
+                    </p>
                   )}
                   {/* Мобилка: даты в одну строку */}
                   <div className="mt-1 text-sm sm:hidden">
@@ -251,7 +253,7 @@ export default function BookingsList({ owner, title = "Bookings" }: Props) {
                   </p>
                 </div>
 
-                <div className="flex md:flex-1 justify-between items-center sm:ml-auto mt-2 sm:mt-0 mr-2 md:mr-auto text-sm md:text-base">
+                <div className="flex md:flex-1 justify-between items-center sm:ml-auto mt-2 sm:mt-0 mr-2 md:mr-auto md:text-base">
                   <div>
                     <StatusPill status={b.status} />
                   </div>
@@ -277,17 +279,20 @@ function StatusPill({ status }: { status: BookingCard["status"] }) {
     if (s === "rent") {
       return { label: s, cls: "lime" };
     }
-    if (s === "canceledHost" || s === "canceledGuest" || s === "canceledTime") {
+    if (s === "canceledhost" || s === "canceledguest" || s === "canceledtime") {
       return { label: s, cls: "red" };
     }
-    if (s === "onApproval") {
+    if (s === "onapproval") {
       return { label: s, cls: "grape" };
+    }
+    if (s === "finished") {
+      return { label: s, cls: "dark" };
     }
     return { label: status || "—", cls: "gray" };
   }, [status]);
 
   return (
-    <Badge variant="outline" color={cls}>
+    <Badge fw={500} variant="outline" color={cls}>
       {label}
     </Badge>
   );
