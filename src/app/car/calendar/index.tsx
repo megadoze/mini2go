@@ -74,7 +74,7 @@ export default function Calendar() {
   );
   const activeBookings = useMemo(
     () =>
-      allBookings.filter((b) => b.mark === "booking" && b.status === "active"),
+      allBookings.filter((b) => b.mark === "booking" && b.status === "onApproval"),
     [allBookings]
   );
 
@@ -292,14 +292,6 @@ export default function Calendar() {
 
     const basePrice = car?.price ?? 0;
 
-    // const price_total = calculateFinalPrice({
-    //   startDate: start,
-    //   endDate: end,
-    //   basePrice,
-    //   pricingRules,
-    //   seasonalRates,
-    // });
-
     const { total } = calculateFinalPriceProRated({
       startAt: start,
       endAt: end,
@@ -313,7 +305,7 @@ export default function Calendar() {
       start_at: start.toISOString(),
       end_at: end.toISOString(),
       mark: "booking",
-      status: "active",
+      status: "onApproval",
       user_id: /* текущий пользователь */ null,
       price_per_day: basePrice,
       price_total: total,

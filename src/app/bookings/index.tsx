@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase"; // поправь путь при н�
 // ---------- Types ----------
 import type { Booking } from "@/types/booking"; // snake_case из БД
 import type { BookingCard } from "@/types/bookingCard";
+import { Badge } from "@mantine/core";
 
 // Проекция авто, которую возвращает текущий select (минимум полей)
 export type CarLite = {
@@ -16,6 +17,8 @@ export type CarLite = {
   // плоские имена для UI
   brandName?: string | null;
   modelName?: string | null;
+  licensePlate?: string | null;
+  deposit?: number | null;
 };
 
 function mapRowToCard(row: Booking): BookingCard {
@@ -29,6 +32,7 @@ function mapRowToCard(row: Booking): BookingCard {
     userId: row.user_id ?? null,
     createdAt: row.created_at ?? null,
     car: null,
+    priceTotal: row.price_total ?? null,
   };
 }
 
@@ -38,11 +42,12 @@ async function fetchBookingsByOwner(owner: string): Promise<BookingCard[]> {
     .from("cars")
     .select(
       `
-      id, year, photos, model_id, owner,
+      id, year, photos, model_id, license_plate, owner, deposit,
       models:models ( name, brand_id, brands:brands ( name ) )
     `
     )
     .eq("owner", owner);
+
   if (carErr) throw carErr;
 
   // нормализуем ответ (объект/массив в models/brands)
@@ -61,6 +66,8 @@ async function fetchBookingsByOwner(owner: string): Promise<BookingCard[]> {
       model_id: String(c.model_id),
       modelName: modelNode?.name ?? null,
       brandName,
+      licensePlate: c.license_plate ?? null,
+      deposit: c.deposit ?? null,
     };
   });
 
@@ -70,7 +77,9 @@ async function fetchBookingsByOwner(owner: string): Promise<BookingCard[]> {
 
   const { data: bookings, error: bookErr } = await supabase
     .from("bookings")
-    .select("id, start_at, end_at, mark, status, car_id, user_id, created_at")
+    .select(
+      "id, start_at, end_at, mark, status, car_id, user_id, price_total, created_at"
+    )
     .in("car_id", carIds)
     .neq("mark", "block")
     .neq("status", "blocked")
@@ -86,6 +95,8 @@ async function fetchBookingsByOwner(owner: string): Promise<BookingCard[]> {
       model?: string | null;
       year?: number | null;
       photo?: string | null;
+      licensePlate: string | null;
+      deposit?: number | null;
     }
   >();
   for (const c of carsList) {
@@ -94,6 +105,8 @@ async function fetchBookingsByOwner(owner: string): Promise<BookingCard[]> {
       model: c.modelName ?? null,
       year: typeof c.year === "number" ? c.year : Number(c.year) || null,
       photo: c.photos?.[0] ?? null,
+      licensePlate: c.licensePlate ?? null,
+      deposit: c.deposit ?? null,
     });
   }
 
@@ -117,6 +130,8 @@ export default function BookingsList({ owner, title = "Bookings" }: Props) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // console.log(items);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -132,6 +147,7 @@ export default function BookingsList({ owner, title = "Bookings" }: Props) {
         }
 
         const bookings = await fetchBookingsByOwner(owner);
+
         if (!cancelled) setItems(bookings);
       } catch (e: any) {
         if (!cancelled) setError(e.message || "Не удалось загрузить брони");
@@ -186,9 +202,8 @@ export default function BookingsList({ owner, title = "Bookings" }: Props) {
               <Link
                 key={b.id}
                 to={`/bookings/${b.id}`}
-                state={{ booking: b, path: "bookings" }}
+                state={{ b: b, path: "bookings" }}
                 className="flex items-center border hover:bg-gray-50 p-2 w-full rounded-2xl my-1 cursor-pointer"
-                // className="flex w-full border hover:bg-gray-50 rounded-2xl my-1 cursor-pointer p-3 sm:p-2"
               >
                 <div className="flex flex-col sm:flex-row sm:items-center gap-3">
                   {b.car?.photo ? (
@@ -236,10 +251,10 @@ export default function BookingsList({ owner, title = "Bookings" }: Props) {
                   </p>
                 </div>
 
-                <div className="flex md:flex-1 justify-between items-center sm:ml-auto mt-2 sm:mt-0 mr-2 md:mr-auto">
-                  <p>
+                <div className="flex md:flex-1 justify-between items-center sm:ml-auto mt-2 sm:mt-0 mr-2 md:mr-auto text-sm md:text-base">
+                  <div>
                     <StatusPill status={b.status} />
-                  </p>
+                  </div>
                   <p className="hidden sm:block text-base mr-2 text-gray-700">
                     Details
                   </p>
@@ -256,17 +271,24 @@ export default function BookingsList({ owner, title = "Bookings" }: Props) {
 function StatusPill({ status }: { status: BookingCard["status"] }) {
   const { label, cls } = useMemo(() => {
     const s = (status || "").toLowerCase();
-    if (s === "active" || s === "confirmed") {
-      return { label: "Active", cls: "text-lime-500" };
+    if (s === "confirmed") {
+      return { label: "confirmed", cls: "orange" };
     }
-    if (s === "cancelled" || s === "canceled") {
-      return { label: "Cancelled", cls: "text-red-700" };
+    if (s === "rent") {
+      return { label: s, cls: "lime" };
     }
-    if (s === "pending") {
-      return { label: "Pending", cls: "text-amber-600" };
+    if (s === "canceledHost" || s === "canceledGuest" || s === "canceledTime") {
+      return { label: s, cls: "red" };
     }
-    return { label: status || "—", cls: "text-gray-600" };
+    if (s === "onApproval") {
+      return { label: s, cls: "grape" };
+    }
+    return { label: status || "—", cls: "gray" };
   }, [status]);
 
-  return <div className={`${cls} `}>{label}</div>;
+  return (
+    <Badge variant="outline" color={cls}>
+      {label}
+    </Badge>
+  );
 }

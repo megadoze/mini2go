@@ -1,7 +1,7 @@
 export type Booking = {
   id: string;
   user_id?: string | null;
-  car_id: string | null;
+  car_id: string;
   start_at: string; // ISO-строка
   end_at: string; // ISO-строка
   price_per_day?: number | null;

@@ -9,11 +9,18 @@
     }
   ],
   "compilerOptions": {
+    "baseUrl": ".",
     "paths": {
+      "@/*": [
+        "src/*"
+      ],
       "@types/react": [
         "./node_modules/@types/react"
       ]
     },
+    "types": [
+      "vite/client"
+    ],
     "jsx": "react-jsx",
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true

@@ -14,6 +14,9 @@ export type BookingCard = {
     brand?: string | null;
     model?: string | null;
     year?: number | null;
+    licensePlate?: string | null;
     photo?: string | null;
+    deposit?: number | null;
   } | null;
+  priceTotal: number | null;
 };
