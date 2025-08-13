@@ -538,7 +538,7 @@ const BookingCard: React.FC = () => {
             {/* Name */}
             <div
               id="name"
-              className={`${!bookingStatus.status ? "opacity-60" : ""}`}
+              className={`${!bookingStatus.status ? "opacity-60" : ""} flex-1`}
             >
               <p className="font-semibold text-gray-800">
                 {booking.car?.brand} {booking.car?.model} {booking.car?.year}{" "}
@@ -854,7 +854,7 @@ const BookingCard: React.FC = () => {
                 {bookingStatus.confirmBut && (
                   <div id="confirmButton" className="mt-2">
                     <button
-                      className="border rounded-md border-green-400 text-green-600 w-full py-2 text-base active:scale-[.99] transition"
+                      className="border rounded-md border-lime-400 text-lime-500 w-full py-2 text-base active:scale-[.99] transition"
                       onClick={handleConfirmBooking}
                     >
                       Confirm booking
@@ -954,7 +954,7 @@ const BookingCard: React.FC = () => {
             {bookingStatus.confirmBut && (
               <button
                 onClick={handleConfirmBooking}
-                className="flex-1 rounded-md bg-green-600 text-white py-3 text-sm active:scale-[.99] transition"
+                className="flex-1 rounded-md border border-lime-400 text-lime-500 py-3 text-sm active:scale-[.99] transition"
               >
                 Confirm
               </button>
