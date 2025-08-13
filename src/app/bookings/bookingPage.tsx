@@ -521,7 +521,7 @@ const BookingCard: React.FC = () => {
               className={`${!bookingStatus.status ? "opacity-40" : ""} flex-1`}
             >
               {booking.car?.photo ? (
-                <div className="aspect-video w-full overflow-hidden rounded-2xl">
+                <div className=" aspect-[3/2] w-full overflow-hidden rounded-2xl">
                   <img
                     src={booking.car.photo}
                     className="h-full w-full object-cover"
