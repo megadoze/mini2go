@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { eachDayOfInterval, format, parseISO } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -20,37 +20,22 @@ import { StarIcon } from "@heroicons/react/24/solid";
 import type { Booking as DbBooking } from "@/types/booking";
 import type { BookingCard as BookingCardType } from "@/types/bookingCard";
 import {
+  cancelAndUnlock,
   fetchBookingCard,
   subscribeBooking,
   updateBookingCard,
 } from "@/services/bookings.service";
 import { Badge } from "@mantine/core";
 
-interface BookingCardProps {
-  bookingId?: string;
-  bookingsByUser?: BookingCardType[];
-  cars?: { id: string; unavailableDays?: { data: number }[] }[];
-  handleChangeBookingStatus?: (updated: BookingCardType[]) => void;
-  updateCar?: (
-    carId: string,
-    payload: Partial<{ unavailableDays: { data: number }[] }>
-  ) => Promise<void> | void;
-}
-
-const BookingCard: React.FC<BookingCardProps> = ({
-  bookingId,
-  cars = [],
-  handleChangeBookingStatus,
-  updateCar,
-}) => {
+const BookingCard: React.FC = () => {
   const navigate = useNavigate();
   const { state } = useLocation() as { state?: { b?: BookingCardType } };
-  const { bookingId: paramId } = useParams<{ bookingId: string }>();
+  const { id: paramId } = useParams<{ id: string }>();
 
   const [shareToast, setShareToast] = useState<string | null>(null);
 
   const seed = state?.b;
-  const id = seed?.id ?? bookingId ?? paramId ?? "";
+  const id = seed?.id ?? paramId ?? "";
 
   const qc = useQueryClient();
 
@@ -91,32 +76,6 @@ const BookingCard: React.FC<BookingCardProps> = ({
     [booking]
   );
 
-  const eachDaysInBooking = useMemo(() => {
-    if (!startDate || !endDate) return [] as Date[];
-    return eachDayOfInterval({ start: startDate, end: endDate });
-  }, [startDate, endDate]);
-
-  const transformEachDaysInBooking = useMemo(
-    () => eachDaysInBooking.map((d) => d.getTime()),
-    [eachDaysInBooking]
-  );
-
-  const carForThisBooking = useMemo(
-    () => cars.find((c) => c.id === booking?.carId),
-    [cars, booking?.carId]
-  );
-  const unavailableDays: { data: number }[] = useMemo(
-    () => carForThisBooking?.unavailableDays ?? [],
-    [carForThisBooking]
-  );
-
-  const unavailableDaysForSearch = () => {
-    let newArr = [...unavailableDays];
-    for (const el of transformEachDaysInBooking)
-      newArr = newArr.filter((d) => d.data !== el);
-    return newArr;
-  };
-
   type Countdown = { days: number; hours: number; minutes: number };
 
   // формат Xd Xh Ym до старта
@@ -127,7 +86,7 @@ const BookingCard: React.FC<BookingCardProps> = ({
     const days = Math.floor(totalMin / 1440);
     const hours = Math.floor((totalMin % 1440) / 60);
     const minutes = totalMin % 60;
-    return { days, hours, minutes } as const;
+    return { days, hours, minutes };
   };
   const cdStart = useMemo(() => countdownParts(startDate), [startDate, now]);
 
@@ -236,7 +195,7 @@ const BookingCard: React.FC<BookingCardProps> = ({
     if (s === "finished")
       return {
         text: s,
-        cls: "black",
+        cls: "dark",
       };
     if (s === "canceledHost" || s === "canceledGuest" || s === "canceledTime")
       return {
@@ -273,11 +232,6 @@ const BookingCard: React.FC<BookingCardProps> = ({
         comment: "Поездка началась.",
       });
       await mutateBooking(booking.id, { status: "rent" });
-      handleChangeBookingStatus?.(
-        (qc.getQueryData<BookingCardType[]>(["bookingsByUser"]) ?? []).map(
-          (b) => (b.id === booking.id ? { ...b, status: "rent" } : b)
-        )
-      );
     };
 
     const goFinished = async () => {
@@ -288,11 +242,6 @@ const BookingCard: React.FC<BookingCardProps> = ({
         comment: "Поездка завершена.",
       });
       await mutateBooking(booking.id, { status: "finished" });
-      handleChangeBookingStatus?.(
-        (qc.getQueryData<BookingCardType[]>(["bookingsByUser"]) ?? []).map(
-          (b) => (b.id === booking.id ? { ...b, status: "finished" } : b)
-        )
-      );
     };
 
     if (started && booking.status !== "rent") void goRent();
@@ -315,11 +264,6 @@ const BookingCard: React.FC<BookingCardProps> = ({
       comment: "Вы подтвердили бронирование. Поездка начнётся через ",
     });
     await mutateBooking(booking.id, { status: "confirmed" });
-    handleChangeBookingStatus?.(
-      (qc.getQueryData<BookingCardType[]>(["bookingsByUser"]) ?? []).map((b) =>
-        b.id === booking.id ? { ...b, status: "confirmed" } : b
-      )
-    );
   };
 
   const handleCancelBooking = async () => {
@@ -330,19 +274,10 @@ const BookingCard: React.FC<BookingCardProps> = ({
       cancelBut: false,
       comment: "Вы отменили бронирование гостя.",
     });
-    await mutateBooking(booking.id, { status: "canceledHost" });
-    handleChangeBookingStatus?.(
-      (qc.getQueryData<BookingCardType[]>(["bookingsByUser"]) ?? []).map((b) =>
-        b.id === booking.id ? { ...b, status: "canceledHost" } : b
-      )
-    );
-    if (updateCar && booking.carId && carForThisBooking?.unavailableDays) {
-      await Promise.resolve(
-        updateCar(booking.carId, {
-          unavailableDays: unavailableDaysForSearch(),
-        })
-      );
-    }
+    const next = await cancelAndUnlock(booking.id);
+    // кладём свежую карточку в кэш, а список просто инвалидируем
+    qc.setQueryData(["booking", booking.id], next);
+    qc.invalidateQueries({ queryKey: ["bookingsByUser"] });
   };
 
   const handleBack = () => navigate(-1);
@@ -368,7 +303,6 @@ const BookingCard: React.FC<BookingCardProps> = ({
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      if (!booking?.id) return;
       try {
         const QRCode = (await import("qrcode")).default;
         const url = await QRCode.toDataURL(payloadForQR, {
@@ -534,7 +468,7 @@ const BookingCard: React.FC<BookingCardProps> = ({
   return (
     <main className={`text-gray-600 max-w-4xl  ${containerPad}`}>
       {/* Header */}
-      <div className="flex flex-col gap-2 sm:gap-3 sm:flex-row sm:items-center sm:justify-between mt-3 sm:mt-0">
+      <div className="flex flex-col gap-0 sm:gap-3 md:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2">
           <h1 className="font-semibold text-xl sm:text-2xl text-gray-800">
             Booking&nbsp;
@@ -543,7 +477,7 @@ const BookingCard: React.FC<BookingCardProps> = ({
           {/* маленькая QR-кнопка (desktop) */}
           <button
             onClick={() => setQrOpen(true)}
-            className=" lg:inline-flex rounded-md border border-gray-300 px-2.5 py-1.5 text-xs text-gray-700 active:scale-[.98]"
+            className=" inline-flex rounded-md border border-gray-300 px-2.5 py-1.5 text-xs text-gray-700 active:scale-[.98]"
             title="Показать QR-код"
           >
             QR
@@ -581,10 +515,10 @@ const BookingCard: React.FC<BookingCardProps> = ({
         {/* LEFT (details) */}
         <div className="lg:col-span-2">
           {/* Photo */}
-          <section className=" lg:hidden">
+          <section className="lg:hidden flex gap-3 mb-5">
             <div
               id="photo"
-              className={`${!bookingStatus.status ? "opacity-40" : ""}`}
+              className={`${!bookingStatus.status ? "opacity-40" : ""} flex-1`}
             >
               {booking.car?.photo ? (
                 <div className="aspect-video w-full overflow-hidden rounded-2xl">
@@ -604,12 +538,14 @@ const BookingCard: React.FC<BookingCardProps> = ({
             {/* Name */}
             <div
               id="name"
-              className={`${!bookingStatus.status ? "opacity-60" : ""} mt-3`}
+              className={`${!bookingStatus.status ? "opacity-60" : ""}`}
             >
-              <p className="font-medium text-base sm:text-lg">
+              <p className="font-semibold text-gray-800">
                 {booking.car?.brand} {booking.car?.model} {booking.car?.year}{" "}
+              </p>
+              <p className="pt-1">
                 {plate ? (
-                  <span className="border border-gray-500 rounded-sm p-1 text-xs sm:text-sm">
+                  <span className="border border-gray-500 rounded-sm p-1 text-sm text-gray-800">
                     {plate}
                   </span>
                 ) : null}
@@ -619,7 +555,9 @@ const BookingCard: React.FC<BookingCardProps> = ({
 
           {/* Dates */}
           <section id="dates">
-            <p className="font-medium text-base sm:text-lg">Dates of trip</p>
+            <p className="font-medium text-base sm:text-lg text-gray-800">
+              Dates of trip
+            </p>
             <div className="mt-2 flex justify-between md:justify-normal items-center gap-5">
               {/* Start */}
               <div className="flex items-start">
@@ -662,7 +600,7 @@ const BookingCard: React.FC<BookingCardProps> = ({
             {showTripBar && (
               <div className="mt-4">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm text-gray-600">
+                  <span className="text-sm font-medium text-gray-800">
                     {booking?.status === "rent"
                       ? "Прогресс поездки"
                       : "Поездка завершена"}
@@ -739,7 +677,9 @@ const BookingCard: React.FC<BookingCardProps> = ({
 
           {/* Services */}
           <section id="services" className="mt-6">
-            <p className="font-medium text-base sm:text-lg">Services</p>
+            <p className="font-medium text-base sm:text-lg text-gray-800">
+              Services
+            </p>
             <div className="mt-2">
               {services?.length ? (
                 <ul className="space-y-2">
@@ -763,7 +703,7 @@ const BookingCard: React.FC<BookingCardProps> = ({
           {/* Mileage */}
           {mileage && (
             <section id="mileage" className="mt-6">
-              <p className="font-medium text-base sm:text-lg">
+              <p className="font-medium text-base sm:text-lg text-gray-800">
                 Include mileage
               </p>
               <div className="mt-2 flex flex-wrap items-center gap-x-2">
@@ -779,7 +719,9 @@ const BookingCard: React.FC<BookingCardProps> = ({
 
           {/* Insurance */}
           <section id="insurance" className="mt-6">
-            <p className="font-medium text-base sm:text-lg">Insurance</p>
+            <p className="font-medium text-base sm:text-lg text-gray-800">
+              Insurance
+            </p>
             <div className="mt-2 flex items-start sm:items-center mr-0 sm:mr-10">
               <ShieldCheckIcon className="w-5 shrink-0 mt-0.5 sm:mt-0" />
               <p className="pl-2 text-sm sm:text-base">
@@ -792,9 +734,11 @@ const BookingCard: React.FC<BookingCardProps> = ({
           {/* TOTAL */}
           {typeof priceTotal === "number" && (
             <section id="total" className="mt-6">
-              <p className="font-semibold text-base sm:text-lg">TOTAL</p>
+              <p className="font-semibold text-base sm:text-lg text-gray-800">
+                TOTAL for RENT
+              </p>
               <div className="mt-1">
-                <p className="font-bold text-lg sm:text-xl text-gray-700">
+                <p className="font-bold text-lg sm:text-xl text-red-800">
                   {priceTotal}$
                 </p>
               </div>
@@ -803,10 +747,10 @@ const BookingCard: React.FC<BookingCardProps> = ({
 
           {/* Deposit */}
           {typeof deposit === "number" && (
-            <section id="deposit" className="mt-6">
-              <p className="font-medium text-base sm:text-lg">Deposit</p>
-              <div className="mt-1">
-                <p className="text-lg sm:text-xl font-medium">
+            <section id="deposit" className="mt-6 text-gray-800">
+              <p className="font-semibold text-base sm:text-lg ">Deposit</p>
+              <div className="mt-1 ">
+                <p className="text-lg font-medium">
                   {deposit}${" "}
                   <span className="text-sm sm:text-base font-normal">
                     (refundable)
@@ -868,10 +812,10 @@ const BookingCard: React.FC<BookingCardProps> = ({
               id="name"
               className={`${!bookingStatus.status ? "opacity-60" : ""} mt-3`}
             >
-              <p className="font-medium text-base sm:text-lg">
+              <p className="font-semibold text-lg text-gray-800">
                 {booking.car?.brand} {booking.car?.model} {booking.car?.year}{" "}
                 {plate ? (
-                  <span className="border border-gray-500 rounded-sm p-1 text-xs sm:text-sm">
+                  <span className="border border-gray-800 rounded-sm p-1 text-sm">
                     {plate}
                   </span>
                 ) : null}
@@ -939,7 +883,7 @@ const BookingCard: React.FC<BookingCardProps> = ({
           </div>
 
           {/* Guest (заглушка) */}
-          <div id="guest" className="mt-8 sm:mt-10">
+          <div id="guest" className=" lg:mt-10">
             <div className="flex items-center">
               <button className="shrink-0">
                 <img
@@ -950,7 +894,7 @@ const BookingCard: React.FC<BookingCardProps> = ({
               </button>
               <div className="ml-4">
                 <div>
-                  <p className="text-base sm:text-lg font-semibold text-gray-700">
+                  <p className="text-base sm:text-lg font-semibold text-gray-800">
                     Oleg
                   </p>
                   <p className="text-xs sm:text-sm text-gray-700">
@@ -967,7 +911,7 @@ const BookingCard: React.FC<BookingCardProps> = ({
               </div>
             </div>
 
-            <div className="mt-6 font-medium text-base sm:text-lg">
+            <div className="mt-6 font-medium text-base sm:text-lg text-gray-800">
               Verified info
             </div>
             <ul className="mt-3 text-sm sm:text-base">

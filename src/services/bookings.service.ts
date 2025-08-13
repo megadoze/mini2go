@@ -2,6 +2,7 @@ import { supabase } from "@/lib/supabase";
 import type { PostgrestSingleResponse } from "@supabase/supabase-js";
 import type { Booking as DbBooking } from "@/types/booking";
 import type { BookingCard as BookingCardType } from "@/types/bookingCard";
+import { eachDayOfInterval, parseISO } from "date-fns";
 
 // Тип под конкретный select-ответ
 export type BookingJoinedRow = {
@@ -132,4 +133,64 @@ export function subscribeBooking(id: string, onChange: () => void): () => void {
       /* noop */
     }
   };
+}
+
+export async function cancelAndUnlock(
+  bookingId: string
+): Promise<BookingCardType> {
+  // 1) Сначала обновим статус брони и получим обновлённую карточку
+  const updated = await updateBookingCard(bookingId, {
+    status: "canceledHost",
+  });
+
+  // 2) Пытаемся разблокировать даты, если в cars есть поле unavailable_days (jsonb/number[])
+  try {
+    // Зачитываем минимум данных по брони (для диапазона и car_id)
+    const {
+      data: b,
+      error: bErr,
+    }: PostgrestSingleResponse<
+      Pick<DbBooking, "id" | "start_at" | "end_at" | "car_id">
+    > = await supabase
+      .from("bookings")
+      .select("id, start_at, end_at, car_id")
+      .eq("id", bookingId)
+      .single();
+
+    if (bErr || !b?.car_id || !b.start_at || !b.end_at) return updated;
+
+    // ⚠️ если у тебя «недни», а слоты по часам, подкорректируй вычисление списка
+    const start = parseISO(b.start_at);
+    const end = parseISO(b.end_at);
+    const days = eachDayOfInterval({ start, end }).map((d) => d.getTime());
+    const daysSet = new Set<number>(days);
+
+    // Пробуем прочитать колонку (если её нет — ловим ошибку 42703 и выходим)
+    const { data: carRow, error: carErr } = await supabase
+      .from("cars")
+      .select("id, unavailable_days")
+      .eq("id", b.car_id)
+      .maybeSingle();
+
+    // Если колонки нет или не массив — выходим молча
+    if (carErr?.code === "42703") return updated; // column does not exist
+    const current: unknown = (carRow as any)?.unavailable_days;
+    if (!Array.isArray(current)) return updated;
+
+    const next = (current as number[]).filter((ts) => !daysSet.has(ts));
+
+    // Пишем обратно только если что-то поменялось
+    if (JSON.stringify(next) !== JSON.stringify(current)) {
+      const { error: upErr } = await supabase
+        .from("cars")
+        .update({ unavailable_days: next })
+        .eq("id", b.car_id);
+      if (upErr) console.warn("[cars/update unavailable_days] skip", upErr);
+    }
+  } catch (e) {
+    // ничего критичного — разблокировка носит вспомогательный характер
+    console.warn("[cancelAndUnlock] unlock skipped:", e);
+  }
+
+  return updated;
 }
