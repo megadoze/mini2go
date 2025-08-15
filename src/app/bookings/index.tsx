@@ -171,6 +171,7 @@ export default function BookingsList({ owner, title = "Bookings" }: Props) {
       <header className="flex items-end justify-between mb-4">
         <h1 className="font-openSans text-2xl font-bold">{title}</h1>
       </header>
+      <Link to={"/bookings/new"}>Add booking</Link>
 
       <section id="bookings" className="mt-6 mb-10">
         {loading && (
@@ -283,7 +284,7 @@ function StatusPill({ status }: { status: BookingCard["status"] }) {
       return { label: s, cls: "red" };
     }
     if (s === "onapproval") {
-      return { label: s, cls: "grape" };
+      return { label: s, cls: "blue" };
     }
     if (s === "finished") {
       return { label: s, cls: "dark" };

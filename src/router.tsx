@@ -28,6 +28,7 @@ import CarErrorBoundary from "./components/carErrorBoundary";
 import Finance from "./app/finance";
 import BookingsList from "./app/bookings";
 import BookingPage from "./app/bookings/bookingPage";
+import BookingEditor from "./app/bookings/bookingEditor";
 
 export const router = createBrowserRouter([
   {
@@ -41,7 +42,9 @@ export const router = createBrowserRouter([
       { path: "cars", element: <CarsPage /> },
       { path: "cars/add", element: <AddCarPage /> },
       { path: "finance", element: <Finance /> },
-      { path: "bookings", element: <BookingsList owner="me"/> },
+      { path: "bookings", element: <BookingsList owner="me" /> },
+      { path: "bookings/new", element: <BookingEditor /> },
+      // { path: "bookings/:id/edit", element: <BookingEditor /> },
       { path: "bookings/:id", element: <BookingPage /> },
       { path: "users", element: <UsersPage /> },
       { path: "settings", element: <SettingsGlobal /> },
@@ -67,6 +70,8 @@ export const router = createBrowserRouter([
       { index: true, element: <Navigate to="cardetails" replace /> },
       { path: "cardetails", element: <CarDetails /> },
       { path: "calendar", element: <Calendar /> },
+      { path: "bookings/new", element: <BookingEditor /> },
+      { path: "bookings/:bookingId/edit", element: <BookingEditor /> },
       { path: "pricing", element: <Pricing /> },
       { path: "distance", element: <Distance /> },
       { path: "photos", element: <Photos /> },

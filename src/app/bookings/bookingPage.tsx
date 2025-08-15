@@ -190,7 +190,7 @@ const BookingCard: React.FC = () => {
     if (s === "onApproval")
       return {
         text: s,
-        cls: "grape",
+        cls: "blue",
       };
     if (s === "finished")
       return {
@@ -738,7 +738,7 @@ const BookingCard: React.FC = () => {
                 TOTAL for RENT
               </p>
               <div className="mt-1">
-                <p className="font-bold text-lg sm:text-xl text-red-800">
+                <p className="font-bold text-lg sm:text-xl text-red-700">
                   {priceTotal}$
                 </p>
               </div>
@@ -814,12 +814,12 @@ const BookingCard: React.FC = () => {
             >
               <p className="font-semibold text-lg text-gray-800">
                 {booking.car?.brand} {booking.car?.model} {booking.car?.year}{" "}
-                {plate ? (
-                  <span className="border border-gray-800 rounded-sm p-1 text-sm">
-                    {plate}
-                  </span>
-                ) : null}
               </p>
+              {plate ? (
+                <p className="w-fit border border-gray-800 rounded-sm p-1 text-sm">
+                  {plate}
+                </p>
+              ) : null}
             </div>
           </section>
 
@@ -1002,7 +1002,7 @@ const BookingCard: React.FC = () => {
             <div className="mt-4 sm:mt-6 flex flex-col sm:flex-row gap-2">
               <button
                 onClick={downloadQR}
-                className="flex-1 rounded-md bg-gray-900 text-white py-2.5 text-sm active:scale-[.99]"
+                className="flex-1 rounded-md bg-gray-300 text-white py-2.5 text-sm active:scale-[.99]"
                 disabled={!qrSrc}
               >
                 Download PNG

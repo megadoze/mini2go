@@ -11,6 +11,16 @@ export async function fetchBookingsByCarId(carId: string): Promise<Booking[]> {
   return data ?? [];
 }
 
+export async function fetchBookingById(id: string): Promise<Booking> {
+  const { data, error } = await supabase
+    .from("bookings")
+    .select("*")
+    .eq("id", id)
+    .single();
+  if (error) throw error;
+  return data!;
+}
+
 export async function createBooking(
   booking: Omit<Booking, "id">
 ): Promise<Booking> {

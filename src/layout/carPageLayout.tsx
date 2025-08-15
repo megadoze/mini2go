@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { NavLink, Outlet, useParams, useLoaderData } from "react-router-dom";
 import { AppShell, Burger } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
@@ -29,6 +29,7 @@ import {
   fetchExtras,
   fetchCarExtras,
 } from "@/services/car.service";
+import { fetchBookingsByCarId } from "@/app/car/calendar/calendar.service"; // ⬅️ добавлено
 
 type LoaderData = {
   car: CarWithModelRelations;
@@ -40,10 +41,11 @@ type LoaderData = {
 
 export default function CarPageLayout() {
   const [opened, { toggle }] = useDisclosure();
-
   const { id } = useParams();
 
-  // 1) Берём данные из loader
+  const userCache = useRef(new Map<string, any>());
+
+  // 1) Из loader
   const {
     car: loaderCar,
     globalSettings: loaderGS,
@@ -52,8 +54,12 @@ export default function CarPageLayout() {
     seasonalRates: loaderSR,
   } = useLoaderData() as LoaderData;
 
-  // 2) Инициализируем локальные стейты уже заполненными значениями
-  const [car, setCar] = useState<CarWithModelRelations>(loaderCar);
+  // 2) Локальные состояния (с безопасными bookings)
+  const [car, setCar] = useState<CarWithModelRelations>({
+    ...loaderCar,
+    bookings: (loaderCar as any)?.bookings ?? [],
+  } as any);
+
   const [globalSettings, setGlobalSettings] = useState<AppSettings | null>(
     loaderGS
   );
@@ -81,28 +87,26 @@ export default function CarPageLayout() {
     loaderCar.includeMileage
   );
 
-  // 3) Флаги загрузки — false, т.к. первичная загрузка уже выполнена в loader
+  // 3) Флаги загрузки
   const [loadingCar, setLoadingCar] = useState(false);
   const [loadingGlobal, setLoadingGlobal] = useState(false);
 
   const getCarId = () => String((car as any)?.id ?? id);
 
+  // Синхронизация из loader без перетирания bookings
   useEffect(() => {
-    // основные сущности
-    setCar(loaderCar);
+    setCar((prev) => ({
+      ...prev,
+      ...loaderCar,
+      bookings: (loaderCar as any)?.bookings ?? prev.bookings ?? [],
+    }));
     setGlobalSettings(loaderGS);
     setExtras(loaderExtras);
     setPricingRules(loaderPR);
     setSeasonalRates(loaderSR);
 
-    // производные от car
     setParkingAddress(loaderCar.address);
-
-    setCoords({
-      latitude: loaderCar.lat ?? 0,
-      longitude: loaderCar.long ?? 0,
-    });
-
+    setCoords({ latitude: loaderCar.lat ?? 0, longitude: loaderCar.long ?? 0 });
     setPickupInfo({
       pickupInfo: loaderCar.pickupInfo,
       returnInfo: loaderCar.returnInfo,
@@ -110,13 +114,12 @@ export default function CarPageLayout() {
     setIsDelivery(loaderCar.isDelivery);
     setDeliveryFee(loaderCar.deliveryFee);
     setIncludeMileage(loaderCar.includeMileage);
-  }, [loaderCar, loaderGS, loaderExtras, loaderPR, loaderSR]);
+  }, [loaderCar?.id, loaderGS, loaderExtras, loaderPR, loaderSR]);
 
-  // 4) Мягкие рефетчи (опционально)
+  // 4) Рефетчи
   const refreshPricingData = async () => {
     const carId = getCarId();
     if (!carId) return;
-
     const [rules, seasons] = await Promise.all([
       fetchPricingRules(carId),
       fetchSeasonalRates(carId),
@@ -140,8 +143,19 @@ export default function CarPageLayout() {
     if (!carId) return;
     setLoadingCar(true);
     try {
-      const data = await fetchCarById(carId);
-      setCar(data);
+      const [data, bookings, allExtras, carExtras] = await Promise.all([
+        fetchCarById(carId),
+        fetchBookingsByCarId(carId), // ⬅️ тянем брони вместе с машиной
+        fetchExtras(),
+        fetchCarExtras(carId),
+      ]);
+
+      setCar((prev) => ({
+        ...prev,
+        ...data,
+        bookings: bookings ?? prev.bookings ?? [],
+      }));
+
       setParkingAddress(data.address);
       setCoords({ latitude: data.lat, longitude: data.long });
       setPickupInfo({
@@ -152,9 +166,6 @@ export default function CarPageLayout() {
       setDeliveryFee(data.deliveryFee);
       setIncludeMileage(data.includeMileage);
 
-      // синхронизируем extras при ручном обновлении
-      const allExtras = await fetchExtras();
-      const carExtras = await fetchCarExtras(carId);
       const extrasWithState = allExtras.map((extra) => {
         const match = carExtras.find((ce) => ce.extra_id === extra.id);
         return {
@@ -170,7 +181,7 @@ export default function CarPageLayout() {
     }
   };
 
-  // 5) Ваши пункты меню — без изменений
+  // 5) Меню
   const menuItems = useMemo(
     () => [
       {
@@ -228,7 +239,6 @@ export default function CarPageLayout() {
 
   const SidebarMenu = () => (
     <>
-      {/* Мини-карточка — рендерится сразу, car уже есть */}
       <div className="flex items-center gap-3">
         <img
           src={car?.photos?.[0]}
@@ -276,13 +286,11 @@ export default function CarPageLayout() {
     </>
   );
 
-  // 6) Effective (как у тебя)
+  // 6) Effective
   const effective = useMemo(() => {
     if (!car || !globalSettings) return {};
-
     const coalesce = <T,>(a: T | null | undefined, b: T) =>
       (a ?? undefined) !== undefined ? (a as T) : b;
-
     return {
       effectiveCurrency: coalesce(car.currency, globalSettings.currency),
       effectiveOpenTime: coalesce(car.openTime, globalSettings.openTime),
@@ -347,7 +355,6 @@ export default function CarPageLayout() {
       </AppShell.Navbar>
 
       <AppShell.Main>
-        {/* car уже гарантированно есть */}
         <CarContext.Provider
           value={{
             car,
@@ -377,6 +384,8 @@ export default function CarPageLayout() {
             refreshCar,
             refreshGlobal,
             hasGlobalSettings: Boolean(globalSettings),
+            getCachedUser: (id) => userCache.current.get(id),
+            setCachedUser: (id, u) => userCache.current.set(id, u),
             ...effective,
           }}
         >

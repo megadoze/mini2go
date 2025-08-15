@@ -9,6 +9,7 @@ import {
   fetchPricingRules,
   fetchSeasonalRates,
 } from "@/app/car/pricing/pricing.service";
+import { fetchBookingsByCarId } from "@/app/car/calendar/calendar.service"; // ← NEW
 
 const toCamelSettings = (raw: any) => ({
   currency: raw.currency,
@@ -32,15 +33,23 @@ export const carLayoutLoader: LoaderFunction = async ({
   const carId = params.id as string | undefined;
   if (!carId) throw new Response("Car ID is required", { status: 400 });
 
-  const [car, settingsRaw, allExtras, carExtras, pricingRules, seasonalRates] =
-    await Promise.all([
-      fetchCarById(carId), // <-- уже camel из сервиса
-      getGlobalSettings(),
-      fetchExtras(),
-      fetchCarExtras(carId),
-      fetchPricingRules(carId),
-      fetchSeasonalRates(carId),
-    ]);
+  const [
+    carBase,
+    settingsRaw,
+    allExtras,
+    carExtras,
+    pricingRules,
+    seasonalRates,
+    bookings, // ← NEW
+  ] = await Promise.all([
+    fetchCarById(carId), // camel
+    getGlobalSettings(),
+    fetchExtras(),
+    fetchCarExtras(carId),
+    fetchPricingRules(carId),
+    fetchSeasonalRates(carId),
+    fetchBookingsByCarId(carId), // ← NEW
+  ]);
 
   const globalSettings = settingsRaw ? toCamelSettings(settingsRaw) : null;
 
@@ -53,6 +62,9 @@ export const carLayoutLoader: LoaderFunction = async ({
       meta: extra,
     };
   });
+
+  // ВАЖНО: возвращаем car уже с bookings
+  const car = { ...carBase, bookings };
 
   return { car, globalSettings, extras, pricingRules, seasonalRates };
 };

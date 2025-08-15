@@ -24,11 +24,12 @@ type CarContextType = {
   setIncludeMileage: (includeMileage: number) => void;
   extras: CarExtraWithMeta[];
   setExtras: React.Dispatch<React.SetStateAction<CarExtraWithMeta[]>>;
-
   pricingRules: PricingRule[];
   setPricingRules: React.Dispatch<React.SetStateAction<PricingRule[]>>;
   seasonalRates: SeasonalRate[];
   setSeasonalRates: React.Dispatch<React.SetStateAction<SeasonalRate[]>>;
+  getCachedUser?: (id: string) => any | undefined;
+  setCachedUser?: (id: string, u: any) => void;
 
   refreshPricingData: () => Promise<void>; // ручной рефреш
 

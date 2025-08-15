@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Select } from "@mantine/core";
 import {
   eachDayOfInterval,
@@ -16,13 +16,10 @@ import {
 } from "date-fns";
 import { useCarContext } from "@/context/carContext";
 import type { Booking } from "@/types/booking";
-import {
-  createBooking,
-  deleteBooking,
-  fetchBookingsByCarId,
-  updateBooking,
-} from "./calendar.service";
-import { calculateFinalPriceProRated } from "@/hooks/useFinalPriceHourly";
+import { createBooking, deleteBooking } from "./calendar.service";
+import { useLocation, useNavigate } from "react-router";
+import { getUserById } from "@/services/user.service";
+import type { BookingEditorSnapshot } from "@/types/booking-ui";
 
 const TIME_OPTIONS = Array.from({ length: 24 * 2 }, (_, i) => {
   const hours = Math.floor((i * 30) / 60);
@@ -38,13 +35,11 @@ const TIME_OPTIONS = Array.from({ length: 24 * 2 }, (_, i) => {
 type EditMode = null | "block" | "booking";
 
 export default function Calendar() {
-  const {
-    car,
-    setCar,
-    pricingRules = [],
-    seasonalRates = [],
-    effectiveCurrency,
-  } = useCarContext();
+  const { car, setCar, effectiveCurrency, getCachedUser, setCachedUser } =
+    useCarContext();
+
+  const location = useLocation();
+  const navigate = useNavigate();
   const carId = car?.id;
 
   const currency = effectiveCurrency ?? "EUR";
@@ -54,8 +49,8 @@ export default function Calendar() {
     start: Date | null;
     end: Date | null;
   }>({ start: null, end: null });
-  const [hoveredDate, setHoveredDate] = useState<Date | null>(null);
 
+  const [hoveredDate, setHoveredDate] = useState<Date | null>(null);
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(
     null
@@ -66,7 +61,10 @@ export default function Calendar() {
   const [endTime, setEndTime] = useState("2330");
   const [currentMonth, setCurrentMonth] = useState(new Date());
 
-  const allBookings: Booking[] = useMemo(() => car.bookings ?? [], [car]);
+  const allBookings: Booking[] = useMemo(
+    () => car?.bookings ?? [],
+    [car?.bookings]
+  );
 
   const blockedBookings = useMemo(
     () => allBookings.filter((b) => b.mark === "block"),
@@ -74,17 +72,15 @@ export default function Calendar() {
   );
   const activeBookings = useMemo(
     () =>
-      allBookings.filter((b) => b.mark === "booking" && b.status === "onApproval"),
+      allBookings.filter(
+        (b) =>
+          b.mark === "booking" &&
+          (b.status === "onApproval" ||
+            b.status === "rent" ||
+            b.status === "confirmed")
+      ),
     [allBookings]
   );
-
-  // первичная подгрузка
-  useEffect(() => {
-    if (!carId) return;
-    fetchBookingsByCarId(carId).then((bookings) => {
-      setCar((prev) => ({ ...prev, bookings }));
-    });
-  }, [carId, setCar]);
 
   // дни
   const bookedDays = useMemo(
@@ -128,6 +124,7 @@ export default function Calendar() {
         isWithinInterval(date, { start, end })
       );
     });
+    
   const findBookingByDate = (date: Date) =>
     activeBookings.find((b) => {
       const start = parseISO(b.start_at);
@@ -221,6 +218,8 @@ export default function Calendar() {
     // обычный/редакционный выбор диапазона
     if (!selectedRange.start || (selectedRange.start && selectedRange.end)) {
       setSelectedRange({ start: date, end: null });
+      setSelectedBookingId(null);
+      setSelectedBlockId(null);
     } else {
       const start = selectedRange.start;
       const range = eachDayOfInterval({
@@ -229,7 +228,6 @@ export default function Calendar() {
       });
       const hasUnavailable = range.some((d) => isUnavailable(d));
       if (hasUnavailable) {
-        // сбрасываем, как договаривались
         setSelectedRange({ start: null, end: null });
       } else {
         setSelectedRange(
@@ -290,32 +288,11 @@ export default function Calendar() {
     const rangeDays = eachDayOfInterval({ start, end });
     if (rangeDays.some((d) => isUnavailable(d))) return;
 
-    const basePrice = car?.price ?? 0;
-
-    const { total } = calculateFinalPriceProRated({
-      startAt: start,
-      endAt: end,
-      baseDailyPrice: basePrice,
-      pricingRules, // из контекста
-      seasonalRates, // из контекста
-    });
-
-    const payload: Omit<Booking, "id"> = {
-      car_id: carId,
-      start_at: start.toISOString(),
-      end_at: end.toISOString(),
-      mark: "booking",
-      status: "onApproval",
-      user_id: /* текущий пользователь */ null,
-      price_per_day: basePrice,
-      price_total: total,
-    };
-
-    const result = await createBooking(payload);
-    if (result) {
-      setCar({ ...car, bookings: [...(car?.bookings ?? []), result] });
-      resetSelection();
-    }
+    navigate(
+      `/cars/${carId}/bookings/new?carId=${carId}&start=${encodeURIComponent(
+        start.toISOString()
+      )}&end=${encodeURIComponent(end.toISOString())}`
+    );
   };
 
   // удаление
@@ -332,102 +309,37 @@ export default function Calendar() {
     if (editMode === "booking") setEditMode(null);
   };
 
-  // редактирование
-  // const startEditBlock = () => {
-  //   if (!selectedBlock) return;
-  //   setEditMode("block");
-  //   setSelectedBookingId(null);
-  //   // заполним диапазон и время
-  //   const s = parseISO(selectedBlock.start_at);
-  //   const e = parseISO(selectedBlock.end_at);
-  //   setSelectedRange({ start: s, end: e });
-  //   const sVal = s.getHours() * 100 + s.getMinutes();
-  //   const eVal = e.getHours() * 100 + e.getMinutes();
-  //   setStartTime(String(sVal));
-  //   setEndTime(String(eVal));
-  // };
-
-  const startEditBooking = () => {
+  const startEditBooking = async () => {
     if (!selectedBooking) return;
-    setEditMode("booking");
-    setSelectedBlockId(null);
-    const s = parseISO(selectedBooking.start_at);
-    const e = parseISO(selectedBooking.end_at);
-    setSelectedRange({ start: s, end: e });
-    const sVal = s.getHours() * 100 + s.getMinutes();
-    const eVal = e.getHours() * 100 + e.getMinutes();
-    setStartTime(String(sVal));
-    setEndTime(String(eVal));
-  };
 
-  const saveEdit = async () => {
-    if (!editMode) return;
-    if (!selectedRange.start || !selectedRange.end) return;
-
-    const s = new Date(selectedRange.start);
-    const e = new Date(selectedRange.end);
-
-    const sH = Math.floor(Number(startTime) / 100);
-    const sM = Number(startTime) % 100;
-    s.setHours(sH, sM);
-
-    const eH = Math.floor(Number(endTime) / 100);
-    const eM = Number(endTime) % 100;
-    e.setHours(eH, eM);
-
-    const id = editMode === "block" ? selectedBlock?.id : selectedBooking?.id;
-    if (!id) return;
-
-    let patch: Partial<Booking> = {
-      start_at: s.toISOString(),
-      end_at: e.toISOString(),
+    // собери лёгкий снэпшот
+    const snapshot: BookingEditorSnapshot = {
+      booking: {
+        id: selectedBooking.id,
+        car_id: selectedBooking.car_id,
+        user_id: selectedBooking.user_id,
+        start_at: selectedBooking.start_at, // ISO string
+        end_at: selectedBooking.end_at, // ISO string
+        mark: selectedBooking.mark,
+        status: selectedBooking.status,
+        price_per_day: selectedBooking.price_per_day,
+        price_total: selectedBooking.price_total,
+        user: null,
+      },
     };
 
-    if (editMode === "booking") {
-      const basePrice = car?.price ?? 0;
-
-      // const price_total = calculateFinalPrice({
-      //   startDate: s,
-      //   endDate: e,
-      //   basePrice,
-      //   pricingRules,
-      //   seasonalRates,
-      // });
-
-      const { total } = calculateFinalPriceProRated({
-        startAt: s,
-        endAt: e,
-        baseDailyPrice: basePrice,
-        pricingRules, // из контекста
-        seasonalRates, // из контекста
-      });
-
-      patch = {
-        ...patch,
-        price_per_day: basePrice || null,
-        price_total: total ?? null,
-      };
+    if (selectedBooking.user_id) {
+      try {
+        const cached = getCachedUser?.(selectedBooking.user_id) ?? null;
+        const user = cached ?? (await getUserById(selectedBooking.user_id));
+        snapshot.booking.user = user;
+        setCachedUser?.(selectedBooking.user_id, user);
+      } catch {} // не валим переход, если профиль не подтянулся
     }
 
-    const updated = await updateBooking(id, patch);
-    // локально обновим
-    setCar({
-      ...car,
-      bookings: (car.bookings ?? []).map((b: Booking) =>
-        b.id === id ? { ...b, ...updated } : b
-      ),
+    navigate(`/cars/${carId}/bookings/${selectedBooking.id}/edit`, {
+      state: { snapshot, from: location.pathname + location.search },
     });
-
-    // выходим из редактирования
-    setEditMode(null);
-    setSelectedBlockId(null);
-    setSelectedBookingId(null);
-    resetSelection();
-  };
-
-  const cancelEdit = () => {
-    setEditMode(null);
-    resetSelection();
   };
 
   // утилиты
@@ -685,25 +597,6 @@ export default function Calendar() {
               Remove
             </button>
           </div>
-        </div>
-      )}
-
-      {/* РЕЖИМ РЕДАКТИРОВАНИЯ — общие кнопки */}
-      {editMode && (
-        <div className="mt-4 flex justify-end gap-2">
-          <button
-            className="px-4 py-2 border border-gray-500 rounded text-sm"
-            onClick={cancelEdit}
-          >
-            Cancel
-          </button>
-          <button
-            disabled={!selectedRange.start || !selectedRange.end}
-            onClick={saveEdit}
-            className="px-4 py-2 border border-gray-500 rounded text-sm disabled:opacity-50"
-          >
-            Save
-          </button>
         </div>
       )}
     </div>
