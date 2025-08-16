@@ -1376,7 +1376,7 @@ export default function BookingEditor() {
                 )}
 
                 {status === "confirmed" ? (
-                  <>
+                  <p className=" border rounded-md px-4 py-2">
                     Trip starts in:&nbsp;
                     {cdStart &&
                     (cdStart.days || cdStart.hours || cdStart.minutes) ? (
@@ -1387,10 +1387,13 @@ export default function BookingEditor() {
                     ) : (
                       <span>less than a minute</span>
                     )}
-                  </>
+                  </p>
                 ) : (
-                  status === "onApproval" &&
-                  "Confirm the guest's booking request as soon as possible."
+                  status === "onApproval" && (
+                    <p className="border rounded-md px-4 py-2">
+                      Confirm the guest's booking request as soon as possible.
+                    </p>
+                  )
                 )}
               </section>
               <div className="hidden mt-6 space-y-2 lg:block">
@@ -1496,7 +1499,7 @@ export default function BookingEditor() {
           )}
           {/* Customer mini card */}
           {userId && selectedUser && mode !== "create" && (
-            <section className=" mt-6 border border-lime-400 rounded p-4 flex items-start gap-2">
+            <section className=" mt-6 border border-gray-400 text-gray-700 rounded-md p-3 flex items-start gap-2">
               <div className="grow">
                 <div className="font-medium">
                   {selectedUser.full_name ?? "—"}
