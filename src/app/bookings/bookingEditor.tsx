@@ -753,7 +753,6 @@ export default function BookingEditor() {
   // автопрогрессия статусов (rent/finished)
   useEffect(() => {
     if (!bookingId || !startDate || !endDate) return;
-    const now = new Date();
 
     const started = now >= startDate && now < endDate;
     const finished = now >= endDate;
@@ -771,7 +770,13 @@ export default function BookingEditor() {
     if (started && status !== "rent") void goRent();
     else if (finished && status !== "finished") void goFinished();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bookingId, status]);
+  }, [
+    bookingId,
+    status,
+    startDate?.getTime?.(),
+    endDate?.getTime?.(),
+    now.getTime(),
+  ]);
 
   // статус UI
   const statusView = useMemo(() => {
@@ -1524,15 +1529,14 @@ export default function BookingEditor() {
               paddingBottom: "calc(env(safe-area-inset-bottom) + 0.75rem)",
             }}
           >
-            {status === "onApproval" ||
-              (status === "confirmed" && (
-                <button
-                  onClick={handleCancel}
-                  className="flex-1 border rounded-md border-gray-300 text-gray-700 py-3 text-sm active:scale-[.99] transition"
-                >
-                  Cancel booking
-                </button>
-              ))}
+            {(status === "onApproval" || status === "confirmed") && (
+              <button
+                onClick={handleCancel}
+                className="flex-1 border rounded-md border-gray-300 text-gray-700 py-3 text-sm active:scale-[.99] transition"
+              >
+                Cancel booking
+              </button>
+            )}
             {status === "onApproval" && (
               <button
                 onClick={handleConfirm}
