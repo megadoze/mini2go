@@ -463,7 +463,9 @@ export default function Calendar() {
             isBookedDay ? "bg-white bg-hatched-booked" : "",
             isBlockedDay ? "bg-white bg-hatched-blocked" : "",
             isTodayFree && !inRange && !selected ? "bg-hatched-today" : "",
-            isPastDay(date) ? "bg-white bg-hatched-past" : "",
+            isPastDay(date) && !isBookedDay && !isBlockedDay
+              ? "bg-white bg-hatched-past"
+              : "",
             isDisabled ? "opacity-40 cursor-not-allowed" : "cursor-pointer",
           ].join(" ");
 
