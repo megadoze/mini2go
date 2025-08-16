@@ -124,7 +124,7 @@ export default function Calendar() {
         isWithinInterval(date, { start, end })
       );
     });
-    
+
   const findBookingByDate = (date: Date) =>
     activeBookings.find((b) => {
       const start = parseISO(b.start_at);

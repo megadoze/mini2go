@@ -139,10 +139,10 @@ export default function BookingEditor() {
   const [mark, setMark] = useState<"booking" | "block">("booking");
   const [userId, setUserId] = useState<string | null>(null);
   const [selectedUser, setSelectedUser] = useState<any | null>(null);
-  const [startAt, setStartAt] = useState<string>(new Date().toISOString());
-  const [endAt, setEndAt] = useState<string>(
-    new Date(Date.now() + 2 * 3600e3).toISOString()
+  const [startAt, setStartAt] = useState<string>(
+    snapshot?.booking.start_at || ""
   );
+  const [endAt, setEndAt] = useState<string>(snapshot?.booking.end_at || "");
 
   // депозит — берём из авто при создании, показываем в карточке всегда
   const [deposit, setDeposit] = useState<number>(
@@ -182,6 +182,15 @@ export default function BookingEditor() {
 
   // статус / кнопки подтверждения
   const [status, setStatus] = useState<string>("onApproval");
+
+  // Лайв-тик раз в 30 сек
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    const t = window.setInterval(() => setTick(Date.now()), 30_000);
+    return () => clearInterval(t);
+  }, []);
+
+  const now = useMemo(() => new Date(), [tick]);
 
   // ранний префилл перед загрузкой (snapshot)
   useEffect(() => {
@@ -240,12 +249,7 @@ export default function BookingEditor() {
           setStartAt(found.start_at);
           setEndAt(found.end_at);
           setStatus(found.status ?? "onApproval");
-          //   setDeposit((found as any)?.deposit ?? deposit);
-          if ((found as any)?.deposit != null) {
-            setDeposit(Number((found as any).deposit));
-          } else {
-            setDeposit(Number((carFromCtx as any)?.deposit ?? 0));
-          }
+          setDeposit(Number((found as any)?.deposit));
           setDelivery(found.delivery_type ?? "car_address");
 
           // профиль юзера (если нет в snapshot и нет в кэше)
@@ -702,20 +706,21 @@ export default function BookingEditor() {
     });
   const invalidTime = !isAfter(new Date(endAt), new Date(startAt));
 
-  const [tick, setTick] = useState(0);
-
-  useEffect(() => {
-    const t = window.setInterval(() => setTick(Date.now()), 30_000);
-    return () => clearInterval(t);
-  }, []);
-
-  const now = useMemo(() => new Date(), [tick]);
-
   // вычисления для прогресса/таймеров (только отображение — статусы не меняем!)
   const startDate = useMemo(() => parseISO(startAt), [startAt]);
   const endDate = useMemo(() => parseISO(endAt), [endAt]);
   const totalMs = Math.max(0, endDate.getTime() - startDate.getTime());
   const elapsedMs = Math.max(0, now.getTime() - startDate.getTime());
+
+  //   const tripProgress = useMemo(() => {
+  //     if (!startDate || !endDate) return null as number | null;
+  //     const total = endDate.getTime() - startDate.getTime();
+  //     if (total <= 0) return 0;
+  //     const elapsed = now.getTime() - startDate.getTime();
+  //     if (elapsed <= 0) return 0;
+  //     if (elapsed >= total) return 100;
+  //     return Math.round((elapsed / total) * 100);
+  //   }, [startDate, endDate, now]);
 
   const tripProgress =
     totalMs > 0
@@ -734,15 +739,38 @@ export default function BookingEditor() {
 
   const cdStart = useMemo(() => countdownParts(startDate), [startDate, now]);
 
-  //   const tripProgress = useMemo(() => {
-  //     if (!startDate || !endDate) return null as number | null;
-  //     const total = endDate.getTime() - startDate.getTime();
-  //     if (total <= 0) return 0;
-  //     const elapsed = now.getTime() - startDate.getTime();
-  //     if (elapsed <= 0) return 0;
-  //     if (elapsed >= total) return 100;
-  //     return Math.round((elapsed / total) * 100);
-  //   }, [startDate, endDate, now]);
+  // ---------- mutations (via service) ------------------------------------
+  //   async function mutateBooking(id: string, payload: Partial<DbBooking>) {
+  //     const next = await updateBookingCard(id, payload);
+  //       qc.setQueryData(["booking", id], next);
+  //       qc.setQueryData<BookingCardType[]>(["bookingsByUser"], (prev = []) =>
+  //         prev.map((b) => (b.id === id ? next : b))
+  //       );
+  //     return next;
+  //   }
+
+  // автопрогрессия статусов (rent/finished)
+  useEffect(() => {
+    if (!bookingId || !startDate || !endDate) return;
+    const now = new Date();
+
+    const started = now >= startDate && now < endDate;
+    const finished = now >= endDate;
+
+    const goRent = async () => {
+      setStatus("rent");
+      //   await mutateBooking(bookingId, { status: "rent" });
+    };
+
+    const goFinished = async () => {
+      setStatus("finished");
+      //   await mutateBooking(bookingId, { status: "finished" });
+    };
+
+    if (started && status !== "rent") void goRent();
+    else if (finished && status !== "finished") void goFinished();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bookingId, status]);
 
   // статус UI
   const statusView = useMemo(() => {
@@ -767,16 +795,21 @@ export default function BookingEditor() {
   if (loading) return <div className="p-4">Loading…</div>;
 
   return (
-    <div className={`text-gray-600 max-w-4xl  ${containerPad}`}>
+    <div className={`text-gray-600 max-w-4xl ${containerPad}`}>
       {/* Header */}
-      <header className="flex flex-wrap justify-between items-center">
-        <div className="flex gap-2">
-          <h1 className="font-semibold text-xl sm:text-2xl text-gray-800">
-            {mode === "create" ? "New" : "Booking"}{" "}
-            <span className=" font-normal text-lime-500">
-              {" "}
-              {mark === "booking" ? ` #${displayId}` : "Block"}
-            </span>
+      <div className="flex flex-wrap flex-col md:flex-row justify-between md:items-center">
+        <div className="flex items-center gap-2">
+          <h1 className="font-semibold text-xl md:text-2xl text-gray-800">
+            {mode === "create" && mark === "booking" ? (
+              "New Booking"
+            ) : mark === "block" ? (
+              "New Block"
+            ) : (
+              <>
+                Booking #
+                <span className=" font-normal text-lime-500">{displayId}</span>
+              </>
+            )}
           </h1>
           {mode === "edit" && (
             <div className="flex gap-2 h-fit">
@@ -812,12 +845,16 @@ export default function BookingEditor() {
         </div>
 
         {/* Статус */}
-        <div className="">
-          <Badge variant="dot" color={statusView.cls as any}>
+        {mode === "edit" && mark === "booking" && (
+          <Badge
+            variant="dot"
+            color={statusView.cls as any}
+            className="mt-2 md:mt-0"
+          >
             {statusView.text}
           </Badge>
-        </div>
-      </header>
+        )}
+      </div>
 
       {/* тип записи */}
       {mode !== "edit" && (
@@ -874,7 +911,7 @@ export default function BookingEditor() {
                 {carFromCtx?.year}
               </p>
               {carFromCtx?.licensePlate ? (
-                <p className="w-fit border border-gray-800 rounded-sm p-1 text-sm">
+                <p className="w-fit border border-gray-600 rounded-sm p-1 text-gray-700 text-sm">
                   {carFromCtx.licensePlate}
                 </p>
               ) : null}
@@ -886,7 +923,7 @@ export default function BookingEditor() {
             <p className="font-medium text-base sm:text-lg text-gray-800">
               Dates of trip
             </p>
-            <div className="grid grid-cols-2 gap-4 mt-2">
+            <div className="flex flex-col md:flex-row md:items-center gap-4 mt-2">
               <div>
                 <label className="block text-sm mb-1">Start</label>
                 <input
@@ -1203,22 +1240,24 @@ export default function BookingEditor() {
           {error && <div className="mt-3 text-red-600 text-sm">{error}</div>}
 
           {/* Кнопки сохранения */}
-          <div className="mt-4 flex justify-end gap-2">
-            <button
-              className="px-3 py-1 border rounded text-sm"
-              onClick={() => navigate(-1)}
-            >
-              Cancel
-            </button>
-            <button
-              className="px-3 py-1 border rounded text-sm"
-              onClick={handleSave}
-              disabled={loading || invalidTime}
-            >
-              {mode === "create" ? "Create" : "Save"}
-            </button>
-          </div>
-          <div className=" lg:hidden border-b border-gray-100 mt-4 sm:mt-5 shadow-sm" />
+          {mode === "create" && (
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                className="px-3 py-1 border rounded text-sm"
+                onClick={() => navigate(-1)}
+              >
+                Cancel
+              </button>
+              <button
+                className="px-3 py-1 border rounded text-sm"
+                onClick={handleSave}
+                disabled={loading || invalidTime}
+              >
+                {mode === "create" ? "Create" : "Save"}
+              </button>
+            </div>
+          )}
+          {/* <div className=" lg:hidden border-b border-gray-100 mt-4 sm:mt-5 shadow-sm" /> */}
         </div>
 
         {/* RIGHT — сводка/действия как в карточке */}
@@ -1248,7 +1287,7 @@ export default function BookingEditor() {
                 {carFromCtx?.year}
               </p>
               {carFromCtx?.licensePlate ? (
-                <p className="w-fit border border-gray-800 rounded-sm p-1 text-sm">
+                <p className="w-fit border border-gray-600 rounded-sm p-1 text-gray-700 text-sm">
                   {carFromCtx.licensePlate}
                 </p>
               ) : null}
@@ -1256,8 +1295,8 @@ export default function BookingEditor() {
           </section>
 
           {/* Даты справа */}
-          <section id="datesRight" className="mt-4 text-sm">
-            {/* <div className="flex justify-between">
+          {/* <section id="datesRight" className="mt-4 text-sm"> */}
+          {/* <div className="flex justify-between">
             <span className="text-gray-600">Start</span>
             <span className="text-gray-900">
               {format(parseISO(startAt), "dd MMM yyyy, HH:mm")}
@@ -1270,8 +1309,8 @@ export default function BookingEditor() {
             </span>
           </div> */}
 
-            {/* Прогресс: только UI, статус НЕ меняем автоматически */}
-            <div className="mt-3">
+          {/* Прогресс: только UI, статус НЕ меняем автоматически */}
+          {/* <div className="mt-3">
               <div className="flex items-center justify-between mb-1">
                 <span className="text-sm font-medium text-gray-800">
                   {status === "rent" ? "Trip in progress" : "Trip progress"}
@@ -1288,8 +1327,8 @@ export default function BookingEditor() {
                   style={{ width: `${tripProgress}%` }}
                 />
               </div>
-            </div>
-          </section>
+            </div> */}
+          {/* </section> */}
 
           {/* Итоги справа */}
           {/* <section className="mt-4 text-sm">
@@ -1308,71 +1347,69 @@ export default function BookingEditor() {
         </section> */}
 
           {/* Даты + прогресс + отсчёт */}
-          <section id="dates" className="mt-6">
-            {status === "rent" && typeof tripProgress === "number" && (
-              <div className="mt-4">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-gray-800">
-                    Trip progress
-                  </span>
-                  <span className="text-sm font-medium text-gray-800">
-                    {tripProgress}%
-                  </span>
-                </div>
-                <div
-                  className="h-2 w-full rounded-full bg-gray-100 overflow-hidden"
-                  role="progressbar"
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                  aria-valuenow={tripProgress}
-                >
-                  <div
-                    className="h-full rounded-full transition-[width] duration-500 bg-lime-400"
-                    style={{ width: `${tripProgress}%` }}
-                  />
-                </div>
-              </div>
-            )}
-            <p className="border rounded-xl p-4 text-base">
-              {status === "confirmed" ? (
-                <>
-                  Trip starts in:&nbsp;
-                  {cdStart &&
-                  (cdStart.days || cdStart.hours || cdStart.minutes) ? (
-                    <>
-                      {cdStart.days ? `${cdStart.days} d ` : ""}
-                      {cdStart.hours} h {cdStart.minutes} m
-                    </>
-                  ) : (
-                    <span>less than a minute</span>
-                  )}
-                </>
-              ) : status === "rent" && typeof tripProgress === "number" ? (
-                <>Trip in progress • {tripProgress}%</>
-              ) : (
-                "Confirm the guest's booking request as soon as possible."
-              )}
-            </p>
-          </section>
+          {mode === "edit" && mark === "booking" && (
+            <>
+              <section id="dates" className="md:mt-6">
+                {status === "rent" && typeof tripProgress === "number" && (
+                  <div className="mt-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-gray-800">
+                        Trip progress
+                      </span>
+                      <span className="text-sm font-medium text-gray-800">
+                        {tripProgress}%
+                      </span>
+                    </div>
+                    <div
+                      className="h-2 w-full rounded-full bg-gray-100 overflow-hidden"
+                      role="progressbar"
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      aria-valuenow={tripProgress}
+                    >
+                      <div
+                        className="h-full rounded-full transition-[width] duration-500 bg-lime-400"
+                        style={{ width: `${tripProgress}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
 
-          {/* Confirm/Cancel */}
-          {mark === "booking" && (
-            <div className="hidden mt-4 space-y-2 lg:block">
-              <button
-                className="w-full border rounded-md border-lime-400 text-lime-500 py-2 text-sm disabled:border-gray-300 disabled:text-gray-400"
-                onClick={handleConfirm}
-                disabled={!canConfirm}
-              >
-                Confirm booking
-              </button>
-              <button
-                className="w-full border rounded-md border-gray-300 text-gray-700 py-2 text-sm disabled:border-gray-300 disabled:text-gray-400"
-                onClick={handleCancel}
-                disabled={!canCancel}
-              >
-                Cancel booking
-              </button>
-            </div>
+                {status === "confirmed" ? (
+                  <>
+                    Trip starts in:&nbsp;
+                    {cdStart &&
+                    (cdStart.days || cdStart.hours || cdStart.minutes) ? (
+                      <>
+                        {cdStart.days ? `${cdStart.days} d ` : ""}
+                        {cdStart.hours} h {cdStart.minutes} m
+                      </>
+                    ) : (
+                      <span>less than a minute</span>
+                    )}
+                  </>
+                ) : (
+                  status === "onApproval" &&
+                  "Confirm the guest's booking request as soon as possible."
+                )}
+              </section>
+              <div className="hidden mt-6 space-y-2 lg:block">
+                <button
+                  className="w-full border rounded-md border-lime-400 text-lime-500 py-2 text-sm disabled:border-gray-300 disabled:text-gray-400"
+                  onClick={handleConfirm}
+                  disabled={!canConfirm}
+                >
+                  Confirm booking
+                </button>
+                <button
+                  className="w-full border rounded-md border-gray-300 text-gray-700 py-2 text-sm disabled:border-gray-300 disabled:text-gray-400"
+                  onClick={handleCancel}
+                  disabled={!canCancel}
+                >
+                  Cancel booking
+                </button>
+              </div>
+            </>
           )}
 
           {/* Modal QR */}
@@ -1459,13 +1496,13 @@ export default function BookingEditor() {
           )}
           {/* Customer mini card */}
           {userId && selectedUser && mode !== "create" && (
-            <section className=" mt-5 border border-lime-400 rounded p-4 flex items-start gap-2">
+            <section className=" mt-6 border border-lime-400 rounded p-4 flex items-start gap-2">
               <div className="grow">
                 <div className="font-medium">
                   {selectedUser.full_name ?? "—"}
                 </div>
                 <div className="text-xs text-gray-600">
-                  {selectedUser.email ?? "—"}
+                  {selectedUser.email ?? "—"}{" "}
                   {selectedUser.phone ? ` • ${selectedUser.phone}` : ""}
                 </div>
               </div>

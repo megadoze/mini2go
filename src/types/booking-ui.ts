@@ -4,5 +4,6 @@ import type { Profile } from "@/types/profile";
 export type BookingWithUser = Booking & { user?: Profile | null };
 
 export type BookingEditorSnapshot = {
+  // startAt(startAt: any): Date | null;
   booking: BookingWithUser;
 };
