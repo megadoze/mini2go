@@ -27,6 +27,7 @@ import {
 } from "@/services/user.service";
 import type { BookingEditorSnapshot } from "@/types/booking-ui";
 import { ShareIcon } from "@heroicons/react/24/outline";
+import { updateBookingCard } from "@/services/bookings.service";
 
 /* ===================== УТИЛИТЫ ===================== */
 
@@ -740,14 +741,14 @@ export default function BookingEditor() {
   const cdStart = useMemo(() => countdownParts(startDate), [startDate, now]);
 
   // ---------- mutations (via service) ------------------------------------
-  //   async function mutateBooking(id: string, payload: Partial<DbBooking>) {
-  //     const next = await updateBookingCard(id, payload);
-  //       qc.setQueryData(["booking", id], next);
-  //       qc.setQueryData<BookingCardType[]>(["bookingsByUser"], (prev = []) =>
-  //         prev.map((b) => (b.id === id ? next : b))
-  //       );
-  //     return next;
-  //   }
+  async function mutateBooking(id: string, payload: Partial<Booking>) {
+    const next = await updateBookingCard(id, payload);
+    // qc.setQueryData(["booking", id], next);
+    // qc.setQueryData<BookingCardType[]>(["bookingsByUser"], (prev = []) =>
+    //   prev.map((b) => (b.id === id ? next : b))
+    // );
+    return next;
+  }
 
   // автопрогрессия статусов (rent/finished)
   useEffect(() => {
@@ -759,12 +760,12 @@ export default function BookingEditor() {
 
     const goRent = async () => {
       setStatus("rent");
-      //   await mutateBooking(bookingId, { status: "rent" });
+      await mutateBooking(bookingId, { status: "rent" });
     };
 
     const goFinished = async () => {
       setStatus("finished");
-      //   await mutateBooking(bookingId, { status: "finished" });
+      await mutateBooking(bookingId, { status: "finished" });
     };
 
     if (started && status !== "rent") void goRent();
