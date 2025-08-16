@@ -145,6 +145,13 @@ export default function BookingEditor() {
   );
   const [endAt, setEndAt] = useState<string>(snapshot?.booking.end_at || "");
 
+  const [startDateInp, setStartDateInp] = useState<string>(
+    snapshot?.booking.start_at || ""
+  );
+  const [endDateInp, setEndDateInp] = useState<string>(
+    snapshot?.booking.end_at || ""
+  );
+
   // депозит — берём из авто при создании, показываем в карточке всегда
   const [deposit, setDeposit] = useState<number>(
     Number((carFromCtx as any)?.deposit ?? 0)
@@ -204,6 +211,8 @@ export default function BookingEditor() {
       if ("user_id" in b) setUserId(b.user_id ?? null);
       if (b.start_at) setStartAt(b.start_at);
       if (b.end_at) setEndAt(b.end_at);
+      if (b.start_at) setStartDateInp(b.start_at);
+      if (b.end_at) setEndDateInp(b.end_at);
       if (b.status) setStatus(b.status);
       if (typeof b.deposit === "number") setDeposit(b.deposit);
 
@@ -249,6 +258,8 @@ export default function BookingEditor() {
           setUserId(found.user_id ?? null);
           setStartAt(found.start_at);
           setEndAt(found.end_at);
+          setStartDateInp(found.start_at);
+          setEndDateInp(found.end_at);
           setStatus(found.status ?? "onApproval");
           setDeposit(Number((found as any)?.deposit));
           setDelivery(found.delivery_type ?? "car_address");
@@ -277,6 +288,8 @@ export default function BookingEditor() {
           const qEnd = sp.get("end");
           if (isISO(qStart)) setStartAt(qStart!);
           if (isISO(qEnd)) setEndAt(qEnd!);
+          if (isISO(qStart)) setStartDateInp(qStart!);
+          if (isISO(qEnd)) setEndDateInp(qEnd!);
           setMark(sp.get("mark") === "block" ? "block" : "booking");
           setStatus("onApproval");
           setDeposit(Number((carFromCtx as any)?.deposit ?? 0));
@@ -324,16 +337,19 @@ export default function BookingEditor() {
   const { total: baseTotal } = useMemo(
     () =>
       calculateFinalPriceProRated({
-        startAt: new Date(startAt),
-        endAt: new Date(endAt),
+        startAt: new Date(startDateInp),
+        endAt: new Date(endDateInp),
         baseDailyPrice,
         pricingRules,
         seasonalRates,
       }),
-    [startAt, endAt, baseDailyPrice, pricingRules, seasonalRates]
+    [startDateInp, endDateInp, baseDailyPrice, pricingRules, seasonalRates]
   );
 
-  const rawMinutes = differenceInMinutes(new Date(endAt), new Date(startAt));
+  const rawMinutes = differenceInMinutes(
+    new Date(endDateInp),
+    new Date(startDateInp)
+  );
   const totalMinutes = Math.max(0, rawMinutes);
   const durationDays = Math.floor(totalMinutes / (24 * 60));
   const durationHours = Math.floor((totalMinutes % (24 * 60)) / 60);
@@ -383,10 +399,10 @@ export default function BookingEditor() {
   const billableDaysForExtras = useMemo(() => {
     const minutes = Math.max(
       0,
-      differenceInMinutes(new Date(endAt), new Date(startAt))
+      differenceInMinutes(new Date(endDateInp), new Date(startDateInp))
     );
     return Math.max(1, Math.ceil(minutes / (24 * 60)));
-  }, [startAt, endAt]);
+  }, [startDateInp, endDateInp]);
 
   const extrasTotal = useMemo(() => {
     const sum = pickedExtras.reduce((s, id) => {
@@ -512,7 +528,7 @@ export default function BookingEditor() {
       }
     }
 
-    if (!isAfter(new Date(endAt), new Date(startAt))) {
+    if (!isAfter(new Date(endDateInp), new Date(startDateInp))) {
       setError("End time must be after start time");
       return;
     }
@@ -534,8 +550,8 @@ export default function BookingEditor() {
       Number.isFinite(effectiveOpenTime) &&
       Number.isFinite(effectiveCloseTime)
     ) {
-      const sTod = minutesSinceMidnight(new Date(startAt));
-      const eTod = minutesSinceMidnight(new Date(endAt));
+      const sTod = minutesSinceMidnight(new Date(startDateInp));
+      const eTod = minutesSinceMidnight(new Date(endDateInp));
       const startOk = isWithinDailyWindow(
         effectiveOpenTime,
         effectiveCloseTime,
@@ -557,8 +573,8 @@ export default function BookingEditor() {
     try {
       await assertNoConflicts(
         String(carId),
-        new Date(startAt).toISOString(),
-        new Date(endAt).toISOString(),
+        new Date(startDateInp).toISOString(),
+        new Date(endDateInp).toISOString(),
         mode === "edit" ? bookingId! : undefined
       );
     } catch (e: any) {
@@ -569,8 +585,8 @@ export default function BookingEditor() {
     const payload: Omit<Booking, "id"> & { deposit?: number } = {
       car_id: carId,
       user_id: mark === "booking" ? userId : null,
-      start_at: new Date(startAt).toISOString(),
-      end_at: new Date(endAt).toISOString(),
+      start_at: new Date(startDateInp).toISOString(),
+      end_at: new Date(endDateInp).toISOString(),
       mark,
       status: mark === "booking" ? "onApproval" : "block",
       price_per_day: baseDailyPrice,
@@ -705,9 +721,9 @@ export default function BookingEditor() {
       hour: "2-digit",
       minute: "2-digit",
     });
-  const invalidTime = !isAfter(new Date(endAt), new Date(startAt));
+  const invalidTime = !isAfter(new Date(endDateInp), new Date(startDateInp));
 
-  // вычисления для прогресса/таймеров (только отображение — статусы не меняем!)
+  // вычисления для прогресса/таймеров
   const startDate = useMemo(() => parseISO(startAt), [startAt]);
   const endDate = useMemo(() => parseISO(endAt), [endAt]);
   const totalMs = Math.max(0, endDate.getTime() - startDate.getTime());
@@ -936,8 +952,8 @@ export default function BookingEditor() {
                   type="datetime-local"
                   step={60}
                   className="w-full border rounded px-2 py-1"
-                  value={toLocalDT(startAt)}
-                  onChange={(e) => setStartAt(fromLocalDT(e.target.value))}
+                  value={toLocalDT(startDateInp)}
+                  onChange={(e) => setStartDateInp(fromLocalDT(e.target.value))}
                 />
               </div>
               <div>
@@ -946,9 +962,9 @@ export default function BookingEditor() {
                   type="datetime-local"
                   step={60}
                   className="w-full border rounded px-2 py-1"
-                  value={toLocalDT(endAt)}
-                  min={toLocalDT(startAt)}
-                  onChange={(e) => setEndAt(fromLocalDT(e.target.value))}
+                  value={toLocalDT(endDateInp)}
+                  min={toLocalDT(endDateInp)}
+                  onChange={(e) => setEndDateInp(fromLocalDT(e.target.value))}
                 />
               </div>
             </div>
@@ -1197,7 +1213,7 @@ export default function BookingEditor() {
           {/* Итоги */}
           <div className="mt-4 text-sm space-y-1">
             <div>
-              Period: <b>{fmt(startAt)}</b> → <b>{fmt(endAt)}</b>
+              Period: <b>{fmt(startDateInp)}</b> → <b>{fmt(endDateInp)}</b>
             </div>
             <div>
               Duration:{" "}
@@ -1246,7 +1262,9 @@ export default function BookingEditor() {
           {error && <div className="mt-3 text-red-600 text-sm">{error}</div>}
 
           {/* Кнопки сохранения */}
-          {mode === "create" && (
+          {(mode === "create" ||
+            status === "onApproval" ||
+            status === "confirmed") && (
             <div className="mt-4 flex justify-end gap-2">
               <button
                 className="px-3 py-1 border rounded text-sm"
