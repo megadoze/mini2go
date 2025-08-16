@@ -11,8 +11,8 @@
 .bg-hatched-blocked {
   background-image: repeating-linear-gradient(
     135deg,
-    rgba(217, 10, 206, 0.1),
-    rgba(217, 10, 206, 0.6) 0.8px,
+    rgba(217, 10, 206, 0.2),
+    rgba(217, 10, 206, 0.3) 0.2px,
     transparent 1px,
     transparent 2px
   );
@@ -21,8 +21,8 @@
 .bg-hatched-past {
   background-image: repeating-linear-gradient(
     45deg,
-    rgb(201, 203, 198),
-    rgba(201, 203, 198, 0.3) 0.1px,
+    rgb(201, 203, 198, 0.6),
+    rgba(201, 203, 198, 0.2) 0.3px,
     transparent 2px,
     transparent 4px
   );
