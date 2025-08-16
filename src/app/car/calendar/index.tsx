@@ -13,6 +13,8 @@ import {
   subMonths,
   isWithinInterval,
   differenceInMinutes,
+  isBefore,
+  startOfDay,
 } from "date-fns";
 import { useCarContext } from "@/context/carContext";
 import type { Booking } from "@/types/booking";
@@ -44,6 +46,9 @@ export default function Calendar() {
 
   const currency = effectiveCurrency ?? "EUR";
 
+  const today = startOfDay(new Date());
+  const isPastDay = (date: Date) => isBefore(date, today);
+
   // локальные состояния
   const [selectedRange, setSelectedRange] = useState<{
     start: Date | null;
@@ -55,7 +60,6 @@ export default function Calendar() {
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(
     null
   );
-
   const [editMode, setEditMode] = useState<EditMode>(null); // edit target type
   const [startTime, setStartTime] = useState("0");
   const [endTime, setEndTime] = useState("2330");
@@ -103,6 +107,27 @@ export default function Calendar() {
       ),
     [blockedBookings]
   );
+
+  // вынеси проверку "есть ли запись на день" в отдельную утилиту
+  const openIfExisting = (date: Date) => {
+    if (!editMode) {
+      const block = findBlockByDate(date);
+      if (block) {
+        setSelectedBlockId(block.id);
+        setSelectedBookingId(null);
+        setSelectedRange({ start: null, end: null });
+        return true;
+      }
+      const booking = findBookingByDate(date);
+      if (booking) {
+        setSelectedBookingId(booking.id);
+        setSelectedBlockId(null);
+        setSelectedRange({ start: null, end: null });
+        return true;
+      }
+    }
+    return false;
+  };
 
   const isBooked = (date: Date) => bookedDays.some((d) => isSameDay(d, date));
   const isBlocked = (date: Date) => blockedDays.some((d) => isSameDay(d, date));
@@ -207,6 +232,7 @@ export default function Calendar() {
         return;
       }
       const booking = findBookingByDate(date);
+
       if (booking) {
         setSelectedBookingId(booking.id);
         setSelectedBlockId(null);
@@ -402,8 +428,14 @@ export default function Calendar() {
                 date < selectedRange.start &&
                 date >= hoveredDate));
 
-          // дисабл для «ползунка» выбора
+          const isHover = hoveredDate && isSameDay(hoveredDate, date);
+          const isBookedDay = isBooked(date);
+          const isBlockedDay = isBlocked(date);
+
+          // disable для «ползунка» выбора
           const isDisabled = (() => {
+            if (isPastDay(date)) return true;
+
             if (!selectedRange.start || selectedRange.end) return false;
             if (
               firstUnavailableAfterStart &&
@@ -420,17 +452,18 @@ export default function Calendar() {
             return false;
           })();
 
-          const isHover = hoveredDate && isSameDay(hoveredDate, date);
-          const isBookedDay = isBooked(date);
-          const isBlockedDay = isBlocked(date);
+          const isTodayFree =
+            isSameDay(date, today) && !isBookedDay && !isBlockedDay;
 
           const className = [
             "aspect-square flex items-center justify-center border-r border-b border-gray-200",
-            selected ? " bg-lime-200/80" : "",
-            isHover ? " bg-gray-50 " : "",
             inRange || isHoveredRange ? "bg-lime-200/80" : "",
+            selected ? "bg-lime-200/80" : "",
+            isHover ? "bg-gray-50" : "",
             isBookedDay ? "bg-white bg-hatched-booked" : "",
             isBlockedDay ? "bg-white bg-hatched-blocked" : "",
+            isTodayFree && !inRange && !selected ? "bg-hatched-today" : "",
+            isPastDay(date) ? "bg-white bg-hatched-past" : "",
             isDisabled ? "opacity-40 cursor-not-allowed" : "cursor-pointer",
           ].join(" ");
 
@@ -443,6 +476,9 @@ export default function Calendar() {
               key={date.toISOString()}
               className={className}
               onClick={() => {
+                // всегда позволяем открыть карточки (даже для прошлых дат)
+                if (openIfExisting(date)) return;
+                // но НЕ позволяем начинать/продолжать выбор для прошлых или иных дизейбл дат
                 if (!isDisabled) handleSelect(date);
               }}
               onMouseOver={onDayHover}
