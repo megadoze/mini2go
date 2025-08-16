@@ -532,7 +532,7 @@ export default function Calendar() {
         <div className="mt-6 flex justify-between">
           {(selectedRange.start || selectedRange.end) && (
             <button
-              className="px-4 py-2 border border-gray-500 rounded text-sm"
+              className="px-4 py-2 border border-gray-400 text-gray-500 rounded text-sm"
               onClick={() => setSelectedRange({ start: null, end: null })}
             >
               Cancel
@@ -565,24 +565,18 @@ export default function Calendar() {
             {format(parseISO(selectedBlock.start_at), "dd MMM yyyy, HH:mm")} →{" "}
             {format(parseISO(selectedBlock.end_at), "dd MMM yyyy, HH:mm")}
           </p>
-          <div className="flex justify-end items-center gap-2 mt-2 ">
+          <div className="flex justify-between items-center gap-2 mt-2 ">
             <button
-              className="px-2 py-2 border rounded text-sm"
+              onClick={() => handleRemoveBlock(selectedBlock.id)}
+              className="px-2 py-2 border border-gray-600 rounded text-gray-700 text-sm"
+            >
+              Remove
+            </button>
+            <button
+              className="px-2 py-2 border border-gray-400 text-gray-600 rounded text-sm"
               onClick={() => setSelectedBlockId(null)}
             >
               Close
-            </button>
-            {/* <button
-              className="px-2 py-2 border rounded text-sm"
-              onClick={startEditBlock}
-            >
-              Edit
-            </button> */}
-            <button
-              onClick={() => handleRemoveBlock(selectedBlock.id)}
-              className="px-2 py-2 border rounded text-red-600 text-sm"
-            >
-              Remove
             </button>
           </div>
         </div>
@@ -613,25 +607,27 @@ export default function Calendar() {
               Total: {selectedBooking.price_total} {currency}
             </p>
           )}
-          <div className="flex justify-end items-center gap-2 mt-2 ">
-            <button
-              className="px-2 py-2 border rounded text-sm"
-              onClick={() => setSelectedBookingId(null)}
-            >
-              Close
-            </button>
-            <button
-              className="px-2 py-2 border rounded text-sm"
-              onClick={startEditBooking}
-            >
-              Edit
-            </button>
+          <div className="flex justify-between items-center gap-2 mt-2 ">
             <button
               onClick={() => handleRemoveBooking(selectedBooking.id)}
-              className="px-2 py-2 border rounded text-red-600 text-sm"
+              className="px-2 py-2 border border-gray-500 rounded text-gray-700 text-sm"
             >
               Remove
             </button>
+            <div className="flex gap-2">
+              <button
+                className="px-2 py-2 border border-gray-400 text-gray-600 rounded text-sm"
+                onClick={() => setSelectedBookingId(null)}
+              >
+                Close
+              </button>
+              <button
+                className="px-6 py-2 border border-lime-500 rounded text-lime-600 text-sm"
+                onClick={startEditBooking}
+              >
+                Edit
+              </button>
+            </div>
           </div>
         </div>
       )}

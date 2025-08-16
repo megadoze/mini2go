@@ -954,6 +954,7 @@ export default function BookingEditor() {
                   className="w-full border rounded px-2 py-1"
                   value={toLocalDT(startDateInp)}
                   onChange={(e) => setStartDateInp(fromLocalDT(e.target.value))}
+                  disabled={status === "rent"}
                 />
               </div>
               <div>
@@ -965,6 +966,7 @@ export default function BookingEditor() {
                   value={toLocalDT(endDateInp)}
                   min={toLocalDT(endDateInp)}
                   onChange={(e) => setEndDateInp(fromLocalDT(e.target.value))}
+                  disabled={status === "rent"}
                 />
               </div>
             </div>
@@ -1166,6 +1168,7 @@ export default function BookingEditor() {
                       ]
                     : []),
                 ]}
+                disabled={status === "rent"}
               />
               <div className="text-xs text-gray-600 mt-1">
                 Delivery fee:{" "}
@@ -1195,6 +1198,7 @@ export default function BookingEditor() {
                         ex.price_type === "per_day" ? " / day" : ""
                       })`}
                       checked={pickedExtras.includes(ex.id)}
+                      disabled={status === "rent"}
                       onChange={(e) => {
                         const checked = e.currentTarget.checked;
                         setPickedExtras((prev) =>
