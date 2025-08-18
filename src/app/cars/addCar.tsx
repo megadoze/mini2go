@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { addCar, uploadCarPhotos } from "@/services/car.service";
 import { supabase } from "@/lib/supabase";
 import { optionsOwnerCar } from "@/constants/carOptions";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import {
   Map,
   Marker,
@@ -21,6 +21,7 @@ import {
 import { AnimatePresence, motion } from "framer-motion";
 import { toast } from "sonner";
 import {
+  Anchor,
   Checkbox,
   Image,
   Loader,
@@ -588,14 +589,27 @@ export default function AddCarWizard() {
               <div className="mt-5">
                 <Checkbox
                   checked={form.agreed}
+                  // label={
+                  //   <p className="text-gray-800">
+                  //     I accept the{" "}
+                  //     <span className=" text-green-500">
+                  //       <Link to={""}>car rental terms</Link>{" "}
+                  //     </span>{" "}
+                  //     on MINI2go.
+                  //   </p>
+                  // }
                   label={
-                    <p className="text-gray-800">
-                      I accept the{" "}
-                      <span className=" text-green-500">
-                        <Link to={""}>car rental terms</Link>{" "}
-                      </span>{" "}
+                    <>
+                      I accept{" "}
+                      <Anchor
+                        href="https://mini2go.rent"
+                        target="_blank"
+                        inherit
+                      >
+                        terms and conditions
+                      </Anchor>
                       on MINI2go.
-                    </p>
+                    </>
                   }
                   onChange={(e) =>
                     handleChange("agreed", e.currentTarget.checked)

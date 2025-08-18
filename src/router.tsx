@@ -29,6 +29,7 @@ import Finance from "./app/finance";
 import BookingsList from "./app/bookings";
 import BookingPage from "./app/bookings/bookingPage";
 import BookingEditor from "./app/bookings/bookingEditor";
+import MiniLandingPage from "./app/landingpage";
 
 export const router = createBrowserRouter([
   {
@@ -83,4 +84,5 @@ export const router = createBrowserRouter([
       { path: "settings", element: <Settings /> },
     ],
   },
+  { path: "/landing", element: <MiniLandingPage /> },
 ]);

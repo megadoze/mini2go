@@ -951,7 +951,7 @@ export default function BookingEditor() {
                 <input
                   type="datetime-local"
                   step={60}
-                  className="w-full border rounded px-2 py-1"
+                  className="w-full border rounded px-2 py-1 disabled:bg-white"
                   value={toLocalDT(startDateInp)}
                   onChange={(e) => setStartDateInp(fromLocalDT(e.target.value))}
                   disabled={status === "rent"}
@@ -962,7 +962,7 @@ export default function BookingEditor() {
                 <input
                   type="datetime-local"
                   step={60}
-                  className="w-full border rounded px-2 py-1"
+                  className="w-full border rounded px-2 py-1 disabled:bg-white"
                   value={toLocalDT(endDateInp)}
                   min={toLocalDT(endDateInp)}
                   onChange={(e) => setEndDateInp(fromLocalDT(e.target.value))}
@@ -1146,10 +1146,20 @@ export default function BookingEditor() {
                 Delivery
               </label>
               <Select
+                // checkIconPosition="right"
                 value={delivery}
                 onChange={(v: any) =>
                   setDelivery((v ?? "car_address") as DeliveryOption)
                 }
+                className={
+                  status === "rent" ? "opacity-60" : ""
+                }
+                classNames={{
+                  input:
+                    status === "rent"
+                      ? "!cursor-not-allowed focus:border-gray-300"
+                      : "",
+                }}
                 data={[
                   {
                     value: "car_address",
@@ -1168,7 +1178,7 @@ export default function BookingEditor() {
                       ]
                     : []),
                 ]}
-                disabled={status === "rent"}
+                readOnly={status === "rent"}
               />
               <div className="text-xs text-gray-600 mt-1">
                 Delivery fee:{" "}
@@ -1198,14 +1208,20 @@ export default function BookingEditor() {
                         ex.price_type === "per_day" ? " / day" : ""
                       })`}
                       checked={pickedExtras.includes(ex.id)}
-                      disabled={status === "rent"}
                       onChange={(e) => {
                         const checked = e.currentTarget.checked;
+                        if (status === "rent") return;
                         setPickedExtras((prev) =>
                           checked
                             ? [...prev, ex.id]
                             : prev.filter((x) => x !== ex.id)
                         );
+                      }}
+                      className={status === "rent" ? "opacity-80" : ""}
+                      classNames={{
+                        root: status === "rent" ? "!cursor-not-allowed" : "",
+                        input: status === "rent" ? "!cursor-not-allowed" : "",
+                        label: status === "rent" ? "!cursor-not-allowed" : "",
                       }}
                     />
                   </div>
@@ -1461,7 +1477,7 @@ export default function BookingEditor() {
                     Booking #{displayId}
                   </h2>
                   <button
-                    className="p-2 rounded-md hover:bg-gray-100 active:scale-[.98]"
+                    className=" h-8 w-8 rounded-md hover:bg-gray-100 active:scale-[.98]"
                     onClick={() => setQrOpen(false)}
                     aria-label="Close"
                   >
