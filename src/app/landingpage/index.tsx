@@ -45,6 +45,7 @@ export default function MiniRentalHero() {
   // helper чтобы корректно останавливать и сбрасывать токен на мобильных
   const stopMobileVideo = (idx: number, v: HTMLVideoElement) => {
     mobileStartTokenRef.current[idx] = null; // сбрасываем активную попытку
+    setMobileVisible((s) => ({ ...s, [idx]: false }));
     stopAndPoster(v);
   };
 
@@ -207,6 +208,7 @@ export default function MiniRentalHero() {
         mobileRefs.current.forEach((v, idx) => v && stopMobileVideo(idx, v));
         setMobilePlaying(null);
         setMobileActive(null);
+        setMobileVisible({});
       }
     };
     document.addEventListener("visibilitychange", onVis);
@@ -363,7 +365,7 @@ export default function MiniRentalHero() {
                     <img
                       src={VIDEO_TEASERS[i].poster}
                       alt=""
-                      className={`pointer-events-none absolute inset-0 h-full w-full object-cover z-10 transition-opacity duration-300 ${
+                      className={`pointer-events-none absolute inset-0 h-full w-full object-cover z-10 transition-opacity duration-400 ${
                         mobileActive === i ? "opacity-0" : "opacity-100"
                       }`}
                       draggable={false}
