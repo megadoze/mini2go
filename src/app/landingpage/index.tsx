@@ -272,8 +272,38 @@ export default function MiniRentalHero() {
   };
 
   // ====== МОБИЛА: играем по конкретному элементу, без общих refs ======
-  const toggleMobileVideoEl = (el: HTMLVideoElement, i: number) => {
-    // Остановим прочие мобильные
+
+  // реф для МОБИЛЬНЫХ видео: ставим флаги до любого play()
+  const mobileVideoRef =
+    (_i: number, setMobilePlaying: (n: number | null) => void) =>
+    (el: HTMLVideoElement | null) => {
+      if (!el) return;
+      el.muted = true;
+      el.setAttribute("playsinline", "");
+      el.setAttribute("webkit-playsinline", "");
+      el.preload = "auto";
+      // если ушли со страницы/скрыли — вернём постер
+      el.addEventListener(
+        "pause",
+        () => {
+          if (el.ended) return; // конец обработаем отдельно
+          try {
+            el.currentTime = 0;
+          } catch {}
+          el.load();
+          setMobilePlaying(null);
+        },
+        { passive: true }
+      );
+    };
+
+  // старт/стоп именно для мобильного видео-элемента (без общих refs)
+  const toggleMobileVideoEl = (
+    el: HTMLVideoElement,
+    i: number,
+    setMobilePlaying: (n: number | null) => void
+  ) => {
+    // остановить другие мобильные
     document.querySelectorAll('video[data-mobile="true"]').forEach((v) => {
       if (v !== el) {
         const vv = v as HTMLVideoElement;
@@ -281,7 +311,7 @@ export default function MiniRentalHero() {
         try {
           vv.currentTime = 0;
         } catch {}
-        vv.load(); // вернуть постер
+        vv.load();
       }
     });
 
@@ -589,11 +619,12 @@ export default function MiniRentalHero() {
             </p>
           </div>
 
-          {/* MOBILE: простая горизонтальная карусель без motion */}
+          {/* MOBILE: простая горизонтальная карусель, без motion */}
           <div className="md:hidden mt-10">
             <div
               className="flex overflow-x-auto snap-x snap-mandatory gap-4 px-4
-               [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+           [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+              style={{ WebkitOverflowScrolling: "touch" as any }}
             >
               {[0, 1, 2].map((i) => (
                 <div
@@ -603,22 +634,28 @@ export default function MiniRentalHero() {
                   <div className="relative aspect-[9/16] overflow-hidden rounded-2xl ring-1 ring-black/10 bg-black">
                     <video
                       data-mobile="true"
+                      ref={mobileVideoRef(i, setMobilePlaying)}
                       className="absolute inset-0 h-full w-full object-cover"
                       src={VIDEO_TEASERS[i].src}
                       poster={VIDEO_TEASERS[i].poster}
+                      // КРИТИЧЕСКОЕ: все флаги, чтобы iOS не выкидывал в fullscreen и не блочил по тапу
                       muted
                       playsInline
-                      preload="metadata"
-                      onPointerUp={(e) =>
+                      preload="auto"
+                      // Сам жест запускаем на touchstart — надёжнее для iOS
+                      onTouchStart={(e) =>
                         toggleMobileVideoEl(
                           e.currentTarget as HTMLVideoElement,
-                          i
+                          i,
+                          setMobilePlaying
                         )
                       }
+                      // Для Android/других — продублируем click
                       onClick={(e) =>
                         toggleMobileVideoEl(
                           e.currentTarget as HTMLVideoElement,
-                          i
+                          i,
+                          setMobilePlaying
                         )
                       }
                       onEnded={(e) => {
@@ -631,18 +668,20 @@ export default function MiniRentalHero() {
                       }}
                     />
 
+                    {/* затемнение исчезает только когда видео играет */}
                     <div
                       className={`pointer-events-none absolute inset-0 bg-black/35 transition-opacity duration-200 ${
                         mobilePlaying === i ? "opacity-0" : "opacity-100"
                       }`}
                     />
 
+                    {/* подпись — не влияет на высоту */}
                     <div className="pointer-events-none absolute bottom-0 left-0 right-0 p-3">
                       <span
                         className={`inline-block rounded-full bg-white/90 px-3 py-1 text-[11px] font-semibold text-black
-                          transition-opacity duration-200 ${
-                            mobilePlaying === i ? "opacity-0" : "opacity-100"
-                          }`}
+                      transition-opacity duration-200 ${
+                        mobilePlaying === i ? "opacity-0" : "opacity-100"
+                      }`}
                       >
                         {VIDEO_TEASERS[i].title}
                       </span>
@@ -653,10 +692,10 @@ export default function MiniRentalHero() {
             </div>
           </div>
 
-          {/* DESKTOP: двухколоночная версия со смещением вправо */}
+          {/* DESKTOP: двухколоночная версия как была (hover-автоплей) */}
           <div className="hidden md:flex justify-center mt-10">
             <div className="flex w-full max-w-[1200px] items-start justify-center gap-8">
-              {/* Левая колонка: карточки #0 и #2 */}
+              {/* Левая колонка: #0 и #2 */}
               <div className="flex flex-col items-center gap-8">
                 {/* CARD 0 */}
                 <motion.button
@@ -666,9 +705,9 @@ export default function MiniRentalHero() {
                   viewport={{ once: true, amount: 0.2 }}
                   transition={{ type: "spring", duration: 0.55, bounce: 0.28 }}
                   className="group relative w-[88vw] max-w-[440px] md:w-[340px] lg:w-[380px]
-                   overflow-hidden rounded-2xl ring-1 ring-black/10
-                   transition-[transform,box-shadow] duration-300
-                   hover:shadow-xl md:hover:scale-[1.02]"
+                 overflow-hidden rounded-2xl ring-1 ring-black/10
+                 transition-[transform,box-shadow] duration-300
+                 hover:shadow-xl md:hover:scale-[1.02]"
                   onMouseEnter={() => {
                     if (!isTouchRef.current) {
                       setHoveredStory(0);
@@ -701,9 +740,9 @@ export default function MiniRentalHero() {
                     <div className="pointer-events-none absolute bottom-0 left-0 right-0 p-4">
                       <span
                         className={`inline-block rounded-full bg-white/90 px-3 py-1 text-[11px] font-semibold text-black
-                          transition-opacity duration-300 ${
-                            hoveredStory === 0 ? "opacity-0" : "opacity-100"
-                          } group-hover:opacity-0`}
+                      transition-opacity duration-300 ${
+                        hoveredStory === 0 ? "opacity-0" : "opacity-100"
+                      } group-hover:opacity-0`}
                       >
                         {VIDEO_TEASERS[0].title}
                       </span>
@@ -724,9 +763,9 @@ export default function MiniRentalHero() {
                     delay: 0.05,
                   }}
                   className="group relative w-[88vw] max-w-[440px] md:w-[340px] lg:w-[380px]
-                   overflow-hidden rounded-2xl ring-1 ring-black/10
-                   transition-[transform,box-shadow] duration-300
-                   hover:shadow-xl md:hover:scale-[1.02]"
+                 overflow-hidden rounded-2xl ring-1 ring-black/10
+                 transition-[transform,box-shadow] duration-300
+                 hover:shadow-xl md:hover:scale-[1.02]"
                   onMouseEnter={() => {
                     if (!isTouchRef.current) {
                       setHoveredStory(2);
@@ -759,9 +798,9 @@ export default function MiniRentalHero() {
                     <div className="pointer-events-none absolute bottom-0 left-0 right-0 p-4">
                       <span
                         className={`inline-block rounded-full bg-white/90 px-3 py-1 text-[11px] font-semibold text-black
-                          transition-opacity duration-300 ${
-                            hoveredStory === 2 ? "opacity-0" : "opacity-100"
-                          } group-hover:opacity-0`}
+                      transition-opacity duration-300 ${
+                        hoveredStory === 2 ? "opacity-0" : "opacity-100"
+                      } group-hover:opacity-0`}
                       >
                         {VIDEO_TEASERS[2].title}
                       </span>
@@ -770,7 +809,7 @@ export default function MiniRentalHero() {
                 </motion.button>
               </div>
 
-              {/* Правая колонка: карточка #1 со смещением вниз */}
+              {/* Правая колонка: #1 со смещением */}
               <div className="flex flex-col items-center gap-8 translate-y-[42%]">
                 <motion.button
                   type="button"
@@ -784,9 +823,9 @@ export default function MiniRentalHero() {
                     delay: 0.03,
                   }}
                   className="group relative w-[88vw] max-w-[440px] md:w-[340px] lg:w-[380px]
-                   overflow-hidden rounded-2xl ring-1 ring-black/10
-                   transition-[transform,box-shadow] duration-300
-                   hover:shadow-xl md:hover:scale-[1.02]"
+                 overflow-hidden rounded-2xl ring-1 ring-black/10
+                 transition-[transform,box-shadow] duration-300
+                 hover:shadow-xl md:hover:scale-[1.02]"
                   onMouseEnter={() => {
                     if (!isTouchRef.current) {
                       setHoveredStory(1);
@@ -819,9 +858,9 @@ export default function MiniRentalHero() {
                     <div className="pointer-events-none absolute bottom-0 left-0 right-0 p-4">
                       <span
                         className={`inline-block rounded-full bg-white/90 px-3 py-1 text-[11px] font-semibold text-black
-                          transition-opacity duration-300 ${
-                            hoveredStory === 1 ? "opacity-0" : "opacity-100"
-                          } group-hover:opacity-0`}
+                      transition-opacity duration-300 ${
+                        hoveredStory === 1 ? "opacity-0" : "opacity-100"
+                      } group-hover:opacity-0`}
                       >
                         {VIDEO_TEASERS[1].title}
                       </span>
