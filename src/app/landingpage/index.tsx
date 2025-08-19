@@ -1,56 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { Burger, Drawer, Modal } from "@mantine/core";
+import { Modal } from "@mantine/core";
 import { motion } from "framer-motion";
-
-const NAV = [
-  { label: "Cars", href: "cars" },
-  { label: "Special", href: "#special" },
-  { label: "Terms", href: "#terms" },
-  { label: "FAQ", href: "#faq" },
-  { label: "Contacts", href: "#contacts" },
-];
-
-const CAR_CARDS = [
-  {
-    title: "Cooper",
-    subtitle: "Urban go-kart feel",
-    price: "from €89/day",
-    img: "/img/one.png",
-    href: "/cars?model=cooper-3d",
-  },
-  {
-    title: "Cabrio",
-    subtitle: "Silent & zippy",
-    price: "from €99/day",
-    img: "/img/cabrio.png",
-    href: "/cars?model=electric",
-  },
-  {
-    title: "Countryman",
-    subtitle: "Space for adventures",
-    price: "from €109/day",
-    img: "/img/countryman.png",
-    href: "/cars?model=countryman",
-  },
-];
-
-const VIDEO_TEASERS = [
-  {
-    title: "Cooper city ride",
-    src: "/videos/mini-one.mp4",
-    poster: "/img/minione.webp",
-  },
-  {
-    title: "Countryman escape",
-    src: "/videos/mini-U25.mp4",
-    poster: "/img/minicountryman.webp",
-  },
-  {
-    title: "Cabrio seaside",
-    src: "/videos/mini-cabrio.mp4",
-    poster: "/img/minicabrio.webp",
-  },
-] as const;
+import { CAR_CARDS, VIDEO_TEASERS } from "@/constants/carOptions";
+import { HeaderLanding } from "./header";
 
 export default function MiniRentalHero() {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -71,10 +23,26 @@ export default function MiniRentalHero() {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIdx, setLightboxIdx] = useState(0);
 
+  // ====== DESKTOP stories ======
   const storyRefs = useRef<(HTMLVideoElement | null)[]>([]);
   const [hoveredStory, setHoveredStory] = useState<number | null>(null);
+  const [storyPlaying, setStoryPlaying] = useState<Record<number, boolean>>({});
   const isTouchRef = useRef(false);
 
+  // ====== MOBILE stories ======
+  const mobileRefs = useRef<(HTMLVideoElement | null)[]>([]);
+  const [mobilePlaying, setMobilePlaying] = useState<number | null>(null);
+  const [mobileReady, setMobileReady] = useState<Record<number, boolean>>({});
+  //   const mobileStripRef = useRef<HTMLDivElement>(null);
+//   const mobileScrollDebounce = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && "matchMedia" in window) {
+      isTouchRef.current = window.matchMedia("(hover: none)").matches;
+    }
+  }, []);
+
+  // ---------- Slider helpers ----------
   const scrollToSlide = (idx: number) => {
     const track = sliderRef.current;
     if (!track) return;
@@ -186,82 +154,92 @@ export default function MiniRentalHero() {
     return () => window.removeEventListener("keydown", onKey);
   }, [activeSlide]);
 
-  useEffect(() => {
-    if (typeof window !== "undefined" && "matchMedia" in window) {
-      isTouchRef.current = window.matchMedia("(hover: none)").matches;
-    }
-  }, []);
-
-  // === helpers for video poster return ===
+  // ---------- Video helpers (общие) ----------
   const stopAndPoster = (v: HTMLVideoElement) => {
     v.pause();
     try {
       v.currentTime = 0;
     } catch {}
-    // Возвращаем нативный постер (desktop) и сбрасываем кадр (mobile)
-    v.load();
+    // постер показываем через <img>-оверлей, поэтому .load() не нужен
   };
 
-  // desktop play/pause
-  const playStory = (i: number) => {
-    const v = storyRefs.current[i];
-    if (!v) return;
-    // стоп остальных и в постер
-    storyRefs.current.forEach((vv, idx) => {
-      if (vv && idx !== i) stopAndPoster(vv);
+  const pauseAllDesktopExcept = (keep: number | null) => {
+    storyRefs.current.forEach((el, idx) => {
+      if (!el) return;
+      if (keep !== idx) stopAndPoster(el);
     });
-    v.muted = true;
-    v.setAttribute("playsinline", "");
-    v.setAttribute("webkit-playsinline", "");
-    const p = v.play();
-    if (p && typeof (p as any).catch === "function") {
-      (p as Promise<void>).catch(() => {
-        try {
-          v.currentTime = (v.currentTime || 0) + 0.001;
-        } catch {}
-        v.play().catch(() => {});
-      });
-    }
+    setStoryPlaying((s) => {
+      const next: Record<number, boolean> = {};
+      [0, 1, 2].forEach((i) => (next[i] = i === keep ? !!s[i] : false));
+      return next;
+    });
+    if (keep === null) setHoveredStory(null);
   };
-  const pauseStory = (i: number, resetToPoster = false) => {
-    const v = storyRefs.current[i];
-    if (!v) return;
-    if (resetToPoster) stopAndPoster(v);
-    else v.pause();
-  };
+
+//   const pauseAllMobile = () => {
+//     mobileRefs.current.forEach((el) => {
+//       if (el) stopAndPoster(el);
+//     });
+//     setMobilePlaying(null);
+//   };
+
+  // ---------- Desktop play/pause ----------
   const setStoryRef = (idx: number) => (el: HTMLVideoElement | null) => {
     storyRefs.current[idx] = el;
     if (el) {
       el.muted = true;
       el.setAttribute("playsinline", "");
       el.setAttribute("webkit-playsinline", "");
+      el.preload = "metadata";
     }
   };
 
-  // ====== МОБИЛЬНАЯ КАРУСЕЛЬ ======
-  const mobileTrackRef = useRef<HTMLDivElement>(null);
-  const mobileRefs = useRef<(HTMLVideoElement | null)[]>([]);
-  const [mobilePlaying, setMobilePlaying] = useState<number | null>(null);
-  const [mobileReady, setMobileReady] = useState<Record<number, boolean>>({});
-
-  const setMobileRef = (i: number) => (el: HTMLVideoElement | null) => {
-    mobileRefs.current[i] = el;
-    if (!el) return;
-    el.muted = true;
-    el.preload = "auto";
-    el.setAttribute("playsinline", "");
-    el.setAttribute("webkit-playsinline", "");
+  const playDesktop = (i: number) => {
+    const v = storyRefs.current[i];
+    if (!v) return;
+    pauseAllDesktopExcept(i);
+    v.muted = true;
+    v.setAttribute("playsinline", "");
+    v.setAttribute("webkit-playsinline", "");
+    v.play()
+      .then(() => {
+        setHoveredStory(i);
+        setStoryPlaying((s) => ({ ...s, [i]: true }));
+      })
+      .catch(() => {
+        try {
+          v.currentTime = (v.currentTime || 0) + 0.001;
+        } catch {}
+        v.play()
+          .then(() => {
+            setHoveredStory(i);
+            setStoryPlaying((s) => ({ ...s, [i]: true }));
+          })
+          .catch(() => {});
+      });
   };
 
-  const stopAllMobile = () => {
-    mobileRefs.current.forEach((v) => {
-      if (v) stopAndPoster(v);
-    });
-    setMobilePlaying(null);
+  const pauseDesktop = (i: number) => {
+    const v = storyRefs.current[i];
+    if (!v) return;
+    stopAndPoster(v);
+    setStoryPlaying((s) => ({ ...s, [i]: false }));
+    setHoveredStory((p) => (p === i ? null : p));
   };
 
-  const handleMobileToggle = (i: number, el: HTMLVideoElement) => {
-    // стоп остальных с возвратом постера
+  // ---------- Mobile play/pause ----------
+  const setMobileRef = (idx: number) => (el: HTMLVideoElement | null) => {
+    mobileRefs.current[idx] = el;
+    if (el) {
+      el.muted = true;
+      el.preload = "metadata";
+      el.setAttribute("playsinline", "");
+      el.setAttribute("webkit-playsinline", "");
+    }
+  };
+
+  const toggleMobile = (i: number, el: HTMLVideoElement) => {
+    // при любом старте — остальные стоп
     mobileRefs.current.forEach((v, idx) => {
       if (v && idx !== i) stopAndPoster(v);
     });
@@ -291,125 +269,33 @@ export default function MiniRentalHero() {
           start();
         };
         el.addEventListener("loadeddata", onData, { once: true });
-        el.load();
+        el.load(); // первый старт
       } else {
         setMobileReady((r) => ({ ...r, [i]: true }));
         start();
       }
     } else {
-      // пауза текущего — вернуть постер
       stopAndPoster(el);
       setMobilePlaying(null);
     }
   };
 
-  // При скролле мобильной карусели — стопаем всё
-  useEffect(() => {
-    const el = mobileTrackRef.current;
-    if (!el) return;
-    const onScroll = () => stopAllMobile();
-    el.addEventListener("scroll", onScroll, { passive: true });
-    return () => el.removeEventListener("scroll", onScroll);
-  }, []);
-
-  // На смену вкладки — стопнуть все видео
-  useEffect(() => {
-    const onVis = () => {
-      if (document.hidden) {
-        storyRefs.current.forEach((v) => v && stopAndPoster(v));
-        stopAllMobile();
-      }
-    };
-    document.addEventListener("visibilitychange", onVis);
-    return () => document.removeEventListener("visibilitychange", onVis);
-  }, []);
+  // При горизонтальном скролле на мобиле: стопнуть текущее, вернуть постер
+  //   const onMobileScroll = () => {
+  //     if (mobileScrollDebounce.current)
+  //       window.clearTimeout(mobileScrollDebounce.current);
+  //     // моментально ставим на паузу, чтобы не было "двойной" озвучки
+  //     pauseAllMobile();
+  //     // (дополнительно можно было бы автозапускать центр — не делаю, ты этого не просил)
+  //     mobileScrollDebounce.current = window.setTimeout(() => {
+  //       // no-op; просто дебаунс для потенциального автоплея
+  //     }, 120);
+  //   };
 
   return (
     <div className="relative min-h-screen bg-black text-white">
       {/* HEADER */}
-      <header className="absolute inset-x-0 top-0 z-50 transition-colors duration-300 ">
-        <div className="px-4 sm:px-6 lg:px-10">
-          <div className="flex h-16 items-center justify-between gap-6">
-            <a href="#" className="shrink-0 font-bold tracking-wide text-lg">
-              MINI2GO
-            </a>
-            <nav className="mx-auto hidden lg:block">
-              <ul className="flex items-center gap-6 xl:gap-8 text-sm font-medium">
-                {NAV.map((item) => (
-                  <li key={item.label}>
-                    <a
-                      href={item.href}
-                      className="hover:text-white/90 text-white/80 transition"
-                    >
-                      {item.label}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </nav>
-            <div className="w-24 flex justify-end">
-              <button className="hidden lg:inline-flex font-medium text-sm text-white/90 hover:text-white transition">
-                Log In
-              </button>
-              <Burger
-                opened={menuOpen}
-                onClick={() => setMenuOpen((v) => !v)}
-                color="#fff"
-                size="sm"
-                aria-label="Toggle menu"
-                className="lg:hidden h-10 w-10 rounded-md ring-1 ring-white/20 hover:ring-white/40"
-              />
-            </div>
-          </div>
-        </div>
-
-        <Drawer
-          opened={menuOpen}
-          onClose={() => setMenuOpen(false)}
-          position="left"
-          size="100%"
-          withCloseButton
-          title={null}
-          padding={0}
-          radius={0}
-          overlayProps={{ opacity: 0.55, blur: 2 }}
-          styles={{
-            content: {
-              backgroundColor: "rgba(0,0,0,0.95)",
-              border: "none",
-              boxShadow: "none",
-            },
-            header: { background: "transparent", borderBottom: "none" },
-            body: { padding: 0 },
-            title: { color: "#fff" },
-            close: { color: "white", marginRight: "14px", marginTop: "4px" },
-          }}
-        >
-          <div className="text-white min-h-[100dvh] px-6 py-8">
-            <ul className="flex flex-col gap-4 text-2xl">
-              {NAV.map((item) => (
-                <li key={item.label}>
-                  <a
-                    href={item.href}
-                    className="block py-2 text-white/90 hover:text-white"
-                    onClick={() => setMenuOpen(false)}
-                  >
-                    {item.label}
-                  </a>
-                </li>
-              ))}
-            </ul>
-            <div className="mt-8">
-              <button
-                className="w-full rounded-xl ring-1 ring-white/20 px-4 py-3 text-base hover:ring-white/40"
-                onClick={() => setMenuOpen(false)}
-              >
-                Log In
-              </button>
-            </div>
-          </div>
-        </Drawer>
-      </header>
+      <HeaderLanding menuOpen={menuOpen} handleMenuOpen={setMenuOpen} />
 
       {/* HERO */}
       <section className="relative flex items-center pt-16 md:pt-0 min-h-[100svh] md:min-h-[100dvh] lg:min-h-screen">
@@ -545,6 +431,7 @@ export default function MiniRentalHero() {
                 </a>
               ))}
             </div>
+
             <button
               type="button"
               aria-label="Previous"
@@ -561,6 +448,7 @@ export default function MiniRentalHero() {
             >
               ›
             </button>
+
             <div className="mt-0 flex justify-center gap-2">
               {CAR_CARDS.map((_, i) => (
                 <button
@@ -592,9 +480,13 @@ export default function MiniRentalHero() {
           {/* MOBILE carousel */}
           <div className="md:hidden mt-10">
             <div
-              ref={mobileTrackRef}
+              onScroll={() => {
+                // стопаем все во время скролла (постер покажется)
+                mobileRefs.current.forEach((el) => el && stopAndPoster(el));
+                setMobilePlaying(null);
+              }}
               className="flex overflow-x-auto snap-x snap-mandatory gap-4 px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-              style={{ WebkitOverflowScrolling: "touch" as any }}
+              style={{ WebkitOverflowScrolling: "touch" } as any}
             >
               {[0, 1, 2].map((i) => (
                 <div
@@ -602,54 +494,47 @@ export default function MiniRentalHero() {
                   className="snap-center shrink-0 w-[82vw] max-w-[420px] [touch-action:manipulation]"
                 >
                   <div className="relative aspect-[9/16] overflow-hidden rounded-2xl ring-1 ring-black/10 bg-black">
-                    {/* управляемый постер-оверлей */}
-                    {/* управляемый постер-оверлей */}
-                    <img
-                      src={VIDEO_TEASERS[i].poster}
-                      alt=""
-                      className={`pointer-events-none absolute inset-0 h-full w-full object-cover transition-opacity duration-200 ${
-                        mobilePlaying === i && mobileReady[i]
-                          ? "opacity-0"
-                          : "opacity-100"
-                      }`}
-                      draggable={false}
-                    />
-
+                    {/* ВИДЕО (снизу) */}
                     <video
                       ref={setMobileRef(i)}
                       className="absolute inset-0 h-full w-full object-cover"
                       src={VIDEO_TEASERS[i].src}
                       muted
                       playsInline
-                      preload="auto"
+                      preload="metadata"
                       onLoadedData={() =>
                         setMobileReady((r) => ({ ...r, [i]: true }))
                       }
-                      onPlaying={() =>
-                        setMobileReady((r) => ({ ...r, [i]: true }))
-                      }
-                      onClick={(e) => {
-                        e.preventDefault();
-                        handleMobileToggle(
-                          i,
-                          e.currentTarget as HTMLVideoElement
-                        );
+                      onPlaying={() => setMobilePlaying(i)}
+                      onPause={() => {
+                        if (mobilePlaying === i) setMobilePlaying(null);
                       }}
                       onEnded={(e) => {
-                        const v = e.currentTarget as HTMLVideoElement;
-                        stopAndPoster(v);
+                        stopAndPoster(e.currentTarget);
                         setMobilePlaying(null);
                       }}
+                      onClick={(e) => toggleMobile(i, e.currentTarget)}
                     />
-
+                    {/* ПОСТЕР-Оверлей (сверху!) */}
+                    <img
+                      src={VIDEO_TEASERS[i].poster}
+                      alt=""
+                      className={`pointer-events-none absolute inset-0 h-full w-full object-cover z-10 transition-opacity duration-200 ${
+                        mobilePlaying === i && mobileReady[i]
+                          ? "opacity-0"
+                          : "opacity-100"
+                      }`}
+                      draggable={false}
+                    />
+                    {/* Лёгкое затемнение — тоже поверх */}
                     <div
-                      className={`pointer-events-none absolute inset-0 bg-black/25 transition-opacity duration-200 ${
+                      className={`pointer-events-none absolute inset-0 z-10 bg-black/25 transition-opacity duration-200 ${
                         mobilePlaying === i && mobileReady[i]
                           ? "opacity-0"
                           : "opacity-100"
                       }`}
                     />
-                    <div className="pointer-events-none absolute bottom-0 left-0 right-0 p-3">
+                    <div className="pointer-events-none absolute bottom-0 left-0 right-0 z-10 p-3">
                       <span
                         className={`inline-block rounded-full bg-white/90 px-3 py-1 text-[11px] font-semibold text-black transition-opacity duration-200 ${
                           mobilePlaying === i && mobileReady[i]
@@ -666,62 +551,81 @@ export default function MiniRentalHero() {
             </div>
           </div>
 
-          {/* DESKTOP */}
+          {/* DESKTOP: 2 колонки со смещением */}
           <div className="hidden md:flex justify-center mt-10">
             <div className="flex w-full max-w-[1200px] items-start justify-center gap-8">
+              {/* Левая колонка: 0 и 2 */}
               <div className="flex flex-col items-center gap-8">
-                {/* #0 */}
-                <motion.button
-                  type="button"
+                {/* CARD 0 */}
+                <motion.div
                   initial={{ opacity: 0, y: 24, scale: 0.98 }}
                   whileInView={{ opacity: 1, y: 0, scale: 1 }}
                   viewport={{ once: true, amount: 0.2 }}
                   transition={{ type: "spring", duration: 0.55, bounce: 0.28 }}
                   className="group relative w-[88vw] max-w-[440px] md:w-[340px] lg:w-[380px] overflow-hidden rounded-2xl ring-1 ring-black/10 transition-[transform,box-shadow] duration-300 hover:shadow-xl md:hover:scale-[1.02]"
                   onMouseEnter={() => {
-                    if (!isTouchRef.current) {
-                      setHoveredStory(0);
-                      playStory(0);
-                    }
+                    if (!isTouchRef.current) playDesktop(0);
                   }}
                   onMouseLeave={() => {
-                    if (!isTouchRef.current) {
-                      setHoveredStory((p) => (p === 0 ? null : p));
-                      pauseStory(0, true); // вернуть постер
-                    }
+                    if (!isTouchRef.current) pauseDesktop(0);
                   }}
                 >
                   <div className="relative aspect-[9/16]">
+                    {/* ВИДЕО (снизу) */}
                     <video
                       ref={setStoryRef(0)}
                       className="absolute inset-0 h-full w-full object-cover"
                       src={VIDEO_TEASERS[0].src}
-                      poster={VIDEO_TEASERS[0].poster}
                       muted
                       playsInline
-                      loop
                       preload="metadata"
+                      loop
+                      onPlaying={() =>
+                        setStoryPlaying((s) => ({ ...s, [0]: true }))
+                      }
+                      onPause={() =>
+                        setStoryPlaying((s) => ({ ...s, [0]: false }))
+                      }
+                      onEnded={(e) => {
+                        stopAndPoster(e.currentTarget);
+                        setStoryPlaying((s) => ({ ...s, [0]: false }));
+                        setHoveredStory((p) => (p === 0 ? null : p));
+                      }}
+                    />
+                    {/* ПОСТЕР-Оверлей (сверху!) */}
+                    <img
+                      src={VIDEO_TEASERS[0].poster}
+                      alt=""
+                      className={`pointer-events-none absolute inset-0 h-full w-full object-cover z-10 transition-opacity duration-200 ${
+                        hoveredStory === 0 && storyPlaying[0]
+                          ? "opacity-0"
+                          : "opacity-100"
+                      }`}
+                      draggable={false}
                     />
                     <div
-                      className={`pointer-events-none absolute inset-0 bg-black/35 transition-opacity duration-300 ${
-                        hoveredStory === 0 ? "opacity-0" : "opacity-100"
-                      } group-hover:opacity-0`}
+                      className={`pointer-events-none absolute inset-0 z-10 bg-black/35 transition-opacity duration-200 ${
+                        hoveredStory === 0 && storyPlaying[0]
+                          ? "opacity-0"
+                          : "opacity-100"
+                      }`}
                     />
-                    <div className="pointer-events-none absolute bottom-0 left-0 right-0 p-4">
+                    <div className="pointer-events-none absolute bottom-0 left-0 right-0 z-10 p-4">
                       <span
-                        className={`inline-block rounded-full bg-white/90 px-3 py-1 text-[11px] font-semibold text-black transition-opacity duration-300 ${
-                          hoveredStory === 0 ? "opacity-0" : "opacity-100"
-                        } group-hover:opacity-0`}
+                        className={`inline-block rounded-full bg-white/90 px-3 py-1 text-[11px] font-semibold text-black transition-opacity duration-200 ${
+                          hoveredStory === 0 && storyPlaying[0]
+                            ? "opacity-0"
+                            : "opacity-100"
+                        }`}
                       >
                         {VIDEO_TEASERS[0].title}
                       </span>
                     </div>
                   </div>
-                </motion.button>
+                </motion.div>
 
-                {/* #2 */}
-                <motion.button
-                  type="button"
+                {/* CARD 2 */}
+                <motion.div
                   initial={{ opacity: 0, y: 24, scale: 0.98 }}
                   whileInView={{ opacity: 1, y: 0, scale: 1 }}
                   viewport={{ once: true, amount: 0.2 }}
@@ -733,51 +637,70 @@ export default function MiniRentalHero() {
                   }}
                   className="group relative w-[88vw] max-w-[440px] md:w-[340px] lg:w-[380px] overflow-hidden rounded-2xl ring-1 ring-black/10 transition-[transform,box-shadow] duration-300 hover:shadow-xl md:hover:scale-[1.02]"
                   onMouseEnter={() => {
-                    if (!isTouchRef.current) {
-                      setHoveredStory(2);
-                      playStory(2);
-                    }
+                    if (!isTouchRef.current) playDesktop(2);
                   }}
                   onMouseLeave={() => {
-                    if (!isTouchRef.current) {
-                      setHoveredStory((p) => (p === 2 ? null : p));
-                      pauseStory(2, true);
-                    }
+                    if (!isTouchRef.current) pauseDesktop(2);
                   }}
                 >
                   <div className="relative aspect-[9/16]">
+                    {/* ВИДЕО (снизу) */}
                     <video
                       ref={setStoryRef(2)}
                       className="absolute inset-0 h-full w-full object-cover"
                       src={VIDEO_TEASERS[2].src}
-                      poster={VIDEO_TEASERS[2].poster}
                       muted
                       playsInline
-                      loop
                       preload="metadata"
+                      loop
+                      onPlaying={() =>
+                        setStoryPlaying((s) => ({ ...s, [2]: true }))
+                      }
+                      onPause={() =>
+                        setStoryPlaying((s) => ({ ...s, [2]: false }))
+                      }
+                      onEnded={(e) => {
+                        stopAndPoster(e.currentTarget);
+                        setStoryPlaying((s) => ({ ...s, [2]: false }));
+                        setHoveredStory((p) => (p === 2 ? null : p));
+                      }}
+                    />
+                    {/* ПОСТЕР-Оверлей (сверху!)  — тут была опечатка, теперь ок */}
+                    <img
+                      src={VIDEO_TEASERS[2].poster}
+                      alt=""
+                      className={`pointer-events-none absolute inset-0 h-full w-full object-cover z-10 transition-opacity duration-200 ${
+                        hoveredStory === 2 && storyPlaying[2]
+                          ? "opacity-0"
+                          : "opacity-100"
+                      }`}
+                      draggable={false}
                     />
                     <div
-                      className={`pointer-events-none absolute inset-0 bg-black/35 transition-opacity duration-300 ${
-                        hoveredStory === 2 ? "opacity-0" : "opacity-100"
-                      } group-hover:opacity-0`}
+                      className={`pointer-events-none absolute inset-0 z-10 bg-black/35 transition-opacity duration-200 ${
+                        hoveredStory === 2 && storyPlaying[2]
+                          ? "opacity-0"
+                          : "opacity-100"
+                      }`}
                     />
-                    <div className="pointer-events-none absolute bottom-0 left-0 right-0 p-4">
+                    <div className="pointer-events-none absolute bottom-0 left-0 right-0 z-10 p-4">
                       <span
-                        className={`inline-block rounded-full bg-white/90 px-3 py-1 text-[11px] font-semibold text-black transition-opacity duration-300 ${
-                          hoveredStory === 2 ? "opacity-0" : "opacity-100"
-                        } group-hover:opacity-0`}
+                        className={`inline-block rounded-full bg-white/90 px-3 py-1 text-[11px] font-semibold text-black transition-opacity duration-200 ${
+                          hoveredStory === 2 && storyPlaying[2]
+                            ? "opacity-0"
+                            : "opacity-100"
+                        }`}
                       >
                         {VIDEO_TEASERS[2].title}
                       </span>
                     </div>
                   </div>
-                </motion.button>
+                </motion.div>
               </div>
 
+              {/* Правая колонка: 1 со смещением */}
               <div className="flex flex-col items-center gap-8 translate-y-[42%]">
-                {/* #1 */}
-                <motion.button
-                  type="button"
+                <motion.div
                   initial={{ opacity: 0, y: 24, scale: 0.98 }}
                   whileInView={{ opacity: 1, y: 0, scale: 1 }}
                   viewport={{ once: true, amount: 0.2 }}
@@ -789,45 +712,65 @@ export default function MiniRentalHero() {
                   }}
                   className="group relative w-[88vw] max-w-[440px] md:w-[340px] lg:w-[380px] overflow-hidden rounded-2xl ring-1 ring-black/10 transition-[transform,box-shadow] duration-300 hover:shadow-xl md:hover:scale-[1.02]"
                   onMouseEnter={() => {
-                    if (!isTouchRef.current) {
-                      setHoveredStory(1);
-                      playStory(1);
-                    }
+                    if (!isTouchRef.current) playDesktop(1);
                   }}
                   onMouseLeave={() => {
-                    if (!isTouchRef.current) {
-                      setHoveredStory((p) => (p === 1 ? null : p));
-                      pauseStory(1, true);
-                    }
+                    if (!isTouchRef.current) pauseDesktop(1);
                   }}
                 >
                   <div className="relative aspect-[9/16]">
+                    {/* ВИДЕО (снизу) */}
                     <video
                       ref={setStoryRef(1)}
                       className="absolute inset-0 h-full w-full object-cover"
                       src={VIDEO_TEASERS[1].src}
-                      poster={VIDEO_TEASERS[1].poster}
                       muted
                       playsInline
-                      loop
                       preload="metadata"
+                      loop
+                      onPlaying={() =>
+                        setStoryPlaying((s) => ({ ...s, [1]: true }))
+                      }
+                      onPause={() =>
+                        setStoryPlaying((s) => ({ ...s, [1]: false }))
+                      }
+                      onEnded={(e) => {
+                        stopAndPoster(e.currentTarget);
+                        setStoryPlaying((s) => ({ ...s, [1]: false }));
+                        setHoveredStory((p) => (p === 1 ? null : p));
+                      }}
+                    />
+                    {/* ПОСТЕР-Оверлей (сверху!) */}
+                    <img
+                      src={VIDEO_TEASERS[1].poster}
+                      alt=""
+                      className={`pointer-events-none absolute inset-0 h-full w-full object-cover z-10 transition-opacity duration-200 ${
+                        hoveredStory === 1 && storyPlaying[1]
+                          ? "opacity-0"
+                          : "opacity-100"
+                      }`}
+                      draggable={false}
                     />
                     <div
-                      className={`pointer-events-none absolute inset-0 bg-black/35 transition-opacity duration-300 ${
-                        hoveredStory === 1 ? "opacity-0" : "opacity-100"
-                      } group-hover:opacity-0`}
+                      className={`pointer-events-none absolute inset-0 z-10 bg-black/35 transition-opacity duration-200 ${
+                        hoveredStory === 1 && storyPlaying[1]
+                          ? "opacity-0"
+                          : "opacity-100"
+                      }`}
                     />
-                    <div className="pointer-events-none absolute bottom-0 left-0 right-0 p-4">
+                    <div className="pointer-events-none absolute bottom-0 left-0 right-0 z-10 p-4">
                       <span
-                        className={`inline-block rounded-full bg-white/90 px-3 py-1 text-[11px] font-semibold text-black transition-opacity duration-300 ${
-                          hoveredStory === 1 ? "opacity-0" : "opacity-100"
-                        } group-hover:opacity-0`}
+                        className={`inline-block rounded-full bg-white/90 px-3 py-1 text-[11px] font-semibold text-black transition-opacity duration-200 ${
+                          hoveredStory === 1 && storyPlaying[1]
+                            ? "opacity-0"
+                            : "opacity-100"
+                        }`}
                       >
                         {VIDEO_TEASERS[1].title}
                       </span>
                     </div>
                   </div>
-                </motion.button>
+                </motion.div>
               </div>
             </div>
           </div>

@@ -85,3 +85,53 @@ export const optionsOwnerCar = [
     value: "business",
   },
 ];
+
+export const NAV = [
+  { label: "Cars", href: "cars" },
+  { label: "Special", href: "#special" },
+  { label: "Terms", href: "#terms" },
+  { label: "FAQ", href: "#faq" },
+  { label: "Contacts", href: "#contacts" },
+];
+
+export const CAR_CARDS = [
+  {
+    title: "Cooper",
+    subtitle: "Urban go-kart feel",
+    price: "from €89/day",
+    img: "/img/one.png",
+    href: "/cars?model=cooper-3d",
+  },
+  {
+    title: "Cabrio",
+    subtitle: "Silent & zippy",
+    price: "from €99/day",
+    img: "/img/cabrio.png",
+    href: "/cars?model=electric",
+  },
+  {
+    title: "Countryman",
+    subtitle: "Space for adventures",
+    price: "from €109/day",
+    img: "/img/countryman.png",
+    href: "/cars?model=countryman",
+  },
+];
+
+export const VIDEO_TEASERS = [
+  {
+    title: "Cooper city ride",
+    src: "/videos/mini-one.mp4",
+    poster: "/img/minione.webp",
+  },
+  {
+    title: "Countryman escape",
+    src: "/videos/mini-U25.mp4",
+    poster: "/img/minicountryman.webp",
+  },
+  {
+    title: "Cabrio seaside",
+    src: "/videos/mini-cabrio.mp4",
+    poster: "/img/minicabrio.webp",
+  },
+] as const;
