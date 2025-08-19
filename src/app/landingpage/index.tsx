@@ -603,16 +603,18 @@ export default function MiniRentalHero() {
                 >
                   <div className="relative aspect-[9/16] overflow-hidden rounded-2xl ring-1 ring-black/10 bg-black">
                     {/* управляемый постер-оверлей */}
+                    {/* управляемый постер-оверлей */}
                     <img
                       src={VIDEO_TEASERS[i].poster}
                       alt=""
-                      className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-200 ${
+                      className={`pointer-events-none absolute inset-0 h-full w-full object-cover transition-opacity duration-200 ${
                         mobilePlaying === i && mobileReady[i]
                           ? "opacity-0"
                           : "opacity-100"
                       }`}
                       draggable={false}
                     />
+
                     <video
                       ref={setMobileRef(i)}
                       className="absolute inset-0 h-full w-full object-cover"
@@ -626,7 +628,7 @@ export default function MiniRentalHero() {
                       onPlaying={() =>
                         setMobileReady((r) => ({ ...r, [i]: true }))
                       }
-                      onPointerUp={(e) => {
+                      onClick={(e) => {
                         e.preventDefault();
                         handleMobileToggle(
                           i,
@@ -639,6 +641,7 @@ export default function MiniRentalHero() {
                         setMobilePlaying(null);
                       }}
                     />
+
                     <div
                       className={`pointer-events-none absolute inset-0 bg-black/25 transition-opacity duration-200 ${
                         mobilePlaying === i && mobileReady[i]
