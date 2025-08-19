@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Burger, Drawer, Modal } from "@mantine/core";
+import { motion } from "framer-motion";
 
 const NAV = [
   { label: "Cars", href: "cars" },
@@ -33,6 +34,24 @@ const CAR_CARDS = [
   },
 ];
 
+const VIDEO_TEASERS = [
+  {
+    title: "Cooper city ride",
+    src: "/videos/mini-one.mp4",
+    poster: "/img/minione.webp",
+  },
+  {
+    title: "Countryman escape",
+    src: "/videos/mini-U25.mp4",
+    poster: "/img/minicountryman.webp",
+  },
+  {
+    title: "Cabrio seaside",
+    src: "/videos/mini-cabrio.mp4",
+    poster: "/img/minicabrio.webp",
+  },
+] as const;
+
 export default function MiniRentalHero() {
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -56,6 +75,11 @@ export default function MiniRentalHero() {
   // Lightbox
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIdx, setLightboxIdx] = useState(0);
+
+  // Stories (masonry) player control
+  const storyRefs = useRef<(HTMLVideoElement | null)[]>([]);
+  const [hoveredStory, setHoveredStory] = useState<number | null>(null);
+  const isTouchRef = useRef(false);
 
   const scrollToSlide = (idx: number) => {
     const track = sliderRef.current;
@@ -198,6 +222,40 @@ export default function MiniRentalHero() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [activeSlide]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && "matchMedia" in window) {
+      isTouchRef.current = window.matchMedia("(hover: none)").matches;
+    }
+  }, []);
+
+  const playStory = (i: number) => {
+    const v = storyRefs.current[i];
+    if (!v) return;
+    v.muted = true;
+    const p = v.play();
+
+    if (p && typeof p.catch === "function") p.catch(() => {});
+  };
+
+  const pauseStory = (i: number, reset = false) => {
+    const v = storyRefs.current[i];
+    if (!v) return;
+
+    v.pause();
+
+    if (reset) {
+      try {
+        v.currentTime = 0;
+      } catch {}
+      // Форсим возврат к постеру:
+      v.load(); // Safari/Chrome заново отрисует постер
+    }
+  };
+
+  const setStoryRef = (idx: number) => (el: HTMLVideoElement | null) => {
+    storyRefs.current[idx] = el; // callback-ref должен возвращать void
+  };
 
   return (
     <div className="relative min-h-screen bg-black text-white">
@@ -366,7 +424,7 @@ export default function MiniRentalHero() {
 
       {/* Which one will it be today? */}
       <section id="models" className="relative bg-white text-black">
-        <div className="px-4 sm:px-6 lg:px-10 py-16 sm:py-20">
+        <div className="px-4 sm:px-6 lg:px-10 py-24 sm:py-36">
           <div className="text-center">
             <h2 className="text-2xl sm:text-3xl lg:text-5xl font-openSans font-bold">
               Which one will it be today?
@@ -463,6 +521,312 @@ export default function MiniRentalHero() {
                   }`}
                 />
               ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Video */}
+      <section id="mini-stories" className="relative bg-white">
+        <div className="px-4 sm:px-6 lg:px-10 py-16 sm:py-20">
+          <div className="text-center">
+            <h2 className="text-2xl sm:text-3xl lg:text-5xl font-openSans font-bold text-black">
+              Ihr MINI Abenteuer beginnt jetzt.
+            </h2>
+            <p className="pt-4 md:text-lg text-black/70">
+              Vertical stories — hover to play (desktop) / tap (mobile).
+            </p>
+          </div>
+
+          {/* Центр: слева 2 видео столбиком, справа 1, смещён вниз на ~22% на десктопе.
+       На мобилке — всё в одну колонку по центру, без смещения. */}
+          {/* MOBILE: горизонтальная карусель с центрированием карточек */}
+          <div className="md:hidden mt-10">
+            <div className="relative">
+              <div
+                className="flex overflow-x-auto snap-x snap-mandatory gap-5 px-4
+                    [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+              >
+                {[0, 1, 2].map((i) => (
+                  <motion.button
+                    key={i}
+                    type="button"
+                    initial={{ opacity: 0, y: 24, scale: 0.98 }}
+                    whileInView={{ opacity: 1, y: 0, scale: 1 }}
+                    viewport={{ once: true, amount: 0.2 }}
+                    transition={{
+                      type: "spring",
+                      duration: 0.55,
+                      bounce: 0.28,
+                      delay: i * 0.03,
+                    }}
+                    className="group relative snap-center shrink-0 w-[82vw] max-w-[460px]
+                     overflow-hidden rounded-2xl ring-1 ring-black/10
+                     transition-[transform,box-shadow] duration-300 hover:shadow-xl"
+                    onClick={() => {
+                      // тап: play/pause с возвратом постера
+                      if (hoveredStory === i) {
+                        setHoveredStory(null);
+                        pauseStory(i, true);
+                      } else {
+                        if (hoveredStory !== null)
+                          pauseStory(hoveredStory, true);
+                        setHoveredStory(i);
+                        playStory(i);
+                      }
+                    }}
+                  >
+                    <div className="relative aspect-[9/16]">
+                      <video
+                        ref={setStoryRef(i)}
+                        className="absolute inset-0 h-full w-full object-cover"
+                        src={VIDEO_TEASERS[i].src}
+                        poster={VIDEO_TEASERS[i].poster}
+                        muted
+                        playsInline
+                        loop
+                        preload="metadata"
+                      />
+                      {/* затемнение исчезает только когда ролик играет */}
+                      <div
+                        className={`pointer-events-none absolute inset-0 bg-black/35 transition-opacity duration-300
+                          ${hoveredStory === i ? "opacity-0" : "opacity-100"}`}
+                      />
+                      <div className="pointer-events-none absolute bottom-0 left-0 right-0 p-3">
+                        <span
+                          className={`inline-block rounded-full bg-white/90 px-3 py-1 text-[11px] font-semibold text-black
+                            transition-opacity duration-300
+                            ${
+                              hoveredStory === i ? "opacity-0" : "opacity-100"
+                            }`}
+                        >
+                          {VIDEO_TEASERS[i].title}
+                        </span>
+                      </div>
+                    </div>
+                  </motion.button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* DESKTOP: твоя двухколоночная версия со смещением вправо — без изменений */}
+          {/* DESKTOP: двухколоночная версия со смещением вправо */}
+          <div className="hidden md:flex justify-center mt-10">
+            <div className="flex w-full max-w-[1200px] items-start justify-center gap-8">
+              {/* Левая колонка: карточки #0 и #2 */}
+              <div className="flex flex-col items-center gap-8">
+                {/* CARD 0 */}
+                <motion.button
+                  type="button"
+                  initial={{ opacity: 0, y: 24, scale: 0.98 }}
+                  whileInView={{ opacity: 1, y: 0, scale: 1 }}
+                  viewport={{ once: true, amount: 0.2 }}
+                  transition={{ type: "spring", duration: 0.55, bounce: 0.28 }}
+                  className="group relative w-[88vw] max-w-[440px] md:w-[340px] lg:w-[380px]
+                   overflow-hidden rounded-2xl ring-1 ring-black/10
+                   transition-[transform,box-shadow] duration-300
+                   hover:shadow-xl md:hover:scale-[1.02]"
+                  onMouseEnter={() => {
+                    if (!isTouchRef.current) {
+                      setHoveredStory(0);
+                      playStory(0);
+                    }
+                  }}
+                  onMouseLeave={() => {
+                    if (!isTouchRef.current) {
+                      setHoveredStory((p) => (p === 0 ? null : p));
+                      pauseStory(0, true);
+                    }
+                  }}
+                  onClick={() => {
+                    if (!isTouchRef.current) return;
+                    if (hoveredStory === 0) {
+                      setHoveredStory(null);
+                      pauseStory(0, true);
+                    } else {
+                      if (hoveredStory !== null) pauseStory(hoveredStory, true);
+                      setHoveredStory(0);
+                      playStory(0);
+                    }
+                  }}
+                >
+                  <div className="relative aspect-[9/16]">
+                    <video
+                      ref={setStoryRef(0)}
+                      className="absolute inset-0 h-full w-full object-cover"
+                      src={VIDEO_TEASERS[0].src}
+                      poster={VIDEO_TEASERS[0].poster}
+                      muted
+                      playsInline
+                      loop
+                      preload="metadata"
+                    />
+                    <div
+                      className={`pointer-events-none absolute inset-0 bg-black/35 transition-opacity duration-300
+                        ${
+                          hoveredStory === 0 ? "opacity-0" : "opacity-100"
+                        } group-hover:opacity-0`}
+                    />
+                    <div className="pointer-events-none absolute bottom-0 left-0 right-0 p-4">
+                      <span
+                        className={`inline-block rounded-full bg-white/90 px-3 py-1 text-[11px] font-semibold text-black
+                          transition-opacity duration-300
+                          ${
+                            hoveredStory === 0 ? "opacity-0" : "opacity-100"
+                          } group-hover:opacity-0`}
+                      >
+                        {VIDEO_TEASERS[0].title}
+                      </span>
+                    </div>
+                  </div>
+                </motion.button>
+
+                {/* CARD 2 */}
+                <motion.button
+                  type="button"
+                  initial={{ opacity: 0, y: 24, scale: 0.98 }}
+                  whileInView={{ opacity: 1, y: 0, scale: 1 }}
+                  viewport={{ once: true, amount: 0.2 }}
+                  transition={{
+                    type: "spring",
+                    duration: 0.55,
+                    bounce: 0.28,
+                    delay: 0.05,
+                  }}
+                  className="group relative w-[88vw] max-w-[440px] md:w-[340px] lg:w-[380px]
+                   overflow-hidden rounded-2xl ring-1 ring-black/10
+                   transition-[transform,box-shadow] duration-300
+                   hover:shadow-xl md:hover:scale-[1.02]"
+                  onMouseEnter={() => {
+                    if (!isTouchRef.current) {
+                      setHoveredStory(2);
+                      playStory(2);
+                    }
+                  }}
+                  onMouseLeave={() => {
+                    if (!isTouchRef.current) {
+                      setHoveredStory((p) => (p === 2 ? null : p));
+                      pauseStory(2, true);
+                    }
+                  }}
+                  onClick={() => {
+                    if (!isTouchRef.current) return;
+                    if (hoveredStory === 2) {
+                      setHoveredStory(null);
+                      pauseStory(2, true);
+                    } else {
+                      if (hoveredStory !== null) pauseStory(hoveredStory, true);
+                      setHoveredStory(2);
+                      playStory(2);
+                    }
+                  }}
+                >
+                  <div className="relative aspect-[9/16]">
+                    <video
+                      ref={setStoryRef(2)}
+                      className="absolute inset-0 h-full w-full object-cover"
+                      src={VIDEO_TEASERS[2].src}
+                      poster={VIDEO_TEASERS[2].poster}
+                      muted
+                      playsInline
+                      loop
+                      preload="metadata"
+                    />
+                    <div
+                      className={`pointer-events-none absolute inset-0 bg-black/35 transition-opacity duration-300
+                        ${
+                          hoveredStory === 2 ? "opacity-0" : "opacity-100"
+                        } group-hover:opacity-0`}
+                    />
+                    <div className="pointer-events-none absolute bottom-0 left-0 right-0 p-4">
+                      <span
+                        className={`inline-block rounded-full bg-white/90 px-3 py-1 text-[11px] font-semibold text-black
+                          transition-opacity duration-300
+                          ${
+                            hoveredStory === 2 ? "opacity-0" : "opacity-100"
+                          } group-hover:opacity-0`}
+                      >
+                        {VIDEO_TEASERS[2].title}
+                      </span>
+                    </div>
+                  </div>
+                </motion.button>
+              </div>
+
+              {/* Правая колонка: карточка #1 со смещением вниз */}
+              <div className="flex flex-col items-center gap-8 translate-y-[42%]">
+                {/* CARD 1 */}
+                <motion.button
+                  type="button"
+                  initial={{ opacity: 0, y: 24, scale: 0.98 }}
+                  whileInView={{ opacity: 1, y: 0, scale: 1 }}
+                  viewport={{ once: true, amount: 0.2 }}
+                  transition={{
+                    type: "spring",
+                    duration: 0.55,
+                    bounce: 0.28,
+                    delay: 0.03,
+                  }}
+                  className="group relative w-[88vw] max-w-[440px] md:w-[340px] lg:w-[380px]
+                   overflow-hidden rounded-2xl ring-1 ring-black/10
+                   transition-[transform,box-shadow] duration-300
+                   hover:shadow-xl md:hover:scale-[1.02]"
+                  onMouseEnter={() => {
+                    if (!isTouchRef.current) {
+                      setHoveredStory(1);
+                      playStory(1);
+                    }
+                  }}
+                  onMouseLeave={() => {
+                    if (!isTouchRef.current) {
+                      setHoveredStory((p) => (p === 1 ? null : p));
+                      pauseStory(1, true);
+                    }
+                  }}
+                  onClick={() => {
+                    if (!isTouchRef.current) return;
+                    if (hoveredStory === 1) {
+                      setHoveredStory(null);
+                      pauseStory(1, true);
+                    } else {
+                      if (hoveredStory !== null) pauseStory(hoveredStory, true);
+                      setHoveredStory(1);
+                      playStory(1);
+                    }
+                  }}
+                >
+                  <div className="relative aspect-[9/16]">
+                    <video
+                      ref={setStoryRef(1)}
+                      className="absolute inset-0 h-full w-full object-cover"
+                      src={VIDEO_TEASERS[1].src}
+                      poster={VIDEO_TEASERS[1].poster}
+                      muted
+                      playsInline
+                      loop
+                      preload="metadata"
+                    />
+                    <div
+                      className={`pointer-events-none absolute inset-0 bg-black/35 transition-opacity duration-300
+                        ${
+                          hoveredStory === 1 ? "opacity-0" : "opacity-100"
+                        } group-hover:opacity-0`}
+                    />
+                    <div className="pointer-events-none absolute bottom-0 left-0 right-0 p-4">
+                      <span
+                        className={`inline-block rounded-full bg-white/90 px-3 py-1 text-[11px] font-semibold text-black
+                          transition-opacity duration-300
+                          ${
+                            hoveredStory === 1 ? "opacity-0" : "opacity-100"
+                          } group-hover:opacity-0`}
+                      >
+                        {VIDEO_TEASERS[1].title}
+                      </span>
+                    </div>
+                  </div>
+                </motion.button>
+              </div>
             </div>
           </div>
         </div>
