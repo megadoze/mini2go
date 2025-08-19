@@ -541,76 +541,70 @@ export default function MiniRentalHero() {
           {/* Центр: слева 2 видео столбиком, справа 1, смещён вниз на ~22% на десктопе.
        На мобилке — всё в одну колонку по центру, без смещения. */}
           {/* MOBILE: горизонтальная карусель с центрированием карточек */}
+          {/* MOBILE: простая горизонтальная карусель без motion */}
           <div className="md:hidden mt-10">
-            <div className="relative">
-              <div
-                className="flex overflow-x-auto snap-x snap-mandatory gap-5 px-4
-                    [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-              >
-                {[0, 1, 2].map((i) => (
-                  <motion.button
-                    key={i}
-                    type="button"
-                    initial={{ opacity: 0, y: 24, scale: 0.98 }}
-                    whileInView={{ opacity: 1, y: 0, scale: 1 }}
-                    viewport={{ once: true, amount: 0.2 }}
-                    transition={{
-                      type: "spring",
-                      duration: 0.55,
-                      bounce: 0.28,
-                      delay: i * 0.03,
-                    }}
-                    className="group relative snap-center shrink-0 w-[82vw] max-w-[460px]
-                     overflow-hidden rounded-2xl ring-1 ring-black/10
-                     transition-[transform,box-shadow] duration-300 hover:shadow-xl"
-                    onClick={() => {
-                      // тап: play/pause с возвратом постера
-                      if (hoveredStory === i) {
-                        setHoveredStory(null);
-                        pauseStory(i, true);
-                      } else {
-                        if (hoveredStory !== null)
-                          pauseStory(hoveredStory, true);
-                        setHoveredStory(i);
-                        playStory(i);
-                      }
-                    }}
-                  >
-                    <div className="relative aspect-[9/16]">
-                      <video
-                        ref={setStoryRef(i)}
-                        className="absolute inset-0 h-full w-full object-cover"
-                        src={VIDEO_TEASERS[i].src}
-                        poster={VIDEO_TEASERS[i].poster}
-                        muted
-                        playsInline
-                        loop
-                        preload="metadata"
-                      />
-                      {/* затемнение исчезает только когда ролик играет */}
-                      <div
-                        className={`pointer-events-none absolute inset-0 bg-black/35 transition-opacity duration-300
+            <div
+              className="flex overflow-x-auto snap-x snap-mandatory gap-4 px-4
+               [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            >
+              {[0, 1, 2].map((i) => (
+                <div
+                  key={i}
+                  className="snap-center shrink-0 w-[82vw] max-w-[420px]"
+                >
+                  <div className="relative aspect-[9/16] overflow-hidden rounded-2xl ring-1 ring-black/10 bg-black">
+                    {/* Видео */}
+                    <video
+                      ref={setStoryRef(i)}
+                      className="absolute inset-0 h-full w-full object-cover"
+                      src={VIDEO_TEASERS[i].src}
+                      poster={VIDEO_TEASERS[i].poster}
+                      muted
+                      playsInline
+                      preload="metadata"
+                      // без loop: при паузе/конце вернём постер через pauseStory(..., true)
+                    />
+
+                    {/* Невидимая кнопка-перекрытие для тапа: play/pause c возвратом постера */}
+                    <button
+                      type="button"
+                      aria-label="Play/Pause"
+                      className="absolute inset-0"
+                      onClick={() => {
+                        if (hoveredStory === i) {
+                          setHoveredStory(null);
+                          pauseStory(i, true); // стоп и вернуть постер
+                        } else {
+                          if (hoveredStory !== null)
+                            pauseStory(hoveredStory, true);
+                          setHoveredStory(i);
+                          playStory(i); // гарантируем старт по юзер-жесту
+                        }
+                      }}
+                    />
+
+                    {/* Лёгкое затемнение — пропадает, когда видео играет */}
+                    <div
+                      className={`pointer-events-none absolute inset-0 bg-black/35 transition-opacity duration-200
+                        ${hoveredStory === i ? "opacity-0" : "opacity-100"}`}
+                    />
+
+                    {/* Подпись — абсолютная, не влияет на высоту (ничего не «пляшет») */}
+                    <div className="pointer-events-none absolute bottom-0 left-0 right-0 p-3">
+                      <span
+                        className={`inline-block rounded-full bg-white/90 px-3 py-1 text-[11px] font-semibold text-black
+                          transition-opacity duration-200
                           ${hoveredStory === i ? "opacity-0" : "opacity-100"}`}
-                      />
-                      <div className="pointer-events-none absolute bottom-0 left-0 right-0 p-3">
-                        <span
-                          className={`inline-block rounded-full bg-white/90 px-3 py-1 text-[11px] font-semibold text-black
-                            transition-opacity duration-300
-                            ${
-                              hoveredStory === i ? "opacity-0" : "opacity-100"
-                            }`}
-                        >
-                          {VIDEO_TEASERS[i].title}
-                        </span>
-                      </div>
+                      >
+                        {VIDEO_TEASERS[i].title}
+                      </span>
                     </div>
-                  </motion.button>
-                ))}
-              </div>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
 
-          {/* DESKTOP: твоя двухколоночная версия со смещением вправо — без изменений */}
           {/* DESKTOP: двухколоночная версия со смещением вправо */}
           <div className="hidden md:flex justify-center mt-10">
             <div className="flex w-full max-w-[1200px] items-start justify-center gap-8">
