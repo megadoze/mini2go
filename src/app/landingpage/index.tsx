@@ -55,31 +55,24 @@ const VIDEO_TEASERS = [
 export default function MiniRentalHero() {
   const [menuOpen, setMenuOpen] = useState(false);
 
-  // Slider refs/state
+  // ====== SLIDER (как было) ======
   const sliderRef = useRef<HTMLDivElement>(null);
   const [activeSlide, setActiveSlide] = useState(0);
-
-  // Индекс для подписи/цены (стабильный)
   const [displayIdx, setDisplayIdx] = useState(0);
   const displayIdxRef = useRef(0);
   useEffect(() => {
     displayIdxRef.current = displayIdx;
   }, [displayIdx]);
 
-  // Целевой индекс для программной прокрутки (wrap/стрелки)
   const targetIdxRef = useRef<number | null>(null);
-
   const rafRef = useRef<number | null>(null);
   const [sidePad, setSidePad] = useState(0);
 
-  // Lightbox
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIdx, setLightboxIdx] = useState(0);
 
-  // Stories: десктоп (hover) — через refs; мобила — без refs
   const storyRefs = useRef<(HTMLVideoElement | null)[]>([]);
-  const [hoveredStory, setHoveredStory] = useState<number | null>(null); // для десктопа
-  const [mobilePlaying, setMobilePlaying] = useState<number | null>(null); // для мобилы
+  const [hoveredStory, setHoveredStory] = useState<number | null>(null);
   const isTouchRef = useRef(false);
 
   const scrollToSlide = (idx: number) => {
@@ -110,25 +103,19 @@ export default function MiniRentalHero() {
       const slides = Array.from(
         track.querySelectorAll("[data-slide]")
       ) as HTMLElement[];
-
-      let best = 0;
-      let min = Infinity;
+      let best = 0,
+        min = Infinity;
       slides.forEach((child, i) => {
         const rect = child.getBoundingClientRect();
-        const childCenter = rect.left + rect.width / 2;
-        const d = Math.abs(childCenter - center);
+        const d = Math.abs(rect.left + rect.width / 2 - center);
         if (d < min) {
           min = d;
           best = i;
         }
       });
-
       setActiveSlide(best);
 
-      const w =
-        slides[best]?.getBoundingClientRect().width ??
-        (slides[best] as HTMLElement | undefined)?.offsetWidth ??
-        1;
+      const w = slides[best]?.getBoundingClientRect().width ?? 1;
       const enter = Math.min(28, w * 0.08);
       const margin = Math.min(18, w * 0.05);
       const currentIdx = displayIdxRef.current;
@@ -144,41 +131,31 @@ export default function MiniRentalHero() {
           const currentEl = slides[currentIdx];
           if (currentEl) {
             const r = currentEl.getBoundingClientRect();
-            const c = r.left + r.width / 2;
-            currentDist = Math.abs(c - center);
+            currentDist = Math.abs(r.left + r.width / 2 - center);
           }
-          if (min <= enter || min + margin < currentDist) {
-            setDisplayIdx(best);
-          }
+          if (min <= enter || min + margin < currentDist) setDisplayIdx(best);
         }
       }
       rafRef.current = null;
     });
   };
 
-  // Fallback: scrollend/дебаунс
   useEffect(() => {
     const el = sliderRef.current;
     if (!el) return;
-
     const commit = () => {
       if (targetIdxRef.current !== null) {
         setDisplayIdx(targetIdxRef.current);
         targetIdxRef.current = null;
-      } else {
-        setDisplayIdx(activeSlide);
-      }
+      } else setDisplayIdx(activeSlide);
     };
-
     el.addEventListener("scrollend", commit as EventListener);
-
     let t: any;
     const onScroll = () => {
       clearTimeout(t);
       t = setTimeout(commit, 100);
     };
     el.addEventListener("scroll", onScroll);
-
     return () => {
       el.removeEventListener("scrollend", commit as EventListener);
       el.removeEventListener("scroll", onScroll);
@@ -186,7 +163,6 @@ export default function MiniRentalHero() {
     };
   }, [activeSlide]);
 
-  // Центровка первого/последнего
   useEffect(() => {
     const measure = () => {
       const track = sliderRef.current;
@@ -194,15 +170,13 @@ export default function MiniRentalHero() {
       const first = track.querySelector("[data-slide]") as HTMLElement | null;
       if (!first) return;
       const w = first.getBoundingClientRect().width;
-      const pad = Math.max((window.innerWidth - w) / 2, 0);
-      setSidePad(pad);
+      setSidePad(Math.max((window.innerWidth - w) / 2, 0));
     };
     measure();
     window.addEventListener("resize", measure);
     return () => window.removeEventListener("resize", measure);
   }, []);
 
-  // Arrow keys
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "ArrowLeft") scrollToSlide(activeSlide - 1);
@@ -212,41 +186,26 @@ export default function MiniRentalHero() {
     return () => window.removeEventListener("keydown", onKey);
   }, [activeSlide]);
 
-  // Touch detection
   useEffect(() => {
     if (typeof window !== "undefined" && "matchMedia" in window) {
       isTouchRef.current = window.matchMedia("(hover: none)").matches;
     }
   }, []);
 
-  // ====== ДЕСКТОП: управление через refs ======
   const playStory = (i: number) => {
     const v = storyRefs.current[i];
     if (!v) return;
     v.muted = true;
     v.setAttribute("playsinline", "");
     v.setAttribute("webkit-playsinline", "");
-    const tryPlay = () => {
-      const p = v.play();
-      if (p && typeof p.catch === "function") {
-        p.catch(() => {
-          try {
-            v.currentTime = Math.max(0, v.currentTime || 0) + 0.001;
-          } catch {}
-          const p2 = v.play();
-          if (p2 && typeof p2.catch === "function") p2.catch(() => {});
-        });
-      }
-    };
-    if (v.readyState < 2) {
-      const onData = () => {
-        v.removeEventListener("loadeddata", onData);
-        tryPlay();
-      };
-      v.addEventListener("loadeddata", onData, { once: true });
-      v.load();
-    } else {
-      tryPlay();
+    const p = v.play();
+    if (p && typeof (p as any).catch === "function") {
+      (p as Promise<void>).catch(() => {
+        try {
+          v.currentTime = (v.currentTime || 0) + 0.001;
+        } catch {}
+        v.play().catch(() => {});
+      });
     }
   };
 
@@ -258,52 +217,45 @@ export default function MiniRentalHero() {
       try {
         v.currentTime = 0;
       } catch {}
-      v.load(); // вернуть постер
+      v.load();
     }
   };
 
-  // Регистрируем ТОЛЬКО видимые (не display:none) элементы — чтобы на мобиле не перезаписывать refs
   const setStoryRef = (idx: number) => (el: HTMLVideoElement | null) => {
-    if (!el || el.offsetParent === null) return; // скрытые (hidden/md:hidden) не учитываем
     storyRefs.current[idx] = el;
-    el.muted = true;
-    el.setAttribute("playsinline", "");
-    el.setAttribute("webkit-playsinline", "");
-  };
-
-  // ====== МОБИЛА: играем по конкретному элементу, без общих refs ======
-
-  // реф для МОБИЛЬНЫХ видео: ставим флаги до любого play()
-  const mobileVideoRef =
-    (_i: number, setMobilePlaying: (n: number | null) => void) =>
-    (el: HTMLVideoElement | null) => {
-      if (!el) return;
+    if (el) {
       el.muted = true;
       el.setAttribute("playsinline", "");
       el.setAttribute("webkit-playsinline", "");
-      el.preload = "auto";
-      // если ушли со страницы/скрыли — вернём постер
-      el.addEventListener(
-        "pause",
-        () => {
-          if (el.ended) return; // конец обработаем отдельно
-          try {
-            el.currentTime = 0;
-          } catch {}
-          el.load();
-          setMobilePlaying(null);
-        },
-        { passive: true }
-      );
-    };
+    }
+  };
 
-  // старт/стоп именно для мобильного видео-элемента (без общих refs)
-  const toggleMobileVideoEl = (
-    el: HTMLVideoElement,
-    i: number,
-    setMobilePlaying: (n: number | null) => void
-  ) => {
-    // остановить другие мобильные
+  // ====== МОБИЛЬНЫЙ ПЛЕЕР (НОВОЕ) ======
+  const [mobilePlaying, setMobilePlaying] = useState<number | null>(null);
+
+  const mobileVideoRef = (i: number) => (el: HTMLVideoElement | null) => {
+    if (!el) return;
+    el.muted = true;
+    el.setAttribute("playsinline", "");
+    el.setAttribute("webkit-playsinline", "");
+    el.preload = "auto";
+    // если видео паузнули вручную/свайпом — вернём постер и снимем флаг
+    el.addEventListener(
+      "pause",
+      () => {
+        if (el.ended) return;
+        try {
+          el.currentTime = 0;
+        } catch {}
+        el.load();
+        setMobilePlaying((p) => (p === i ? null : p));
+      },
+      { passive: true }
+    );
+  };
+
+  const toggleMobileVideoEl = (el: HTMLVideoElement, i: number) => {
+    // остановим прочие мобильные
     document.querySelectorAll('video[data-mobile="true"]').forEach((v) => {
       if (v !== el) {
         const vv = v as HTMLVideoElement;
@@ -343,17 +295,12 @@ export default function MiniRentalHero() {
   return (
     <div className="relative min-h-screen bg-black text-white">
       {/* HEADER */}
-      <header
-        className={
-          "absolute inset-x-0 top-0 z-50 transition-colors duration-300 "
-        }
-      >
+      <header className="absolute inset-x-0 top-0 z-50 transition-colors duration-300 ">
         <div className="px-4 sm:px-6 lg:px-10">
           <div className="flex h-16 items-center justify-between gap-6">
             <a href="#" className="shrink-0 font-bold tracking-wide text-lg">
               MINI2GO
             </a>
-
             <nav className="mx-auto hidden lg:block">
               <ul className="flex items-center gap-6 xl:gap-8 text-sm font-medium">
                 {NAV.map((item) => (
@@ -368,7 +315,6 @@ export default function MiniRentalHero() {
                 ))}
               </ul>
             </nav>
-
             <div className="w-24 flex justify-end">
               <button className="hidden lg:inline-flex font-medium text-sm text-white/90 hover:text-white transition">
                 Log In
@@ -450,7 +396,6 @@ export default function MiniRentalHero() {
             <h1 className=" text-3xl sm:text-4xl lg:text-6xl font-openSans font-bold leading-tight">
               It's time to drive MINI
             </h1>
-
             <div className="hidden md:flex mt-6 flex-wrap items-center gap-3">
               <a
                 href="#reservierung"
@@ -505,7 +450,7 @@ export default function MiniRentalHero() {
         </div>
       </section>
 
-      {/* Which one will it be today? */}
+      {/* MODELS */}
       <section id="models" className="relative bg-white text-black">
         <div className="px-4 sm:px-6 lg:px-10 py-24 sm:py-36">
           <div className="text-center">
@@ -518,7 +463,6 @@ export default function MiniRentalHero() {
             </p>
           </div>
 
-          {/* Center-focused minimal slider */}
           <div className="relative mt-8">
             <div
               ref={sliderRef}
@@ -547,7 +491,6 @@ export default function MiniRentalHero() {
                   >
                     {c.title}
                   </div>
-
                   <img
                     src={c.img}
                     alt={c.title}
@@ -559,7 +502,6 @@ export default function MiniRentalHero() {
                     draggable={false}
                     loading="lazy"
                   />
-
                   <div
                     className={`text-center z-50 -mt-10 transition-opacity duration-75 ${
                       i === displayIdx ? "opacity-100" : "opacity-0"
@@ -571,8 +513,6 @@ export default function MiniRentalHero() {
                 </a>
               ))}
             </div>
-
-            {/* Arrows */}
             <button
               type="button"
               aria-label="Previous"
@@ -589,8 +529,6 @@ export default function MiniRentalHero() {
             >
               ›
             </button>
-
-            {/* Dots */}
             <div className="mt-0 flex justify-center gap-2">
               {CAR_CARDS.map((_, i) => (
                 <button
@@ -607,7 +545,7 @@ export default function MiniRentalHero() {
         </div>
       </section>
 
-      {/* Video */}
+      {/* === VIDEO === */}
       <section id="mini-stories" className="relative bg-white">
         <div className="px-4 sm:px-6 lg:px-10 py-16 sm:py-20">
           <div className="text-center">
@@ -622,8 +560,7 @@ export default function MiniRentalHero() {
           {/* MOBILE: простая горизонтальная карусель, без motion */}
           <div className="md:hidden mt-10">
             <div
-              className="flex overflow-x-auto snap-x snap-mandatory gap-4 px-4
-           [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+              className="flex overflow-x-auto snap-x snap-mandatory gap-4 px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
               style={{ WebkitOverflowScrolling: "touch" as any }}
             >
               {[0, 1, 2].map((i) => (
@@ -634,28 +571,23 @@ export default function MiniRentalHero() {
                   <div className="relative aspect-[9/16] overflow-hidden rounded-2xl ring-1 ring-black/10 bg-black">
                     <video
                       data-mobile="true"
-                      ref={mobileVideoRef(i, setMobilePlaying)}
+                      ref={mobileVideoRef(i)}
                       className="absolute inset-0 h-full w-full object-cover"
                       src={VIDEO_TEASERS[i].src}
                       poster={VIDEO_TEASERS[i].poster}
-                      // КРИТИЧЕСКОЕ: все флаги, чтобы iOS не выкидывал в fullscreen и не блочил по тапу
                       muted
                       playsInline
                       preload="auto"
-                      // Сам жест запускаем на touchstart — надёжнее для iOS
                       onTouchStart={(e) =>
                         toggleMobileVideoEl(
                           e.currentTarget as HTMLVideoElement,
-                          i,
-                          setMobilePlaying
+                          i
                         )
                       }
-                      // Для Android/других — продублируем click
                       onClick={(e) =>
                         toggleMobileVideoEl(
                           e.currentTarget as HTMLVideoElement,
-                          i,
-                          setMobilePlaying
+                          i
                         )
                       }
                       onEnded={(e) => {
@@ -664,24 +596,19 @@ export default function MiniRentalHero() {
                         try {
                           v.currentTime = 0;
                         } catch {}
-                        v.load(); // вернуть постер
+                        v.load();
                       }}
                     />
-
-                    {/* затемнение исчезает только когда видео играет */}
                     <div
                       className={`pointer-events-none absolute inset-0 bg-black/35 transition-opacity duration-200 ${
                         mobilePlaying === i ? "opacity-0" : "opacity-100"
                       }`}
                     />
-
-                    {/* подпись — не влияет на высоту */}
                     <div className="pointer-events-none absolute bottom-0 left-0 right-0 p-3">
                       <span
-                        className={`inline-block rounded-full bg-white/90 px-3 py-1 text-[11px] font-semibold text-black
-                      transition-opacity duration-200 ${
-                        mobilePlaying === i ? "opacity-0" : "opacity-100"
-                      }`}
+                        className={`inline-block rounded-full bg-white/90 px-3 py-1 text-[11px] font-semibold text-black transition-opacity duration-200 ${
+                          mobilePlaying === i ? "opacity-0" : "opacity-100"
+                        }`}
                       >
                         {VIDEO_TEASERS[i].title}
                       </span>
@@ -692,10 +619,10 @@ export default function MiniRentalHero() {
             </div>
           </div>
 
-          {/* DESKTOP: двухколоночная версия как была (hover-автоплей) */}
+          {/* DESKTOP: двухколоночная версия со смещением */}
           <div className="hidden md:flex justify-center mt-10">
             <div className="flex w-full max-w-[1200px] items-start justify-center gap-8">
-              {/* Левая колонка: #0 и #2 */}
+              {/* Левая колонка: 0 и 2 */}
               <div className="flex flex-col items-center gap-8">
                 {/* CARD 0 */}
                 <motion.button
@@ -704,10 +631,7 @@ export default function MiniRentalHero() {
                   whileInView={{ opacity: 1, y: 0, scale: 1 }}
                   viewport={{ once: true, amount: 0.2 }}
                   transition={{ type: "spring", duration: 0.55, bounce: 0.28 }}
-                  className="group relative w-[88vw] max-w-[440px] md:w-[340px] lg:w-[380px]
-                 overflow-hidden rounded-2xl ring-1 ring-black/10
-                 transition-[transform,box-shadow] duration-300
-                 hover:shadow-xl md:hover:scale-[1.02]"
+                  className="group relative w-[88vw] max-w-[440px] md:w-[340px] lg:w-[380px] overflow-hidden rounded-2xl ring-1 ring-black/10 transition-[transform,box-shadow] duration-300 hover:shadow-xl md:hover:scale-[1.02]"
                   onMouseEnter={() => {
                     if (!isTouchRef.current) {
                       setHoveredStory(0);
@@ -739,10 +663,9 @@ export default function MiniRentalHero() {
                     />
                     <div className="pointer-events-none absolute bottom-0 left-0 right-0 p-4">
                       <span
-                        className={`inline-block rounded-full bg-white/90 px-3 py-1 text-[11px] font-semibold text-black
-                      transition-opacity duration-300 ${
-                        hoveredStory === 0 ? "opacity-0" : "opacity-100"
-                      } group-hover:opacity-0`}
+                        className={`inline-block rounded-full bg-white/90 px-3 py-1 text-[11px] font-semibold text-black transition-opacity duration-300 ${
+                          hoveredStory === 0 ? "opacity-0" : "opacity-100"
+                        } group-hover:opacity-0`}
                       >
                         {VIDEO_TEASERS[0].title}
                       </span>
@@ -762,10 +685,7 @@ export default function MiniRentalHero() {
                     bounce: 0.28,
                     delay: 0.05,
                   }}
-                  className="group relative w-[88vw] max-w-[440px] md:w-[340px] lg:w-[380px]
-                 overflow-hidden rounded-2xl ring-1 ring-black/10
-                 transition-[transform,box-shadow] duration-300
-                 hover:shadow-xl md:hover:scale-[1.02]"
+                  className="group relative w-[88vw] max-w-[440px] md:w-[340px] lg:w-[380px] overflow-hidden rounded-2xl ring-1 ring-black/10 transition-[transform,box-shadow] duration-300 hover:shadow-xl md:hover:scale-[1.02]"
                   onMouseEnter={() => {
                     if (!isTouchRef.current) {
                       setHoveredStory(2);
@@ -797,10 +717,9 @@ export default function MiniRentalHero() {
                     />
                     <div className="pointer-events-none absolute bottom-0 left-0 right-0 p-4">
                       <span
-                        className={`inline-block rounded-full bg-white/90 px-3 py-1 text-[11px] font-semibold text-black
-                      transition-opacity duration-300 ${
-                        hoveredStory === 2 ? "opacity-0" : "opacity-100"
-                      } group-hover:opacity-0`}
+                        className={`inline-block rounded-full bg-white/90 px-3 py-1 text-[11px] font-semibold text-black transition-opacity duration-300 ${
+                          hoveredStory === 2 ? "opacity-0" : "opacity-100"
+                        } group-hover:opacity-0`}
                       >
                         {VIDEO_TEASERS[2].title}
                       </span>
@@ -809,7 +728,7 @@ export default function MiniRentalHero() {
                 </motion.button>
               </div>
 
-              {/* Правая колонка: #1 со смещением */}
+              {/* Правая колонка: 1 со смещением вниз */}
               <div className="flex flex-col items-center gap-8 translate-y-[42%]">
                 <motion.button
                   type="button"
@@ -822,10 +741,7 @@ export default function MiniRentalHero() {
                     bounce: 0.28,
                     delay: 0.03,
                   }}
-                  className="group relative w-[88vw] max-w-[440px] md:w-[340px] lg:w-[380px]
-                 overflow-hidden rounded-2xl ring-1 ring-black/10
-                 transition-[transform,box-shadow] duration-300
-                 hover:shadow-xl md:hover:scale-[1.02]"
+                  className="group relative w-[88vw] max-w-[440px] md:w-[340px] lg:w-[380px] overflow-hidden rounded-2xl ring-1 ring-black/10 transition-[transform,box-shadow] duration-300 hover:shadow-xl md:hover:scale-[1.02]"
                   onMouseEnter={() => {
                     if (!isTouchRef.current) {
                       setHoveredStory(1);
@@ -857,10 +773,9 @@ export default function MiniRentalHero() {
                     />
                     <div className="pointer-events-none absolute bottom-0 left-0 right-0 p-4">
                       <span
-                        className={`inline-block rounded-full bg-white/90 px-3 py-1 text-[11px] font-semibold text-black
-                      transition-opacity duration-300 ${
-                        hoveredStory === 1 ? "opacity-0" : "opacity-100"
-                      } group-hover:opacity-0`}
+                        className={`inline-block rounded-full bg-white/90 px-3 py-1 text-[11px] font-semibold text-black transition-opacity duration-300 ${
+                          hoveredStory === 1 ? "opacity-0" : "opacity-100"
+                        } group-hover:opacity-0`}
                       >
                         {VIDEO_TEASERS[1].title}
                       </span>
