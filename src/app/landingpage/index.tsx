@@ -12,7 +12,7 @@ const NAV = [
 const CAR_CARDS = [
   {
     title: "Cooper",
-    subtitle: "Urban go‑kart feel",
+    subtitle: "Urban go-kart feel",
     price: "from €89/day",
     img: "/img/one.png",
     href: "/cars?model=cooper-3d",
@@ -36,15 +36,24 @@ const CAR_CARDS = [
 export default function MiniRentalHero() {
   const [menuOpen, setMenuOpen] = useState(false);
 
-  // Slider refs/state for "Which one will it be today?"
+  // Slider refs/state
   const sliderRef = useRef<HTMLDivElement>(null);
   const [activeSlide, setActiveSlide] = useState(0);
+
+  // Индекс для показа подписи/цены (стабильный)
   const [displayIdx, setDisplayIdx] = useState(0);
+  const displayIdxRef = useRef(0);
+  useEffect(() => {
+    displayIdxRef.current = displayIdx;
+  }, [displayIdx]);
+
+  // Целевой индекс для программной прокрутки (wrap/стрелки)
+  const targetIdxRef = useRef<number | null>(null);
 
   const rafRef = useRef<number | null>(null);
   const [sidePad, setSidePad] = useState(0);
 
-  // Lightbox for enlarged center photo
+  // Lightbox
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIdx, setLightboxIdx] = useState(0);
 
@@ -58,13 +67,15 @@ export default function MiniRentalHero() {
     const count = slides.length;
     const next = (idx + count) % count;
 
+    // запоминаем цель для автоскролла; подписи покажем только когда цель встанет в центр
+    targetIdxRef.current = next;
+
     slides[next]?.scrollIntoView({
       behavior: "smooth",
       inline: "center",
       block: "nearest",
     });
-
-    // ВАЖНО: не вызываем setActiveSlide здесь
+    // activeSlide/ displayIdx не трогаем — дождёмся факта скролла
   };
 
   const onSliderScroll = () => {
@@ -77,12 +88,12 @@ export default function MiniRentalHero() {
       }
 
       const center = track.getBoundingClientRect().left + track.clientWidth / 2;
-      let best = 0,
-        min = Infinity,
-        bestRect: DOMRect | null = null;
       const slides = Array.from(
         track.querySelectorAll("[data-slide]")
       ) as HTMLElement[];
+
+      let best = 0;
+      let min = Infinity;
       slides.forEach((child, i) => {
         const rect = child.getBoundingClientRect();
         const childCenter = rect.left + rect.width / 2;
@@ -90,45 +101,79 @@ export default function MiniRentalHero() {
         if (d < min) {
           min = d;
           best = i;
-          bestRect = rect;
         }
       });
 
       setActiveSlide(best);
 
-      // порог «почти центр»: ~6% ширины слайда, но не больше 24px
-      const w = bestRect?.width ?? 1;
-      const threshold = Math.min(24, w * 0.06);
-      setDisplayIdx(min <= threshold ? best : -1);
+      // Порог «почти центр»
+      const w =
+        slides[best]?.getBoundingClientRect().width ??
+        (slides[best] as HTMLElement | undefined)?.offsetWidth ??
+        1;
+      const enter = Math.min(28, w * 0.08); // ~8% ширины, макс 28px
+      const margin = Math.min(18, w * 0.05); // гистерезис для ручного свайпа
+
+      const currentIdx = displayIdxRef.current;
+
+      if (targetIdxRef.current !== null) {
+        // программная прокрутка (wrap/стрелки)
+        if (best === targetIdxRef.current && min <= enter) {
+          if (currentIdx !== best) setDisplayIdx(best);
+          targetIdxRef.current = null; // цель достигнута
+        }
+      } else {
+        // ручной свайп — не прячем подписи, просто переключаем, когда реально центр
+        if (currentIdx !== best) {
+          // текущая дистанция от центра у того, кто сейчас показан
+          let currentDist = Infinity;
+          const currentEl = slides[currentIdx];
+          if (currentEl) {
+            const r = currentEl.getBoundingClientRect();
+            const c = r.left + r.width / 2;
+            currentDist = Math.abs(c - center);
+          }
+          if (min <= enter || min + margin < currentDist) {
+            setDisplayIdx(best);
+          }
+        }
+      }
 
       rafRef.current = null;
     });
   };
 
+  // Fallback: scrollend/дебаунс — страхуемся от редких случаев
   useEffect(() => {
     const el = sliderRef.current;
     if (!el) return;
 
-    const commit = () => setDisplayIdx(activeSlide);
+    const commit = () => {
+      if (targetIdxRef.current !== null) {
+        setDisplayIdx(targetIdxRef.current);
+        targetIdxRef.current = null;
+      } else {
+        setDisplayIdx(activeSlide);
+      }
+    };
 
-    el.addEventListener("scrollend", commit);
+    el.addEventListener("scrollend", commit as EventListener);
 
-    // Fallback через дебаунс scroll
     let t: any;
     const onScroll = () => {
       clearTimeout(t);
-      t = setTimeout(commit, 140);
+      t = setTimeout(commit, 100);
     };
     el.addEventListener("scroll", onScroll);
 
     return () => {
-      el.removeEventListener("scrollend", commit);
+      el.removeEventListener("scrollend", commit as EventListener);
       el.removeEventListener("scroll", onScroll);
       clearTimeout(t);
     };
   }, [activeSlide]);
 
-  // Keep the center slide truly centered on any viewport
+  // Центровка первого/последнего
   useEffect(() => {
     const measure = () => {
       const track = sliderRef.current;
@@ -144,7 +189,7 @@ export default function MiniRentalHero() {
     return () => window.removeEventListener("resize", measure);
   }, []);
 
-  // Optional: arrow-key navigation for convenience
+  // Arrow keys
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "ArrowLeft") scrollToSlide(activeSlide - 1);
@@ -168,7 +213,6 @@ export default function MiniRentalHero() {
               MINI2GO
             </a>
 
-            {/* Center nav (desktop) */}
             <nav className="mx-auto hidden lg:block">
               <ul className="flex items-center gap-6 xl:gap-8 text-sm font-medium">
                 {NAV.map((item) => (
@@ -184,12 +228,10 @@ export default function MiniRentalHero() {
               </ul>
             </nav>
 
-            {/* Actions right */}
             <div className="w-24 flex justify-end">
               <button className="hidden lg:inline-flex font-medium text-sm text-white/90 hover:text-white transition">
                 Log In
               </button>
-              {/* Burger */}
               <Burger
                 opened={menuOpen}
                 onClick={() => setMenuOpen((v) => !v)}
@@ -202,7 +244,6 @@ export default function MiniRentalHero() {
           </div>
         </div>
 
-        {/* Mobile menu – Mantine Drawer full-screen from left */}
         <Drawer
           opened={menuOpen}
           onClose={() => setMenuOpen(false)}
@@ -286,7 +327,7 @@ export default function MiniRentalHero() {
           </div>
         </div>
 
-        {/* Booking form centered at bottom */}
+        {/* Booking form */}
         <div className="absolute bottom-10 left-1/2 -translate-x-1/2 w-full max-w-4xl px-4 z-20">
           <div className="hidden mb-5 md:flex flex-wrap justify-center items-center gap-2 font-semibold text-sm text-white/90">
             {[
@@ -336,7 +377,7 @@ export default function MiniRentalHero() {
             </p>
           </div>
 
-          {/* Center-focused minimal slider: only the model image, no frame/background */}
+          {/* Center-focused minimal slider */}
           <div className="relative mt-8">
             <div
               ref={sliderRef}
@@ -357,11 +398,11 @@ export default function MiniRentalHero() {
                   className="snap-center shrink-0 w-[70vw] sm:w-[50vw] lg:w-[560px] flex flex-col items-center justify-center no-underline"
                   aria-label={`Open ${c.title} preview`}
                 >
+                  {/* Название — всегда в DOM; видимость меняется без прыжков */}
                   <div
-                    className={`-mb-6 text-base sm:text-6xl font-openSans font-bold text-neutral-300 z-50
-              transition-opacity duration-75 ${
-                i === displayIdx ? "opacity-100" : "opacity-0"
-              }`}
+                    className={`-mb-6 text-base sm:text-6xl font-openSans font-bold text-neutral-300 z-50 transition-opacity duration-75 ${
+                      i === displayIdx ? "opacity-100" : "opacity-0"
+                    }`}
                     aria-hidden={i !== displayIdx}
                   >
                     {c.title}
@@ -378,9 +419,12 @@ export default function MiniRentalHero() {
                     draggable={false}
                     loading="lazy"
                   />
+
+                  {/* Цена — всегда в DOM; видимость меняется без прыжков */}
                   <div
-                    className={`text-center z-50 -mt-10 transition-opacity duration-75
-              ${i === displayIdx ? "opacity-100" : "opacity-0"}`}
+                    className={`text-center z-50 -mt-10 transition-opacity duration-75 ${
+                      i === displayIdx ? "opacity-100" : "opacity-0"
+                    }`}
                     aria-hidden={i !== displayIdx}
                   >
                     <div className="text-2xl text-gray-800">{c.price}</div>
@@ -402,7 +446,7 @@ export default function MiniRentalHero() {
               type="button"
               aria-label="Next"
               onClick={() => scrollToSlide(activeSlide + 1)}
-              className="absolute right-3 sm:right-6 top-1/2 -translate-y-1/2 z-10 rounded-full bg-black text-white h-10 w-10 flex items-center justify-center opacity-20 hover:opacity-80 duration-300"
+              className="absolute right-3 sm:right-6 top-1/2 -translate-y-1/2 z-10 rounded-full bg-black text-white h-10 w-10 flex items-center justify-center opacity-20 hover:opacity-80 transition duration-300"
             >
               ›
             </button>
@@ -424,7 +468,7 @@ export default function MiniRentalHero() {
         </div>
       </section>
 
-      {/* Lightbox modal for enlarged model photo */}
+      {/* Lightbox */}
       <Modal
         opened={lightboxOpen}
         onClose={() => setLightboxOpen(false)}
