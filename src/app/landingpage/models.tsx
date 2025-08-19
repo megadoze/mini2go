@@ -154,7 +154,7 @@ const ModelsLanding = () => {
                   e.preventDefault();
                 }}
                 data-slide
-                className=" snap-center shrink-0 w-[70vw] sm:w-[50vw] lg:w-[560px] flex flex-col items-center justify-center no-underline"
+                className=" snap-center shrink-0 w-[80vw] sm:w-[50vw] lg:w-[560px] flex flex-col items-center justify-center no-underline"
                 aria-label={`Open ${c.title} preview`}
               >
                 <div

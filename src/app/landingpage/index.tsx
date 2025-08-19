@@ -10,6 +10,8 @@ export default function MiniRentalHero() {
 
   // ====== DESKTOP stories ======
   const storyRefs = useRef<(HTMLVideoElement | null)[]>([]);
+  const userPausedRef = useRef<Set<number>>(new Set());
+
   const [hoveredStory, setHoveredStory] = useState<number | null>(null);
   const [storyPlaying, setStoryPlaying] = useState<Record<number, boolean>>({});
   const isTouchRef = useRef(false);
@@ -18,8 +20,6 @@ export default function MiniRentalHero() {
   const mobileRefs = useRef<(HTMLVideoElement | null)[]>([]);
   const [mobilePlaying, setMobilePlaying] = useState<number | null>(null);
   const [mobileReady, setMobileReady] = useState<Record<number, boolean>>({});
-  //   const mobileStripRef = useRef<HTMLDivElement>(null);
-  //   const mobileScrollDebounce = useRef<number | null>(null);
 
   useEffect(() => {
     if (typeof window !== "undefined" && "matchMedia" in window) {
@@ -27,13 +27,24 @@ export default function MiniRentalHero() {
     }
   }, []);
 
-  // ---------- Video helpers (общие) ----------
+  // ---------- helpers ----------
   const stopAndPoster = (v: HTMLVideoElement) => {
     v.pause();
     try {
       v.currentTime = 0;
     } catch {}
-    // постер показываем через <img>-оверлей, поэтому .load() не нужен
+    // постер у нас через <img>-оверлей, отдельный .load() не нужен
+  };
+
+  // ---------- Desktop ----------
+  const setStoryRef = (idx: number) => (el: HTMLVideoElement | null) => {
+    storyRefs.current[idx] = el;
+    if (el) {
+      el.muted = true;
+      el.preload = "metadata";
+      el.setAttribute("playsinline", "");
+      el.setAttribute("webkit-playsinline", "");
+    }
   };
 
   const pauseAllDesktopExcept = (keep: number | null) => {
@@ -47,17 +58,6 @@ export default function MiniRentalHero() {
       return next;
     });
     if (keep === null) setHoveredStory(null);
-  };
-
-  // ---------- Desktop play/pause ----------
-  const setStoryRef = (idx: number) => (el: HTMLVideoElement | null) => {
-    storyRefs.current[idx] = el;
-    if (el) {
-      el.muted = true;
-      el.setAttribute("playsinline", "");
-      el.setAttribute("webkit-playsinline", "");
-      el.preload = "metadata";
-    }
   };
 
   const playDesktop = (i: number) => {
@@ -93,58 +93,159 @@ export default function MiniRentalHero() {
     setHoveredStory((p) => (p === i ? null : p));
   };
 
-  // ---------- Mobile play/pause ----------
+  // ---------- Mobile ----------
   const setMobileRef = (idx: number) => (el: HTMLVideoElement | null) => {
     mobileRefs.current[idx] = el;
     if (el) {
       el.muted = true;
-      el.preload = "metadata";
+      el.preload = "auto";
       el.setAttribute("playsinline", "");
       el.setAttribute("webkit-playsinline", "");
     }
   };
 
-  const toggleMobile = (i: number, el: HTMLVideoElement) => {
-    // при любом старте — остальные стоп
-    mobileRefs.current.forEach((v, idx) => {
-      if (v && idx !== i) stopAndPoster(v);
-    });
+  useEffect(() => {
+    if (!isTouchRef.current) return; // только мобильные/тач
+    const getIdx = (el: Element) =>
+      mobileRefs.current.findIndex((v) => v === el);
 
-    el.muted = true;
-    el.setAttribute("playsinline", "");
-    el.setAttribute("webkit-playsinline", "");
+    const io = new IntersectionObserver(
+      (entries) => {
+        // снять userPause, если карточка почти вышла
+        entries.forEach((e) => {
+          const idx = getIdx(e.target);
+          if (idx === -1) return;
+          if (e.intersectionRatio < 0.35) {
+            userPausedRef.current.delete(idx);
+            if (mobilePlaying === idx) setMobilePlaying(null);
+            const v = e.target as HTMLVideoElement;
+            stopAndPoster(v);
+          }
+        });
 
-    if (el.paused || el.ended) {
-      const start = () =>
-        el
+        // выбрать самую видимую, которая не user-paused
+        const candidates = entries
+          .filter((e) => e.isIntersecting)
+          .map((e) => ({
+            idx: getIdx(e.target),
+            ratio: e.intersectionRatio,
+            el: e.target as HTMLVideoElement,
+          }))
+          .filter((x) => x.idx !== -1 && !userPausedRef.current.has(x.idx))
+          .sort((a, b) => (b.ratio || 0) - (a.ratio || 0));
+
+        const best = candidates[0];
+        if (!best) return;
+
+        // стоп остальных
+        mobileRefs.current.forEach((v, j) => {
+          if (v && j !== best.idx) stopAndPoster(v);
+        });
+
+        best.el.muted = true;
+        best.el.setAttribute("playsinline", "");
+        best.el.setAttribute("webkit-playsinline", "");
+        best.el
           .play()
-          .then(() => setMobilePlaying(i))
+          .then(() => setMobilePlaying(best.idx))
           .catch(() => {
             try {
-              el.currentTime = (el.currentTime || 0) + 0.001;
+              best.el.currentTime = (best.el.currentTime || 0) + 0.001;
             } catch {}
-            el.play()
-              .then(() => setMobilePlaying(i))
+            best.el
+              .play()
+              .then(() => setMobilePlaying(best.idx))
               .catch(() => {});
           });
+      },
+      { threshold: [0, 0.35, 0.6] }
+    );
 
-      if (el.readyState < 2) {
-        const onData = () => {
-          el.removeEventListener("loadeddata", onData);
-          setMobileReady((r) => ({ ...r, [i]: true }));
-          start();
-        };
-        el.addEventListener("loadeddata", onData, { once: true });
-        el.load(); // первый старт
-      } else {
-        setMobileReady((r) => ({ ...r, [i]: true }));
-        start();
+    mobileRefs.current.forEach((v) => v && io.observe(v));
+    const onVis = () => {
+      if (document.hidden) {
+        mobileRefs.current.forEach((v) => v && stopAndPoster(v));
+        setMobilePlaying(null);
       }
-    } else {
-      stopAndPoster(el);
-      setMobilePlaying(null);
-    }
-  };
+    };
+    document.addEventListener("visibilitychange", onVis);
+
+    return () => {
+      io.disconnect();
+      document.removeEventListener("visibilitychange", onVis);
+    };
+  }, [mobilePlaying]);
+
+  // Автовоспроизведение на мобиле по входу в вьюпорт
+  useEffect(() => {
+    if (!isTouchRef.current) return; // только для мобильных/тач
+    const vids = mobileRefs.current.filter((v): v is HTMLVideoElement => !!v);
+    if (vids.length === 0) return;
+
+    const chooseAndPlay = (entries: IntersectionObserverEntry[]) => {
+      // ищем самый видимый ролик
+      const visible = entries
+        .filter((e) => e.isIntersecting)
+        .sort(
+          (a, b) => (b.intersectionRatio || 0) - (a.intersectionRatio || 0)
+        );
+      const target = visible[0]?.target as HTMLVideoElement | undefined;
+
+      // стопаем все, кроме таргета
+      vids.forEach((v) => {
+        if (!target || v !== target) stopAndPoster(v);
+      });
+
+      if (!target) {
+        setMobilePlaying(null);
+        return;
+      }
+
+      // пытаемся играть таргет
+      target.muted = true;
+      target.setAttribute("playsinline", "");
+      target.setAttribute("webkit-playsinline", "");
+      target
+        .play()
+        .then(() => {
+          // какой это индекс?
+          const i = mobileRefs.current.findIndex((x) => x === target);
+          if (i !== -1) setMobilePlaying(i);
+        })
+        .catch(() => {
+          try {
+            target.currentTime = (target.currentTime || 0) + 0.001;
+          } catch {}
+          target
+            .play()
+            .then(() => {
+              const i = mobileRefs.current.findIndex((x) => x === target);
+              if (i !== -1) setMobilePlaying(i);
+            })
+            .catch(() => {});
+        });
+    };
+
+    const io = new IntersectionObserver(chooseAndPlay, {
+      threshold: [0.4, 0.6, 0.8], // начнём играть, когда видно ~60%
+    });
+
+    vids.forEach((v) => io.observe(v));
+
+    // пауза при уходе со страницы/скрытии таба
+    const onVis = () => {
+      if (document.hidden) {
+        vids.forEach((v) => stopAndPoster(v));
+        setMobilePlaying(null);
+      }
+    };
+    document.addEventListener("visibilitychange", onVis);
+
+    return () => {
+      io.disconnect();
+      document.removeEventListener("visibilitychange", onVis);
+    };
+  }, []);
 
   return (
     <div className="relative min-h-screen bg-black text-white">
@@ -165,18 +266,13 @@ export default function MiniRentalHero() {
               Your MINI adventure starts now.
             </h2>
             <p className="pt-4 md:text-lg text-black/70">
-              Vertical stories — hover to play (desktop) / tap (mobile).
+              Desktop — hover to play. Mobile — auto-play on view.
             </p>
           </div>
 
-          {/* MOBILE carousel */}
+          {/* MOBILE: горизонтальная карусель, автоплей по IntersectionObserver */}
           <div className="md:hidden mt-10">
             <div
-              onScroll={() => {
-                // стопаем все во время скролла (постер покажется)
-                mobileRefs.current.forEach((el) => el && stopAndPoster(el));
-                setMobilePlaying(null);
-              }}
               className="flex overflow-x-auto snap-x snap-mandatory gap-4 px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
               style={{ WebkitOverflowScrolling: "touch" } as any}
             >
@@ -193,21 +289,45 @@ export default function MiniRentalHero() {
                       src={VIDEO_TEASERS[i].src}
                       muted
                       playsInline
-                      preload="metadata"
-                      onLoadedData={() =>
-                        setMobileReady((r) => ({ ...r, [i]: true }))
-                      }
-                      onPlaying={() => setMobilePlaying(i)}
-                      onPause={() => {
-                        if (mobilePlaying === i) setMobilePlaying(null);
-                      }}
+                      preload="auto"
                       onEnded={(e) => {
                         stopAndPoster(e.currentTarget);
                         setMobilePlaying(null);
                       }}
-                      onClick={(e) => toggleMobile(i, e.currentTarget)}
+                      onLoadedData={() =>
+                        setMobileReady((r) => ({ ...r, [i]: true }))
+                      }
+                      onClick={(e) => {
+                        const el = e.currentTarget;
+                        if (!el.paused) {
+                          // пользовательская пауза: показать постер и запретить автоплей до выхода из вьюпорта или повторного тапа
+                          stopAndPoster(el);
+                          userPausedRef.current.add(i);
+                          setMobilePlaying(null);
+                        } else {
+                          // снять userPause и запустить этот ролик, остальные — стоп
+                          userPausedRef.current.delete(i);
+                          mobileRefs.current.forEach((v, j) => {
+                            if (v && j !== i) stopAndPoster(v);
+                          });
+                          el.muted = true;
+                          el.setAttribute("playsinline", "");
+                          el.setAttribute("webkit-playsinline", "");
+                          el.play()
+                            .then(() => setMobilePlaying(i))
+                            .catch(() => {
+                              try {
+                                el.currentTime = (el.currentTime || 0) + 0.001;
+                              } catch {}
+                              el.play()
+                                .then(() => setMobilePlaying(i))
+                                .catch(() => {});
+                            });
+                        }
+                      }}
                     />
-                    {/* ПОСТЕР-Оверлей (сверху!) */}
+
+                    {/* ПОСТЕР-оверлей (сверху) */}
                     <img
                       src={VIDEO_TEASERS[i].poster}
                       alt=""
@@ -218,7 +338,7 @@ export default function MiniRentalHero() {
                       }`}
                       draggable={false}
                     />
-                    {/* Лёгкое затемнение — тоже поверх */}
+                    {/* Лёгкое затемнение (сверху) */}
                     <div
                       className={`pointer-events-none absolute inset-0 z-10 bg-black/25 transition-opacity duration-200 ${
                         mobilePlaying === i && mobileReady[i]
@@ -226,6 +346,7 @@ export default function MiniRentalHero() {
                           : "opacity-100"
                       }`}
                     />
+                    {/* Тайтл-чип */}
                     <div className="pointer-events-none absolute bottom-0 left-0 right-0 z-10 p-3">
                       <span
                         className={`inline-block rounded-full bg-white/90 px-3 py-1 text-[11px] font-semibold text-black transition-opacity duration-200 ${
@@ -263,7 +384,6 @@ export default function MiniRentalHero() {
                   }}
                 >
                   <div className="relative aspect-[9/16]">
-                    {/* ВИДЕО (снизу) */}
                     <video
                       ref={setStoryRef(0)}
                       className="absolute inset-0 h-full w-full object-cover"
@@ -284,7 +404,6 @@ export default function MiniRentalHero() {
                         setHoveredStory((p) => (p === 0 ? null : p));
                       }}
                     />
-                    {/* ПОСТЕР-Оверлей (сверху!) */}
                     <img
                       src={VIDEO_TEASERS[0].poster}
                       alt=""
@@ -336,7 +455,6 @@ export default function MiniRentalHero() {
                   }}
                 >
                   <div className="relative aspect-[9/16]">
-                    {/* ВИДЕО (снизу) */}
                     <video
                       ref={setStoryRef(2)}
                       className="absolute inset-0 h-full w-full object-cover"
@@ -357,7 +475,6 @@ export default function MiniRentalHero() {
                         setHoveredStory((p) => (p === 2 ? null : p));
                       }}
                     />
-                    {/* ПОСТЕР-Оверлей (сверху!)  — тут была опечатка, теперь ок */}
                     <img
                       src={VIDEO_TEASERS[2].poster}
                       alt=""
@@ -411,7 +528,6 @@ export default function MiniRentalHero() {
                   }}
                 >
                   <div className="relative aspect-[9/16]">
-                    {/* ВИДЕО (снизу) */}
                     <video
                       ref={setStoryRef(1)}
                       className="absolute inset-0 h-full w-full object-cover"
@@ -432,7 +548,6 @@ export default function MiniRentalHero() {
                         setHoveredStory((p) => (p === 1 ? null : p));
                       }}
                     />
-                    {/* ПОСТЕР-Оверлей (сверху!) */}
                     <img
                       src={VIDEO_TEASERS[1].poster}
                       alt=""
