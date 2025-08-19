@@ -59,7 +59,7 @@ export default function MiniRentalHero() {
   const sliderRef = useRef<HTMLDivElement>(null);
   const [activeSlide, setActiveSlide] = useState(0);
 
-  // Индекс для показа подписи/цены (стабильный)
+  // Индекс для подписи/цены (стабильный)
   const [displayIdx, setDisplayIdx] = useState(0);
   const displayIdxRef = useRef(0);
   useEffect(() => {
@@ -76,30 +76,26 @@ export default function MiniRentalHero() {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIdx, setLightboxIdx] = useState(0);
 
-  // Stories (masonry) player control
+  // Stories: десктоп (hover) — через refs; мобила — без refs
   const storyRefs = useRef<(HTMLVideoElement | null)[]>([]);
-  const [hoveredStory, setHoveredStory] = useState<number | null>(null);
+  const [hoveredStory, setHoveredStory] = useState<number | null>(null); // для десктопа
+  const [mobilePlaying, setMobilePlaying] = useState<number | null>(null); // для мобилы
   const isTouchRef = useRef(false);
 
   const scrollToSlide = (idx: number) => {
     const track = sliderRef.current;
     if (!track) return;
-
     const slides = Array.from(
       track.querySelectorAll("[data-slide]")
     ) as HTMLElement[];
     const count = slides.length;
     const next = (idx + count) % count;
-
-    // запоминаем цель для автоскролла; подписи покажем только когда цель встанет в центр
     targetIdxRef.current = next;
-
     slides[next]?.scrollIntoView({
       behavior: "smooth",
       inline: "center",
       block: "nearest",
     });
-    // activeSlide/ displayIdx не трогаем — дождёмся факта скролла
   };
 
   const onSliderScroll = () => {
@@ -110,7 +106,6 @@ export default function MiniRentalHero() {
         rafRef.current = null;
         return;
       }
-
       const center = track.getBoundingClientRect().left + track.clientWidth / 2;
       const slides = Array.from(
         track.querySelectorAll("[data-slide]")
@@ -130,26 +125,21 @@ export default function MiniRentalHero() {
 
       setActiveSlide(best);
 
-      // Порог «почти центр»
       const w =
         slides[best]?.getBoundingClientRect().width ??
         (slides[best] as HTMLElement | undefined)?.offsetWidth ??
         1;
-      const enter = Math.min(28, w * 0.08); // ~8% ширины, макс 28px
-      const margin = Math.min(18, w * 0.05); // гистерезис для ручного свайпа
-
+      const enter = Math.min(28, w * 0.08);
+      const margin = Math.min(18, w * 0.05);
       const currentIdx = displayIdxRef.current;
 
       if (targetIdxRef.current !== null) {
-        // программная прокрутка (wrap/стрелки)
         if (best === targetIdxRef.current && min <= enter) {
           if (currentIdx !== best) setDisplayIdx(best);
-          targetIdxRef.current = null; // цель достигнута
+          targetIdxRef.current = null;
         }
       } else {
-        // ручной свайп — не прячем подписи, просто переключаем, когда реально центр
         if (currentIdx !== best) {
-          // текущая дистанция от центра у того, кто сейчас показан
           let currentDist = Infinity;
           const currentEl = slides[currentIdx];
           if (currentEl) {
@@ -162,12 +152,11 @@ export default function MiniRentalHero() {
           }
         }
       }
-
       rafRef.current = null;
     });
   };
 
-  // Fallback: scrollend/дебаунс — страхуемся от редких случаев
+  // Fallback: scrollend/дебаунс
   useEffect(() => {
     const el = sliderRef.current;
     if (!el) return;
@@ -223,38 +212,102 @@ export default function MiniRentalHero() {
     return () => window.removeEventListener("keydown", onKey);
   }, [activeSlide]);
 
+  // Touch detection
   useEffect(() => {
     if (typeof window !== "undefined" && "matchMedia" in window) {
       isTouchRef.current = window.matchMedia("(hover: none)").matches;
     }
   }, []);
 
+  // ====== ДЕСКТОП: управление через refs ======
   const playStory = (i: number) => {
     const v = storyRefs.current[i];
     if (!v) return;
     v.muted = true;
-    const p = v.play();
-
-    if (p && typeof p.catch === "function") p.catch(() => {});
+    v.setAttribute("playsinline", "");
+    v.setAttribute("webkit-playsinline", "");
+    const tryPlay = () => {
+      const p = v.play();
+      if (p && typeof p.catch === "function") {
+        p.catch(() => {
+          try {
+            v.currentTime = Math.max(0, v.currentTime || 0) + 0.001;
+          } catch {}
+          const p2 = v.play();
+          if (p2 && typeof p2.catch === "function") p2.catch(() => {});
+        });
+      }
+    };
+    if (v.readyState < 2) {
+      const onData = () => {
+        v.removeEventListener("loadeddata", onData);
+        tryPlay();
+      };
+      v.addEventListener("loadeddata", onData, { once: true });
+      v.load();
+    } else {
+      tryPlay();
+    }
   };
 
   const pauseStory = (i: number, reset = false) => {
     const v = storyRefs.current[i];
     if (!v) return;
-
     v.pause();
-
     if (reset) {
       try {
         v.currentTime = 0;
       } catch {}
-      // Форсим возврат к постеру:
-      v.load(); // Safari/Chrome заново отрисует постер
+      v.load(); // вернуть постер
     }
   };
 
+  // Регистрируем ТОЛЬКО видимые (не display:none) элементы — чтобы на мобиле не перезаписывать refs
   const setStoryRef = (idx: number) => (el: HTMLVideoElement | null) => {
-    storyRefs.current[idx] = el; // callback-ref должен возвращать void
+    if (!el || el.offsetParent === null) return; // скрытые (hidden/md:hidden) не учитываем
+    storyRefs.current[idx] = el;
+    el.muted = true;
+    el.setAttribute("playsinline", "");
+    el.setAttribute("webkit-playsinline", "");
+  };
+
+  // ====== МОБИЛА: играем по конкретному элементу, без общих refs ======
+  const toggleMobileVideoEl = (el: HTMLVideoElement, i: number) => {
+    // Остановим прочие мобильные
+    document.querySelectorAll('video[data-mobile="true"]').forEach((v) => {
+      if (v !== el) {
+        const vv = v as HTMLVideoElement;
+        vv.pause();
+        try {
+          vv.currentTime = 0;
+        } catch {}
+        vv.load(); // вернуть постер
+      }
+    });
+
+    el.muted = true;
+    el.setAttribute("playsinline", "");
+    el.setAttribute("webkit-playsinline", "");
+
+    if (el.paused || el.ended) {
+      el.play()
+        .then(() => setMobilePlaying(i))
+        .catch(() => {
+          try {
+            el.currentTime = (el.currentTime || 0) + 0.001;
+          } catch {}
+          el.play()
+            .then(() => setMobilePlaying(i))
+            .catch(() => {});
+        });
+    } else {
+      el.pause();
+      try {
+        el.currentTime = 0;
+      } catch {}
+      el.load();
+      setMobilePlaying(null);
+    }
   };
 
   return (
@@ -456,7 +509,6 @@ export default function MiniRentalHero() {
                   className="snap-center shrink-0 w-[70vw] sm:w-[50vw] lg:w-[560px] flex flex-col items-center justify-center no-underline"
                   aria-label={`Open ${c.title} preview`}
                 >
-                  {/* Название — всегда в DOM; видимость меняется без прыжков */}
                   <div
                     className={`-mb-6 text-4xl sm:text-6xl font-openSans font-bold text-neutral-300 z-50 transition-opacity duration-75 ${
                       i === displayIdx ? "opacity-100" : "opacity-0"
@@ -478,7 +530,6 @@ export default function MiniRentalHero() {
                     loading="lazy"
                   />
 
-                  {/* Цена — всегда в DOM; видимость меняется без прыжков */}
                   <div
                     className={`text-center z-50 -mt-10 transition-opacity duration-75 ${
                       i === displayIdx ? "opacity-100" : "opacity-0"
@@ -538,92 +589,67 @@ export default function MiniRentalHero() {
             </p>
           </div>
 
-          {/* Центр: слева 2 видео столбиком, справа 1, смещён вниз на ~22% на десктопе.
-       На мобилке — всё в одну колонку по центру, без смещения. */}
-          {/* MOBILE: горизонтальная карусель с центрированием карточек */}
-          {/* MOBILE: простая горизонтальная карусель без motion */}
           {/* MOBILE: простая горизонтальная карусель без motion */}
           <div className="md:hidden mt-10">
-            <div className="relative">
-              <div
-                className="flex overflow-x-auto snap-x snap-mandatory gap-4 px-4
-                 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-              >
-                {[0, 1, 2].map((i) => (
-                  <div
-                    key={i}
-                    className="snap-center shrink-0 w-[82vw] max-w-[420px]"
-                  >
-                    <div className="relative aspect-[9/16] overflow-hidden rounded-2xl ring-1 ring-black/10 bg-black">
-                      {/* Видео */}
-                      <video
-                        ref={setStoryRef(i)}
-                        className="absolute inset-0 h-full w-full object-cover"
-                        src={VIDEO_TEASERS[i].src}
-                        poster={VIDEO_TEASERS[i].poster}
-                        muted
-                        playsInline
-                        controls={false}
-                        preload="metadata"
-                        onEnded={() => {
-                          if (hoveredStory === i) setHoveredStory(null);
-                          pauseStory(i, true); // стоп и вернуть постер
-                        }}
-                      />
+            <div
+              className="flex overflow-x-auto snap-x snap-mandatory gap-4 px-4
+               [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            >
+              {[0, 1, 2].map((i) => (
+                <div
+                  key={i}
+                  className="snap-center shrink-0 w-[82vw] max-w-[420px]"
+                >
+                  <div className="relative aspect-[9/16] overflow-hidden rounded-2xl ring-1 ring-black/10 bg-black">
+                    <video
+                      data-mobile="true"
+                      className="absolute inset-0 h-full w-full object-cover"
+                      src={VIDEO_TEASERS[i].src}
+                      poster={VIDEO_TEASERS[i].poster}
+                      muted
+                      playsInline
+                      preload="metadata"
+                      onPointerUp={(e) =>
+                        toggleMobileVideoEl(
+                          e.currentTarget as HTMLVideoElement,
+                          i
+                        )
+                      }
+                      onClick={(e) =>
+                        toggleMobileVideoEl(
+                          e.currentTarget as HTMLVideoElement,
+                          i
+                        )
+                      }
+                      onEnded={(e) => {
+                        setMobilePlaying(null);
+                        const v = e.currentTarget as HTMLVideoElement;
+                        try {
+                          v.currentTime = 0;
+                        } catch {}
+                        v.load(); // вернуть постер
+                      }}
+                    />
 
-                      {/* Прозрачная кнопка-перекрытие: гарантированный жест для iOS */}
-                      <button
-                        type="button"
-                        aria-label="Play/Pause"
-                        className="absolute inset-0"
-                        style={{ touchAction: "manipulation" }}
-                        onPointerUp={(e) => {
-                          // иногда Safari «залипает» на pointer capture
-                          (e.currentTarget as any).releasePointerCapture?.(
-                            e.pointerId
-                          );
-                          const v = storyRefs.current[i];
-                          if (!v) return;
+                    <div
+                      className={`pointer-events-none absolute inset-0 bg-black/35 transition-opacity duration-200 ${
+                        mobilePlaying === i ? "opacity-0" : "opacity-100"
+                      }`}
+                    />
 
-                          // если уже играет — пауза и постер
-                          if (hoveredStory === i && !v.paused) {
-                            setHoveredStory(null);
-                            pauseStory(i, true);
-                            return;
-                          }
-
-                          // останавливаем предыдущий
-                          if (hoveredStory !== null)
-                            pauseStory(hoveredStory, true);
-
-                          setHoveredStory(i);
-                          v.muted = true; // на всякий случай перед play()
-                          v.play().catch(() => {});
-                        }}
-                      />
-
-                      {/* Затемнение — исчезает, когда видео играет */}
-                      <div
-                        className={`pointer-events-none absolute inset-0 bg-black/35 transition-opacity duration-200
-                          ${hoveredStory === i ? "opacity-0" : "opacity-100"}`}
-                      />
-
-                      {/* Подпись — абсолютная, не влияет на высоту */}
-                      <div className="pointer-events-none absolute bottom-0 left-0 right-0 p-3">
-                        <span
-                          className={`inline-block rounded-full bg-white/90 px-3 py-1 text-[11px] font-semibold text-black
-                            transition-opacity duration-200
-                            ${
-                              hoveredStory === i ? "opacity-0" : "opacity-100"
-                            }`}
-                        >
-                          {VIDEO_TEASERS[i].title}
-                        </span>
-                      </div>
+                    <div className="pointer-events-none absolute bottom-0 left-0 right-0 p-3">
+                      <span
+                        className={`inline-block rounded-full bg-white/90 px-3 py-1 text-[11px] font-semibold text-black
+                          transition-opacity duration-200 ${
+                            mobilePlaying === i ? "opacity-0" : "opacity-100"
+                          }`}
+                      >
+                        {VIDEO_TEASERS[i].title}
+                      </span>
                     </div>
                   </div>
-                ))}
-              </div>
+                </div>
+              ))}
             </div>
           </div>
 
@@ -655,17 +681,6 @@ export default function MiniRentalHero() {
                       pauseStory(0, true);
                     }
                   }}
-                  onClick={() => {
-                    if (!isTouchRef.current) return;
-                    if (hoveredStory === 0) {
-                      setHoveredStory(null);
-                      pauseStory(0, true);
-                    } else {
-                      if (hoveredStory !== null) pauseStory(hoveredStory, true);
-                      setHoveredStory(0);
-                      playStory(0);
-                    }
-                  }}
                 >
                   <div className="relative aspect-[9/16]">
                     <video
@@ -679,16 +694,14 @@ export default function MiniRentalHero() {
                       preload="metadata"
                     />
                     <div
-                      className={`pointer-events-none absolute inset-0 bg-black/35 transition-opacity duration-300
-                        ${
-                          hoveredStory === 0 ? "opacity-0" : "opacity-100"
-                        } group-hover:opacity-0`}
+                      className={`pointer-events-none absolute inset-0 bg-black/35 transition-opacity duration-300 ${
+                        hoveredStory === 0 ? "opacity-0" : "opacity-100"
+                      } group-hover:opacity-0`}
                     />
                     <div className="pointer-events-none absolute bottom-0 left-0 right-0 p-4">
                       <span
                         className={`inline-block rounded-full bg-white/90 px-3 py-1 text-[11px] font-semibold text-black
-                          transition-opacity duration-300
-                          ${
+                          transition-opacity duration-300 ${
                             hoveredStory === 0 ? "opacity-0" : "opacity-100"
                           } group-hover:opacity-0`}
                       >
@@ -726,17 +739,6 @@ export default function MiniRentalHero() {
                       pauseStory(2, true);
                     }
                   }}
-                  onClick={() => {
-                    if (!isTouchRef.current) return;
-                    if (hoveredStory === 2) {
-                      setHoveredStory(null);
-                      pauseStory(2, true);
-                    } else {
-                      if (hoveredStory !== null) pauseStory(hoveredStory, true);
-                      setHoveredStory(2);
-                      playStory(2);
-                    }
-                  }}
                 >
                   <div className="relative aspect-[9/16]">
                     <video
@@ -750,16 +752,14 @@ export default function MiniRentalHero() {
                       preload="metadata"
                     />
                     <div
-                      className={`pointer-events-none absolute inset-0 bg-black/35 transition-opacity duration-300
-                        ${
-                          hoveredStory === 2 ? "opacity-0" : "opacity-100"
-                        } group-hover:opacity-0`}
+                      className={`pointer-events-none absolute inset-0 bg-black/35 transition-opacity duration-300 ${
+                        hoveredStory === 2 ? "opacity-0" : "opacity-100"
+                      } group-hover:opacity-0`}
                     />
                     <div className="pointer-events-none absolute bottom-0 left-0 right-0 p-4">
                       <span
                         className={`inline-block rounded-full bg-white/90 px-3 py-1 text-[11px] font-semibold text-black
-                          transition-opacity duration-300
-                          ${
+                          transition-opacity duration-300 ${
                             hoveredStory === 2 ? "opacity-0" : "opacity-100"
                           } group-hover:opacity-0`}
                       >
@@ -772,7 +772,6 @@ export default function MiniRentalHero() {
 
               {/* Правая колонка: карточка #1 со смещением вниз */}
               <div className="flex flex-col items-center gap-8 translate-y-[42%]">
-                {/* CARD 1 */}
                 <motion.button
                   type="button"
                   initial={{ opacity: 0, y: 24, scale: 0.98 }}
@@ -800,17 +799,6 @@ export default function MiniRentalHero() {
                       pauseStory(1, true);
                     }
                   }}
-                  onClick={() => {
-                    if (!isTouchRef.current) return;
-                    if (hoveredStory === 1) {
-                      setHoveredStory(null);
-                      pauseStory(1, true);
-                    } else {
-                      if (hoveredStory !== null) pauseStory(hoveredStory, true);
-                      setHoveredStory(1);
-                      playStory(1);
-                    }
-                  }}
                 >
                   <div className="relative aspect-[9/16]">
                     <video
@@ -824,16 +812,14 @@ export default function MiniRentalHero() {
                       preload="metadata"
                     />
                     <div
-                      className={`pointer-events-none absolute inset-0 bg-black/35 transition-opacity duration-300
-                        ${
-                          hoveredStory === 1 ? "opacity-0" : "opacity-100"
-                        } group-hover:opacity-0`}
+                      className={`pointer-events-none absolute inset-0 bg-black/35 transition-opacity duration-300 ${
+                        hoveredStory === 1 ? "opacity-0" : "opacity-100"
+                      } group-hover:opacity-0`}
                     />
                     <div className="pointer-events-none absolute bottom-0 left-0 right-0 p-4">
                       <span
                         className={`inline-block rounded-full bg-white/90 px-3 py-1 text-[11px] font-semibold text-black
-                          transition-opacity duration-300
-                          ${
+                          transition-opacity duration-300 ${
                             hoveredStory === 1 ? "opacity-0" : "opacity-100"
                           } group-hover:opacity-0`}
                       >
