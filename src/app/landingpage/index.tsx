@@ -542,66 +542,88 @@ export default function MiniRentalHero() {
        На мобилке — всё в одну колонку по центру, без смещения. */}
           {/* MOBILE: горизонтальная карусель с центрированием карточек */}
           {/* MOBILE: простая горизонтальная карусель без motion */}
+          {/* MOBILE: простая горизонтальная карусель без motion */}
           <div className="md:hidden mt-10">
-            <div
-              className="flex overflow-x-auto snap-x snap-mandatory gap-4 px-4
-               [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-            >
-              {[0, 1, 2].map((i) => (
-                <div
-                  key={i}
-                  className="snap-center shrink-0 w-[82vw] max-w-[420px]"
-                >
-                  <div className="relative aspect-[9/16] overflow-hidden rounded-2xl ring-1 ring-black/10 bg-black">
-                    {/* Видео */}
-                    <video
-                      ref={setStoryRef(i)}
-                      className="absolute inset-0 h-full w-full object-cover"
-                      src={VIDEO_TEASERS[i].src}
-                      poster={VIDEO_TEASERS[i].poster}
-                      muted
-                      playsInline
-                      preload="metadata"
-                      // без loop: при паузе/конце вернём постер через pauseStory(..., true)
-                    />
-
-                    {/* Невидимая кнопка-перекрытие для тапа: play/pause c возвратом постера */}
-                    <button
-                      type="button"
-                      aria-label="Play/Pause"
-                      className="absolute inset-0"
-                      onClick={() => {
-                        if (hoveredStory === i) {
-                          setHoveredStory(null);
+            <div className="relative">
+              <div
+                className="flex overflow-x-auto snap-x snap-mandatory gap-4 px-4
+                 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+              >
+                {[0, 1, 2].map((i) => (
+                  <div
+                    key={i}
+                    className="snap-center shrink-0 w-[82vw] max-w-[420px]"
+                  >
+                    <div className="relative aspect-[9/16] overflow-hidden rounded-2xl ring-1 ring-black/10 bg-black">
+                      {/* Видео */}
+                      <video
+                        ref={setStoryRef(i)}
+                        className="absolute inset-0 h-full w-full object-cover"
+                        src={VIDEO_TEASERS[i].src}
+                        poster={VIDEO_TEASERS[i].poster}
+                        muted
+                        playsInline
+                        controls={false}
+                        preload="metadata"
+                        onEnded={() => {
+                          if (hoveredStory === i) setHoveredStory(null);
                           pauseStory(i, true); // стоп и вернуть постер
-                        } else {
+                        }}
+                      />
+
+                      {/* Прозрачная кнопка-перекрытие: гарантированный жест для iOS */}
+                      <button
+                        type="button"
+                        aria-label="Play/Pause"
+                        className="absolute inset-0"
+                        style={{ touchAction: "manipulation" }}
+                        onPointerUp={(e) => {
+                          // иногда Safari «залипает» на pointer capture
+                          (e.currentTarget as any).releasePointerCapture?.(
+                            e.pointerId
+                          );
+                          const v = storyRefs.current[i];
+                          if (!v) return;
+
+                          // если уже играет — пауза и постер
+                          if (hoveredStory === i && !v.paused) {
+                            setHoveredStory(null);
+                            pauseStory(i, true);
+                            return;
+                          }
+
+                          // останавливаем предыдущий
                           if (hoveredStory !== null)
                             pauseStory(hoveredStory, true);
+
                           setHoveredStory(i);
-                          playStory(i); // гарантируем старт по юзер-жесту
-                        }
-                      }}
-                    />
+                          v.muted = true; // на всякий случай перед play()
+                          v.play().catch(() => {});
+                        }}
+                      />
 
-                    {/* Лёгкое затемнение — пропадает, когда видео играет */}
-                    <div
-                      className={`pointer-events-none absolute inset-0 bg-black/35 transition-opacity duration-200
-                        ${hoveredStory === i ? "opacity-0" : "opacity-100"}`}
-                    />
-
-                    {/* Подпись — абсолютная, не влияет на высоту (ничего не «пляшет») */}
-                    <div className="pointer-events-none absolute bottom-0 left-0 right-0 p-3">
-                      <span
-                        className={`inline-block rounded-full bg-white/90 px-3 py-1 text-[11px] font-semibold text-black
-                          transition-opacity duration-200
+                      {/* Затемнение — исчезает, когда видео играет */}
+                      <div
+                        className={`pointer-events-none absolute inset-0 bg-black/35 transition-opacity duration-200
                           ${hoveredStory === i ? "opacity-0" : "opacity-100"}`}
-                      >
-                        {VIDEO_TEASERS[i].title}
-                      </span>
+                      />
+
+                      {/* Подпись — абсолютная, не влияет на высоту */}
+                      <div className="pointer-events-none absolute bottom-0 left-0 right-0 p-3">
+                        <span
+                          className={`inline-block rounded-full bg-white/90 px-3 py-1 text-[11px] font-semibold text-black
+                            transition-opacity duration-200
+                            ${
+                              hoveredStory === i ? "opacity-0" : "opacity-100"
+                            }`}
+                        >
+                          {VIDEO_TEASERS[i].title}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           </div>
 
