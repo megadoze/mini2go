@@ -159,10 +159,10 @@ export default function MiniRentalHero() {
 
       {/* === VIDEO === */}
       <section id="mini-stories" className="relative bg-white">
-        <div className="px-4 sm:px-6 lg:px-10 py-16 sm:py-20">
+        <div className="px-4 sm:px-6 lg:px-10">
           <div className="text-center">
             <h2 className="text-2xl sm:text-3xl lg:text-5xl font-openSans font-bold text-black">
-              Ihr MINI Abenteuer beginnt jetzt.
+              Your MINI adventure starts now.
             </h2>
             <p className="pt-4 md:text-lg text-black/70">
               Vertical stories — hover to play (desktop) / tap (mobile).

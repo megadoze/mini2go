@@ -128,7 +128,7 @@ const ModelsLanding = () => {
 
   return (
     <section id="models" className="relative bg-white text-black">
-      <div className="px-4 sm:px-6 lg:px-10 py-24 sm:py-36">
+      <div className="px-4 sm:px-6 lg:px-10 py-20">
         <div className="text-center">
           <h2 className="text-2xl sm:text-3xl lg:text-5xl font-openSans font-bold">
             Which one will it be today?
@@ -139,11 +139,11 @@ const ModelsLanding = () => {
           </p>
         </div>
 
-        <div className="relative mt-8">
+        <div className="relative mt-16">
           <div
             ref={sliderRef}
             onScroll={onSliderScroll}
-            className=" flex gap-6 overflow-x-auto snap-x snap-mandatory scroll-smooth items-center [scrollbar-width:none] [&::-webkit-scrollbar]:hidden h-80 md:h-[456px]"
+            className=" flex gap-6 overflow-x-auto snap-x snap-mandatory scroll-smooth items-center [scrollbar-width:none] [&::-webkit-scrollbar]:hidden h-60 md:h-[456px]"
             style={{ paddingLeft: sidePad, paddingRight: sidePad }}
           >
             {CAR_CARDS.map((c, i) => (
@@ -158,7 +158,7 @@ const ModelsLanding = () => {
                 aria-label={`Open ${c.title} preview`}
               >
                 <div
-                  className={`-mb-6 text-4xl sm:text-6xl font-openSans font-bold text-neutral-300 z-50 transition-opacity duration-75 ${
+                  className={` text-4xl sm:text-6xl font-openSans font-bold text-neutral-300 z-50 transition-opacity duration-75 ${
                     i === displayIdx ? "opacity-100" : "opacity-0"
                   }`}
                   aria-hidden={i !== displayIdx}
@@ -168,14 +168,14 @@ const ModelsLanding = () => {
                 <img
                   src={c.img}
                   alt={c.title}
-                  className={` transition-transform duration-300 h-[220px] sm:h-[260px] lg:h-[320px] object-contain select-none ${
+                  className={` transition-transform duration-300 h-fit sm:h-[260px] lg:h-[320px] object-contain select-none ${
                     i === activeSlide ? "scale-125" : "scale-100"
                   }`}
                   draggable={false}
                   loading="lazy"
                 />
                 <div
-                  className={`text-center z-50 -mt-10 transition-opacity duration-75 ${
+                  className={`text-center z-50 -mt-0 transition-opacity duration-75 ${
                     i === displayIdx ? "opacity-100" : "opacity-0"
                   }`}
                   aria-hidden={i !== displayIdx}
