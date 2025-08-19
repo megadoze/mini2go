@@ -40,8 +40,6 @@ export default function MiniRentalHero() {
   const sliderRef = useRef<HTMLDivElement>(null);
   const [activeSlide, setActiveSlide] = useState(0);
   const [displayIdx, setDisplayIdx] = useState(0);
-  const [isScrolling, setIsScrolling] = useState(false);
-  const scrollIdleTimerRef = useRef<number | null>(null);
 
   const rafRef = useRef<number | null>(null);
   const [sidePad, setSidePad] = useState(0);
@@ -53,8 +51,6 @@ export default function MiniRentalHero() {
   const scrollToSlide = (idx: number) => {
     const track = sliderRef.current;
     if (!track) return;
-
-    setIsScrolling(true); // ← мгновенно скрываем подписи
 
     const slides = Array.from(
       track.querySelectorAll("[data-slide]")
@@ -72,8 +68,6 @@ export default function MiniRentalHero() {
   };
 
   const onSliderScroll = () => {
-    setIsScrolling(true); // ← как только есть скролл — подписи прячем
-
     if (rafRef.current) return;
     rafRef.current = requestAnimationFrame(() => {
       const track = sliderRef.current;
@@ -83,8 +77,9 @@ export default function MiniRentalHero() {
       }
 
       const center = track.getBoundingClientRect().left + track.clientWidth / 2;
-      let best = 0;
-      let min = Infinity;
+      let best = 0,
+        min = Infinity,
+        bestRect: DOMRect | null = null;
       const slides = Array.from(
         track.querySelectorAll("[data-slide]")
       ) as HTMLElement[];
@@ -95,18 +90,16 @@ export default function MiniRentalHero() {
         if (d < min) {
           min = d;
           best = i;
+          bestRect = rect;
         }
       });
 
       setActiveSlide(best);
 
-      // дебаунс конца прокрутки → показать подписи быстро (90мс)
-      if (scrollIdleTimerRef.current)
-        window.clearTimeout(scrollIdleTimerRef.current);
-      scrollIdleTimerRef.current = window.setTimeout(() => {
-        setDisplayIdx(best);
-        setIsScrolling(false);
-      }, 16);
+      // порог «почти центр»: ~6% ширины слайда, но не больше 24px
+      const w = bestRect?.width ?? 1;
+      const threshold = Math.min(24, w * 0.06);
+      setDisplayIdx(min <= threshold ? best : -1);
 
       rafRef.current = null;
     });
@@ -365,12 +358,11 @@ export default function MiniRentalHero() {
                   aria-label={`Open ${c.title} preview`}
                 >
                   <div
-                    className={`-mb-6 text-4xl sm:text-6xl font-openSans font-bold text-neutral-300 z-50
-              transition-opacity duration-100 ${
-                !isScrolling && i === displayIdx ? "opacity-100" : "opacity-0"
-              }
-              pointer-events-none select-none`}
-                    aria-hidden={!(!isScrolling && i === displayIdx)}
+                    className={`-mb-6 text-base sm:text-6xl font-openSans font-bold text-neutral-300 z-50
+              transition-opacity duration-75 ${
+                i === displayIdx ? "opacity-100" : "opacity-0"
+              }`}
+                    aria-hidden={i !== displayIdx}
                   >
                     {c.title}
                   </div>
@@ -387,14 +379,11 @@ export default function MiniRentalHero() {
                     loading="lazy"
                   />
                   <div
-                    className={`text-center z-50 -mt-10 transition-opacity duration-100
-              ${!isScrolling && i === displayIdx ? "opacity-100" : "opacity-0"}
-              pointer-events-none select-none`}
-                    aria-hidden={!(!isScrolling && i === displayIdx)}
+                    className={`text-center z-50 -mt-10 transition-opacity duration-75
+              ${i === displayIdx ? "opacity-100" : "opacity-0"}`}
+                    aria-hidden={i !== displayIdx}
                   >
-                    <div className=" text-xl md:text-2xl text-gray-800">
-                      {c.price}
-                    </div>
+                    <div className="text-2xl text-gray-800">{c.price}</div>
                   </div>
                 </a>
               ))}
