@@ -267,7 +267,7 @@ export default function MiniRentalHero() {
                     <img
                       src={VIDEO_TEASERS[i].poster}
                       alt=""
-                      className={`pointer-events-none absolute inset-0 h-full w-full object-cover z-10 transition-opacity duration-700 ${
+                      className={`pointer-events-none absolute inset-0 h-full w-full object-cover z-10 transition-opacity duration-200 ${
                         mobileActive === i ? "opacity-0" : "opacity-100"
                       }`}
                       draggable={false}
