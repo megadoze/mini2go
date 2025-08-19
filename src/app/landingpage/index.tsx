@@ -114,28 +114,34 @@ export default function MiniRentalHero() {
   };
 
   useEffect(() => {
-    if (!isTouchRef.current) return; // только мобильные/тач
+    if (!isTouchRef.current) return;
+
+    const ACTIVATE_RATIO = 0.6; // ▶️ запускать только когда видно сильно
+    const DEACTIVATE_RATIO = 0.35; // ⏹️ гасить, когда почти ушёл
+
     const getIdx = (el: Element) =>
       mobileRefs.current.findIndex((v) => v === el);
 
     const io = new IntersectionObserver(
       (entries) => {
-        // снять userPause и деактивировать карточку, если почти вышла
+        // 1) деактивация ниже порога
         entries.forEach((e) => {
           const idx = getIdx(e.target);
           if (idx === -1) return;
-          if (e.intersectionRatio < 0.35) {
+          if (e.intersectionRatio < DEACTIVATE_RATIO) {
             userPausedRef.current.delete(idx);
             if (mobilePlaying === idx) setMobilePlaying(null);
             if (mobileActive === idx) setMobileActive(null);
             const v = e.target as HTMLVideoElement;
-            stopMobileVideo(idx, v); // CHANGED
+            stopMobileVideo(idx, v);
           }
         });
 
-        // выбрать самую видимую, у которой нет user-pause
+        // 2) кандидаты только ПОСЛЕ верхнего порога (гистерезис)
         const candidates = entries
-          .filter((e) => e.isIntersecting)
+          .filter(
+            (e) => e.isIntersecting && e.intersectionRatio >= ACTIVATE_RATIO
+          )
           .map((e) => ({
             idx: getIdx(e.target),
             ratio: e.intersectionRatio,
@@ -149,10 +155,10 @@ export default function MiniRentalHero() {
 
         // стоп остальных
         mobileRefs.current.forEach((v, j) => {
-          if (v && j !== best.idx) stopMobileVideo(j, v); // CHANGED
+          if (v && j !== best.idx) stopMobileVideo(j, v);
         });
 
-        // НЕ скрываем постер сразу — ждём первый кадр
+        // запуск best — как у тебя было
         const token = Symbol();
         mobileStartTokenRef.current[best.idx] = token;
 
@@ -162,12 +168,12 @@ export default function MiniRentalHero() {
         best.el
           .play()
           .then(async () => {
-            await waitFirstFrame(best.el); // ждём первый кадр
+            await waitFirstFrame(best.el);
             if (
               mobileStartTokenRef.current[best.idx] === token &&
               !best.el.paused
             ) {
-              setMobileActive(best.idx); // теперь убираем постер
+              setMobileActive(best.idx);
               setMobilePlaying(best.idx);
             }
           })
@@ -188,13 +194,13 @@ export default function MiniRentalHero() {
             } catch {}
           });
       },
-      { threshold: [0, 0.35, 0.6] }
+      { threshold: [0, DEACTIVATE_RATIO, ACTIVATE_RATIO, 0.8, 1] } // можно чуть плотнее
     );
 
     mobileRefs.current.forEach((v) => v && io.observe(v));
     const onVis = () => {
       if (document.hidden) {
-        mobileRefs.current.forEach((v, idx) => v && stopMobileVideo(idx, v)); // CHANGED
+        mobileRefs.current.forEach((v, idx) => v && stopMobileVideo(idx, v));
         setMobilePlaying(null);
         setMobileActive(null);
       }
