@@ -53,11 +53,12 @@ const HeroSection = () => {
           <p className=" text-black font-bold">Book your MINI now</p>
           <input
             type="text"
-            placeholder="Митстейшн / город"
+            placeholder="Location"
             className="flex-1 rounded-md border border-gray-200 px-4 py-3 text-sm text-black focus:outline-none focus:ring-2 focus:ring-black"
           />
           <input
-            type="date"
+            type="text"
+            placeholder="Dates"
             className="flex-1 rounded-md border border-gray-200 px-4 py-3 text-sm text-black focus:outline-none focus:ring-2 focus:ring-black"
           />
           <button

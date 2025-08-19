@@ -23,6 +23,9 @@ export default function MiniRentalHero() {
   const [mobileActive, setMobileActive] = useState<number | null>(null);
   // NEW: трекаем "попытку запуска" для каждого индекса, чтобы избегать гонок
   const mobileStartTokenRef = useRef<(symbol | null)[]>([]);
+  const [mobileVisible, setMobileVisible] = useState<Record<number, boolean>>(
+    {}
+  );
 
   useEffect(() => {
     if (typeof window !== "undefined" && "matchMedia" in window) {
@@ -175,6 +178,7 @@ export default function MiniRentalHero() {
             ) {
               setMobileActive(best.idx);
               setMobilePlaying(best.idx);
+              setMobileVisible((s) => ({ ...s, [best.idx]: true }));
             }
           })
           .catch(async () => {
@@ -297,7 +301,10 @@ export default function MiniRentalHero() {
                     {/* ВИДЕО (снизу) */}
                     <video
                       ref={setMobileRef(i)}
-                      className="absolute inset-0 h-full w-full object-cover"
+                      //   className="absolute inset-0 h-full w-full object-cover"
+                      className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-500 ${
+                        mobileVisible[i] ? "opacity-100" : "opacity-0"
+                      }`}
                       src={VIDEO_TEASERS[i].src}
                       muted
                       playsInline
@@ -346,6 +353,7 @@ export default function MiniRentalHero() {
                           ) {
                             setMobileActive(i); // постер исчезает после первого кадра
                             setMobilePlaying(i);
+                            setMobileVisible((s) => ({ ...s, [i]: true }));
                           }
                         }
                       }}
@@ -355,7 +363,7 @@ export default function MiniRentalHero() {
                     <img
                       src={VIDEO_TEASERS[i].poster}
                       alt=""
-                      className={`pointer-events-none absolute inset-0 h-full w-full object-cover z-10 transition-opacity duration-100 ${
+                      className={`pointer-events-none absolute inset-0 h-full w-full object-cover z-10 transition-opacity duration-300 ${
                         mobileActive === i ? "opacity-0" : "opacity-100"
                       }`}
                       draggable={false}
