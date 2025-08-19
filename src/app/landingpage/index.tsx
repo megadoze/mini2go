@@ -55,7 +55,7 @@ const VIDEO_TEASERS = [
 export default function MiniRentalHero() {
   const [menuOpen, setMenuOpen] = useState(false);
 
-  // ====== SLIDER (как было) ======
+  // ====== SLIDER ======
   const sliderRef = useRef<HTMLDivElement>(null);
   const [activeSlide, setActiveSlide] = useState(0);
   const [displayIdx, setDisplayIdx] = useState(0);
@@ -106,8 +106,8 @@ export default function MiniRentalHero() {
       let best = 0,
         min = Infinity;
       slides.forEach((child, i) => {
-        const rect = child.getBoundingClientRect();
-        const d = Math.abs(rect.left + rect.width / 2 - center);
+        const r = child.getBoundingClientRect();
+        const d = Math.abs(r.left + r.width / 2 - center);
         if (d < min) {
           min = d;
           best = i;
@@ -208,19 +208,11 @@ export default function MiniRentalHero() {
       });
     }
   };
-
-  const pauseStory = (i: number, reset = false) => {
+  const pauseStory = (i: number) => {
     const v = storyRefs.current[i];
     if (!v) return;
     v.pause();
-    if (reset) {
-      try {
-        v.currentTime = 0;
-      } catch {}
-      v.load();
-    }
   };
-
   const setStoryRef = (idx: number) => (el: HTMLVideoElement | null) => {
     storyRefs.current[idx] = el;
     if (el) {
@@ -230,41 +222,24 @@ export default function MiniRentalHero() {
     }
   };
 
-  // ====== МОБИЛЬНЫЙ ПЛЕЕР (НОВОЕ) ======
+  // ====== МОБИЛЬНАЯ КАРУСЕЛЬ ВИДЕО (фикс) ======
+  const mobileRefs = useRef<(HTMLVideoElement | null)[]>([]);
   const [mobilePlaying, setMobilePlaying] = useState<number | null>(null);
+  const [mobileReady, setMobileReady] = useState<Record<number, boolean>>({});
 
-  const mobileVideoRef = (i: number) => (el: HTMLVideoElement | null) => {
+  const setMobileRef = (i: number) => (el: HTMLVideoElement | null) => {
+    mobileRefs.current[i] = el;
     if (!el) return;
     el.muted = true;
+    el.preload = "auto";
     el.setAttribute("playsinline", "");
     el.setAttribute("webkit-playsinline", "");
-    el.preload = "auto";
-    // если видео паузнули вручную/свайпом — вернём постер и снимем флаг
-    el.addEventListener(
-      "pause",
-      () => {
-        if (el.ended) return;
-        try {
-          el.currentTime = 0;
-        } catch {}
-        el.load();
-        setMobilePlaying((p) => (p === i ? null : p));
-      },
-      { passive: true }
-    );
   };
 
-  const toggleMobileVideoEl = (el: HTMLVideoElement, i: number) => {
-    // остановим прочие мобильные
-    document.querySelectorAll('video[data-mobile="true"]').forEach((v) => {
-      if (v !== el) {
-        const vv = v as HTMLVideoElement;
-        vv.pause();
-        try {
-          vv.currentTime = 0;
-        } catch {}
-        vv.load();
-      }
+  const handleMobileToggle = (i: number, el: HTMLVideoElement) => {
+    // стоп остальных (без ресета, чтобы не мигало)
+    mobileRefs.current.forEach((v, idx) => {
+      if (v && idx !== i && !v.paused) v.pause();
     });
 
     el.muted = true;
@@ -272,22 +247,37 @@ export default function MiniRentalHero() {
     el.setAttribute("webkit-playsinline", "");
 
     if (el.paused || el.ended) {
-      el.play()
-        .then(() => setMobilePlaying(i))
-        .catch(() => {
-          try {
-            el.currentTime = (el.currentTime || 0) + 0.001;
-          } catch {}
-          el.play()
-            .then(() => setMobilePlaying(i))
-            .catch(() => {});
-        });
+      const start = () =>
+        el
+          .play()
+          .then(() => setMobilePlaying(i))
+          .catch(() => {
+            try {
+              el.currentTime = (el.currentTime || 0) + 0.001;
+            } catch {}
+            el.play()
+              .then(() => setMobilePlaying(i))
+              .catch(() => {});
+          });
+
+      if (el.readyState < 2) {
+        const onData = () => {
+          el.removeEventListener("loadeddata", onData);
+          setMobileReady((r) => ({ ...r, [i]: true }));
+          start();
+        };
+        el.addEventListener("loadeddata", onData, { once: true });
+        el.load(); // только при первом старте
+      } else {
+        setMobileReady((r) => ({ ...r, [i]: true }));
+        start();
+      }
     } else {
+      // пауза текущего: показываем постер-оверлей, но НЕ делаем load()
       el.pause();
       try {
         el.currentTime = 0;
       } catch {}
-      el.load();
       setMobilePlaying(null);
     }
   };
@@ -557,7 +547,7 @@ export default function MiniRentalHero() {
             </p>
           </div>
 
-          {/* MOBILE: простая горизонтальная карусель, без motion */}
+          {/* MOBILE carousel (фикс): один handler, без дерганья */}
           <div className="md:hidden mt-10">
             <div
               className="flex overflow-x-auto snap-x snap-mandatory gap-4 px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
@@ -566,49 +556,66 @@ export default function MiniRentalHero() {
               {[0, 1, 2].map((i) => (
                 <div
                   key={i}
-                  className="snap-center shrink-0 w-[82vw] max-w-[420px]"
+                  className="snap-center shrink-0 w-[82vw] max-w-[420px] [touch-action:manipulation]"
                 >
                   <div className="relative aspect-[9/16] overflow-hidden rounded-2xl ring-1 ring-black/10 bg-black">
+                    {/* постер-оверлей — управляем сами, чтобы не было чёрных кадров */}
+                    <img
+                      src={VIDEO_TEASERS[i].poster}
+                      alt=""
+                      className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-200
+                                 ${
+                                   mobilePlaying === i && mobileReady[i]
+                                     ? "opacity-0"
+                                     : "opacity-100"
+                                 }`}
+                      draggable={false}
+                    />
                     <video
-                      data-mobile="true"
-                      ref={mobileVideoRef(i)}
+                      ref={setMobileRef(i)}
                       className="absolute inset-0 h-full w-full object-cover"
                       src={VIDEO_TEASERS[i].src}
-                      poster={VIDEO_TEASERS[i].poster}
                       muted
                       playsInline
                       preload="auto"
-                      onTouchStart={(e) =>
-                        toggleMobileVideoEl(
-                          e.currentTarget as HTMLVideoElement,
-                          i
-                        )
+                      onLoadedData={() =>
+                        setMobileReady((r) => ({ ...r, [i]: true }))
                       }
-                      onClick={(e) =>
-                        toggleMobileVideoEl(
-                          e.currentTarget as HTMLVideoElement,
-                          i
-                        )
+                      onPlaying={() =>
+                        setMobileReady((r) => ({ ...r, [i]: true }))
                       }
+                      onPointerUp={(e) => {
+                        e.preventDefault();
+                        handleMobileToggle(
+                          i,
+                          e.currentTarget as HTMLVideoElement
+                        );
+                      }}
                       onEnded={(e) => {
-                        setMobilePlaying(null);
                         const v = e.currentTarget as HTMLVideoElement;
                         try {
                           v.currentTime = 0;
                         } catch {}
-                        v.load();
+                        setMobilePlaying(null);
                       }}
                     />
+                    {/* лёгкое затемнение поверх постера */}
                     <div
-                      className={`pointer-events-none absolute inset-0 bg-black/35 transition-opacity duration-200 ${
-                        mobilePlaying === i ? "opacity-0" : "opacity-100"
-                      }`}
+                      className={`pointer-events-none absolute inset-0 bg-black/25 transition-opacity duration-200
+                                    ${
+                                      mobilePlaying === i && mobileReady[i]
+                                        ? "opacity-0"
+                                        : "opacity-100"
+                                    }`}
                     />
                     <div className="pointer-events-none absolute bottom-0 left-0 right-0 p-3">
                       <span
-                        className={`inline-block rounded-full bg-white/90 px-3 py-1 text-[11px] font-semibold text-black transition-opacity duration-200 ${
-                          mobilePlaying === i ? "opacity-0" : "opacity-100"
-                        }`}
+                        className={`inline-block rounded-full bg-white/90 px-3 py-1 text-[11px] font-semibold text-black transition-opacity duration-200
+                                       ${
+                                         mobilePlaying === i && mobileReady[i]
+                                           ? "opacity-0"
+                                           : "opacity-100"
+                                       }`}
                       >
                         {VIDEO_TEASERS[i].title}
                       </span>
@@ -619,12 +626,10 @@ export default function MiniRentalHero() {
             </div>
           </div>
 
-          {/* DESKTOP: двухколоночная версия со смещением */}
+          {/* DESKTOP (как было) */}
           <div className="hidden md:flex justify-center mt-10">
             <div className="flex w-full max-w-[1200px] items-start justify-center gap-8">
-              {/* Левая колонка: 0 и 2 */}
               <div className="flex flex-col items-center gap-8">
-                {/* CARD 0 */}
                 <motion.button
                   type="button"
                   initial={{ opacity: 0, y: 24, scale: 0.98 }}
@@ -641,7 +646,7 @@ export default function MiniRentalHero() {
                   onMouseLeave={() => {
                     if (!isTouchRef.current) {
                       setHoveredStory((p) => (p === 0 ? null : p));
-                      pauseStory(0, true);
+                      pauseStory(0);
                     }
                   }}
                 >
@@ -673,7 +678,6 @@ export default function MiniRentalHero() {
                   </div>
                 </motion.button>
 
-                {/* CARD 2 */}
                 <motion.button
                   type="button"
                   initial={{ opacity: 0, y: 24, scale: 0.98 }}
@@ -695,7 +699,7 @@ export default function MiniRentalHero() {
                   onMouseLeave={() => {
                     if (!isTouchRef.current) {
                       setHoveredStory((p) => (p === 2 ? null : p));
-                      pauseStory(2, true);
+                      pauseStory(2);
                     }
                   }}
                 >
@@ -728,7 +732,6 @@ export default function MiniRentalHero() {
                 </motion.button>
               </div>
 
-              {/* Правая колонка: 1 со смещением вниз */}
               <div className="flex flex-col items-center gap-8 translate-y-[42%]">
                 <motion.button
                   type="button"
@@ -751,7 +754,7 @@ export default function MiniRentalHero() {
                   onMouseLeave={() => {
                     if (!isTouchRef.current) {
                       setHoveredStory((p) => (p === 1 ? null : p));
-                      pauseStory(1, true);
+                      pauseStory(1);
                     }
                   }}
                 >
