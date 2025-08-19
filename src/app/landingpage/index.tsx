@@ -19,7 +19,8 @@ export default function MiniRentalHero() {
   // ====== MOBILE stories ======
   const mobileRefs = useRef<(HTMLVideoElement | null)[]>([]);
   const [mobilePlaying, setMobilePlaying] = useState<number | null>(null);
-  const [mobileReady, setMobileReady] = useState<Record<number, boolean>>({});
+  // показывает, какая карточка активна визуально (убираем постер мгновенно)
+  const [mobileActive, setMobileActive] = useState<number | null>(null);
 
   useEffect(() => {
     if (typeof window !== "undefined" && "matchMedia" in window) {
@@ -111,19 +112,20 @@ export default function MiniRentalHero() {
 
     const io = new IntersectionObserver(
       (entries) => {
-        // снять userPause, если карточка почти вышла
+        // снять userPause и деактивировать карточку, если почти вышла
         entries.forEach((e) => {
           const idx = getIdx(e.target);
           if (idx === -1) return;
           if (e.intersectionRatio < 0.35) {
             userPausedRef.current.delete(idx);
             if (mobilePlaying === idx) setMobilePlaying(null);
+            if (mobileActive === idx) setMobileActive(null);
             const v = e.target as HTMLVideoElement;
             stopAndPoster(v);
           }
         });
 
-        // выбрать самую видимую, которая не user-paused
+        // выбрать самую видимую, у которой нет user-pause
         const candidates = entries
           .filter((e) => e.isIntersecting)
           .map((e) => ({
@@ -141,6 +143,9 @@ export default function MiniRentalHero() {
         mobileRefs.current.forEach((v, j) => {
           if (v && j !== best.idx) stopAndPoster(v);
         });
+
+        // мгновенно считаем её активной (убираем постер), и пробуем запустить
+        setMobileActive(best.idx);
 
         best.el.muted = true;
         best.el.setAttribute("playsinline", "");
@@ -166,6 +171,7 @@ export default function MiniRentalHero() {
       if (document.hidden) {
         mobileRefs.current.forEach((v) => v && stopAndPoster(v));
         setMobilePlaying(null);
+        setMobileActive(null);
       }
     };
     document.addEventListener("visibilitychange", onVis);
@@ -174,78 +180,7 @@ export default function MiniRentalHero() {
       io.disconnect();
       document.removeEventListener("visibilitychange", onVis);
     };
-  }, [mobilePlaying]);
-
-  // Автовоспроизведение на мобиле по входу в вьюпорт
-  useEffect(() => {
-    if (!isTouchRef.current) return; // только для мобильных/тач
-    const vids = mobileRefs.current.filter((v): v is HTMLVideoElement => !!v);
-    if (vids.length === 0) return;
-
-    const chooseAndPlay = (entries: IntersectionObserverEntry[]) => {
-      // ищем самый видимый ролик
-      const visible = entries
-        .filter((e) => e.isIntersecting)
-        .sort(
-          (a, b) => (b.intersectionRatio || 0) - (a.intersectionRatio || 0)
-        );
-      const target = visible[0]?.target as HTMLVideoElement | undefined;
-
-      // стопаем все, кроме таргета
-      vids.forEach((v) => {
-        if (!target || v !== target) stopAndPoster(v);
-      });
-
-      if (!target) {
-        setMobilePlaying(null);
-        return;
-      }
-
-      // пытаемся играть таргет
-      target.muted = true;
-      target.setAttribute("playsinline", "");
-      target.setAttribute("webkit-playsinline", "");
-      target
-        .play()
-        .then(() => {
-          // какой это индекс?
-          const i = mobileRefs.current.findIndex((x) => x === target);
-          if (i !== -1) setMobilePlaying(i);
-        })
-        .catch(() => {
-          try {
-            target.currentTime = (target.currentTime || 0) + 0.001;
-          } catch {}
-          target
-            .play()
-            .then(() => {
-              const i = mobileRefs.current.findIndex((x) => x === target);
-              if (i !== -1) setMobilePlaying(i);
-            })
-            .catch(() => {});
-        });
-    };
-
-    const io = new IntersectionObserver(chooseAndPlay, {
-      threshold: [0.4, 0.6, 0.8], // начнём играть, когда видно ~60%
-    });
-
-    vids.forEach((v) => io.observe(v));
-
-    // пауза при уходе со страницы/скрытии таба
-    const onVis = () => {
-      if (document.hidden) {
-        vids.forEach((v) => stopAndPoster(v));
-        setMobilePlaying(null);
-      }
-    };
-    document.addEventListener("visibilitychange", onVis);
-
-    return () => {
-      io.disconnect();
-      document.removeEventListener("visibilitychange", onVis);
-    };
-  }, []);
+  }, [mobilePlaying, mobileActive]);
 
   return (
     <div className="relative min-h-screen bg-black text-white">
@@ -293,23 +228,24 @@ export default function MiniRentalHero() {
                       onEnded={(e) => {
                         stopAndPoster(e.currentTarget);
                         setMobilePlaying(null);
+                        setMobileActive(null);
                       }}
-                      onLoadedData={() =>
-                        setMobileReady((r) => ({ ...r, [i]: true }))
-                      }
                       onClick={(e) => {
                         const el = e.currentTarget;
                         if (!el.paused) {
-                          // пользовательская пауза: показать постер и запретить автоплей до выхода из вьюпорта или повторного тапа
+                          // пользовательская пауза: вернуть постер и запретить автоплей до выхода
                           stopAndPoster(el);
                           userPausedRef.current.add(i);
                           setMobilePlaying(null);
+                          setMobileActive(null);
                         } else {
                           // снять userPause и запустить этот ролик, остальные — стоп
                           userPausedRef.current.delete(i);
                           mobileRefs.current.forEach((v, j) => {
                             if (v && j !== i) stopAndPoster(v);
                           });
+                          // мгновенно скрываем постер
+                          setMobileActive(i);
                           el.muted = true;
                           el.setAttribute("playsinline", "");
                           el.setAttribute("webkit-playsinline", "");
@@ -331,28 +267,24 @@ export default function MiniRentalHero() {
                     <img
                       src={VIDEO_TEASERS[i].poster}
                       alt=""
-                      className={`pointer-events-none absolute inset-0 h-full w-full object-cover z-10 transition-opacity duration-200 ${
-                        mobilePlaying === i && mobileReady[i]
-                          ? "opacity-0"
-                          : "opacity-100"
+                      className={`pointer-events-none absolute inset-0 h-full w-full object-cover z-10 transition-opacity duration-700 ${
+                        mobileActive === i ? "opacity-0" : "opacity-100"
                       }`}
                       draggable={false}
                     />
+
                     {/* Лёгкое затемнение (сверху) */}
                     <div
                       className={`pointer-events-none absolute inset-0 z-10 bg-black/25 transition-opacity duration-200 ${
-                        mobilePlaying === i && mobileReady[i]
-                          ? "opacity-0"
-                          : "opacity-100"
+                        mobileActive === i ? "opacity-0" : "opacity-100"
                       }`}
                     />
+
                     {/* Тайтл-чип */}
                     <div className="pointer-events-none absolute bottom-0 left-0 right-0 z-10 p-3">
                       <span
                         className={`inline-block rounded-full bg-white/90 px-3 py-1 text-[11px] font-semibold text-black transition-opacity duration-200 ${
-                          mobilePlaying === i && mobileReady[i]
-                            ? "opacity-0"
-                            : "opacity-100"
+                          mobileActive === i ? "opacity-0" : "opacity-100"
                         }`}
                       >
                         {VIDEO_TEASERS[i].title}
