@@ -74,13 +74,13 @@ export const HeroSection = () => {
             type="text"
             placeholder="Location"
             aria-label="Location"
-            className="h-12 flex-1 rounded-md border border-neutral-300 px-4 py-3 text-sm text-black focus:outline-none focus:ring-4 focus:ring-neutral-400/30"
+            className="h-12 flex-1 rounded-md border border-neutral-500 px-4 py-3 text-sm text-black focus:outline-none focus:ring-4 focus:ring-neutral-400/20"
           />
           <input
             type="text"
             placeholder="Dates"
             aria-label="Dates"
-            className="h-12 flex-1 rounded-md border border-neutral-300 px-4 py-3 text-sm text-black focus:outline-none focus:ring-4 focus:ring-neutral-400/30"
+            className="h-12 flex-1 rounded-md border border-neutral-500 px-4 py-3 text-sm text-black focus:outline-none focus:ring-4 focus:ring-neutral-400/20"
           />
           <button
             type="submit"
