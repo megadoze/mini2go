@@ -1,5 +1,5 @@
 export const HeroSection = () => {
-  const mainBanner = "/img/main.webp";
+  const mainBanner = "/img/minicabrio.webp";
   return (
     <section className="relative flex items-center pt-16 md:pt-0 min-h-[100svh] md:min-h-[100dvh] lg:min-h-screen">
       <div

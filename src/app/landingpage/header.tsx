@@ -1,4 +1,5 @@
 import { NAV } from "@/constants/carOptions";
+import { ChevronRightIcon, FingerPrintIcon } from "@heroicons/react/24/outline";
 import { Burger, Drawer } from "@mantine/core";
 import type { Dispatch, SetStateAction } from "react";
 
@@ -13,15 +14,27 @@ export const HeaderSection = ({
 }: HeaderMenuProps) => {
   return (
     <header className="absolute inset-x-0 top-0 z-50 transition-colors duration-300 ">
-      <div className="px-4 sm:px-6 lg:px-10">
-        <div className="flex h-16 items-center justify-between gap-6">
+      <div className="flex justify-between items-center px-4 sm:px-6 lg:px-10 mt-2">
+        <div>
+          <Burger
+            opened={menuOpen}
+            onClick={() => handleMenuOpen((v: any) => !v)}
+            color="#fff"
+            size="sm"
+            aria-label="Toggle menu"
+            className=" h-10 w-10 rounded-md"
+          />
+        </div>
+
+        <div>
           <a
             href="#"
-            className="shrink-0 font-robotoCondensed uppercase font-bold tracking-wide text-white text-xl"
+            className="flex flex-col items-center shrink-0 font-roboto uppercase font-semibold "
           >
-            MINI2GO
+            <img src="/icons/logomini.png" className=" w-20" />
+            <p className=" text-black text-sm">MINI2GO</p>
           </a>
-          <nav className="mx-auto hidden lg:block">
+          {/* <nav className="mx-auto hidden lg:block">
             <ul className="flex items-center gap-6 xl:gap-8 text-sm font-medium">
               {NAV.map((item) => (
                 <li key={item.label}>
@@ -34,28 +47,24 @@ export const HeaderSection = ({
                 </li>
               ))}
             </ul>
-          </nav>
-          <div className="w-24 flex justify-end">
+          </nav> */}
+          {/* <div className="w-24 flex justify-end">
             <button className="hidden lg:inline-flex font-robotoCondensed font-medium text-white/90 hover:text-white transition">
               Log In
             </button>
-            <Burger
-              opened={menuOpen}
-              onClick={() => handleMenuOpen((v: any) => !v)}
-              color="#fff"
-              size="sm"
-              aria-label="Toggle menu"
-              className="lg:hidden h-10 w-10 rounded-md ring-1 ring-white/20 hover:ring-white/40"
-            />
-          </div>
+          </div> */}
         </div>
+
+        <button className=" lg:inline-flex font-robotoCondensed font-medium text-white/90 hover:text-white transition">
+          <FingerPrintIcon className=" w-6" />
+        </button>
       </div>
 
       <Drawer
         opened={menuOpen}
         onClose={() => handleMenuOpen(false)}
         position="left"
-        size="100%"
+        size="md"
         withCloseButton
         title={null}
         padding={0}
@@ -63,33 +72,37 @@ export const HeaderSection = ({
         overlayProps={{ opacity: 0.55, blur: 2 }}
         styles={{
           content: {
-            backgroundColor: "rgba(0,0,0,0.95)",
+            backgroundColor: "white",
             border: "none",
             boxShadow: "none",
           },
           header: { background: "transparent", borderBottom: "none" },
           body: { padding: 0 },
           title: { color: "#fff" },
-          close: { color: "white", marginRight: "14px", marginTop: "4px" },
+          close: { marginRight: "14px", marginTop: "4px" },
         }}
       >
-        <div className="text-white min-h-[100dvh] px-6 py-8">
-          <ul className="flex flex-col gap-4 text-2xl">
+        <div className="  px-10 py-8">
+          <ul className="flex flex-col gap-4 text-xl md:text-2xl">
             {NAV.map((item) => (
-              <li key={item.label}>
+              <li
+                key={item.label}
+                className=" hover:bg-neutral-100 rounded-md transition duration-300 ease-in-out py-1"
+              >
                 <a
                   href={item.href}
-                  className="block py-2 text-white/90 hover:text-white"
+                  className="flex items-center justify-between py-3 text-black font-robotoCondensed px-4"
                   onClick={() => handleMenuOpen(false)}
                 >
-                  {item.label}
+                  <p>{item.label}</p>
+                  <ChevronRightIcon className=" w-6 text-neutral-500" />
                 </a>
               </li>
             ))}
           </ul>
           <div className="mt-8">
             <button
-              className="w-full rounded-xl ring-1 ring-white/20 px-4 py-3 text-base hover:ring-white/40"
+              className="w-full rounded-xl ring-1 ring-black/80 px-4 py-3 text-base hover:ring-black/50"
               onClick={() => handleMenuOpen(false)}
             >
               Log In
