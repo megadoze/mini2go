@@ -5,6 +5,8 @@ import { HeaderSection } from "./header";
 import { HeroSection } from "./hero";
 import { ModelsSection } from "./models";
 import { VideoSection } from "./video";
+import { RequirementsSection } from "./requirements";
+import { AboutSection } from "./about";
 
 export default function MiniRentalHero() {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -20,11 +22,17 @@ export default function MiniRentalHero() {
       {/* MODELS */}
       <ModelsSection />
 
-      {/* === VIDEO === */}
+      {/*  VIDEO  */}
       <VideoSection />
 
-      {/* === WELCOME  === */}
+      {/*  WELCOME   */}
       <WelcomeSection />
+
+      {/* Requirements */}
+      <RequirementsSection />
+
+      {/* About SEO */}
+      <AboutSection />
     </main>
   );
 }

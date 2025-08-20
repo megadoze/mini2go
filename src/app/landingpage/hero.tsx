@@ -16,8 +16,8 @@ export const HeroSection = () => {
         <div className="flex flex-col items-center text-center max-w-4xl">
           <h1 className="font-robotoCondensed font-bold tracking-[0.01em] leading-tight text-white text-4xl sm:text-5xl lg:text-7xl text-shadow ">
             It’s time to drive
-            <span className="inline-block">
-              <span className="px-2 bg-white/20 ml-2 ">MINI</span>
+            <span className="inline-block ">
+              <span className="px-2 bg-white/20 ml-1 ">MINI</span>
             </span>
           </h1>
 

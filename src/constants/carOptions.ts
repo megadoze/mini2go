@@ -156,3 +156,4 @@ export const WELCOME_FEATURES = [
     alt: "MINI interior",
   },
 ];
+
