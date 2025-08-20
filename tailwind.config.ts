@@ -21,6 +21,8 @@ export default {
       fontFamily: {
         openSans: ["OpenSans", "sans-serif"],
         ptSans: ["PTSansNarrow", "sans-serif"],
+        roboto: ["Roboto", "sans-serif"],
+        robotoCondensed: ["RobotoCondensed", "sans-serif"],
       },
     },
   },

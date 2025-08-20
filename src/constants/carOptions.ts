@@ -135,3 +135,24 @@ export const VIDEO_TEASERS = [
     poster: "/img/minicabrio.webp",
   },
 ] as const;
+
+export const WELCOME_FEATURES = [
+  {
+    title: "Experience the fascination",
+    text: "It's hard to describe what it's like to drive a MINI. You have to experience it yourself.",
+    img: VIDEO_TEASERS[0]?.poster,
+    alt: "MINI close-up",
+  },
+  {
+    title: "Discover new heights",
+    text: "From classics to current models — find the MINI that fits your style.",
+    img: VIDEO_TEASERS[1]?.poster,
+    alt: "MINI in the city",
+  },
+  {
+    title: "Just drive",
+    text: "Insurance, second driver and generous mileage included. Less hassle, more joy.",
+    img: VIDEO_TEASERS[2]?.poster,
+    alt: "MINI interior",
+  },
+];

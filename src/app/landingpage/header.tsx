@@ -7,7 +7,7 @@ type HeaderMenuProps = {
   handleMenuOpen: Dispatch<SetStateAction<boolean>>;
 };
 
-export const HeaderLanding = ({
+export const HeaderSection = ({
   menuOpen,
   handleMenuOpen,
 }: HeaderMenuProps) => {
@@ -16,7 +16,10 @@ export const HeaderLanding = ({
       <header className="absolute inset-x-0 top-0 z-50 transition-colors duration-300 ">
         <div className="px-4 sm:px-6 lg:px-10">
           <div className="flex h-16 items-center justify-between gap-6">
-            <a href="#" className="shrink-0 font-bold tracking-wide text-lg">
+            <a
+              href="#"
+              className="shrink-0 font-robotoCondensed uppercase font-bold tracking-wide text-xl"
+            >
               MINI2GO
             </a>
             <nav className="mx-auto hidden lg:block">

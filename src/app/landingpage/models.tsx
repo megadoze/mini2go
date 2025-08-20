@@ -1,7 +1,7 @@
 import { CAR_CARDS } from "@/constants/carOptions";
 import { useEffect, useRef, useState } from "react";
 
-const ModelsLanding = () => {
+export const ModelsSection = () => {
   const rafRef = useRef<number | null>(null);
   const [activeSlide, setActiveSlide] = useState(0);
   const [displayIdx, setDisplayIdx] = useState(0);
@@ -130,10 +130,10 @@ const ModelsLanding = () => {
     <section id="models" className="relative bg-white text-black">
       <div className="px-4 sm:px-6 lg:px-10 pt-20 py-10">
         <div className="text-center">
-          <h2 className="text-2xl sm:text-3xl lg:text-5xl font-openSans font-bold">
+          <h2 className="text-3xl sm:text-4xl lg:text-6xl font-robotoCondensed font-extrabold tracking-wide">
             Which one will it be today?
           </h2>
-          <p className="pt-4 md:text-lg">
+          <p className="pt-4 font-roboto md:text-lg">
             Our rental stations offer you a wide selection of models and are
             happy to fulfil your individual wishes.
           </p>
@@ -158,7 +158,7 @@ const ModelsLanding = () => {
                 aria-label={`Open ${c.title} preview`}
               >
                 <div
-                  className={`absolute top-10 text-4xl sm:text-6xl font-openSans font-bold text-neutral-300 z-50 transition-opacity duration-75 ${
+                  className={`absolute top-10 text-4xl sm:text-6xl font-robotoCondensed font-bold text-neutral-300 z-50 transition-opacity duration-75 ${
                     i === displayIdx ? "opacity-100" : "opacity-0"
                   }`}
                   aria-hidden={i !== displayIdx}
@@ -175,12 +175,14 @@ const ModelsLanding = () => {
                   loading="lazy"
                 />
                 <div
-                  className={`text-center z-50 -mt-8 transition-opacity duration-75 ${
+                  className={` text-center z-50 -mt-8 transition-opacity duration-75 ${
                     i === displayIdx ? "opacity-100" : "opacity-0"
                   }`}
                   aria-hidden={i !== displayIdx}
                 >
-                  <div className=" md:text-2xl text-gray-800">{c.price}</div>
+                  <div className="font-robotoCondensed font-medium text-lg md:text-2xl text-gray-600">
+                    {c.price}
+                  </div>
                 </div>
               </a>
             ))}
@@ -220,5 +222,3 @@ const ModelsLanding = () => {
     </section>
   );
 };
-
-export default ModelsLanding;
