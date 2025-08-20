@@ -12,7 +12,7 @@ export const HeroSection = () => {
       <div className="absolute inset-0 z-0 bg-gradient-to-b from-black/20 via-black/10 to-black/10" />
 
       {/* Content */}
-      <div className="flex justify-center relative z-10 w-full px-4 sm:px-6 lg:px-10 pb-20">
+      <div className="flex justify-center relative z-10 w-full px-4 sm:px-6 lg:px-10 pb-52 md:pb-20">
         <div className="flex flex-col items-center text-center max-w-4xl">
           <h1 className="font-robotoCondensed font-bold tracking-[0.01em] leading-tight text-white text-4xl sm:text-5xl lg:text-7xl text-shadow ">
             It’s time to drive{" "}
