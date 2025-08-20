@@ -29,10 +29,10 @@ export const HeaderSection = ({
         <div>
           <a
             href="#"
-            className="flex flex-col items-center shrink-0 font-roboto uppercase font-semibold "
+            className="flex flex-col items-center shrink-0 font-roboto uppercase font-bold "
           >
-            <img src="/icons/logomini.png" className=" w-20" />
-            <p className=" text-black text-sm">MINI2GO</p>
+            <img src="/icons/logow.png" className=" w-20" />
+            <p className=" text-white text-sm">MINI2GO</p>
           </a>
           {/* <nav className="mx-auto hidden lg:block">
             <ul className="flex items-center gap-6 xl:gap-8 text-sm font-medium">

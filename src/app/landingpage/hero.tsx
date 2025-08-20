@@ -1,5 +1,5 @@
 export const HeroSection = () => {
-  const mainBanner = "/img/minicabrio.webp";
+  const mainBanner = "/img/main2.webp";
   return (
     <section className="relative flex items-center pt-16 md:pt-0 min-h-[100svh] md:min-h-[100dvh] lg:min-h-screen">
       {/* Background */}
@@ -17,12 +17,12 @@ export const HeroSection = () => {
           <h1 className="font-robotoCondensed font-bold tracking-[0.01em] leading-tight text-white text-4xl sm:text-5xl lg:text-7xl text-shadow ">
             It’s time to drive{" "}
             <span className="inline-block">
-              <span className="px-2 -mx-2 bg-white/20 rounded">MINI</span>
+              <span className="px-2 -mx-2 bg-white/20 ">MINI</span>
             </span>
           </h1>
 
           <p className="mt-4 text-white font-robotoCondensed text-lg sm:text-xl lg:text-2xl max-w-3xl ">
-            <span className="bg-gradient-to-r from-black/80 to-transparent px-2 py-1 rounded">
+            <span className="bg-gradient-to-r from-black/80 to-transparent px-2 py-1 ">
               Life’s too short for boring cars.
             </span>
 
@@ -41,7 +41,7 @@ export const HeroSection = () => {
             </a>
             <a
               href="#mehr"
-              className="inline-flex items-center justify-center rounded-full ring-1 ring-white/40 px-5 py-2.5 font-robotoCondensed font-semibold hover:ring-white/70 bg-white/0 text-white focus:outline-none focus:ring-4 focus:ring-white/30 transition"
+              className="inline-flex items-center justify-center rounded-full ring-1 ring-white/40 px-5 py-2.5 font-robotoCondensed font-semibold hover:ring-white/70 bg-black/20 text-white focus:outline-none focus:ring-4 focus:ring-white/30 transition"
             >
               More
             </a>
@@ -66,7 +66,7 @@ export const HeroSection = () => {
           ))}
         </div>
 
-        <form className="flex bg-white rounded-2xl shadow-2xl flex-col sm:flex-row items-stretch md:items-center gap-2 p-4">
+        <form className="flex bg-white rounded-xl shadow-xl flex-col sm:flex-row items-stretch md:items-center gap-2 p-4">
           <p className="text-black font-robotoCondensed text-lg font-bold shrink-0">
             Book your MINI
           </p>
