@@ -48,11 +48,6 @@ export const HeaderSection = ({
               ))}
             </ul>
           </nav> */}
-          {/* <div className="w-24 flex justify-end">
-            <button className="hidden lg:inline-flex font-robotoCondensed font-medium text-white/90 hover:text-white transition">
-              Log In
-            </button>
-          </div> */}
         </div>
 
         <button className=" lg:inline-flex font-robotoCondensed font-medium text-white/90 hover:text-white transition">
