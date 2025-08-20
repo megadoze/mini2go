@@ -8,7 +8,7 @@ export const WelcomeSection = () => {
           <h2 className="text-3xl sm:text-4xl lg:text-6xl font-robotoCondensed font-bold text-black">
             Welcome to MINI Drive
           </h2>
-          <p className="pt-4 text-base md:text-xl text-black/70 font-roboto">
+          <p className="pt-4 text-lg md:text-xl text-stone-600/90 font-roboto">
             Small formats — big fun. Choose, book, drive.
           </p>
         </div>
@@ -45,7 +45,7 @@ export const WelcomeSection = () => {
                     <h3 className="text-2xl md:text-3xl font-robotoCondensed font-semibold text-black">
                       {item.title}
                     </h3>
-                    <p className="mt-3 font-roboto text-black/70 text lg:text-xl">
+                    <p className="mt-3 font-roboto text-stone-600/90 text-lg lg:text-xl">
                       {item.text}
                     </p>
                   </div>

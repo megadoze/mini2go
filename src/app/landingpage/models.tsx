@@ -133,7 +133,7 @@ export const ModelsSection = () => {
           <h2 className="text-3xl sm:text-4xl lg:text-6xl font-robotoCondensed font-extrabold tracking-wide">
             Which one will it be today?
           </h2>
-          <p className="pt-4 text-base font-roboto md:text-xl text-black/70">
+          <p className="pt-4 text-lg font-roboto md:text-xl text-stone-600/90">
             Our rental stations offer you a wide selection of models and are
             happy to fulfil your individual wishes.
           </p>
