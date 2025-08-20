@@ -17,12 +17,12 @@ export const HeroSection = () => {
           <h1 className="font-robotoCondensed font-bold tracking-[0.01em] leading-tight text-white text-4xl sm:text-5xl lg:text-7xl text-shadow ">
             It’s time to drive{" "}
             <span className="inline-block">
-              <span className="px-2 -mx-2 bg-white/10">MINI</span>
+              <span className="px-2 -mx-2 bg-white/20 rounded">MINI</span>
             </span>
           </h1>
 
           <p className="mt-4 text-white font-robotoCondensed text-lg sm:text-xl lg:text-2xl max-w-3xl ">
-            <span className="bg-gradient-to-r from-black/80 to-transparent px-2 py-1 ">
+            <span className="bg-gradient-to-r from-black/80 to-transparent px-2 py-1 rounded">
               Life’s too short for boring cars.
             </span>
 
@@ -60,7 +60,7 @@ export const HeroSection = () => {
           ].map((html, idx) => (
             <span
               key={idx}
-              className="rounded-full bg-black/40 px-4 py-2 backdrop-blur-md"
+              className="bg-gradient-to-r from-neutral-600/90 to-neutral-500/40 px-3 py-1 rounded-full text-shadow"
               dangerouslySetInnerHTML={{ __html: html }}
             />
           ))}
