@@ -15,9 +15,9 @@ export const HeroSection = () => {
       <div className="flex justify-center relative z-10 w-full px-4 sm:px-6 lg:px-10 pb-52 md:pb-20">
         <div className="flex flex-col items-center text-center max-w-4xl">
           <h1 className="font-robotoCondensed font-bold tracking-[0.01em] leading-tight text-white text-4xl sm:text-5xl lg:text-7xl text-shadow ">
-            It’s time to drive{" "}
+            It’s time to drive
             <span className="inline-block">
-              <span className="px-2 -mx-2 bg-white/20 ">MINI</span>
+              <span className="px-2 bg-white/20 ml-2 ">MINI</span>
             </span>
           </h1>
 
