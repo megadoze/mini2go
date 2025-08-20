@@ -32,7 +32,7 @@ export const HeroSection = () => {
           </p>
 
           {/* CTAs */}
-          <div className="mt-6 flex flex-wrap items-center gap-3">
+          <div className=" hidden mt-6 md:flex flex-wrap items-center gap-3">
             <a
               href="#reservierung"
               className="inline-flex items-center justify-center rounded-full bg-white text-black px-5 py-2.5 font-robotoCondensed font-semibold hover:bg-white/90 focus:outline-none focus:ring-4 focus:ring-white/30 transition"
