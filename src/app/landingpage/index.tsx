@@ -10,7 +10,7 @@ export default function MiniRentalHero() {
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
-    <div className="relative min-h-screen bg-black text-white">
+    <main className="relative min-h-screen">
       {/* HEADER */}
       <HeaderSection menuOpen={menuOpen} handleMenuOpen={setMenuOpen} />
 
@@ -25,6 +25,6 @@ export default function MiniRentalHero() {
 
       {/* === WELCOME  === */}
       <WelcomeSection />
-    </div>
+    </main>
   );
 }

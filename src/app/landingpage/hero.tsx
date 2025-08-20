@@ -20,13 +20,13 @@ export const HeroSection = () => {
           <div className="hidden md:flex mt-6 flex-wrap items-center gap-3">
             <a
               href="#reservierung"
-              className="inline-flex items-center justify-center rounded-full bg-white text-black px-5 py-2.5  font-robotoCondensed font-semibold hover:bg-white/90 transition"
+              className="inline-flex items-center justify-center rounded-full bg-white/90 text-black px-5 py-2.5  font-robotoCondensed font-semibold hover:bg-white transition"
             >
               Book MINI now
             </a>
             <a
               href="#mehr"
-              className="inline-flex items-center justify-center rounded-full ring-1 ring-white/30 px-5 py-2.5 font-robotoCondensed font-semibold hover:ring-white/60 transition bg-gray-900/20"
+              className="inline-flex items-center justify-center rounded-full ring-1 ring-white/30 px-5 py-2.5 font-robotoCondensed font-semibold hover:ring-white/60 transition bg-gray-900/20 text-white"
             >
               More
             </a>
@@ -50,23 +50,23 @@ export const HeroSection = () => {
             />
           ))}
         </div>
-        <form className="flex bg-white rounded-2xl shadow-xl flex-col sm:flex-row items-stretch md:items-center gap-2 p-4">
+        <form className="flex  bg-white rounded-2xl shadow-xl flex-col sm:flex-row items-stretch md:items-center gap-2 p-4">
           <p className=" text-black font-robotoCondensed text-lg font-bold">
-            Book your MINI now
+            Book your MINI
           </p>
           <input
             type="text"
             placeholder="Location"
-            className="flex-1 rounded-md border border-gray-200 px-4 py-3 text-sm text-black focus:outline-none focus:ring-2 focus:ring-black"
+            className="h-12 flex-1 rounded-md border border-gray-600 px-4 py-3 text-sm text-black focus:outline-none focus:ring-4  focus:ring-neutral-400/20"
           />
           <input
             type="text"
             placeholder="Dates"
-            className="flex-1 rounded-md border border-gray-200 px-4 py-3 text-sm text-black focus:outline-none focus:ring-2 focus:ring-black"
+            className="h-12 flex-1 rounded-md border border-gray-600 px-4 py-3 text-sm text-black focus:outline-none focus:ring-4  focus:ring-neutral-400/20"
           />
           <button
             type="submit"
-            className="rounded-md bg-black text-white px-6 py-3 tracking-[0.04em] uppercase font-robotoCondensed font-medium hover:bg-black/80"
+            className="h-12 rounded-md bg-black text-white px-6  tracking-[0.04em] uppercase font-robotoCondensed font-medium hover:bg-black/80"
           >
             Book
           </button>
