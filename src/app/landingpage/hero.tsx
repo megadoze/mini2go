@@ -53,16 +53,23 @@ export const HeroSection = () => {
       <div className="absolute left-1/2 -translate-x-1/2 w-full max-w-4xl px-4 z-20 bottom-[max(16px,env(safe-area-inset-bottom))] sm:bottom-10">
         <div className="hidden mb-5 md:flex flex-wrap justify-center items-center gap-2 font-robotoCondensed font-semibold text-white/90">
           {[
-            "1. Select location",
-            "2. Select period",
-            "3. Choose your MINI",
-            "4. Pick up and go!",
+            "Select location",
+            "Select period",
+            "Choose your MINI",
+            "Pick up and go",
           ].map((html, idx) => (
-            <span
+            <p
               key={idx}
-              className="bg-gradient-to-r from-neutral-600/90 to-neutral-500/40 px-3 py-1 rounded-full text-shadow"
-              dangerouslySetInnerHTML={{ __html: html }}
-            />
+              className="flex bg-gradient-to-r from-neutral-700/40 to-neutral-400/0 px-1 py-1 rounded-full text-shadow"
+            >
+              <span className=" text-center bg-neutral-200/30 rounded-full w-6 h-6 mr-1">
+                {idx + 1}
+              </span>
+              <span
+                // className="bg-gradient-to-r from-neutral-700/40 to-neutral-400/0 px-3 py-1 rounded-full text-shadow"
+                dangerouslySetInnerHTML={{ __html: html }}
+              />
+            </p>
           ))}
         </div>
 

@@ -120,17 +120,23 @@ export const CAR_CARDS = [
 
 export const VIDEO_TEASERS = [
   {
-    title: "Cooper city ride",
+    title: "MINI Cooper",
+    description: "Iconic 2-door car with a sporty character, 2+2 seats",
+    fuel: "Gasoline",
     src: "/videos/mini-one.mp4",
     poster: "/img/minione.webp",
   },
   {
-    title: "Countryman escape",
+    title: "MINI Countryman",
+    description: "Multifunctional compact SUV built for adventure, 5 seats",
+    fuel: "Gasoline",
     src: "/videos/mini-U25.mp4",
     poster: "/img/minicountryman.webp",
   },
   {
-    title: "Cabrio seaside",
+    title: "MINI Cooper Cabrio",
+    description: "The feeling of a go-kart with an open roof, 2+2 seats",
+    fuel: "Gasoline",
     src: "/videos/mini-cabrio.mp4",
     poster: "/img/minicabrioposter.webp",
   },
@@ -157,3 +163,28 @@ export const WELCOME_FEATURES = [
   },
 ];
 
+export const MINI_WORLD_POSTS = [
+  {
+    tag: "News",
+    title: "The updated MINI Cooper: even more fun in the city",
+    excerpt:
+      "Short wheelbase and go-kart handling — the recipe for pure joy. We break down the key updates.",
+    img: VIDEO_TEASERS[0]?.poster,
+    href: "#",
+  },
+  {
+    tag: "Technology",
+    title: "Electric MINI: what's inside?",
+    excerpt:
+      "Platform, charging, and real-world range — practical insights without the fluff.",
+    img: VIDEO_TEASERS[2]?.poster,
+    href: "#",
+  },
+  {
+    tag: "Lifestyle",
+    title: "MINI and weekend urban routes",
+    excerpt: "Three compact itineraries where a MINI feels right at home.",
+    img: VIDEO_TEASERS[1]?.poster,
+    href: "#",
+  },
+];

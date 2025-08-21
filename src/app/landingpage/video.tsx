@@ -363,15 +363,25 @@ export const VideoSection = () => {
                       mobileActive === i ? "opacity-0" : "opacity-100"
                     }`}
                   />
-
-                  {/* Тайтл-чип */}
-                  <div className="pointer-events-none absolute bottom-0 left-0 right-0 z-10 p-3">
+                  {/* Title */}
+                  <div className="pointer-events-none absolute top-0 left-0 right-0 z-10 p-3">
                     <span
-                      className={`inline-block rounded-full bg-white/90 px-3 py-1 text-[11px] font-semibold text-black transition-opacity duration-200 ${
-                        mobileActive === i ? "opacity-0" : "opacity-100"
+                      className={`inline-block px-3 py-1 font-normal text-white/80 transition-opacity duration-200 bg-gradient-to-r from-zinc-800/50 to-neutral-400/0 rounded-lg ${
+                        mobileActive === i ? "opacity-90" : "opacity-100"
                       }`}
                     >
                       {VIDEO_TEASERS[i].title}
+                    </span>
+                  </div>
+
+                  {/* Тайтл-description */}
+                  <div className="pointer-events-none absolute bottom-0 left-0 right-0 z-10 p-3">
+                    <span
+                      className={`inline-block px-3 py-1 font-normal text-white/80 transition-opacity duration-200 bg-gradient-to-r from-zinc-800/50 to-neutral-400/0 rounded-lg ${
+                        mobileActive === i ? "opacity-90" : "opacity-100"
+                      }`}
+                    >
+                      {VIDEO_TEASERS[i].description}
                     </span>
                   </div>
                 </div>
@@ -437,15 +447,26 @@ export const VideoSection = () => {
                         : "opacity-100"
                     }`}
                   />
-                  <div className="pointer-events-none absolute bottom-0 left-0 right-0 z-10 p-4">
+                  <div className="pointer-events-none absolute top-0 left-0 right-0 z-20 p-4">
                     <span
-                      className={`inline-block rounded-full bg-white/90 px-3 py-1 text-[11px] font-semibold text-black transition-opacity duration-200 ${
+                      className={`inline-block px-3 py-1 font-normal text-white/80 transition-opacity duration-200 bg-gradient-to-r from-zinc-900/50 to-neutral-400/0 rounded-lg ${
                         hoveredStory === 0 && storyPlaying[0]
-                          ? "opacity-0"
+                          ? "opacity-90"
                           : "opacity-100"
                       }`}
                     >
                       {VIDEO_TEASERS[0].title}
+                    </span>
+                  </div>
+                  <div className="pointer-events-none absolute bottom-0 left-0 right-0 z-10 p-4">
+                    <span
+                      className={`inline-block px-3 py-1 font-normal text-white/80 transition-opacity duration-200 bg-gradient-to-r from-zinc-900/50 to-neutral-400/0 rounded-lg ${
+                        hoveredStory === 0 && storyPlaying[0]
+                          ? "opacity-90"
+                          : "opacity-100"
+                      }`}
+                    >
+                      {VIDEO_TEASERS[0].description}
                     </span>
                   </div>
                 </div>
@@ -501,6 +522,18 @@ export const VideoSection = () => {
                     }`}
                     draggable={false}
                   />
+                  <div className="pointer-events-none absolute top-0 left-0 right-0 z-20 p-4">
+                    <span
+                      className={`inline-block px-3 py-1 font-normal text-white/80 transition-opacity duration-200 bg-gradient-to-r from-zinc-900/50 to-neutral-400/0 rounded-lg ${
+                        hoveredStory === 0 && storyPlaying[0]
+                          ? "opacity-90"
+                          : "opacity-100"
+                      }`}
+                    >
+                      {VIDEO_TEASERS[2].title}
+                    </span>
+                  </div>
+
                   <div
                     className={`pointer-events-none absolute inset-0 z-10 bg-black/35 transition-opacity duration-200 ${
                       hoveredStory === 2 && storyPlaying[2]
@@ -510,13 +543,13 @@ export const VideoSection = () => {
                   />
                   <div className="pointer-events-none absolute bottom-0 left-0 right-0 z-10 p-4">
                     <span
-                      className={`inline-block rounded-full bg-white/90 px-3 py-1 text-[11px] font-semibold text-black transition-opacity duration-200 ${
+                      className={`inline-block px-3 py-1 font-normal text-white/80 transition-opacity duration-200 bg-gradient-to-r from-zinc-900/50 to-neutral-400/0 rounded-lg ${
                         hoveredStory === 2 && storyPlaying[2]
-                          ? "opacity-0"
+                          ? "opacity-90"
                           : "opacity-100"
                       }`}
                     >
-                      {VIDEO_TEASERS[2].title}
+                      {VIDEO_TEASERS[2].description}
                     </span>
                   </div>
                 </div>
@@ -581,15 +614,27 @@ export const VideoSection = () => {
                         : "opacity-100"
                     }`}
                   />
-                  <div className="pointer-events-none absolute bottom-0 left-0 right-0 z-10 p-4">
+                  <div className="pointer-events-none absolute top-0 left-0 right-0 z-20 p-4">
                     <span
-                      className={`inline-block rounded-full bg-white/90 px-3 py-1 text-[11px] font-semibold text-black transition-opacity duration-200 ${
-                        hoveredStory === 1 && storyPlaying[1]
-                          ? "opacity-0"
+                      className={`inline-block px-3 py-1 font-normal text-white/80 transition-opacity duration-200 bg-gradient-to-r from-zinc-900/50 to-neutral-400/0 rounded-lg ${
+                        hoveredStory === 0 && storyPlaying[0]
+                          ? "opacity-90"
                           : "opacity-100"
                       }`}
                     >
                       {VIDEO_TEASERS[1].title}
+                    </span>
+                  </div>
+
+                  <div className="pointer-events-none absolute bottom-0 left-0 right-0 z-10 p-4">
+                    <span
+                      className={`inline-block px-3 py-1 font-normal text-white/80 transition-opacity duration-200 bg-gradient-to-r from-zinc-900/50 to-neutral-400/0 rounded-lg ${
+                        hoveredStory === 1 && storyPlaying[1]
+                          ? "opacity-90"
+                          : "opacity-100"
+                      }`}
+                    >
+                      {VIDEO_TEASERS[1].description}
                     </span>
                   </div>
                 </div>

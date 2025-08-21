@@ -6,33 +6,42 @@ import { HeroSection } from "./hero";
 import { ModelsSection } from "./models";
 import { VideoSection } from "./video";
 import { RequirementsSection } from "./requirements";
-import { AboutSection } from "./about";
+import { Footer } from "./footer";
+import { MiniWorld } from "./miniWorld";
 
 export default function MiniRentalHero() {
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
-    <main className="relative min-h-screen">
+    <>
       {/* HEADER */}
       <HeaderSection menuOpen={menuOpen} handleMenuOpen={setMenuOpen} />
 
-      {/* HERO */}
-      <HeroSection />
+      <main className="relative min-h-screen">
+        {/* HERO */}
+        <HeroSection />
 
-      {/* MODELS */}
-      <ModelsSection />
+        {/* MODELS */}
+        <ModelsSection />
 
-      {/*  VIDEO  */}
-      <VideoSection />
+        {/*  VIDEO  */}
+        <VideoSection />
 
-      {/*  WELCOME   */}
-      <WelcomeSection />
+        {/*  WELCOME   */}
+        <WelcomeSection />
 
-      {/* Requirements */}
-      <RequirementsSection />
+        {/* Requirements */}
+        <RequirementsSection />
 
-      {/* About SEO */}
-      <AboutSection />
-    </main>
+        {/* MINI World */}
+        <MiniWorld />
+
+        {/* About SEO */}
+        {/* <AboutSection /> */}
+      </main>
+
+      {/* Footer */}
+      <Footer />
+    </>
   );
 }
