@@ -51,7 +51,7 @@ export const HeroSection = () => {
 
       {/* Booking form */}
       <div className="absolute left-1/2 -translate-x-1/2 w-full max-w-4xl px-4 z-20 bottom-[max(16px,env(safe-area-inset-bottom))] sm:bottom-10">
-        <div className="hidden mb-5 md:flex flex-wrap justify-center items-center gap-2 font-robotoCondensed font-semibold text-white/90">
+        <div className="hidden mb-5 md:flex flex-wrap justify-center items-center gap-4 font-robotoCondensed text-shadow text-white">
           {[
             "Select location",
             "Select period",
@@ -60,7 +60,7 @@ export const HeroSection = () => {
           ].map((html, idx) => (
             <p
               key={idx}
-              className="flex bg-gradient-to-r from-neutral-700/40 to-neutral-400/0 px-1 py-1 rounded-full text-shadow"
+              className="flex bg-gradient-to-r from-neutral-800/50 to-neutral-400/0 px-1 py-1 rounded-full "
             >
               <span className=" text-center bg-neutral-200/30 rounded-full w-6 h-6 mr-1">
                 {idx + 1}
