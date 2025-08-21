@@ -366,7 +366,7 @@ export const VideoSection = () => {
                   {/* Title */}
                   <div className="pointer-events-none absolute top-0 left-0 right-0 z-10 p-3">
                     <span
-                      className={`inline-block px-3 py-1 font-normal text-white/80 transition-opacity duration-200 bg-gradient-to-r from-zinc-800/50 to-neutral-400/0 rounded-lg ${
+                      className={`inline-block px-3 py-1 font-normal text-white/90 transition-opacity duration-200 bg-gradient-to-r from-zinc-800/50 to-neutral-400/0 rounded-lg ${
                         mobileActive === i ? "opacity-90" : "opacity-100"
                       }`}
                     >
@@ -449,7 +449,7 @@ export const VideoSection = () => {
                   />
                   <div className="pointer-events-none absolute top-0 left-0 right-0 z-20 p-4">
                     <span
-                      className={`inline-block px-3 py-1 font-normal text-white/80 transition-opacity duration-200 bg-gradient-to-r from-zinc-900/50 to-neutral-400/0 rounded-lg ${
+                      className={`inline-block px-3 py-1 font-normal text-white/90 transition-opacity duration-200 bg-gradient-to-r from-zinc-900/50 to-neutral-400/0 rounded-lg ${
                         hoveredStory === 0 && storyPlaying[0]
                           ? "opacity-90"
                           : "opacity-100"
@@ -524,7 +524,7 @@ export const VideoSection = () => {
                   />
                   <div className="pointer-events-none absolute top-0 left-0 right-0 z-20 p-4">
                     <span
-                      className={`inline-block px-3 py-1 font-normal text-white/80 transition-opacity duration-200 bg-gradient-to-r from-zinc-900/50 to-neutral-400/0 rounded-lg ${
+                      className={`inline-block px-3 py-1 font-normal text-white/90 transition-opacity duration-200 bg-gradient-to-r from-zinc-900/50 to-neutral-400/0 rounded-lg ${
                         hoveredStory === 0 && storyPlaying[0]
                           ? "opacity-90"
                           : "opacity-100"
@@ -616,7 +616,7 @@ export const VideoSection = () => {
                   />
                   <div className="pointer-events-none absolute top-0 left-0 right-0 z-20 p-4">
                     <span
-                      className={`inline-block px-3 py-1 font-normal text-white/80 transition-opacity duration-200 bg-gradient-to-r from-zinc-900/50 to-neutral-400/0 rounded-lg ${
+                      className={`inline-block px-3 py-1 font-normal text-white/90 transition-opacity duration-200 bg-gradient-to-r from-zinc-900/50 to-neutral-400/0 rounded-lg ${
                         hoveredStory === 0 && storyPlaying[0]
                           ? "opacity-90"
                           : "opacity-100"
