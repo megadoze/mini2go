@@ -30,6 +30,7 @@ import BookingsList from "./app/bookings";
 import BookingPage from "./app/bookings/bookingPage";
 import BookingEditor from "./app/bookings/bookingEditor";
 import MiniLandingPage from "./app/landingpage";
+import CalendarPage from "./app/calendar";
 
 export const router = createBrowserRouter([
   {
@@ -40,6 +41,7 @@ export const router = createBrowserRouter([
       { index: true, element: <Navigate to="/dashboard" replace /> },
       { path: "user", element: <Navigate to="/" replace /> },
       { path: "dashboard", element: <Dashboard /> },
+      { path: "calendar", element: <CalendarPage /> },
       { path: "cars", element: <CarsPage /> },
       { path: "cars/add", element: <AddCarPage /> },
       { path: "finance", element: <Finance /> },

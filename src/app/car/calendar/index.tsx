@@ -57,6 +57,7 @@ export default function Calendar() {
 
   const [hoveredDate, setHoveredDate] = useState<Date | null>(null);
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
+
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(
     null
   );
@@ -81,7 +82,8 @@ export default function Calendar() {
           b.mark === "booking" &&
           (b.status === "onApproval" ||
             b.status === "rent" ||
-            b.status === "confirmed")
+            b.status === "confirmed" ||
+            b.status === "finished")
       ),
     [allBookings]
   );
@@ -253,6 +255,7 @@ export default function Calendar() {
         end: date > start ? date : start,
       });
       const hasUnavailable = range.some((d) => isUnavailable(d));
+
       if (hasUnavailable) {
         setSelectedRange({ start: null, end: null });
       } else {
@@ -568,14 +571,16 @@ export default function Calendar() {
             {format(parseISO(selectedBlock.end_at), "dd MMM yyyy, HH:mm")}
           </p>
           <div className="flex justify-between items-center gap-2 mt-2 ">
+            {!isPastDay(parseISO(selectedBlock.start_at)) && (
+              <button
+                onClick={() => handleRemoveBlock(selectedBlock.id)}
+                className=" px-2 py-2 border border-gray-600 rounded text-gray-700 text-sm"
+              >
+                Remove
+              </button>
+            )}
             <button
-              onClick={() => handleRemoveBlock(selectedBlock.id)}
-              className="px-2 py-2 border border-gray-600 rounded text-gray-700 text-sm"
-            >
-              Remove
-            </button>
-            <button
-              className="px-2 py-2 border border-gray-400 text-gray-600 rounded text-sm"
+              className="block ml-auto px-2 py-2 border border-gray-400 text-gray-600 rounded text-sm"
               onClick={() => setSelectedBlockId(null)}
             >
               Close
@@ -610,13 +615,15 @@ export default function Calendar() {
             </p>
           )}
           <div className="flex justify-between items-center gap-2 mt-2 ">
-            <button
-              onClick={() => handleRemoveBooking(selectedBooking.id)}
-              className="px-2 py-2 border border-gray-500 rounded text-gray-700 text-sm"
-            >
-              Remove
-            </button>
-            <div className="flex gap-2">
+            {!isPastDay(parseISO(selectedBooking.start_at)) && (
+              <button
+                onClick={() => handleRemoveBooking(selectedBooking.id)}
+                className="px-2 py-2 border border-gray-500 rounded text-gray-700 text-sm"
+              >
+                Remove
+              </button>
+            )}
+            <div className="flex gap-2 ml-auto">
               <button
                 className="px-2 py-2 border border-gray-400 text-gray-600 rounded text-sm"
                 onClick={() => setSelectedBookingId(null)}

@@ -48,6 +48,7 @@
     "react-map-gl": "^8.0.4",
     "react-router": "^7.7.1",
     "react-router-dom": "^7.7.1",
+    "react-window": "^1.8.11",
     "recharts": "^2.15.4",
     "sonner": "^2.0.6"
   },
@@ -59,6 +60,7 @@
     "@types/react": "^19.1.9",
     "@types/react-dom": "^19.1.7",
     "@types/react-input-mask": "^3.0.6",
+    "@types/react-window": "^1.8.8",
     "@vitejs/plugin-react": "^4.5.2",
     "autoprefixer": "^10.4.19",
     "eslint": "^9.29.0",

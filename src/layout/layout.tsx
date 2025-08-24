@@ -7,6 +7,7 @@ import {
   CalendarDaysIcon,
   ChartBarSquareIcon,
   RocketLaunchIcon,
+  TicketIcon,
   UserGroupIcon,
 } from "@heroicons/react/24/outline";
 import UserMenu from "@/components/userMenu";
@@ -23,8 +24,15 @@ export default function Layout() {
       onClick: toggle,
     },
     {
-      to: "/bookings",
+      to: "/calendar",
       icon: <CalendarDaysIcon className="size-5" />,
+      label: "Calendar",
+      onClick: toggle,
+      // count: unviewedCounts.draft,
+    },
+    {
+      to: "/bookings",
+      icon: <TicketIcon className="size-5" />,
       label: "Bookings",
       onClick: toggle,
       // count: unviewedCounts.draft,

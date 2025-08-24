@@ -40,10 +40,10 @@ export function MiniWorld() {
                   </div>
 
                   <div className="p-4 flex flex-col h-full">
-                    <h3 className="text-lg font-semibold text-black line-clamp-2">
+                    <h3 className="text-lg font-robotoCondensed font-semibold text-black line-clamp-2">
                       {p.title}
                     </h3>
-                    <p className="mt-2 text-sm text-black/70 line-clamp-3">
+                    <p className="mt-2 font-roboto text-sm text-black/70 line-clamp-3">
                       {p.excerpt}
                     </p>
 
@@ -93,10 +93,10 @@ export function MiniWorld() {
                 </span>
               </div>
               <div className="p-4 md:p-5">
-                <h3 className="text-lg md:text-xl font-semibold text-black">
+                <h3 className="text-lg md:text-xl font-robotoCondensed font-semibold text-black">
                   {p.title}
                 </h3>
-                <p className="mt-2 text-sm md:text-base text-black/70 line-clamp-3">
+                <p className="mt-2 font-roboto text-sm md:text-base text-black/70 line-clamp-3">
                   {p.excerpt}
                 </p>
                 <div className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-black/90 group-hover:text-black">

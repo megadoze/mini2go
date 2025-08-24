@@ -158,7 +158,7 @@ export function Footer() {
 
             {/* Copyright */}
             <p className="text-sm text-white/60">
-              © {new Date().getFullYear()} MINI Drive. All rights reserved.
+              © {new Date().getFullYear()} MINI2GO. All rights reserved.
             </p>
           </div>
 

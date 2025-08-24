@@ -19,7 +19,7 @@ import {
 } from "@/services/booking-extras.service";
 import { calculateFinalPriceProRated } from "@/hooks/useFinalPriceHourly";
 import { differenceInMinutes, isAfter, parseISO } from "date-fns";
-import { Select, Checkbox, Badge } from "@mantine/core";
+import { Select, Checkbox, Badge, Skeleton } from "@mantine/core";
 import {
   searchUsers,
   createUserProfile,
@@ -191,8 +191,16 @@ export default function BookingEditor() {
   // статус / кнопки подтверждения
   const [status, setStatus] = useState<string>("onApproval");
 
+  const isFinished =
+    status === "finished" ||
+    status === "canceledHost" ||
+    status === "canceledClient";
+
+  const isDisabled = status === "rent" || isFinished;
+
   // Лайв-тик раз в 30 сек
   const [tick, setTick] = useState(0);
+
   useEffect(() => {
     const t = window.setInterval(() => setTick(Date.now()), 30_000);
     return () => clearInterval(t);
@@ -444,7 +452,7 @@ export default function BookingEditor() {
     const clash = list.find(
       (b) =>
         b.id !== selfId &&
-        b.status !== "canceled" &&
+        b.status !== "canceledHost" &&
         overlaps(s, e, new Date(b.start_at), new Date(b.end_at))
     );
     if (clash)
@@ -915,7 +923,9 @@ export default function BookingEditor() {
                 <div className="aspect-[3/2] w-full overflow-hidden rounded-2xl">
                   <img
                     src={carFromCtx.photos[0]}
-                    className="h-full w-full object-cover"
+                    className={`${
+                      isFinished && "opacity-50"
+                    } h-full w-full object-cover`}
                     alt="Car"
                   />
                 </div>
@@ -945,34 +955,53 @@ export default function BookingEditor() {
             <p className="font-medium text-base sm:text-lg text-gray-800">
               Dates of trip
             </p>
-            <div className="flex flex-col md:flex-row md:items-center gap-4 mt-2">
+            <div className="flex flex-col md:flex-row md:items-center gap-6 mt-2">
               <div>
                 <label className="block text-sm mb-1">Start</label>
-                <input
-                  type="datetime-local"
-                  step={60}
-                  className="w-full border rounded px-2 py-1 disabled:bg-white"
-                  value={toLocalDT(startDateInp)}
-                  onChange={(e) => setStartDateInp(fromLocalDT(e.target.value))}
-                  disabled={status === "rent"}
-                />
+                {!isFinished ? (
+                  <input
+                    type="datetime-local"
+                    step={60}
+                    className="w-full border rounded px-2 py-1 disabled:bg-white"
+                    value={toLocalDT(startDateInp)}
+                    onChange={(e) =>
+                      setStartDateInp(fromLocalDT(e.target.value))
+                    }
+                    disabled={isDisabled}
+                  />
+                ) : (
+                  <p className="line-through">{fmt(startDateInp)} </p>
+                )}
               </div>
+
               <div>
                 <label className="block text-sm mb-1">End</label>
-                <input
-                  type="datetime-local"
-                  step={60}
-                  className="w-full border rounded px-2 py-1 disabled:bg-white"
-                  value={toLocalDT(endDateInp)}
-                  min={toLocalDT(endDateInp)}
-                  onChange={(e) => setEndDateInp(fromLocalDT(e.target.value))}
-                  disabled={status === "rent"}
-                />
+                {!isFinished ? (
+                  <input
+                    type="datetime-local"
+                    step={60}
+                    className="w-full border rounded px-2 py-1 disabled:bg-white"
+                    value={toLocalDT(endDateInp)}
+                    min={toLocalDT(endDateInp)}
+                    onChange={(e) => setEndDateInp(fromLocalDT(e.target.value))}
+                    disabled={isDisabled}
+                  />
+                ) : (
+                  <p className="line-through">{fmt(endDateInp)}</p>
+                )}
               </div>
             </div>
-            <div className="text-xs text-gray-500 mt-1">
-              Working hours: {mmToHHMM(effectiveOpenTime)} –{" "}
-              {mmToHHMM(effectiveCloseTime)}
+            {!isFinished && (
+              <div className="text-xs text-gray-500 mt-1">
+                Working hours: {mmToHHMM(effectiveOpenTime)} –{" "}
+                {mmToHHMM(effectiveCloseTime)}
+              </div>
+            )}
+            <div className="mt-5 ">
+              Duration:{" "}
+              <span>
+                {durationDays}d {durationHours}h {durationMinutes}m
+              </span>
             </div>
           </section>
 
@@ -1151,14 +1180,11 @@ export default function BookingEditor() {
                 onChange={(v: any) =>
                   setDelivery((v ?? "car_address") as DeliveryOption)
                 }
-                className={
-                  status === "rent" ? "opacity-60" : ""
-                }
+                className={isDisabled ? "opacity-60" : ""}
                 classNames={{
-                  input:
-                    status === "rent"
-                      ? "!cursor-not-allowed focus:border-gray-300"
-                      : "",
+                  input: isDisabled
+                    ? "!cursor-not-allowed focus:border-gray-300"
+                    : "",
                 }}
                 data={[
                   {
@@ -1178,7 +1204,7 @@ export default function BookingEditor() {
                       ]
                     : []),
                 ]}
-                readOnly={status === "rent"}
+                readOnly={isDisabled}
               />
               <div className="text-xs text-gray-600 mt-1">
                 Delivery fee:{" "}
@@ -1210,18 +1236,18 @@ export default function BookingEditor() {
                       checked={pickedExtras.includes(ex.id)}
                       onChange={(e) => {
                         const checked = e.currentTarget.checked;
-                        if (status === "rent") return;
+                        if (isDisabled) return;
                         setPickedExtras((prev) =>
                           checked
                             ? [...prev, ex.id]
                             : prev.filter((x) => x !== ex.id)
                         );
                       }}
-                      className={status === "rent" ? "opacity-80" : ""}
+                      className={isDisabled ? "opacity-80" : ""}
                       classNames={{
-                        root: status === "rent" ? "!cursor-not-allowed" : "",
-                        input: status === "rent" ? "!cursor-not-allowed" : "",
-                        label: status === "rent" ? "!cursor-not-allowed" : "",
+                        root: isDisabled ? "!cursor-not-allowed" : "",
+                        input: isDisabled ? "!cursor-not-allowed" : "",
+                        label: isDisabled ? "!cursor-not-allowed" : "",
                       }}
                     />
                   </div>
@@ -1229,55 +1255,6 @@ export default function BookingEditor() {
               </div>
             </div>
           )}
-
-          {/* Итоги */}
-          <div className="mt-4 text-sm space-y-1">
-            <div>
-              Period: <b>{fmt(startDateInp)}</b> → <b>{fmt(endDateInp)}</b>
-            </div>
-            <div>
-              Duration:{" "}
-              <b>
-                {durationDays}d {durationHours}h {durationMinutes}m
-              </b>
-            </div>
-            <div>
-              Base:{" "}
-              <b>
-                {baseTotal.toFixed(2)} {effectiveCurrency}
-              </b>
-            </div>
-            {mark === "booking" && (
-              <div>
-                Extras:{" "}
-                <b>
-                  {extrasTotal.toFixed(2)} {effectiveCurrency}
-                </b>
-              </div>
-            )}
-            {mark === "booking" && deliveryEnabled && (
-              <div>
-                Delivery:{" "}
-                <b>
-                  {deliveryFee.toFixed(2)} {effectiveCurrency}
-                </b>
-              </div>
-            )}
-            {mark === "booking" && (
-              <div>
-                Deposit:{" "}
-                <b>
-                  {Number(deposit ?? 0).toFixed(2)} {effectiveCurrency}
-                </b>
-              </div>
-            )}
-            <div className="mt-1">
-              Total:{" "}
-              <b>
-                {price_total.toFixed(2)} {effectiveCurrency}
-              </b>
-            </div>
-          </div>
 
           {error && <div className="mt-3 text-red-600 text-sm">{error}</div>}
 
@@ -1313,7 +1290,9 @@ export default function BookingEditor() {
                 <div className="aspect-video w-full overflow-hidden rounded-2xl">
                   <img
                     src={carFromCtx.photos[0]}
-                    className="h-full w-full object-cover"
+                    className={`${
+                      isFinished && "opacity-50"
+                    } h-full w-full object-cover`}
                     alt="Car"
                   />
                 </div>
@@ -1375,25 +1354,43 @@ export default function BookingEditor() {
           {/* </section> */}
 
           {/* Итоги справа */}
-          {/* <section className="mt-4 text-sm">
-          <div className="flex justify-between">
-            <span>Total</span>
-            <b>
-              {price_total.toFixed(2)} {effectiveCurrency}
-            </b>
-          </div>
-          <div className="flex justify-between mt-1">
-            <span>Deposit</span>
-            <b>
-              {Number(deposit ?? 0).toFixed(2)} {effectiveCurrency}
-            </b>
-          </div>
-        </section> */}
+          {mark === "booking" && extrasTotal ? (
+            <section className="mt-4 text-sm">
+              <div className="flex justify-between">
+                <span>Price base</span>
+                {baseTotal.toFixed(2)} {effectiveCurrency}
+              </div>
+              {deliveryFee > 0 && (
+                <div className="flex justify-between">
+                  <span>Delivery</span>
+                  {deliveryFee.toFixed(2)} {effectiveCurrency}
+                </div>
+              )}
+              {extrasTotal > 0 && (
+                <div className="flex justify-between">
+                  <span>Extras</span>
+                  {extrasTotal.toFixed(2)} {effectiveCurrency}
+                </div>
+              )}
+              <div className="flex justify-between">
+                <span className=" font-bold">Total</span>
+                <b>
+                  {price_total.toFixed(2)} {effectiveCurrency}
+                </b>
+              </div>
+              <div className="flex justify-between mt-2">
+                <span>Deposit</span>
+                {Number(deposit ?? 0).toFixed(2)} {effectiveCurrency}
+              </div>
+            </section>
+          ) : (
+            <Skeleton height={50} mt="lg" mb="xl" />
+          )}
 
           {/* Даты + прогресс + отсчёт */}
           {mode === "edit" && mark === "booking" && (
             <>
-              <section id="dates" className="md:mt-6">
+              <section id="dates" className="mt-6">
                 {status === "rent" && typeof tripProgress === "number" && (
                   <div className="mt-4">
                     <div className="flex items-center justify-between mb-2">
@@ -1439,23 +1436,30 @@ export default function BookingEditor() {
                     </p>
                   )
                 )}
+                {status === "finished" && (
+                  <p className="border rounded-md px-4 py-2">
+                    Trip is finished.
+                  </p>
+                )}
               </section>
-              <div className="hidden mt-6 space-y-2 lg:block">
-                <button
-                  className="w-full border rounded-md border-lime-400 text-lime-500 py-2 text-sm disabled:border-gray-300 disabled:text-gray-400"
-                  onClick={handleConfirm}
-                  disabled={!canConfirm}
-                >
-                  Confirm booking
-                </button>
-                <button
-                  className="w-full border rounded-md border-gray-300 text-gray-700 py-2 text-sm disabled:border-gray-300 disabled:text-gray-400"
-                  onClick={handleCancel}
-                  disabled={!canCancel}
-                >
-                  Cancel booking
-                </button>
-              </div>
+              {!isDisabled && (
+                <div className="hidden mt-6 space-y-2 lg:block">
+                  <button
+                    className="w-full border rounded-md border-lime-400 text-lime-500 py-2 text-sm disabled:border-gray-300 disabled:text-gray-400"
+                    onClick={handleConfirm}
+                    disabled={!canConfirm}
+                  >
+                    Confirm booking
+                  </button>
+                  <button
+                    className="w-full border rounded-md border-gray-300 text-gray-700 py-2 text-sm disabled:border-gray-300 disabled:text-gray-400"
+                    onClick={handleCancel}
+                    disabled={!canCancel}
+                  >
+                    Cancel booking
+                  </button>
+                </div>
+              )}
             </>
           )}
 
@@ -1543,8 +1547,9 @@ export default function BookingEditor() {
           )}
           {/* Customer mini card */}
           {userId && selectedUser && mode !== "create" && (
-            <section className=" mt-6 border border-gray-400 text-gray-700 rounded-md p-3 flex items-start gap-2">
-              <div className="grow">
+            <section className=" mt-6 text-gray-700  ">
+              <p className="md:text-lg font-semibold">Client</p>
+              <div className=" flex flex-col items-start gap-2 border rounded-md  border-gray-400 p-3 mt-2">
                 <div className="font-medium">
                   {selectedUser.full_name ?? "—"}
                 </div>
