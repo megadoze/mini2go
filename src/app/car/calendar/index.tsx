@@ -349,47 +349,6 @@ export default function Calendar() {
     if (editMode === "booking") setEditMode(null);
   };
 
-  // const startEditBooking = async () => {
-  //   if (!selectedBooking || !carId) return;
-
-  //   const uid = selectedBooking.user_id ?? null;
-
-  //   const [user, extras] = await Promise.all([
-  //     uid
-  //       ? getCachedUser?.(uid) ??
-  //         getUserById(uid).then((u) => {
-  //           setCachedUser?.(uid, u);
-  //           return u;
-  //         })
-  //       : Promise.resolve(null),
-  //     fetchBookingExtras(selectedBooking.id).catch(() => []),
-  //   ]);
-
-  //   const snapshot: BookingEditorSnapshot = {
-  //     booking: {
-  //       id: selectedBooking.id,
-  //       car_id: selectedBooking.car_id,
-  //       user_id: selectedBooking.user_id,
-  //       start_at: selectedBooking.start_at,
-  //       end_at: selectedBooking.end_at,
-  //       mark: selectedBooking.mark,
-  //       status: selectedBooking.status,
-  //       price_per_day: selectedBooking.price_per_day,
-  //       price_total: selectedBooking.price_total,
-  //       user, // сразу готовый профиль или null
-  //       deposit: (selectedBooking as any)?.deposit ?? null,
-  //       delivery_type: (selectedBooking as any)?.delivery_type ?? "car_address",
-  //       delivery_fee: (selectedBooking as any)?.delivery_fee ?? 0,
-  //       currency: (selectedBooking as any)?.currency ?? "EUR",
-  //     },
-  //     booking_extras: Array.isArray(extras) ? extras : [],
-  //   };
-
-  //   navigate(`/cars/${carId}/bookings/${selectedBooking.id}/edit`, {
-  //     state: { snapshot, from: location.pathname + location.search },
-  //   });
-  // };
-
   // утилиты
   const resetSelection = () => {
     setSelectedRange({ start: null, end: null });
@@ -698,9 +657,10 @@ export default function Calendar() {
               }}
               withinPortal
               position="top"
+              width={"368"}
               withArrow
-              shadow="md"
-              offset={8}
+              shadow="sm"
+              offset={6}
               closeOnClickOutside={false}
               middlewares={{ flip: false, shift: true }}
               trapFocus={false}

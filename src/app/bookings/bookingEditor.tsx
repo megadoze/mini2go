@@ -218,7 +218,7 @@ export default function BookingEditor() {
     status === "canceledHost" ||
     status === "canceledClient";
 
-  const isDisabled = status === "rent" || isFinished;
+  const isDisabled = status === "rent" || status === "block" || isFinished;
 
   // Лайв-тик раз в 30 сек
   const [tick, setTick] = useState(0);
@@ -699,15 +699,15 @@ export default function BookingEditor() {
       return;
     }
 
-    const basePayload: Omit<Booking, "id"> & { deposit?: number } = {
+    const basePayload: Omit<Booking, "id"> & { deposit?: number | null } = {
       car_id: carId,
       user_id: mark === "booking" ? userId : null,
       start_at: new Date(startDateInp).toISOString(),
       end_at: new Date(endDateInp).toISOString(),
       mark,
-      price_per_day: baseDailyPrice,
-      price_total,
-      deposit,
+      price_per_day: mark === "booking" ? baseDailyPrice : null,
+      price_total: mark === "booking" ? price_total : null,
+      deposit: mark === "booking" ? deposit : null,
       delivery_type: delivery,
       delivery_fee: deliveryFee,
       currency: effectiveCurrency,
@@ -1116,7 +1116,7 @@ export default function BookingEditor() {
                     onChange={(e) =>
                       setStartDateInp(fromLocalDT(e.target.value))
                     }
-                    disabled={isDisabled || mark === "block"}
+                    disabled={isDisabled}
                   />
                 ) : (
                   <p className="line-through">{fmt(startDateInp)} </p>
@@ -1133,7 +1133,7 @@ export default function BookingEditor() {
                     value={toLocalDT(endDateInp)}
                     min={toLocalDT(startDateInp)}
                     onChange={(e) => setEndDateInp(fromLocalDT(e.target.value))}
-                    disabled={isDisabled || mark === "block"}
+                    disabled={isDisabled}
                   />
                 ) : (
                   <p className="line-through">{fmt(endDateInp)}</p>
