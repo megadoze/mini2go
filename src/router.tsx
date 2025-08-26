@@ -11,7 +11,6 @@ import UserMessages from "./app/user/userMessages";
 import AddCarPage from "./app/cars/addCar";
 import CarPageLayout from "./layout/carPageLayout";
 import CarDetails from "./app/car/cardetails";
-import Calendar from "./app/car/calendar";
 import Pricing from "./app/car/pricing";
 import Distance from "./app/car/distance";
 import Photos from "./app/car/photos";
@@ -30,7 +29,9 @@ import BookingsList from "./app/bookings";
 import BookingPage from "./app/bookings/bookingPage";
 import BookingEditor from "./app/bookings/bookingEditor";
 import MiniLandingPage from "./app/landingpage";
-import CalendarPage from "./app/calendar";
+import { calendarLoader } from "./routes/calendarLoader";
+import Calendar from "./app/car/calendar";
+import CalendarPage from "./app/calendarGant";
 
 export const router = createBrowserRouter([
   {
@@ -41,14 +42,32 @@ export const router = createBrowserRouter([
       { index: true, element: <Navigate to="/dashboard" replace /> },
       { path: "user", element: <Navigate to="/" replace /> },
       { path: "dashboard", element: <Dashboard /> },
-      { path: "calendar", element: <CalendarPage /> },
+      // routes.tsx (или где объявлён роут)
+      {
+        id: "calendar",
+        path: "/calendar",
+        loader: calendarLoader,
+        // ВАЖНО: не перезапускаем loader, если изменился только ?month
+        shouldRevalidate: ({ currentUrl, nextUrl }) => {
+          if (currentUrl.pathname !== nextUrl.pathname) return true;
+
+          const a = new URL(currentUrl);
+          const b = new URL(nextUrl);
+          a.searchParams.delete("month");
+          b.searchParams.delete("month");
+
+          // ревалидируем только если изменилось что-то ещё, кроме month
+          return a.search !== b.search;
+        },
+        element: <CalendarPage />,
+      },
+
       { path: "cars", element: <CarsPage /> },
       { path: "cars/add", element: <AddCarPage /> },
       { path: "finance", element: <Finance /> },
       { path: "bookings", element: <BookingsList owner="me" /> },
       { path: "bookings/new", element: <BookingEditor /> },
-      // { path: "bookings/:id/edit", element: <BookingEditor /> },
-      { path: "bookings/:id", element: <BookingPage /> },
+      { path: "bookings/:bookingId", element: <BookingPage /> },
       { path: "users", element: <UsersPage /> },
       { path: "settings", element: <SettingsGlobal /> },
       {
@@ -64,11 +83,15 @@ export const router = createBrowserRouter([
     ],
   },
   {
-    path: "cars/:id",
+    path: "cars/:carId",
     element: <CarPageLayout />,
     loader: carLayoutLoader, // <-- предзагрузка всех данных
     HydrateFallback: HydrateFallback,
     errorElement: <CarErrorBoundary />,
+    shouldRevalidate: ({ currentParams, nextParams }) => {
+      // Перегружать только если поменялся сам carId
+      return currentParams?.carId !== nextParams?.carId;
+    },
     children: [
       { index: true, element: <Navigate to="cardetails" replace /> },
       { path: "cardetails", element: <CarDetails /> },

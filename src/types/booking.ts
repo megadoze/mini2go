@@ -12,4 +12,5 @@ export type Booking = {
   created_at?: string | null;
   delivery_fee?: number | null;
   delivery_type?: "car_address" | "by_address";
+  currency?: string;
 };

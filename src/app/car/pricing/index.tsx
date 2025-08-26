@@ -39,8 +39,7 @@ const fromISODate = (iso?: string) =>
   iso ? new Date(`${iso}T00:00:00`) : null;
 
 const Pricing = () => {
-  const { id } = useParams();
-  const carId = id as string;
+  const { carId } = useParams();
 
   const {
     car,
@@ -70,7 +69,7 @@ const Pricing = () => {
     min_days: number;
     discount_percent: string;
   }>({
-    car_id: carId,
+    car_id: carId || "",
     min_days: 3,
     discount_percent: "-10",
   });
@@ -81,7 +80,7 @@ const Pricing = () => {
     end_date: string;
     adjustment_percent: string;
   }>({
-    car_id: carId,
+    car_id: carId || "",
     start_date: "",
     end_date: "",
     adjustment_percent: "25",

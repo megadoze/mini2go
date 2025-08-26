@@ -41,7 +41,7 @@ type LoaderData = {
 
 export default function CarPageLayout() {
   const [opened, { toggle }] = useDisclosure();
-  const { id } = useParams();
+  const { carId } = useParams();
 
   const userCache = useRef(new Map<string, any>());
 
@@ -91,7 +91,7 @@ export default function CarPageLayout() {
   const [loadingCar, setLoadingCar] = useState(false);
   const [loadingGlobal, setLoadingGlobal] = useState(false);
 
-  const getCarId = () => String((car as any)?.id ?? id);
+  const getCarId = () => String((car as any)?.id ?? carId);
 
   // Синхронизация из loader без перетирания bookings
   useEffect(() => {

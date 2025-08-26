@@ -19,13 +19,12 @@ import {
 } from "@/services/booking-extras.service";
 import { calculateFinalPriceProRated } from "@/hooks/useFinalPriceHourly";
 import { differenceInMinutes, isAfter, parseISO } from "date-fns";
-import { Select, Checkbox, Badge, Skeleton } from "@mantine/core";
+import { Select, Checkbox, Badge } from "@mantine/core";
 import {
   searchUsers,
   createUserProfile,
   getUserById,
 } from "@/services/user.service";
-import type { BookingEditorSnapshot } from "@/types/booking-ui";
 import { ShareIcon } from "@heroicons/react/24/outline";
 import { updateBookingCard } from "@/services/bookings.service";
 
@@ -44,7 +43,7 @@ function fromLocalDT(local: string) {
 function minutesSinceMidnight(d: Date) {
   return d.getHours() * 60 + d.getMinutes();
 }
-// inclusiveEnd=true позволяет окончание в точное время закрытия (<= close)
+
 function isWithinDailyWindow(
   startMin: number,
   endMin: number,
@@ -75,9 +74,12 @@ function mmToHHMM(m: number) {
 
 export default function BookingEditor() {
   const location = useLocation() as any;
-  const snapshot = location.state?.snapshot as
-    | BookingEditorSnapshot
-    | undefined;
+  const snapshot = location.state?.snapshot as any; // BookingEditorSnapshot
+
+  const { id: carIdFromCarsRoute, bookingId } = useParams();
+
+  const hasMatchingSnapshot =
+    Boolean(snapshot?.booking?.id) && snapshot!.booking.id === bookingId;
 
   // контекст
   const carCtx = useContext(CarContext);
@@ -120,7 +122,6 @@ export default function BookingEditor() {
   const lastBookingUserRef = useRef<string | null>(null);
 
   // из URL
-  const { id: carIdFromCarsRoute, bookingId } = useParams();
   const [sp] = useSearchParams();
   const navigate = useNavigate();
 
@@ -136,25 +137,35 @@ export default function BookingEditor() {
   const mode: "create" | "edit" = isUUID(bookingId) ? "edit" : "create";
 
   // форма
-  const [loading, setLoading] = useState(true);
-  const [mark, setMark] = useState<"booking" | "block">("booking");
-  const [userId, setUserId] = useState<string | null>(null);
-  const [selectedUser, setSelectedUser] = useState<any | null>(null);
+  const [loading, setLoading] = useState(!hasMatchingSnapshot);
+
+  const [mark, setMark] = useState<"booking" | "block">(
+    (snapshot?.booking.mark as any) ?? "booking"
+  );
+  const [userId, setUserId] = useState<string | null>(
+    snapshot?.booking.user_id ?? null
+  );
+  const [selectedUser, setSelectedUser] = useState<any | null>(
+    snapshot?.booking.user ?? null
+  );
   const [startAt, setStartAt] = useState<string>(
     snapshot?.booking.start_at || ""
   );
   const [endAt, setEndAt] = useState<string>(snapshot?.booking.end_at || "");
-
   const [startDateInp, setStartDateInp] = useState<string>(
     snapshot?.booking.start_at || ""
   );
   const [endDateInp, setEndDateInp] = useState<string>(
     snapshot?.booking.end_at || ""
   );
+  const [status, setStatus] = useState<string | null>(
+    hasMatchingSnapshot ? snapshot?.booking?.status ?? null : null
+  );
 
-  // депозит — берём из авто при создании, показываем в карточке всегда
   const [deposit, setDeposit] = useState<number>(
-    Number((carFromCtx as any)?.deposit ?? 0)
+    typeof snapshot?.booking.deposit === "number"
+      ? Number(snapshot!.booking.deposit)
+      : Number((carFromCtx as any)?.deposit ?? 0)
   );
 
   // Extras UI state (id-шники того, что выбрано)
@@ -182,14 +193,25 @@ export default function BookingEditor() {
   // Delivery
   type DeliveryOption = "car_address" | "by_address";
   const deliveryEnabled = Boolean((carFromCtx as any)?.isDelivery);
-  const [delivery, setDelivery] = useState<DeliveryOption>("car_address");
+
+  const [delivery, setDelivery] = useState<DeliveryOption>(
+    (snapshot?.booking?.delivery_type as any) ?? "car_address"
+  );
+
+  const [deliveryFeeValue, setDeliveryFeeValue] = useState<number>(() => {
+    if (typeof snapshot?.booking?.delivery_fee === "number") {
+      return Number(snapshot!.booking.delivery_fee);
+    }
+    const def = Number((carFromCtx as any)?.deliveryFee ?? 0);
+    const isByAddr =
+      ((snapshot?.booking?.delivery_type as any) ?? "car_address") ===
+      "by_address";
+    return isByAddr ? def : 0;
+  });
 
   // QR
   const [qrOpen, setQrOpen] = useState(false);
   const [qrSrc, setQrSrc] = useState<string | null>(null);
-
-  // статус / кнопки подтверждения
-  const [status, setStatus] = useState<string>("onApproval");
 
   const isFinished =
     status === "finished" ||
@@ -201,6 +223,22 @@ export default function BookingEditor() {
   // Лайв-тик раз в 30 сек
   const [tick, setTick] = useState(0);
 
+  const isISO = (s?: string | null) => !!s && !Number.isNaN(Date.parse(s));
+
+  useEffect(() => {
+    // delivery/fee из снапшота (если есть)
+    const b = snapshot?.booking;
+    if (b?.delivery_type) setDelivery(b.delivery_type as any);
+    if (b?.delivery_fee != null) setDeliveryFeeValue(Number(b.delivery_fee));
+
+    // extras из снапшота (даже если массив пустой — это валидно)
+    const snapExtras = snapshot?.booking_extras;
+
+    if (Array.isArray(snapExtras)) {
+      setPickedExtras(snapExtras.map((r: any) => String(r.extra_id)));
+    }
+  }, [snapshot]);
+
   useEffect(() => {
     const t = window.setInterval(() => setTick(Date.now()), 30_000);
     return () => clearInterval(t);
@@ -208,37 +246,113 @@ export default function BookingEditor() {
 
   const now = useMemo(() => new Date(), [tick]);
 
-  // ранний префилл перед загрузкой (snapshot)
   useEffect(() => {
-    if (!loading) return;
-    if (!snapshot?.booking) return;
-
-    if (snapshot.booking.id && snapshot.booking.id === bookingId) {
-      const b = snapshot.booking;
-      if (b.mark) setMark(b.mark as any);
-      if ("user_id" in b) setUserId(b.user_id ?? null);
-      if (b.start_at) setStartAt(b.start_at);
-      if (b.end_at) setEndAt(b.end_at);
-      if (b.start_at) setStartDateInp(b.start_at);
-      if (b.end_at) setEndDateInp(b.end_at);
-      if (b.status) setStatus(b.status);
-      if (typeof b.deposit === "number") setDeposit(b.deposit);
-
-      if (snapshot.booking.user) {
-        setSelectedUser(snapshot.booking.user);
-      } else if (b.user_id) {
-        const cached = carCtx?.getCachedUser?.(b.user_id);
-        if (cached) setSelectedUser(cached);
-      }
-      setLoading(false);
+    if (mode === "edit" && bookingId && !loading && location.state?.snapshot) {
+      navigate(location.pathname + location.search, {
+        replace: true,
+        state: null,
+      });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bookingId, snapshot]);
+  }, [mode, bookingId, loading]);
 
-  const isISO = (s?: string | null) => !!s && !Number.isNaN(Date.parse(s));
+  useEffect(() => {
+    if (hasMatchingSnapshot) {
+      if (snapshot?.booking?.delivery_type) {
+        setDelivery(snapshot.booking.delivery_type as DeliveryOption);
+      }
+      if (typeof snapshot?.booking?.delivery_fee === "number") {
+        setDeliveryFeeValue(Number(snapshot.booking.delivery_fee));
+      }
+    }
+  }, [
+    hasMatchingSnapshot,
+    snapshot?.booking?.delivery_type,
+    snapshot?.booking?.delivery_fee,
+  ]);
+
+  // сразу после useState для delivery / deliveryFeeValue
+  useEffect(() => {
+    if (!bookingId) return;
+
+    const hasDel =
+      (snapshot?.booking as any)?.delivery_type ??
+      (snapshot?.booking as any)?.delivery ??
+      (snapshot?.booking as any)?.deliveryType;
+
+    const hasFee =
+      (snapshot?.booking as any)?.delivery_fee ??
+      (snapshot?.booking as any)?.deliveryFee;
+
+    // Снапшот есть, но delivery/fee в нём нет — дотащим из БД
+    if (hasMatchingSnapshot && (!hasDel || hasFee == null)) {
+      (async () => {
+        try {
+          const b = await fetchBookingById(bookingId);
+          setDelivery(
+            (b as any)?.delivery_type ??
+              (b as any)?.delivery ??
+              (b as any)?.deliveryType ??
+              "car_address"
+          );
+          setDeliveryFeeValue(
+            Number((b as any)?.delivery_fee ?? (b as any)?.deliveryFee ?? 0)
+          );
+        } catch {
+          // молча — это только подхват недостающих полей
+        }
+      })();
+    }
+  }, [hasMatchingSnapshot, bookingId, snapshot?.booking]);
+
+  useEffect(() => {
+    if (!bookingId) return;
+    if (Array.isArray(snapshot?.booking_extras)) return; // уже есть — не трогаем
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const rows = await fetchBookingExtras(bookingId);
+        if (!cancelled && Array.isArray(rows)) {
+          setPickedExtras(rows.map((r: any) => String(r.extra_id)));
+        }
+      } catch {}
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [bookingId, snapshot?.booking_extras]);
+
+  useEffect(() => {
+    if (mode !== "edit" || !bookingId || !hasMatchingSnapshot) return;
+    let ignore = false;
+
+    (async () => {
+      try {
+        const fresh = await fetchBookingById(bookingId);
+        if (ignore || !fresh) return;
+
+        // перетираем устаревший снапшот
+        setStatus(fresh.status ?? null);
+        setMark(fresh.mark);
+        setStartAt(fresh.start_at);
+        setEndAt(fresh.end_at);
+        setStartDateInp(fresh.start_at);
+        setEndDateInp(fresh.end_at);
+        setDeposit(Number((fresh as any)?.deposit ?? 0));
+        setDelivery((fresh as any)?.delivery_type ?? "car_address");
+        setDeliveryFeeValue(Number((fresh as any)?.delivery_fee ?? 0));
+      } catch {}
+    })();
+
+    return () => {
+      ignore = true;
+    };
+  }, [mode, bookingId, hasMatchingSnapshot]);
 
   // основная загрузка/гидратация
   useEffect(() => {
+    if (hasMatchingSnapshot) return;
     (async () => {
       try {
         if (mode === "edit" && bookingId) {
@@ -268,9 +382,10 @@ export default function BookingEditor() {
           setEndAt(found.end_at);
           setStartDateInp(found.start_at);
           setEndDateInp(found.end_at);
-          setStatus(found.status ?? "onApproval");
+          setStatus(found.status ?? null);
           setDeposit(Number((found as any)?.deposit));
           setDelivery(found.delivery_type ?? "car_address");
+          setDeliveryFeeValue(Number(found.delivery_fee ?? 0));
 
           // профиль юзера (если нет в snapshot и нет в кэше)
           if (!snapshot?.booking.user && found.user_id) {
@@ -284,13 +399,6 @@ export default function BookingEditor() {
               }
             } catch {}
           }
-
-          // гидратация экстр из БД при редактировании (если есть API)
-          try {
-            const rows = await fetchBookingExtras(bookingId);
-            const ids = rows?.map((r: any) => String(r.extra_id)) ?? [];
-            setPickedExtras(ids);
-          } catch {}
         } else {
           const qStart = sp.get("start");
           const qEnd = sp.get("end");
@@ -302,6 +410,7 @@ export default function BookingEditor() {
           setStatus("onApproval");
           setDeposit(Number((carFromCtx as any)?.deposit ?? 0));
           setDelivery("car_address");
+          setDeliveryFeeValue(0);
         }
       } catch (e: any) {
         setError(e?.message ?? "Load error");
@@ -423,12 +532,10 @@ export default function BookingEditor() {
     return Math.round(sum * 100) / 100;
   }, [pickedExtras, extrasMap, billableDaysForExtras]);
 
-  const deliveryFee = useMemo(() => {
-    if (!deliveryEnabled) return 0;
-    return delivery === "by_address"
-      ? Number((carFromCtx as any)?.deliveryFee ?? 0)
-      : 0;
-  }, [deliveryEnabled, delivery, carFromCtx]);
+  const deliveryFee = useMemo(
+    () => (delivery === "by_address" ? Number(deliveryFeeValue || 0) : 0),
+    [delivery, deliveryFeeValue]
+  );
 
   const price_total = useMemo(() => {
     const addons = mark === "booking" ? extrasTotal + deliveryFee : 0;
@@ -452,9 +559,10 @@ export default function BookingEditor() {
     const clash = list.find(
       (b) =>
         b.id !== selfId &&
-        b.status !== "canceledHost" &&
+        !String(b.status ?? "").startsWith("canceled") && // ← игнорим любые canceled*
         overlaps(s, e, new Date(b.start_at), new Date(b.end_at))
     );
+
     if (clash)
       throw new Error("This period overlaps with another booking/block");
 
@@ -463,7 +571,8 @@ export default function BookingEditor() {
       const gapMin = effectiveIntervalBetweenBookings;
 
       const tooClose = list.find((b) => {
-        if (b.id === selfId || b.status === "canceled") return false;
+        if (b.id === selfId || String(b.status ?? "").startsWith("canceled"))
+          return false;
         const bs = new Date(b.start_at),
           be = new Date(b.end_at);
 
@@ -590,20 +699,27 @@ export default function BookingEditor() {
       return;
     }
 
-    const payload: Omit<Booking, "id"> & { deposit?: number } = {
+    const basePayload: Omit<Booking, "id"> & { deposit?: number } = {
       car_id: carId,
       user_id: mark === "booking" ? userId : null,
       start_at: new Date(startDateInp).toISOString(),
       end_at: new Date(endDateInp).toISOString(),
       mark,
-      status: mark === "booking" ? "onApproval" : "block",
       price_per_day: baseDailyPrice,
       price_total,
       deposit,
       delivery_type: delivery,
       delivery_fee: deliveryFee,
-      // mark === "booking" ? (delivery === "by_address" ? deliveryFee : 0) : 0,
+      currency: effectiveCurrency,
     };
+
+    const payload =
+      mode === "create"
+        ? {
+            ...basePayload,
+            status: mark === "booking" ? "onApproval" : "block",
+          }
+        : basePayload;
 
     try {
       let saved: Booking;
@@ -732,20 +848,21 @@ export default function BookingEditor() {
   const invalidTime = !isAfter(new Date(endDateInp), new Date(startDateInp));
 
   // вычисления для прогресса/таймеров
-  const startDate = useMemo(() => parseISO(startAt), [startAt]);
-  const endDate = useMemo(() => parseISO(endAt), [endAt]);
-  const totalMs = Math.max(0, endDate.getTime() - startDate.getTime());
-  const elapsedMs = Math.max(0, now.getTime() - startDate.getTime());
-
-  //   const tripProgress = useMemo(() => {
-  //     if (!startDate || !endDate) return null as number | null;
-  //     const total = endDate.getTime() - startDate.getTime();
-  //     if (total <= 0) return 0;
-  //     const elapsed = now.getTime() - startDate.getTime();
-  //     if (elapsed <= 0) return 0;
-  //     if (elapsed >= total) return 100;
-  //     return Math.round((elapsed / total) * 100);
-  //   }, [startDate, endDate, now]);
+  const startDate = useMemo(
+    () => (isISO(startAt) ? parseISO(startAt) : null),
+    [startAt]
+  );
+  const endDate = useMemo(
+    () => (isISO(endAt) ? parseISO(endAt) : null),
+    [endAt]
+  );
+  const totalMs =
+    startDate && endDate
+      ? Math.max(0, endDate.getTime() - startDate.getTime())
+      : 0;
+  const elapsedMs = startDate
+    ? Math.max(0, now.getTime() - startDate.getTime())
+    : 0;
 
   const tripProgress =
     totalMs > 0
@@ -762,7 +879,10 @@ export default function BookingEditor() {
     return { days, hours, minutes };
   };
 
-  const cdStart = useMemo(() => countdownParts(startDate), [startDate, now]);
+  const cdStart = useMemo(
+    () => (startDate ? countdownParts(startDate) : null),
+    [startDate, now]
+  );
 
   // ---------- mutations (via service) ------------------------------------
   async function mutateBooking(id: string, payload: Partial<Booking>) {
@@ -776,7 +896,11 @@ export default function BookingEditor() {
 
   // автопрогрессия статусов (rent/finished)
   useEffect(() => {
-    if (!bookingId || !startDate || !endDate) return;
+    if (!bookingId || !startDate || !endDate || !status) return;
+
+    // не трогаем блоки и терминальные состояния
+    const terminal = ["canceledHost", "canceledClient", "finished"];
+    if (mark !== "booking" || terminal.includes(status)) return;
 
     const started = now >= startDate && now < endDate;
     const finished = now >= endDate;
@@ -791,11 +915,19 @@ export default function BookingEditor() {
       await mutateBooking(bookingId, { status: "finished" });
     };
 
-    if (started && status !== "rent") void goRent();
-    else if (finished && status !== "finished") void goFinished();
+    if (status === "confirmed" && started) {
+      void goRent();
+      return;
+    }
+    // rent → finished (когда закончилась)
+    if (status === "rent" && finished) {
+      void goFinished();
+      return;
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     bookingId,
+    mark,
     status,
     startDate?.getTime?.(),
     endDate?.getTime?.(),
@@ -815,12 +947,29 @@ export default function BookingEditor() {
 
   // плавающая мобильная панель
   const showMobileActionBar =
-    status &&
-    (status === "confirmed" ||
-      status === "canceled" ||
-      status === "onApproval");
+    status && (status === "confirmed" || status === "onApproval");
 
   const containerPad = showMobileActionBar ? "pb-24 lg:pb-0" : "";
+
+  const deliveryOptions = useMemo(() => {
+    const opts = [
+      {
+        value: "car_address",
+        label: `Pickup at car address${
+          (carFromCtx as any)?.address
+            ? ` (${(carFromCtx as any).address})`
+            : ""
+        }`,
+      },
+    ];
+    if (deliveryEnabled || delivery === "by_address") {
+      opts.push({
+        value: "by_address",
+        label: "Delivery to customer's address",
+      });
+    }
+    return opts;
+  }, [deliveryEnabled, delivery, carFromCtx]);
 
   if (loading) return <div className="p-4">Loading…</div>;
 
@@ -833,7 +982,7 @@ export default function BookingEditor() {
             {mode === "create" && mark === "booking" ? (
               "New Booking"
             ) : mark === "block" ? (
-              "New Block"
+              "Block dates"
             ) : (
               <>
                 Booking #
@@ -841,7 +990,7 @@ export default function BookingEditor() {
               </>
             )}
           </h1>
-          {mode === "edit" && (
+          {mark === "booking" && mode === "edit" && (
             <div className="flex gap-2 h-fit">
               <button
                 onClick={() => setQrOpen(true)}
@@ -967,7 +1116,7 @@ export default function BookingEditor() {
                     onChange={(e) =>
                       setStartDateInp(fromLocalDT(e.target.value))
                     }
-                    disabled={isDisabled}
+                    disabled={isDisabled || mark === "block"}
                   />
                 ) : (
                   <p className="line-through">{fmt(startDateInp)} </p>
@@ -982,9 +1131,9 @@ export default function BookingEditor() {
                     step={60}
                     className="w-full border rounded px-2 py-1 disabled:bg-white"
                     value={toLocalDT(endDateInp)}
-                    min={toLocalDT(endDateInp)}
+                    min={toLocalDT(startDateInp)}
                     onChange={(e) => setEndDateInp(fromLocalDT(e.target.value))}
-                    disabled={isDisabled}
+                    disabled={isDisabled || mark === "block"}
                   />
                 ) : (
                   <p className="line-through">{fmt(endDateInp)}</p>
@@ -993,8 +1142,14 @@ export default function BookingEditor() {
             </div>
             {!isFinished && (
               <div className="text-xs text-gray-500 mt-1">
-                Working hours: {mmToHHMM(effectiveOpenTime)} –{" "}
-                {mmToHHMM(effectiveCloseTime)}
+                {effectiveOpenTime === effectiveCloseTime ? (
+                  "Working hours: 24/7"
+                ) : (
+                  <>
+                    Working hours: {mmToHHMM(effectiveOpenTime)} –{" "}
+                    {mmToHHMM(effectiveCloseTime)}
+                  </>
+                )}
               </div>
             )}
             <div className="mt-5 ">
@@ -1175,37 +1330,31 @@ export default function BookingEditor() {
                 Delivery
               </label>
               <Select
-                // checkIconPosition="right"
                 value={delivery}
-                onChange={(v: any) =>
-                  setDelivery((v ?? "car_address") as DeliveryOption)
-                }
+                onChange={(v: any) => {
+                  const next = (v ?? "car_address") as DeliveryOption;
+                  setDelivery(next);
+                  if (next === "car_address") {
+                    setDeliveryFeeValue(0);
+                  } else if (
+                    !deliveryFeeValue &&
+                    (carFromCtx as any)?.deliveryFee != null
+                  ) {
+                    setDeliveryFeeValue(
+                      Number((carFromCtx as any).deliveryFee)
+                    );
+                  }
+                }}
+                data={deliveryOptions}
+                readOnly={isDisabled}
                 className={isDisabled ? "opacity-60" : ""}
                 classNames={{
                   input: isDisabled
                     ? "!cursor-not-allowed focus:border-gray-300"
                     : "",
                 }}
-                data={[
-                  {
-                    value: "car_address",
-                    label: `Pickup at car address${
-                      (carFromCtx as any)?.address
-                        ? ` (${(carFromCtx as any).address})`
-                        : ""
-                    }`,
-                  },
-                  ...(deliveryEnabled
-                    ? [
-                        {
-                          value: "by_address",
-                          label: "Delivery to customer's address",
-                        },
-                      ]
-                    : []),
-                ]}
-                readOnly={isDisabled}
               />
+
               <div className="text-xs text-gray-600 mt-1">
                 Delivery fee:{" "}
                 <b>
@@ -1218,7 +1367,6 @@ export default function BookingEditor() {
           {/* Extras */}
           {mark === "booking" && (
             <div className="mt-4">
-              {/* <p className="text-sm font-medium mb-2">Extras</p> */}
               <p className="font-medium text-base sm:text-lg text-gray-800 mb-2">
                 Extras
               </p>
@@ -1317,44 +1465,8 @@ export default function BookingEditor() {
             </div>
           </section>
 
-          {/* Даты справа */}
-          {/* <section id="datesRight" className="mt-4 text-sm"> */}
-          {/* <div className="flex justify-between">
-            <span className="text-gray-600">Start</span>
-            <span className="text-gray-900">
-              {format(parseISO(startAt), "dd MMM yyyy, HH:mm")}
-            </span>
-          </div>
-          <div className="flex justify-between mt-1">
-            <span className="text-gray-600">End</span>
-            <span className="text-gray-900">
-              {format(parseISO(endAt), "dd MMM yyyy, HH:mm")}
-            </span>
-          </div> */}
-
-          {/* Прогресс: только UI, статус НЕ меняем автоматически */}
-          {/* <div className="mt-3">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-sm font-medium text-gray-800">
-                  {status === "rent" ? "Trip in progress" : "Trip progress"}
-                </span>
-                <span className="text-sm font-medium text-gray-800">
-                  {tripProgress}%
-                </span>
-              </div>
-              <div className="h-2 w-full rounded-full bg-gray-100 overflow-hidden">
-                <div
-                  className={`h-full rounded-full ${
-                    status === "rent" ? "bg-lime-400" : "bg-gray-400"
-                  }`}
-                  style={{ width: `${tripProgress}%` }}
-                />
-              </div>
-            </div> */}
-          {/* </section> */}
-
           {/* Итоги справа */}
-          {mark === "booking" && extrasTotal ? (
+          {mark === "booking" && (
             <section className="mt-4 text-sm">
               <div className="flex justify-between">
                 <span>Price base</span>
@@ -1363,7 +1475,7 @@ export default function BookingEditor() {
               {deliveryFee > 0 && (
                 <div className="flex justify-between">
                   <span>Delivery</span>
-                  {deliveryFee.toFixed(2)} {effectiveCurrency}
+                  {deliveryFeeValue.toFixed(2)} {effectiveCurrency}
                 </div>
               )}
               {extrasTotal > 0 && (
@@ -1383,8 +1495,6 @@ export default function BookingEditor() {
                 {Number(deposit ?? 0).toFixed(2)} {effectiveCurrency}
               </div>
             </section>
-          ) : (
-            <Skeleton height={50} mt="lg" mb="xl" />
           )}
 
           {/* Даты + прогресс + отсчёт */}

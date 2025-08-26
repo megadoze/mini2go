@@ -9,7 +9,7 @@ import {
   fetchPricingRules,
   fetchSeasonalRates,
 } from "@/app/car/pricing/pricing.service";
-import { fetchBookingsByCarId } from "@/app/car/calendar/calendar.service"; // ← NEW
+import { fetchBookingsByCarId } from "@/app/car/calendar/calendar.service";
 
 const toCamelSettings = (raw: any) => ({
   currency: raw.currency,
@@ -30,8 +30,10 @@ const toCamelSettings = (raw: any) => ({
 export const carLayoutLoader: LoaderFunction = async ({
   params,
 }: LoaderFunctionArgs) => {
-  const carId = params.id as string | undefined;
-  if (!carId) throw new Response("Car ID is required", { status: 400 });
+  const carId = params.carId ?? params.id; // ← поддержим оба на всякий
+  if (!carId) {
+    throw new Response("Missing carId", { status: 400 });
+  }
 
   const [
     carBase,

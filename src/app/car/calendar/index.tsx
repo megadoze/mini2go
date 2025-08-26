@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
-import { Select } from "@mantine/core";
+import { useLocation, useNavigate } from "react-router-dom";
+import { Select, Popover } from "@mantine/core";
 import {
   eachDayOfInterval,
   format,
@@ -19,9 +20,9 @@ import {
 import { useCarContext } from "@/context/carContext";
 import type { Booking } from "@/types/booking";
 import { createBooking, deleteBooking } from "./calendar.service";
-import { useLocation, useNavigate } from "react-router";
 import { getUserById } from "@/services/user.service";
 import type { BookingEditorSnapshot } from "@/types/booking-ui";
+import { fetchBookingExtras } from "@/services/booking-extras.service";
 
 const TIME_OPTIONS = Array.from({ length: 24 * 2 }, (_, i) => {
   const hours = Math.floor((i * 30) / 60);
@@ -66,6 +67,13 @@ export default function Calendar() {
   const [endTime, setEndTime] = useState("2330");
   const [currentMonth, setCurrentMonth] = useState(new Date());
 
+  // якорь поповера (по дате)
+  const [anchorKey, setAnchorKey] = useState<string | null>(null);
+  const keyOf = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
+      d.getDate()
+    ).padStart(2, "0")}`;
+
   const allBookings: Booking[] = useMemo(
     () => car?.bookings ?? [],
     [car?.bookings]
@@ -109,27 +117,6 @@ export default function Calendar() {
       ),
     [blockedBookings]
   );
-
-  // вынеси проверку "есть ли запись на день" в отдельную утилиту
-  const openIfExisting = (date: Date) => {
-    if (!editMode) {
-      const block = findBlockByDate(date);
-      if (block) {
-        setSelectedBlockId(block.id);
-        setSelectedBookingId(null);
-        setSelectedRange({ start: null, end: null });
-        return true;
-      }
-      const booking = findBookingByDate(date);
-      if (booking) {
-        setSelectedBookingId(booking.id);
-        setSelectedBlockId(null);
-        setSelectedRange({ start: null, end: null });
-        return true;
-      }
-    }
-    return false;
-  };
 
   const isBooked = (date: Date) => bookedDays.some((d) => isSameDay(d, date));
   const isBlocked = (date: Date) => blockedDays.some((d) => isSameDay(d, date));
@@ -222,25 +209,34 @@ export default function Calendar() {
   const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 1 });
   const days = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
 
-  // выбор даты
-  const handleSelect = (date: Date) => {
-    // при клике на существующий блок/бронь — показываем карточку и выходим (если не в режиме редактирования)
+  // открыть карточку, если клик по существующей записи
+  const openIfExisting = (date: Date) => {
     if (!editMode) {
       const block = findBlockByDate(date);
       if (block) {
         setSelectedBlockId(block.id);
         setSelectedBookingId(null);
         setSelectedRange({ start: null, end: null });
-        return;
+        setAnchorKey(keyOf(date));
+        return true;
       }
       const booking = findBookingByDate(date);
-
       if (booking) {
         setSelectedBookingId(booking.id);
         setSelectedBlockId(null);
         setSelectedRange({ start: null, end: null });
-        return;
+        setAnchorKey(keyOf(date));
+        return true;
       }
+    }
+    return false;
+  };
+
+  // выбор даты
+  const handleSelect = (date: Date) => {
+    // при клике на существующий блок/бронь — карточка над датой
+    if (!editMode) {
+      if (openIfExisting(date)) return;
     }
 
     // обычный/редакционный выбор диапазона
@@ -248,6 +244,8 @@ export default function Calendar() {
       setSelectedRange({ start: date, end: null });
       setSelectedBookingId(null);
       setSelectedBlockId(null);
+      // поповер пока НЕ показываем — ждём конечную дату
+      setAnchorKey(null);
     } else {
       const start = selectedRange.start;
       const range = eachDayOfInterval({
@@ -258,10 +256,12 @@ export default function Calendar() {
 
       if (hasUnavailable) {
         setSelectedRange({ start: null, end: null });
+        setAnchorKey(null);
       } else {
-        setSelectedRange(
-          date < start ? { start: date, end: start } : { start, end: date }
-        );
+        const next =
+          date < start ? { start: date, end: start } : { start, end: date };
+        setSelectedRange(next);
+        setAnchorKey(keyOf(date));
       }
     }
   };
@@ -294,7 +294,10 @@ export default function Calendar() {
 
     const result = await createBooking(payload);
     if (result) {
-      setCar({ ...car, bookings: [...(car?.bookings ?? []), result] });
+      setCar((prev) => ({
+        ...prev,
+        bookings: [...(prev?.bookings ?? []), result],
+      }));
       resetSelection();
     }
   };
@@ -327,49 +330,65 @@ export default function Calendar() {
   // удаление
   const handleRemoveBlock = async (id: string) => {
     await deleteBooking(id);
-    setCar({ ...car, bookings: allBookings.filter((b) => b.id !== id) });
+    setCar((prev) => ({
+      ...prev,
+      bookings: (prev?.bookings ?? []).filter((b) => b.id !== id),
+    }));
+
     setSelectedBlockId(null);
     if (editMode === "block") setEditMode(null);
   };
   const handleRemoveBooking = async (id: string) => {
     await deleteBooking(id);
-    setCar({ ...car, bookings: allBookings.filter((b) => b.id !== id) });
+    setCar((prev) => ({
+      ...prev,
+      bookings: (prev?.bookings ?? []).filter((b) => b.id !== id),
+    }));
+
     setSelectedBookingId(null);
     if (editMode === "booking") setEditMode(null);
   };
 
-  const startEditBooking = async () => {
-    if (!selectedBooking) return;
+  // const startEditBooking = async () => {
+  //   if (!selectedBooking || !carId) return;
 
-    // собери лёгкий снэпшот
-    const snapshot: BookingEditorSnapshot = {
-      booking: {
-        id: selectedBooking.id,
-        car_id: selectedBooking.car_id,
-        user_id: selectedBooking.user_id,
-        start_at: selectedBooking.start_at, // ISO string
-        end_at: selectedBooking.end_at, // ISO string
-        mark: selectedBooking.mark,
-        status: selectedBooking.status,
-        price_per_day: selectedBooking.price_per_day,
-        price_total: selectedBooking.price_total,
-        user: null,
-      },
-    };
+  //   const uid = selectedBooking.user_id ?? null;
 
-    if (selectedBooking.user_id) {
-      try {
-        const cached = getCachedUser?.(selectedBooking.user_id) ?? null;
-        const user = cached ?? (await getUserById(selectedBooking.user_id));
-        snapshot.booking.user = user;
-        setCachedUser?.(selectedBooking.user_id, user);
-      } catch {} // не валим переход, если профиль не подтянулся
-    }
+  //   const [user, extras] = await Promise.all([
+  //     uid
+  //       ? getCachedUser?.(uid) ??
+  //         getUserById(uid).then((u) => {
+  //           setCachedUser?.(uid, u);
+  //           return u;
+  //         })
+  //       : Promise.resolve(null),
+  //     fetchBookingExtras(selectedBooking.id).catch(() => []),
+  //   ]);
 
-    navigate(`/cars/${carId}/bookings/${selectedBooking.id}/edit`, {
-      state: { snapshot, from: location.pathname + location.search },
-    });
-  };
+  //   const snapshot: BookingEditorSnapshot = {
+  //     booking: {
+  //       id: selectedBooking.id,
+  //       car_id: selectedBooking.car_id,
+  //       user_id: selectedBooking.user_id,
+  //       start_at: selectedBooking.start_at,
+  //       end_at: selectedBooking.end_at,
+  //       mark: selectedBooking.mark,
+  //       status: selectedBooking.status,
+  //       price_per_day: selectedBooking.price_per_day,
+  //       price_total: selectedBooking.price_total,
+  //       user, // сразу готовый профиль или null
+  //       deposit: (selectedBooking as any)?.deposit ?? null,
+  //       delivery_type: (selectedBooking as any)?.delivery_type ?? "car_address",
+  //       delivery_fee: (selectedBooking as any)?.delivery_fee ?? 0,
+  //       currency: (selectedBooking as any)?.currency ?? "EUR",
+  //     },
+  //     booking_extras: Array.isArray(extras) ? extras : [],
+  //   };
+
+  //   navigate(`/cars/${carId}/bookings/${selectedBooking.id}/edit`, {
+  //     state: { snapshot, from: location.pathname + location.search },
+  //   });
+  // };
 
   // утилиты
   const resetSelection = () => {
@@ -377,6 +396,200 @@ export default function Calendar() {
     setHoveredDate(null);
     setStartTime("0");
     setEndTime("2330");
+    setAnchorKey(null);
+  };
+
+  // контент поповера
+  const renderPopoverContent = (date: Date) => {
+    const block = findBlockByDate(date);
+    const booking = findBookingByDate(date);
+
+    // карточка БЛОКА
+    if (block && !editMode) {
+      return (
+        <div className="min-w-[260px] space-y-2">
+          <p className="text-sm font-medium">Blocked period:</p>
+          <p className="text-sm">
+            {format(parseISO(block.start_at), "dd MMM yyyy, HH:mm")} →{" "}
+            {format(parseISO(block.end_at), "dd MMM yyyy, HH:mm")}
+          </p>
+          <div className="flex gap-2 justify-end pt-1">
+            {!isPastDay(parseISO(block.start_at)) && (
+              <button
+                onClick={() => {
+                  handleRemoveBlock(block.id);
+                  setAnchorKey(null);
+                }}
+                className="px-2 py-1 border border-gray-600 rounded text-xs"
+              >
+                Remove
+              </button>
+            )}
+            <button
+              className="px-2 py-1 border border-gray-400 rounded text-xs"
+              onClick={() => setAnchorKey(null)}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    // карточка БРОНИ
+    if (booking && !editMode) {
+      const mins = differenceInMinutes(
+        parseISO(booking.end_at),
+        parseISO(booking.start_at)
+      );
+      const days = Math.floor(mins / 1440);
+      const hours = Math.floor((mins % 1440) / 60);
+
+      return (
+        <div className="min-w-[280px] space-y-2">
+          <p className="text-sm font-medium">Booking:</p>
+          <p className="text-sm">
+            {format(parseISO(booking.start_at), "dd MMM yyyy, HH:mm")} →{" "}
+            {format(parseISO(booking.end_at), "dd MMM yyyy, HH:mm")} ({days} day
+            {days !== 1 ? "s" : ""} {hours} hour{hours !== 1 ? "s" : ""})
+          </p>
+          {booking.price_total != null && (
+            <p className="text-sm font-medium">
+              Total: {booking.price_total} {currency}
+            </p>
+          )}
+          <div className="flex gap-2 justify-end pt-1">
+            {!isPastDay(parseISO(booking.start_at)) && (
+              <button
+                onClick={() => {
+                  handleRemoveBooking(booking.id);
+                  setAnchorKey(null);
+                }}
+                className="px-2 py-1 border border-gray-500 rounded text-xs"
+              >
+                Remove
+              </button>
+            )}
+            <button
+              className="px-2 py-1 border border-gray-400 rounded text-xs"
+              onClick={() => setAnchorKey(null)}
+            >
+              Close
+            </button>
+            <button
+              className="px-3 py-1 border border-lime-500 text-lime-600 rounded text-xs"
+              onClick={async () => {
+                const uid = booking.user_id ?? null;
+                const [user, extras] = await Promise.all([
+                  uid
+                    ? getCachedUser?.(uid) ??
+                      getUserById(uid).then((u) => {
+                        setCachedUser?.(uid, u);
+                        return u;
+                      })
+                    : Promise.resolve(null),
+                  fetchBookingExtras(booking.id).catch(() => []),
+                ]);
+
+                const snapshot: BookingEditorSnapshot = {
+                  booking: {
+                    id: booking.id,
+                    car_id: booking.car_id,
+                    user_id: booking.user_id,
+                    start_at: booking.start_at,
+                    end_at: booking.end_at,
+                    mark: booking.mark,
+                    status: booking.status,
+                    price_per_day: booking.price_per_day,
+                    price_total: booking.price_total,
+                    user,
+                    deposit: (booking as any)?.deposit ?? null,
+                    delivery_type:
+                      (booking as any)?.delivery_type ?? "car_address",
+                    delivery_fee: (booking as any)?.delivery_fee ?? 0,
+                    currency: (booking as any)?.currency ?? "EUR",
+                  },
+                  booking_extras: Array.isArray(extras) ? extras : [],
+                };
+
+                navigate(`/cars/${car?.id}/bookings/${booking.id}/edit`, {
+                  state: {
+                    snapshot,
+                    from: location.pathname + location.search,
+                  },
+                });
+                setAnchorKey(null);
+              }}
+            >
+              Edit
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    // выбор времени + действия (когда выбран диапазон)
+    if (selectedRange.start && selectedRange.end) {
+      return (
+        <div className="min-w-[280px] space-y-3">
+          <div>
+            <label className="block text-sm font-medium mb-1">Start time</label>
+            <Select
+              data={TIME_OPTIONS.map((t) => ({
+                value: t.value.toString(),
+                label: t.label,
+              }))}
+              value={startTime}
+              onChange={(v) => v !== null && setStartTime(v)}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">End time</label>
+            <Select
+              data={TIME_OPTIONS.map((t) => ({
+                value: t.value.toString(),
+                label: t.label,
+              }))}
+              value={endTime}
+              onChange={(v) => v !== null && setEndTime(v)}
+            />
+          </div>
+
+          <div className="flex gap-2 justify-end pt-1">
+            <button
+              className="px-3 py-1 border border-gray-400 text-gray-600 rounded text-sm"
+              onClick={() => {
+                setSelectedRange({ start: null, end: null });
+                setAnchorKey(null);
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              className="px-3 py-1 border border-gray-600 rounded text-sm"
+              onClick={async () => {
+                await handleBlock();
+                setAnchorKey(null);
+              }}
+            >
+              Block
+            </button>
+            <button
+              className="px-4 py-1 border border-lime-500 text-lime-600 rounded text-sm"
+              onClick={() => {
+                handleCreateBooking();
+                setAnchorKey(null);
+              }}
+            >
+              Book
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    // только первая дата выбрана
+    return <div className="text-sm text-gray-600">Choose the end date…</div>;
   };
 
   return (
@@ -477,169 +690,43 @@ export default function Calendar() {
           };
 
           return (
-            <div
+            <Popover
               key={date.toISOString()}
-              className={className}
-              onClick={() => {
-                // всегда позволяем открыть карточки (даже для прошлых дат)
-                if (openIfExisting(date)) return;
-                // но НЕ позволяем начинать/продолжать выбор для прошлых или иных дизейбл дат
-                if (!isDisabled) handleSelect(date);
+              opened={anchorKey === keyOf(date)}
+              onChange={(opened) => {
+                if (!opened) setAnchorKey(null);
               }}
-              onMouseOver={onDayHover}
-              onMouseEnter={onDayHover}
-              onTouchStart={onDayHover}
-              onMouseLeave={() => setHoveredDate(null)}
+              withinPortal
+              position="top"
+              withArrow
+              shadow="md"
+              offset={8}
+              closeOnClickOutside={false}
+              middlewares={{ flip: false, shift: true }}
+              trapFocus={false}
+              returnFocus={false}
             >
-              {date.getDate()}
-            </div>
+              <Popover.Target>
+                <div
+                  className={className}
+                  onClick={() => {
+                    if (openIfExisting(date)) return;
+                    if (!isDisabled) handleSelect(date);
+                  }}
+                  onMouseOver={onDayHover}
+                  onMouseEnter={onDayHover}
+                  onTouchStart={onDayHover}
+                  onMouseLeave={() => setHoveredDate(null)}
+                >
+                  {date.getDate()}
+                </div>
+              </Popover.Target>
+
+              <Popover.Dropdown>{renderPopoverContent(date)}</Popover.Dropdown>
+            </Popover>
           );
         })}
       </div>
-
-      {/* Выбор времени показываем:
-          - когда нет открытой карточки блока/брони
-          - и когда редактируем (editMode != null)
-      */}
-      {(!selectedBlockId && !selectedBookingId) || editMode ? (
-        <div className="grid grid-cols-2 gap-4 mt-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">Start time</label>
-            <Select
-              data={TIME_OPTIONS.map((t) => ({
-                value: t.value.toString(),
-                label: t.label,
-              }))}
-              value={startTime}
-              onChange={(value) => {
-                if (value !== null) setStartTime(value);
-              }}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">End time</label>
-            <Select
-              data={TIME_OPTIONS.map((t) => ({
-                value: t.value.toString(),
-                label: t.label,
-              }))}
-              value={endTime}
-              onChange={(value) => {
-                if (value !== null) setEndTime(value);
-              }}
-            />
-          </div>
-        </div>
-      ) : null}
-
-      {/* Кнопки действий: создание/блокировка (когда не открыты карточки и не редактируем) */}
-      {!selectedBlockId && !selectedBookingId && !editMode && (
-        <div className="mt-6 flex justify-between">
-          {(selectedRange.start || selectedRange.end) && (
-            <button
-              className="px-4 py-2 border border-gray-400 text-gray-500 rounded text-sm"
-              onClick={() => setSelectedRange({ start: null, end: null })}
-            >
-              Cancel
-            </button>
-          )}
-          <div className="flex gap-2 justify-end w-full">
-            <button
-              disabled={!selectedRange.start || !selectedRange.end}
-              onClick={handleBlock}
-              className="px-4 py-2 border border-gray-600 rounded text-sm disabled:border-gray-300 disabled:text-gray-400"
-            >
-              Block
-            </button>
-            <button
-              disabled={!selectedRange.start || !selectedRange.end}
-              onClick={handleCreateBooking}
-              className="px-5 py-2 border border-lime-500 text-lime-600 rounded text-sm disabled:border-gray-300 disabled:text-gray-400"
-            >
-              Book
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Карточка БЛОКА */}
-      {selectedBlock && !editMode && (
-        <div className="mt-6 p-4 border rounded bg-gray-50">
-          <p className="text-sm font-medium">Blocked period:</p>
-          <p className="text-sm">
-            {format(parseISO(selectedBlock.start_at), "dd MMM yyyy, HH:mm")} →{" "}
-            {format(parseISO(selectedBlock.end_at), "dd MMM yyyy, HH:mm")}
-          </p>
-          <div className="flex justify-between items-center gap-2 mt-2 ">
-            {!isPastDay(parseISO(selectedBlock.start_at)) && (
-              <button
-                onClick={() => handleRemoveBlock(selectedBlock.id)}
-                className=" px-2 py-2 border border-gray-600 rounded text-gray-700 text-sm"
-              >
-                Remove
-              </button>
-            )}
-            <button
-              className="block ml-auto px-2 py-2 border border-gray-400 text-gray-600 rounded text-sm"
-              onClick={() => setSelectedBlockId(null)}
-            >
-              Close
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Карточка БРОНИ */}
-      {selectedBooking && !editMode && (
-        <div className="mt-6 p-4 border rounded bg-gray-50">
-          <p className="text-sm font-medium">Booking:</p>
-          <p className="text-sm">
-            {format(parseISO(selectedBooking.start_at), "dd MMM yyyy, HH:mm")} →{" "}
-            {format(parseISO(selectedBooking.end_at), "dd MMM yyyy, HH:mm")}{" "}
-            {(() => {
-              const mins = differenceInMinutes(
-                parseISO(selectedBooking.end_at),
-                parseISO(selectedBooking.start_at)
-              );
-              const days = Math.floor(mins / 1440);
-              const hours = Math.floor((mins % 1440) / 60);
-              return `(${days} day${days !== 1 ? "s" : ""} ${hours} hour${
-                hours !== 1 ? "s" : ""
-              })`;
-            })()}
-          </p>
-
-          {selectedBooking.price_total != null && (
-            <p className="text-sm mt-1 font-medium">
-              Total: {selectedBooking.price_total} {currency}
-            </p>
-          )}
-          <div className="flex justify-between items-center gap-2 mt-2 ">
-            {!isPastDay(parseISO(selectedBooking.start_at)) && (
-              <button
-                onClick={() => handleRemoveBooking(selectedBooking.id)}
-                className="px-2 py-2 border border-gray-500 rounded text-gray-700 text-sm"
-              >
-                Remove
-              </button>
-            )}
-            <div className="flex gap-2 ml-auto">
-              <button
-                className="px-2 py-2 border border-gray-400 text-gray-600 rounded text-sm"
-                onClick={() => setSelectedBookingId(null)}
-              >
-                Close
-              </button>
-              <button
-                className="px-6 py-2 border border-lime-500 rounded text-lime-600 text-sm"
-                onClick={startEditBooking}
-              >
-                Edit
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

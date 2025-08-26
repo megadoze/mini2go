@@ -2,8 +2,7 @@ import { Link, useParams } from "react-router-dom";
 import { useCarContext } from "@/context/carContext";
 
 const Extras = () => {
-  const { id } = useParams();
-  const carId = id;
+  const { carId } = useParams();
 
   const { extras } = useCarContext();
 

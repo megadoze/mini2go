@@ -32,8 +32,6 @@ export async function upsertBookingExtras(
 }
 
 export async function fetchBookingExtras(bookingId: string) {
-  // Верните массив записей вида { extra_id, title, price, price_type, qty }
-  // Пример для Supabase:
   const { data, error } = await supabase
     .from("booking_extras")
     .select("extra_id,title,price,price_type,qty")

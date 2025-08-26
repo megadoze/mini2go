@@ -83,7 +83,7 @@ function SortablePhoto({
 }
 
 export default function Photos() {
-  const { id } = useParams();
+  const { carId } = useParams();
   const { car, setCar } = useCarContext();
 
   const [photos, setPhotos] = useState<PhotoItem[]>([]);
@@ -101,7 +101,7 @@ export default function Photos() {
   );
 
   useEffect(() => {
-    if (!id) return;
+    if (!carId) return;
 
     (async () => {
       setLoading(true);
@@ -120,7 +120,7 @@ export default function Photos() {
         setLoading(false);
       }
     })();
-  }, [id]);
+  }, [carId]);
 
   const handleDrop = (event: any) => {
     const { active, over } = event;
@@ -139,16 +139,16 @@ export default function Photos() {
   };
 
   const handleSave = async () => {
-    if (!id) return;
+    if (!carId) return;
     setLoading(true);
     try {
       const newFiles =
         photos.filter((p) => p.isNew && p.file).map((p) => p.file!) || [];
-      const uploadedUrls = await uploadCarPhotos(newFiles, id);
+      const uploadedUrls = await uploadCarPhotos(newFiles, carId);
       const finalUrls = photos.map((p) =>
         p.isNew ? uploadedUrls.shift()! : p.url
       );
-      await updateCarPhotos(id, finalUrls);
+      await updateCarPhotos(carId, finalUrls);
       setPhotos(finalUrls.map((url, idx) => ({ id: `existing-${idx}`, url })));
       if (car) {
         setCar((prev) => ({
