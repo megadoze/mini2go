@@ -235,12 +235,16 @@ export default function CalendarPage() {
   };
 
   useEffect(() => {
-    if (fetcher.state === "idle" && fetcher.data) {
-      const data = fetcher.data as CalendarLoaderData;
-      setCars(data.cars ?? []);
-      // month мы уже выставили в goToMonthSmooth — тут повторно трогать не нужно
-    }
-  }, [fetcher.state, fetcher.data]);
+    if (fetcher.state !== "idle" || !fetcher.data) return;
+
+    const data = fetcher.data as CalendarLoaderData;
+    const loadedMonth = startOfMonth(new Date(data.monthISO));
+
+    // Применяем данные только если это текущий выбранный месяц
+    if (!isSameMonth(loadedMonth, month)) return;
+
+    setCars(data.cars ?? []);
+  }, [fetcher.state, fetcher.data, month]);
 
   useEffect(() => {
     const el = rightScrollRef.current;
@@ -517,6 +521,10 @@ export default function CalendarPage() {
           <span className="inline-flex items-center gap-1">
             <span className="inline-block w-3 h-3 rounded bg-red-500/80" />{" "}
             block
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <span className="inline-block w-3 h-3 rounded bg-gray-400/80" />{" "}
+            finished
           </span>
         </div>
       </div>
