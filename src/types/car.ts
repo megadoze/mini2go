@@ -38,4 +38,6 @@ export type Car = {
   isSmoking?: boolean | null;
   isPets?: boolean | null;
   isAbroad?: boolean | null;
+  owner?: string | null;
+  ownerId?: string | null;
 };

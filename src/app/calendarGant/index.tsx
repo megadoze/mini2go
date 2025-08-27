@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Link,
-  useFetcher,
   useLoaderData,
   useNavigate,
-  useNavigation,
   useLocation,
 } from "react-router-dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   addMonths,
   eachDayOfInterval,
@@ -22,27 +21,32 @@ import {
   addDays,
   differenceInMinutes,
 } from "date-fns";
-
 import { FixedSizeList as List } from "react-window";
 import type { Booking } from "@/types/booking";
 import { getUserById } from "@/services/user.service";
-import { fetchBookingById } from "../car/calendar/calendar.service";
+import { fetchBookingById } from "@/app/car/calendar/calendar.service";
 import { fetchBookingExtras } from "@/services/booking-extras.service";
 
-export type CarLite = { id: string; name: string };
-export type CarWithBookings = CarLite & { bookings: Booking[] };
-type CalendarLoaderData = {
-  monthISO: string;
-  rangeStart: string;
-  rangeEnd: string;
-  cars: CarWithBookings[];
-};
+// ключи кэша
+import { QK } from "@/queryKeys";
+// загрузчик окна календаря (месяц ±1)
+import { fetchCalendarWindowByMonth } from "@/services/calendar-window.service";
+
+/* -------------------- types -------------------- */
+
+type CarLite = { id: string; name: string };
+type CarWithBookings = CarLite & { bookings: Booking[] };
+type LoaderShape = { monthISO?: string };
+
+/* -------------------- consts -------------------- */
 
 const COL_W = 32;
 const ROW_H = 36;
 const HEADER_H = 36;
 const LEFT_W = 200;
 const LIST_MAX_H = 520;
+
+/* -------------------- helpers -------------------- */
 
 const intersectsDay = (booking: Booking, day: Date) => {
   const start = parseISO(booking.start_at);
@@ -55,36 +59,60 @@ const intersectsDay = (booking: Booking, day: Date) => {
 };
 
 export default function CalendarPage() {
-  const location = useLocation();
+  const { monthISO: monthFromLoader } = (useLoaderData() as LoaderShape) ?? {};
   const navigate = useNavigate();
-  const navigation = useNavigation();
+  const location = useLocation();
+  const qc = useQueryClient();
 
-  const fetcher = useFetcher();
+  // управляемый месяц (от лоадера или now)
+  const [month, setMonth] = useState<Date>(
+    startOfMonth(new Date(monthFromLoader ?? new Date().toISOString()))
+  );
+  const monthKeyISO = useMemo(() => startOfMonth(month).toISOString(), [month]);
 
-  const prefetchMonth = (m: Date) => {
-    const iso = startOfMonth(m).toISOString();
-    fetcher.load(`/calendar?month=${encodeURIComponent(iso)}`);
+  type CalendarWindow = {
+    monthISO: string;
+    rangeStart: string;
+    rangeEnd: string;
+    cars: CarWithBookings[];
   };
 
-  const isSelfLoading =
-    navigation.state !== "idle" &&
-    navigation.location?.pathname === "/calendar" &&
-    navigation.location?.search !== location.search;
+  // читаем окно календаря из кэша/сети (месяц ±1)
+  const calQ = useQuery<CalendarWindow, Error>({
+    queryKey: QK.calendarWindow(monthKeyISO),
+    queryFn: () => fetchCalendarWindowByMonth(monthKeyISO),
 
-  const loaderData = useLoaderData<CalendarLoaderData>();
+    // initialData — значением с дженериком
+    initialData: qc.getQueryData<CalendarWindow>(
+      QK.calendarWindow(monthKeyISO)
+    ),
 
-  const [month, setMonth] = useState<Date>(
-    startOfMonth(new Date(loaderData?.monthISO ?? new Date().toISOString()))
+    staleTime: 60_000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+
+    // замена keepPreviousData
+    placeholderData: (prev) => prev,
+  });
+
+  const cars: CarWithBookings[] = (calQ.data?.cars as CarWithBookings[]) ?? [];
+
+  // диапазон дней (из ответа или локально, чтобы не мигало)
+  const rangeStart = useMemo(
+    () =>
+      calQ.data?.rangeStart
+        ? new Date(calQ.data.rangeStart)
+        : startOfMonth(addMonths(month, -1)),
+    [calQ.data?.rangeStart, month]
+  );
+  const rangeEnd = useMemo(
+    () =>
+      calQ.data?.rangeEnd
+        ? new Date(calQ.data.rangeEnd)
+        : endOfMonth(addMonths(month, 1)),
+    [calQ.data?.rangeEnd, month]
   );
 
-  const [cars, setCars] = useState<CarWithBookings[]>(
-    (loaderData?.cars as CarWithBookings[]) ?? []
-  );
-
-  const [visibleMonth, setVisibleMonth] = useState<Date>(month);
-
-  const rangeStart = useMemo(() => startOfMonth(addMonths(month, -1)), [month]);
-  const rangeEnd = useMemo(() => endOfMonth(addMonths(month, 1)), [month]);
   const days = useMemo(
     () => eachDayOfInterval({ start: rangeStart, end: rangeEnd }),
     [rangeStart, rangeEnd]
@@ -99,12 +127,13 @@ export default function CalendarPage() {
   const didInitScrollRef = useRef(false);
   const pendingCenterOnDateRef = useRef<Date | null>(null);
 
+  const [visibleMonth, setVisibleMonth] = useState<Date>(month);
+
   const [popover, setPopover] = useState<{
-    booking: Booking | null;
+    booking: (Booking & { user?: any; extras?: any[] }) | null;
     rect: { x: number; y: number; w: number; h: number } | null;
   }>({ booking: null, rect: null });
 
-  // НОВОЕ: popover для создания брони по клику на свободный день
   const [createPopover, setCreatePopover] = useState<{
     carId: string;
     date: Date;
@@ -114,50 +143,53 @@ export default function CalendarPage() {
   const closePopover = () => setPopover({ booking: null, rect: null });
   const closeCreatePopover = () => setCreatePopover(null);
 
-  const listHeight = Math.min(cars.length * ROW_H, LIST_MAX_H);
+  /* ---------- prefetch API ---------- */
 
-  useEffect(() => {
-    if (!popover.booking && !createPopover) return;
+  const prefetchMonth = (m: Date) => {
+    const iso = startOfMonth(m).toISOString();
+    void qc.prefetchQuery({
+      queryKey: QK.calendarWindow(iso),
+      queryFn: () => fetchCalendarWindowByMonth(iso),
+      staleTime: 60_000,
+    });
+  };
 
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        closePopover();
-        closeCreatePopover();
-      }
-    };
-    const onClick = (e: MouseEvent) => {
-      const el1 = document.getElementById("booking-popover");
-      const el2 = document.getElementById("create-popover");
-      const t = e.target as Node;
-      const insideExisting = el1 && el1.contains(t);
-      const insideCreate = el2 && el2.contains(t);
-      if (!insideExisting && !insideCreate) {
-        closePopover();
-        closeCreatePopover();
-      }
-    };
-    const onScrollOrResize = () => {
-      closePopover();
-      closeCreatePopover();
-    };
+  async function loadBookingBundle(booking: Booking) {
+    // 1) сначала берём из кэша
+    let full = qc.getQueryData<any>(QK.booking(booking.id)) ?? booking;
+    let extras = qc.getQueryData<any[]>(QK.bookingExtras(booking.id)) ?? [];
+    let user: any =
+      booking.user_id != null
+        ? qc.getQueryData<any>(QK.user(booking.user_id))
+        : null;
 
-    document.addEventListener("keydown", onKey);
-    document.addEventListener("mousedown", onClick);
-    window.addEventListener("scroll", onScrollOrResize, { passive: true });
-    window.addEventListener("resize", onScrollOrResize, { passive: true });
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      document.removeEventListener("mousedown", onClick);
-      window.removeEventListener("scroll", onScrollOrResize);
-      window.removeEventListener("resize", onScrollOrResize);
-    };
-  }, [popover.booking, createPopover]);
+    // 2) если чего-то нет — догружаем и кладём в кэш
+    if (!qc.getQueryData(QK.booking(booking.id))) {
+      full = await qc.ensureQueryData({
+        queryKey: QK.booking(booking.id),
+        queryFn: () => fetchBookingById(booking.id),
+        staleTime: 60_000,
+      });
+    }
+    if (!qc.getQueryData(QK.bookingExtras(booking.id))) {
+      extras = await qc.ensureQueryData({
+        queryKey: QK.bookingExtras(booking.id),
+        queryFn: () => fetchBookingExtras(booking.id),
+        staleTime: 60_000,
+      });
+    }
+    if (booking.user_id && !qc.getQueryData(QK.user(booking.user_id))) {
+      user = await qc.ensureQueryData({
+        queryKey: QK.user(booking.user_id),
+        queryFn: () => getUserById(booking.user_id!),
+        staleTime: 5 * 60_000,
+      });
+    }
 
-  useEffect(() => {
-    if (!loaderData) return;
-    setMonth(startOfMonth(new Date(loaderData.monthISO)));
-    setCars((loaderData.cars as CarWithBookings[]) ?? []);
-  }, [loaderData]);
+    return { full, extras, user };
+  }
+
+  /* ---------- scroll helpers ---------- */
 
   const DAY_MS = 24 * 60 * 60 * 1000;
   const dayIndexFromRangeStart = (d: Date) =>
@@ -171,26 +203,21 @@ export default function CalendarPage() {
     el.scrollTo({ left: Math.max(0, left), behavior: "smooth" });
   };
 
+  // 1) первый рендер — центрируем сегодня (если текущий месяц), иначе начало месяца
   useEffect(() => {
     if (didInitScrollRef.current) return;
     const el = rightScrollRef.current;
     if (!el || days.length === 0) return;
 
-    // ждём первый layout
     const r = requestAnimationFrame(() => {
       const monthStart = startOfMonth(month);
       const isCurrent = isSameMonth(monthStart, new Date());
-
       const anchorDate = isCurrent ? new Date() : monthStart;
-
-      // ищем ЯЧЕЙКУ «anchorDate» в массиве days (у тебя это три месяца: prev, current, next)
       const idx = days.findIndex((d) => isSameDay(d, startOfDay(anchorDate)));
       if (idx === -1) return;
 
-      // центрируем эту ячейку
       const left = idx * COL_W - (el.clientWidth - COL_W) / 2;
       el.scrollLeft = Math.max(0, left);
-
       setVisibleMonth(monthStart);
       didInitScrollRef.current = true;
     });
@@ -198,16 +225,15 @@ export default function CalendarPage() {
     return () => cancelAnimationFrame(r);
   }, [days, month]);
 
-  // 2) ПОСЛЕДУЮЩИЕ СМЕНЫ МЕСЯЦА (Prev/Next/GoToMonth):
-  //    возвращаем прежнее поведение — ставим ЛЕВЫЙ край на начало месяца.
+  // 2) последующие смены месяца — ставим левый край на начало месяца
   useEffect(() => {
-    if (!didInitScrollRef.current) return; // пропускаем первый рендер
+    if (!didInitScrollRef.current) return;
     const el = rightScrollRef.current;
     if (!el || days.length === 0) return;
 
     const monthStart = startOfMonth(month);
 
-    // если ждали центрирование конкретной даты (кнопка Today из другого месяца)
+    // если ждали центрирование конкретной даты (Today из другого месяца)
     const pending = pendingCenterOnDateRef.current;
     if (pending && isSameMonth(monthStart, pending)) {
       const idx = days.findIndex((d) => isSameDay(d, startOfDay(pending)));
@@ -216,11 +242,10 @@ export default function CalendarPage() {
         el.scrollLeft = Math.max(0, left);
         setVisibleMonth(monthStart);
       }
-      pendingCenterOnDateRef.current = null; // сброс
+      pendingCenterOnDateRef.current = null;
       return;
     }
 
-    // стандартное поведение: поставить левый край на начало месяца
     const idx = days.findIndex((d) => isSameDay(d, monthStart));
     if (idx !== -1) {
       el.scrollLeft = idx * COL_W;
@@ -228,53 +253,18 @@ export default function CalendarPage() {
     }
   }, [month, days.length]);
 
-  const goToMonthSmooth = (m: Date) => {
-    const mStart = startOfMonth(m);
-    const iso = mStart.toISOString();
-
-    // a) обновляем URL (для истории/шеринга), но loader не перезапустится из-за shouldRevalidate
-    navigate({
-      pathname: "/calendar",
-      search: `?month=${encodeURIComponent(iso)}`,
-    });
-
-    // b) локально переключаемся на месяц (перерисовка сетки без размонтирования)
-    setMonth(mStart);
-
-    // c) подгружаем данные для окна [-1, 0, +1] месяцев — тем же роут-лоадером, но через fetcher
-    fetcher.load(`/calendar?month=${encodeURIComponent(iso)}`);
-  };
-
-  const handleToday = () => {
-    const targetMonth = startOfMonth(new Date());
-    if (isSameMonth(month, targetMonth)) {
-      scrollToDate(new Date()); // центрируем именно сегодня
-      setVisibleMonth(targetMonth);
-    } else {
-      pendingCenterOnDateRef.current = new Date();
-      goToMonthSmooth(targetMonth);
-      // goToMonth(targetMonth); // если другой месяц — как и сейчас
-    }
-  };
-
-  useEffect(() => {
-    if (fetcher.state !== "idle" || !fetcher.data) return;
-
-    const data = fetcher.data as CalendarLoaderData;
-    const loadedMonth = startOfMonth(new Date(data.monthISO));
-
-    // Применяем данные только если это текущий выбранный месяц
-    if (!isSameMonth(loadedMonth, month)) return;
-
-    setCars(data.cars ?? []);
-  }, [fetcher.state, fetcher.data, month]);
-
+  // debounced-обновление visibleMonth при горизонтальном скролле
   useEffect(() => {
     const el = rightScrollRef.current;
     if (!el) return;
 
     let raf = 0;
+    let t: number | null = null;
+
     const update = () => {
+      // ⬇️ не даём менять visibleMonth до завершения первичной прокрутки
+      if (!didInitScrollRef.current) return;
+
       const center = el.scrollLeft + el.clientWidth / 2;
       let idx = Math.floor(center / COL_W);
       if (idx < 0) idx = 0;
@@ -286,24 +276,90 @@ export default function CalendarPage() {
     };
 
     const onScroll = () => {
+      if (!didInitScrollRef.current) return; // ⬅️ блокируем до инициализации
       if (popover.booking) closePopover();
       if (createPopover) closeCreatePopover();
       if (raf) cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(update);
+      raf = requestAnimationFrame(() => {
+        if (t !== null) window.clearTimeout(t);
+        t = window.setTimeout(() => {
+          update();
+          t = null;
+        }, 120);
+      });
     };
 
-    update();
+    // ⬇️ не вызываем update() сразу, пока не готова первичная позиция
+    if (didInitScrollRef.current) {
+      update();
+    }
+
     el.addEventListener("scroll", onScroll, { passive: true });
 
-    const onResize = () => update();
+    const onResize = () => {
+      if (!didInitScrollRef.current) return; // ⬅️ тоже блок
+      if (t !== null) window.clearTimeout(t);
+      t = window.setTimeout(() => {
+        update();
+        t = null;
+      }, 120);
+    };
     window.addEventListener("resize", onResize, { passive: true });
 
     return () => {
       el.removeEventListener("scroll", onScroll);
       window.removeEventListener("resize", onResize);
       if (raf) cancelAnimationFrame(raf);
+      if (t !== null) window.clearTimeout(t);
     };
-  }, [days, popover.booking]);
+  }, [days, popover.booking, createPopover]);
+
+  /* ---------- month navigation ---------- */
+
+  const goToMonthSmooth = (m: Date) => {
+    const mStart = startOfMonth(m);
+    const iso = mStart.toISOString();
+
+    navigate({
+      pathname: "/calendar",
+      search: `?month=${encodeURIComponent(iso)}`,
+    });
+
+    setMonth(mStart);
+    prefetchMonth(mStart);
+  };
+
+  const handleToday = () => {
+    const targetMonth = startOfMonth(new Date());
+    if (isSameMonth(month, targetMonth)) {
+      scrollToDate(new Date());
+      setVisibleMonth(targetMonth);
+    } else {
+      pendingCenterOnDateRef.current = new Date();
+      goToMonthSmooth(targetMonth);
+    }
+  };
+
+  /* ---------- sync lists scroll ---------- */
+
+  const onLeftScroll = ({ scrollOffset }: any) => {
+    if (syncingRef.current) return;
+    syncingRef.current = true;
+    rightListRef.current?.scrollTo(scrollOffset);
+    syncingRef.current = false;
+    closePopover();
+    closeCreatePopover();
+  };
+  const onRightScroll = ({ scrollOffset }: any) => {
+    if (syncingRef.current) return;
+    syncingRef.current = true;
+    leftListRef.current?.scrollTo(scrollOffset);
+    syncingRef.current = false;
+    closePopover();
+    closeCreatePopover();
+  };
+
+  /* ---------- bars & rows ---------- */
 
   const rowBars = (bookings: Booking[]) => {
     const relevant = bookings.filter((b) => {
@@ -357,11 +413,9 @@ export default function CalendarPage() {
     const car = cars[index];
     const bars = rowBars(car?.bookings ?? []);
 
-    // утилита «день занят?» для конкретной машины
     const isBusyDay = (date: Date) => {
       const bookings = car?.bookings ?? [];
       return bookings.some((b) => {
-        // игнорируем отменённые, но учитываем блоки и активные/завершённые
         const canceled =
           b.status === "canceledHost" || b.status === "canceledClient";
         if (canceled) return false;
@@ -374,7 +428,7 @@ export default function CalendarPage() {
         style={{ ...style, height: ROW_H }}
         className="relative border-b border-gray-100"
       >
-        {/* ФОН-сетка (pointer-events-none) */}
+        {/* фон-сетка */}
         <div
           className="grid absolute inset-0 pointer-events-none"
           style={{ gridTemplateColumns: `repeat(${days.length}, ${COL_W}px)` }}
@@ -394,14 +448,14 @@ export default function CalendarPage() {
           })}
         </div>
 
-        {/* НОВОЕ: КЛИКАБЕЛЬНЫЕ ЯЧЕЙКИ ДЛЯ СВОБОДНЫХ ДНЕЙ (ниже по z-index, чем бары) */}
+        {/* кликабельные ячейки для создания */}
         <div
           className="absolute inset-0 grid z-0"
           style={{ gridTemplateColumns: `repeat(${days.length}, ${COL_W}px)` }}
         >
           {days.map((d) => {
             const busy = isBusyDay(d);
-            const past = d < today; // запрещаем создание в прошлом
+            const past = d < today;
             const disabled = busy || past;
 
             return (
@@ -415,15 +469,12 @@ export default function CalendarPage() {
                   busy
                     ? "Занятый день"
                     : past
-                    ? "Прошлый день (нельзя создать бронь)"
+                    ? "Прошлый день"
                     : "Свободный день: создать бронь"
                 }
                 onClick={(e) => {
                   if (disabled) return;
-
-                  // закрываем поповер просмотра, если открыт
                   closePopover();
-
                   const rect = (
                     e.currentTarget as HTMLElement
                   ).getBoundingClientRect();
@@ -443,7 +494,7 @@ export default function CalendarPage() {
           })}
         </div>
 
-        {/* БАРЫ (выше по z-index) */}
+        {/* бары */}
         {bars.map(({ booking, left, span }) => {
           const leftPx = left * COL_W;
           const widthPx = span * COL_W - 8;
@@ -482,6 +533,26 @@ export default function CalendarPage() {
               ${colorClass}
               focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 ${ringClass}`}
               style={{ left: leftPx + 4, width: widthPx }}
+              onMouseEnter={() => {
+                // префетчим бандл данных для быстрого поповера/перехода
+                void qc.prefetchQuery({
+                  queryKey: QK.booking(booking.id),
+                  queryFn: () => fetchBookingById(booking.id),
+                  staleTime: 60_000,
+                });
+                void qc.prefetchQuery({
+                  queryKey: QK.bookingExtras(booking.id),
+                  queryFn: () => fetchBookingExtras(booking.id),
+                  staleTime: 60_000,
+                });
+                if (booking.user_id) {
+                  void qc.prefetchQuery({
+                    queryKey: QK.user(booking.user_id),
+                    queryFn: () => getUserById(booking.user_id!),
+                    staleTime: 5 * 60_000,
+                  });
+                }
+              }}
               onClick={async (e) => {
                 if (e.metaKey || e.ctrlKey) return;
                 e.preventDefault();
@@ -490,27 +561,14 @@ export default function CalendarPage() {
                 const rect = target.getBoundingClientRect();
                 if (!rect) return;
 
-                const [fullRes, extrasRes, userRes] = await Promise.allSettled([
-                  fetchBookingById(booking.id),
-                  fetchBookingExtras(booking.id),
-                  booking.user_id
-                    ? getUserById(booking.user_id).catch(() => null)
-                    : Promise.resolve(null),
-                ]);
-
-                const full =
-                  fullRes.status === "fulfilled" ? fullRes.value : booking;
-                const extras =
-                  extrasRes.status === "fulfilled" ? extrasRes.value : [];
-                const user =
-                  userRes.status === "fulfilled" ? userRes.value : null;
+                const { full, extras, user } = await loadBookingBundle(booking);
 
                 setPopover({
                   booking: {
                     ...(full as any),
                     ...(user ? { user } : {}),
                     extras,
-                  } as any,
+                  },
                   rect: {
                     x: rect.left,
                     y: rect.top,
@@ -518,7 +576,6 @@ export default function CalendarPage() {
                     h: rect.height,
                   },
                 });
-                // если был открыт поповер создания — закроем
                 closeCreatePopover();
               }}
               onKeyDown={(e) => {
@@ -535,22 +592,7 @@ export default function CalendarPage() {
     );
   };
 
-  const onLeftScroll = ({ scrollOffset }: any) => {
-    if (syncingRef.current) return;
-    syncingRef.current = true;
-    rightListRef.current?.scrollTo(scrollOffset);
-    syncingRef.current = false;
-    closePopover();
-    closeCreatePopover();
-  };
-  const onRightScroll = ({ scrollOffset }: any) => {
-    if (syncingRef.current) return;
-    syncingRef.current = true;
-    leftListRef.current?.scrollTo(scrollOffset);
-    syncingRef.current = false;
-    closePopover();
-    closeCreatePopover();
-  };
+  /* ---------- render ---------- */
 
   return (
     <div className="w-full max-w-screen-2xl">
@@ -559,28 +601,16 @@ export default function CalendarPage() {
           <button
             className="px-3 py-1 text-sm border rounded"
             onClick={() => goToMonthSmooth(addMonths(month, -1))}
-            onMouseEnter={() =>
-              fetcher.load(
-                `/calendar?month=${encodeURIComponent(
-                  startOfMonth(addMonths(month, -1)).toISOString()
-                )}`
-              )
-            }
-            disabled={isSelfLoading}
+            onMouseEnter={() => prefetchMonth(addMonths(month, -1))}
+            disabled={calQ.isFetching}
           >
             Prev
           </button>
           <button
             className="px-3 py-1 text-sm border rounded"
             onClick={() => goToMonthSmooth(addMonths(month, 1))}
-            onMouseEnter={() =>
-              fetcher.load(
-                `/calendar?month=${encodeURIComponent(
-                  startOfMonth(addMonths(month, 1)).toISOString()
-                )}`
-              )
-            }
-            disabled={isSelfLoading}
+            onMouseEnter={() => prefetchMonth(addMonths(month, 1))}
+            disabled={calQ.isFetching}
           >
             Next
           </button>
@@ -588,14 +618,16 @@ export default function CalendarPage() {
             className="px-3 py-1 text-sm border rounded"
             onClick={handleToday}
             onMouseEnter={() => prefetchMonth(new Date())}
-            disabled={isSelfLoading}
+            disabled={calQ.isFetching}
           >
             Today
           </button>
         </div>
       </div>
+
       <div className="border overflow-hidden">
         <div className="flex">
+          {/* LEFT */}
           <div
             className="flex-none border-r border-gray-200"
             style={{ width: LEFT_W }}
@@ -606,11 +638,11 @@ export default function CalendarPage() {
             >
               {format(visibleMonth, "LLLL yyyy")}
             </div>
-            {isSelfLoading ? (
+            {calQ.isLoading && !calQ.data ? (
               <div className="px-3 py-2 text-sm text-gray-500">Loading…</div>
             ) : (
               <List
-                height={listHeight}
+                height={Math.min(cars.length * ROW_H, LIST_MAX_H)}
                 width={LEFT_W}
                 itemCount={cars.length}
                 itemSize={ROW_H}
@@ -621,6 +653,8 @@ export default function CalendarPage() {
               </List>
             )}
           </div>
+
+          {/* RIGHT */}
           <div className="flex-1 overflow-x-auto" ref={rightScrollRef}>
             <div style={{ width: days.length * COL_W }}>
               <div
@@ -657,13 +691,13 @@ export default function CalendarPage() {
                 <div className="absolute right-0 top-0 bottom-0 border-l border-gray-200 pointer-events-none" />
               </div>
 
-              {isSelfLoading ? (
+              {calQ.isLoading && !calQ.data ? (
                 <div className="p-6 text-sm text-gray-500">Loading…</div>
               ) : cars.length === 0 ? (
                 <div className="p-6 text-sm text-gray-500">Нет автомобилей</div>
               ) : (
                 <List
-                  height={listHeight}
+                  height={Math.min(cars.length * ROW_H, LIST_MAX_H)}
                   width={days.length * COL_W}
                   itemCount={cars.length}
                   itemSize={ROW_H}
@@ -677,6 +711,8 @@ export default function CalendarPage() {
           </div>
         </div>
       </div>
+
+      {/* легенда */}
       <div className="mt-4 flex justify-around sm:justify-end items-center gap-4 text-xs text-gray-600">
         <span className="inline-flex items-center gap-1">
           <span className="inline-block w-3 h-3 rounded bg-lime-500/80" /> rent
@@ -697,6 +733,8 @@ export default function CalendarPage() {
           <span className="inline-block w-3 h-3 rounded bg-red-500/80" /> block
         </span>
       </div>
+
+      {/* popover создания */}
       {createPopover &&
         (() => {
           const padding = 8;
@@ -716,27 +754,23 @@ export default function CalendarPage() {
           const startDateHuman = format(createPopover.date, "dd MMM yyyy");
 
           const goCreate = () => {
-            // страховка: не создаём в прошлом
-            if (createPopover && createPopover.date < today) {
+            const today = startOfDay(new Date());
+            if (createPopover.date < today) {
               closeCreatePopover();
               return;
             }
-            const selDayStart = startOfDay(createPopover!.date);
+            const selDayStart = startOfDay(createPopover.date);
             let start = new Date(selDayStart);
 
             if (isSameDay(selDayStart, today)) {
               const now = new Date();
-              // округляем "вверх" до часа: 14:00 -> 14:00, 14:01..14:59 -> 15:00
               const h = now.getHours() + (now.getMinutes() > 0 ? 1 : 0);
-
               if (h >= 24) {
-                // сегодня уже поздно — перенесём старт на 00:00 завтра
                 start = startOfDay(addDays(selDayStart, 1));
               } else {
                 start.setHours(h, 0, 0, 0);
               }
             } else {
-              // для будущих дат — стандартный дефолт
               start.setHours(10, 0, 0, 0);
             }
 
@@ -780,31 +814,30 @@ export default function CalendarPage() {
           );
         })()}
 
+      {/* popover брони */}
       {popover.booking &&
         popover.rect &&
         (() => {
-          const b = popover.booking as Booking & { user?: any; extras?: any[] };
+          const b = popover.booking!;
           const start = parseISO(b.start_at);
           const end = parseISO(b.end_at);
-          const displayId = b?.id?.slice(0, 8)?.toUpperCase?.() ?? "";
+          const displayId = b.id.slice(0, 8).toUpperCase();
           const mins = Math.max(0, differenceInMinutes(end, start));
           const dDays = Math.floor(mins / 1440);
           const dHours = Math.floor((mins % 1440) / 60);
           const currency = (b as any)?.currency ?? "EUR";
-          const userName = (b as any)?.user?.full_name ?? null;
-          const userPhone = (b as any)?.user?.phone ?? null;
+          const userName = b.user?.full_name ?? null;
+          const userPhone = b.user?.phone ?? null;
 
-          // позиционирование: под/над прямоугольником бара с ограничением экрана
           const padding = 8;
-          const popW = 280; // целевая ширина
-          const popH = 180; // примерная высота (хватает под контент)
+          const popW = 280;
+          const popH = 180;
           const viewportW = window.innerWidth;
           const viewportH = window.innerHeight;
 
           let left = popover.rect.x + popover.rect.w / 2 - popW / 2;
           left = Math.max(padding, Math.min(left, viewportW - popW - padding));
 
-          // пробуем показать снизу; если не влезает — сверху
           let top = popover.rect.y + popover.rect.h + 6;
           if (top + popH + padding > viewportH) {
             top = popover.rect.y - popH - 6;
@@ -849,7 +882,6 @@ export default function CalendarPage() {
                 </div>
               )}
 
-              {/* Пример: быстрые действия */}
               <div className="mt-2 flex justify-end items-center gap-2">
                 <button
                   className="px-2 py-1 border rounded hover:bg-gray-50"

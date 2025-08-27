@@ -1,26 +1,23 @@
-import { supabase } from "@/lib/supabase";
-import { startOfMonth, addMonths, endOfMonth } from "date-fns";
+// src/routes/calendarLoader.ts
+import { queryClient } from "@/lib/queryClient";
+import { QK } from "@/queryKeys";
+import { fetchCalendarWindowByMonth } from "@/services/calendar-window.service";
+import { startOfMonth } from "date-fns";
 
-// ВАЖНО: loader дергается при заходе/навигации на /calendar
 export async function calendarLoader({ request }: { request: Request }) {
   const url = new URL(request.url);
-  const monthISO =
-    url.searchParams.get("month") ?? startOfMonth(new Date()).toISOString();
-  const month = startOfMonth(new Date(monthISO));
-  const rangeStart = startOfMonth(addMonths(month, -1));
-  const rangeEnd = endOfMonth(addMonths(month, 1));
+  const param = url.searchParams.get("month");
 
-  const { data, error } = await supabase.rpc("cars_with_bookings", {
-    _from: rangeStart.toISOString(),
-    _to: rangeEnd.toISOString(),
+  const paramDate = param ? new Date(param) : null;
+  const baseDate =
+    paramDate && !Number.isNaN(+paramDate) ? paramDate : new Date();
+  const monthISO = startOfMonth(baseDate).toISOString();
+
+  await queryClient.ensureQueryData({
+    queryKey: QK.calendarWindow(monthISO),
+    queryFn: () => fetchCalendarWindowByMonth(monthISO),
+    staleTime: 60_000,
   });
-  if (error) throw error;
 
-  // data: { id, name, bookings: Booking[] }[]
-  return {
-    monthISO: month.toISOString(),
-    rangeStart: rangeStart.toISOString(),
-    rangeEnd: rangeEnd.toISOString(),
-    cars: data,
-  };
+  return { monthISO };
 }

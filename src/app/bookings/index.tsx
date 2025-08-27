@@ -1,170 +1,240 @@
-import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
-import { format, parseISO } from "date-fns";
-import { supabase } from "@/lib/supabase"; // поправь путь при необходимости
-
-// ---------- Types ----------
-import type { Booking } from "@/types/booking"; // snake_case из БД
-import type { BookingCard } from "@/types/bookingCard";
+import { useMemo, useState } from "react";
+import {
+  Link,
+  useLoaderData,
+  useNavigate,
+  useLocation,
+} from "react-router-dom";
+import { QueryClient, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Badge } from "@mantine/core";
+import { useMediaQuery } from "@mantine/hooks";
+import { format, parseISO } from "date-fns";
+import {
+  fetchCarById,
+  fetchCarExtras,
+  fetchCarsByHost,
+  fetchExtras,
+} from "@/services/car.service";
+import {
+  fetchBookingById,
+  fetchBookingsByCarId,
+} from "@/app/car/calendar/calendar.service";
+import { fetchBookingExtras } from "@/services/booking-extras.service";
+import { getUserById } from "@/services/user.service";
 
-// Проекция авто, которую возвращает текущий select (минимум полей)
-export type CarLite = {
+import type { BookingCard } from "@/types/bookingCard";
+import { QK } from "@/queryKeys";
+import { getGlobalSettings } from "@/services/settings.service";
+import {
+  fetchPricingRules,
+  fetchSeasonalRates,
+} from "../car/pricing/pricing.service";
+
+// ---- тип строк из лоадера (как в твоём bookings.loader.ts) ----
+type BookingRow = {
   id: string;
-  year: number | string | null;
-  photos?: string[] | null;
-  model_id: string;
-  // плоские имена для UI
-  brandName?: string | null;
-  modelName?: string | null;
-  licensePlate?: string | null;
-  deposit?: number | null;
+  start_at: string;
+  end_at: string;
+  mark: string;
+  status: string | null;
+  car_id: string;
+  user_id: string | null;
+  price_total: number | null;
+  created_at: string | null;
 };
 
-function mapRowToCard(row: Booking): BookingCard {
+type LoaderData = { ownerId: string };
+
+// утилита: склеиваем BookingRow + info об авто -> BookingCard
+function toCard(row: BookingRow, carsById: Map<string, any>): BookingCard {
+  const carBrief = carsById.get(row.car_id) || {};
+  const mark: BookingCard["mark"] = row.mark === "block" ? "block" : "booking";
+
   return {
     id: row.id,
     startAt: row.start_at,
     endAt: row.end_at,
     status: row.status ?? null,
-    mark: row.mark,
-    carId: (row.car_id as string) ?? "",
-    userId: row.user_id ?? null,
-    createdAt: row.created_at ?? null,
-    car: null,
-    priceTotal: row.price_total ?? null,
+    mark,
+    carId: row.car_id,
+    userId: row.user_id,
+    createdAt: row.created_at,
+    priceTotal: row.price_total,
+    car: {
+      id: row.car_id,
+      brand: carBrief?.models?.brands?.name ?? null,
+      model: carBrief?.models?.name ?? null,
+      year: carBrief?.year ?? null,
+      photo: carBrief?.photos?.[0] ?? null,
+      licensePlate: carBrief?.licensePlate ?? null,
+      deposit: carBrief?.deposit ?? null,
+    },
   };
 }
 
-// ---------- Data ----------
-async function fetchBookingsByOwner(owner: string): Promise<BookingCard[]> {
-  const { data: carsData, error: carErr } = await supabase
-    .from("cars")
-    .select(
-      `
-      id, year, photos, model_id, license_plate, owner, deposit,
-      models:models ( name, brand_id, brands:brands ( name ) )
-    `
-    )
-    .eq("owner", owner);
-
-  if (carErr) throw carErr;
-
-  // нормализуем ответ (объект/массив в models/brands)
-  const carsRaw = (carsData ?? []) as any[];
-  const carsList: CarLite[] = carsRaw.map((c: any) => {
-    const modelNode = Array.isArray(c.models) ? c.models[0] : c.models;
-    const brandsNode = modelNode?.brands;
-    const brandName = Array.isArray(brandsNode)
-      ? brandsNode[0]?.name ?? null
-      : brandsNode?.name ?? null;
-
-    return {
-      id: String(c.id),
-      year: typeof c.year === "number" ? c.year : Number(c.year) || null,
-      photos: (c.photos ?? null) as string[] | null,
-      model_id: String(c.model_id),
-      modelName: modelNode?.name ?? null,
-      brandName,
-      licensePlate: c.license_plate ?? null,
-      deposit: c.deposit ?? null,
-    };
-  });
-
-  // <-- вот тут объявляем carIds
-  const carIds: string[] = carsList.map((c) => c.id);
-  if (carIds.length === 0) return [];
-
-  const { data: bookings, error: bookErr } = await supabase
-    .from("bookings")
-    .select(
-      "id, start_at, end_at, mark, status, car_id, user_id, price_total, created_at"
-    )
-    .in("car_id", carIds)
-    .neq("mark", "block")
-    .neq("status", "blocked")
-    .order("start_at", { ascending: false });
-  if (bookErr) throw bookErr;
-
-  const base = ((bookings as Booking[] | null) ?? []).filter((b) => !!b.car_id);
-
-  const carInfo = new Map<
-    string,
-    {
-      brand?: string | null;
-      model?: string | null;
-      year?: number | null;
-      photo?: string | null;
-      licensePlate: string | null;
-      deposit?: number | null;
-    }
-  >();
-  for (const c of carsList) {
-    carInfo.set(c.id, {
-      brand: c.brandName ?? null,
-      model: c.modelName ?? null,
-      year: typeof c.year === "number" ? c.year : Number(c.year) || null,
-      photo: c.photos?.[0] ?? null,
-      licensePlate: c.licensePlate ?? null,
-      deposit: c.deposit ?? null,
-    });
-  }
-
-  return base.map((row) => {
-    const card = mapRowToCard(row);
-    return {
-      ...card,
-      car: { id: card.carId, ...(carInfo.get(card.carId) ?? {}) },
-    };
-  });
-}
-
-// ---------- Component ----------
-interface Props {
-  owner: string; // значение из поля cars.owner (text)
+export default function BookingsList({
+  title = "Bookings",
+}: {
   title?: string;
-}
+}) {
+  const { ownerId } = useLoaderData() as LoaderData;
+  const qc = useQueryClient();
+  const navigate = useNavigate();
+  const location = useLocation();
 
-export default function BookingsList({ owner, title = "Bookings" }: Props) {
-  const [items, setItems] = useState<BookingCard[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  // 1) Брони: читаем из кэша, который уже прогрет лоадером (ensureQueryData).
+  //    initialData берём напрямую из кэша — никаких лишних запросов.
+  const bookingsKey = ["bookingsIndex", ownerId];
+  const initialRows = qc.getQueryData<BookingRow[]>(bookingsKey);
 
-  // console.log(items);
+  const { data: bookingRows = [] } = useQuery({
+    queryKey: bookingsKey,
+    queryFn: () => Promise.resolve(initialRows ?? []),
+    initialData: initialRows,
+    enabled: !!initialRows, // к этому моменту лоадер их уже прогрел
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    staleTime: 60_000,
+  });
 
-  useEffect(() => {
-    let cancelled = false;
+  // 2) Машины хоста: чтобы карточки умели показать бренд/модель/фото/номер.
+  //    Если этот список уже где-то прогрет — возьмётся из кэша.
+  const carsKey = ["carsByHost", ownerId];
+  const initialCars = qc.getQueryData<any[]>(carsKey);
 
-    async function load() {
-      try {
-        setLoading(true);
-        setError(null);
+  const { data: cars = [] } = useQuery({
+    queryKey: carsKey,
+    queryFn: () => fetchCarsByHost(ownerId),
+    initialData: initialCars,
+    enabled: !initialCars, // если лоадер прогрел — не фетчить
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    staleTime: 5 * 60_000,
+  });
 
-        if (!owner) {
-          throw new Error(
-            "Не задан owner (cars.owner). Передай owner пропсом на время разработки."
-          );
-        }
+  const carsById = useMemo(() => {
+    const m = new Map<string, any>();
+    for (const c of cars) m.set(String(c.id), c);
+    return m;
+  }, [cars]);
 
-        const bookings = await fetchBookingsByOwner(owner);
+  const items: BookingCard[] = useMemo(
+    () => bookingRows.map((r) => toCard(r, carsById)),
+    [bookingRows, carsById]
+  );
 
-        if (!cancelled) setItems(bookings);
-      } catch (e: any) {
-        if (!cancelled) setError(e.message || "Не удалось загрузить брони");
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
+  const sorted = useMemo(
+    () => [...items].sort((a, b) => (a.startAt < b.startAt ? 1 : -1)),
+    [items]
+  );
 
-    load();
-    return () => {
-      cancelled = true;
+  const [openingId, setOpeningId] = useState<string | null>(null);
+
+  const openEditor = (b: BookingCard) => {
+    if (openingId) return;
+    setOpeningId(b.id);
+
+    // a) достаём из кеша, если уже префетчено (по ховеру/ранее)
+    const cachedBooking = qc.getQueryData<any>(["booking", b.id]);
+    const cachedExtras = qc.getQueryData<any[]>(["bookingExtras", b.id]);
+
+    const cachedUser = b.userId
+      ? qc.getQueryData<any>(["user", b.userId])
+      : null;
+
+    // b) минимальная основа из карточки
+    const base = {
+      id: b.id,
+      car_id: b.carId,
+      user_id: b.userId,
+      start_at: b.startAt,
+      end_at: b.endAt,
+      mark: b.mark,
+      status: b.status,
+      price_total: b.priceTotal,
     };
-  }, [owner]);
 
-  const sorted = useMemo(() => {
-    return [...items].sort((a, b) => (a.startAt < b.startAt ? 1 : -1));
-  }, [items]);
+    void prefetchBundle(qc, b.carId, b.id, b.userId ?? undefined);
+
+    // c) мгновенная навигация со снапшотом, максимально обогащённым из кеша
+    navigate(`/cars/${b.carId}/bookings/${b.id}/edit`, {
+      state: {
+        snapshot: {
+          booking: {
+            ...base,
+            ...(cachedBooking ?? {}),
+            ...(cachedUser ? { user: cachedUser } : {}),
+          },
+          booking_extras: Array.isArray(cachedExtras) ? cachedExtras : [],
+        },
+        from: location.pathname + location.search,
+      },
+    });
+
+    setOpeningId(null);
+  };
+
+  async function prefetchBundle(
+    qc: QueryClient,
+    carId: string,
+    bId: string,
+    uId?: string
+  ) {
+    await Promise.all([
+      qc.prefetchQuery({
+        queryKey: QK.appSettings,
+        queryFn: getGlobalSettings,
+        staleTime: 5 * 60_000,
+      }),
+      qc.prefetchQuery({
+        queryKey: QK.extras,
+        queryFn: fetchExtras,
+        staleTime: 5 * 60_000,
+      }),
+      qc.prefetchQuery({
+        queryKey: QK.car(carId),
+        queryFn: () => fetchCarById(carId),
+        staleTime: 5 * 60_000,
+      }),
+      qc.prefetchQuery({
+        queryKey: QK.carExtras(carId),
+        queryFn: () => fetchCarExtras(carId),
+        staleTime: 5 * 60_000,
+      }),
+      qc.prefetchQuery({
+        queryKey: QK.pricingRules(carId),
+        queryFn: () => fetchPricingRules(carId),
+        staleTime: 5 * 60_000,
+      }),
+      qc.prefetchQuery({
+        queryKey: QK.seasonalRates(carId),
+        queryFn: () => fetchSeasonalRates(carId),
+        staleTime: 5 * 60_000,
+      }),
+      qc.prefetchQuery({
+        queryKey: QK.bookingsByCarId(carId),
+        queryFn: () => fetchBookingsByCarId(carId),
+        staleTime: 60_000,
+      }),
+      qc.prefetchQuery({
+        queryKey: QK.booking(bId),
+        queryFn: () => fetchBookingById(bId),
+        staleTime: 60_000,
+      }),
+      qc.prefetchQuery({
+        queryKey: QK.bookingExtras(bId),
+        queryFn: () => fetchBookingExtras(bId),
+        staleTime: 60_000,
+      }),
+      uId
+        ? qc.prefetchQuery({
+            queryKey: QK.user(uId),
+            queryFn: () => getUserById(uId),
+            staleTime: 5 * 60_000,
+          })
+        : Promise.resolve(),
+    ]);
+  }
 
   return (
     <main className="w-full">
@@ -173,42 +243,36 @@ export default function BookingsList({ owner, title = "Bookings" }: Props) {
       </header>
 
       <section id="bookings" className="mt-6 mb-10">
-        {loading && (
-          <div className="space-y-2">
-            {[...Array(4)].map((_, i) => (
-              <div
-                key={i}
-                className="animate-pulse h-20 bg-gray-100 rounded-2xl"
-              />
-            ))}
-          </div>
-        )}
-
-        {!loading && error && (
-          <div className="p-4 rounded-xl bg-red-50 text-red-700 text-sm">
-            {error}
-          </div>
-        )}
-
-        {!loading && !error && sorted.length === 0 && (
+        {sorted.length === 0 ? (
           <div className="p-6 rounded-2xl border text-gray-600 text-sm">
             Броней пока нет.
           </div>
-        )}
-
-        {!loading && !error && sorted.length > 0 && (
+        ) : (
           <div className="flex flex-col">
             {sorted.map((b) => (
               <Link
                 key={b.id}
-                to={`/bookings/${b.id}`}
-                state={{ b: b, path: "bookings" }}
-                className="flex items-center border hover:bg-gray-50 p-2 w-full rounded-2xl my-1 cursor-pointer"
+                to={`/cars/${b.carId}/bookings/${b.id}/edit`}
+                className={`flex items-center border hover:bg-lime-100/20 hover:border-lime-200/80 p-2 w-full rounded-2xl my-1 cursor-pointer ${
+                  openingId === b.id
+                    ? "hover:bg-lime-200/20 pointer-events-none"
+                    : ""
+                }`}
+                onClick={(e) => {
+                  if (e.metaKey || e.ctrlKey) return; // новая вкладка — ок
+                  e.preventDefault();
+                  openEditor(b);
+                  // void openEditor(b);
+                }}
+                onMouseEnter={() => {
+                  void prefetchBundle(qc, b.carId, b.id, b.userId ?? undefined);
+                }}
+                aria-busy={openingId === b.id}
               >
                 <div className="flex flex-col sm:flex-row sm:items-center gap-3">
                   {b.car?.photo ? (
                     <img
-                      src={b.car.photo}
+                      src={b.car.photo as string}
                       alt=""
                       className="w-24 h-16 sm:w-28 sm:h-[70px] object-cover rounded-xl"
                     />
@@ -221,33 +285,28 @@ export default function BookingsList({ owner, title = "Bookings" }: Props) {
                   <p className="font-medium text-sm md:text-base truncate">
                     {b.car?.brand} {b.car?.model}
                   </p>
-                  {b.car?.year && (
-                    <p className="text-sm text-gray-800 border border-gray-500 rounded-sm w-fit p-1 ">
+                  {b.car?.licensePlate && (
+                    <p className="text-sm text-gray-800 border border-gray-500 rounded-sm w-fit px-1 ">
                       {b.car.licensePlate}
                     </p>
                   )}
-                  {/* Мобилка: даты в одну строку */}
                   <div className="mt-1 text-sm sm:hidden">
-                    <span className="font-medium">
-                      {format(parseISO(b.startAt), "d MMM")}
-                    </span>
+                    <span>{format(parseISO(b.startAt), "d MMM")}</span>
                     {" → "}
-                    <span className="font-medium">
-                      {format(parseISO(b.endAt), "d MMM")}
-                    </span>
+                    <span>{format(parseISO(b.endAt), "d MMM")}</span>
                   </div>
                 </div>
 
                 <div className="hidden sm:flex flex-col text-sm md:text-base w-56 flex-1">
                   <p>
                     from:
-                    <span className="font-medium pl-1">
+                    <span className="pl-1">
                       {format(parseISO(b.startAt), "eee, d MMM")}
                     </span>
                   </p>
                   <p>
                     to:
-                    <span className="font-medium pl-1">
+                    <span className="pl-1">
                       {format(parseISO(b.endAt), "eee, d MMM")}
                     </span>
                   </p>
@@ -271,28 +330,25 @@ export default function BookingsList({ owner, title = "Bookings" }: Props) {
 }
 
 function StatusPill({ status }: { status: BookingCard["status"] }) {
-  const { label, cls } = useMemo(() => {
-    const s = (status || "").toLowerCase();
-    if (s === "confirmed") {
-      return { label: "confirmed", cls: "orange" };
-    }
-    if (s === "rent") {
-      return { label: s, cls: "lime" };
-    }
-    if (s === "canceledhost" || s === "canceledguest" || s === "canceledtime") {
-      return { label: s, cls: "red" };
-    }
-    if (s === "onapproval") {
-      return { label: s, cls: "blue" };
-    }
-    if (s === "finished") {
-      return { label: s, cls: "dark" };
-    }
-    return { label: status || "—", cls: "gray" };
-  }, [status]);
-
+  const matches = useMediaQuery("(max-width: 425px)");
+  const s = (status || "").toLowerCase();
+  const map: Record<string, { label: string; cls: any }> = {
+    confirmed: { label: "confirmed", cls: "orange" },
+    rent: { label: "rent", cls: "lime" },
+    canceledhost: { label: "canceledhost", cls: "red" },
+    canceledguest: { label: "canceledguest", cls: "red" },
+    canceledtime: { label: "canceledtime", cls: "red" },
+    onapproval: { label: "onapproval", cls: "blue" },
+    finished: { label: "finished", cls: "dark" },
+  };
+  const { label, cls } = map[s] ?? { label: status || "—", cls: "gray" };
   return (
-    <Badge fw={500} variant="dot" color={cls}>
+    <Badge
+      fw={500}
+      variant="dot"
+      color={cls as any}
+      size={matches ? "sm" : "md"}
+    >
       {label}
     </Badge>
   );

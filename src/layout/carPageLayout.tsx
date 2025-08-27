@@ -24,12 +24,9 @@ import {
 } from "@/app/car/pricing/pricing.service";
 import { getGlobalSettings } from "@/services/settings.service";
 import type { AppSettings } from "@/types/setting";
-import {
-  fetchCarById,
-  fetchExtras,
-  fetchCarExtras,
-} from "@/services/car.service";
+import { fetchCarById, fetchCarExtras } from "@/services/car.service";
 import { fetchBookingsByCarId } from "@/app/car/calendar/calendar.service"; // ⬅️ добавлено
+import { useQueryClient } from "@tanstack/react-query";
 
 type LoaderData = {
   car: CarWithModelRelations;
@@ -42,6 +39,8 @@ type LoaderData = {
 export default function CarPageLayout() {
   const [opened, { toggle }] = useDisclosure();
   const { carId } = useParams();
+
+  const qc = useQueryClient();
 
   const userCache = useRef(new Map<string, any>());
 
@@ -143,10 +142,9 @@ export default function CarPageLayout() {
     if (!carId) return;
     setLoadingCar(true);
     try {
-      const [data, bookings, allExtras, carExtras] = await Promise.all([
+      const [data, bookings, carExtras] = await Promise.all([
         fetchCarById(carId),
         fetchBookingsByCarId(carId), // ⬅️ тянем брони вместе с машиной
-        fetchExtras(),
         fetchCarExtras(carId),
       ]);
 
@@ -166,6 +164,7 @@ export default function CarPageLayout() {
       setDeliveryFee(data.deliveryFee);
       setIncludeMileage(data.includeMileage);
 
+      const allExtras = qc.getQueryData<any[]>(["extras"]) ?? [];
       const extrasWithState = allExtras.map((extra) => {
         const match = carExtras.find((ce) => ce.extra_id === extra.id);
         return {

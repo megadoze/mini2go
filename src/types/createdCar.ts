@@ -4,6 +4,8 @@ export type CreatedCar = {
   year: number;
   modelId: string;
   locationId: string | null;
+  owner: string;
+  ownerId: string | null;
   models: {
     name: string;
     brands: { name: string };

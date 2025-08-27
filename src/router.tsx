@@ -32,6 +32,7 @@ import MiniLandingPage from "./app/landingpage";
 import { calendarLoader } from "./routes/calendarLoader";
 import Calendar from "./app/car/calendar";
 import CalendarPage from "./app/calendarGant";
+import { bookingsLoader } from "./routes/bookings.loader";
 
 export const router = createBrowserRouter([
   {
@@ -42,7 +43,6 @@ export const router = createBrowserRouter([
       { index: true, element: <Navigate to="/dashboard" replace /> },
       { path: "user", element: <Navigate to="/" replace /> },
       { path: "dashboard", element: <Dashboard /> },
-      // routes.tsx (или где объявлён роут)
       {
         id: "calendar",
         path: "/calendar",
@@ -61,11 +61,15 @@ export const router = createBrowserRouter([
         },
         element: <CalendarPage />,
       },
-
       { path: "cars", element: <CarsPage /> },
       { path: "cars/add", element: <AddCarPage /> },
       { path: "finance", element: <Finance /> },
-      { path: "bookings", element: <BookingsList owner="me" /> },
+      {
+        id: "bookings",
+        path: "/bookings",
+        loader: bookingsLoader,
+        element: <BookingsList title="Bookings" />,
+      },
       { path: "bookings/new", element: <BookingEditor /> },
       { path: "bookings/:bookingId", element: <BookingPage /> },
       { path: "users", element: <UsersPage /> },
@@ -92,12 +96,17 @@ export const router = createBrowserRouter([
       // Перегружать только если поменялся сам carId
       return currentParams?.carId !== nextParams?.carId;
     },
+
+    // shouldRevalidate: () => false,
     children: [
       { index: true, element: <Navigate to="cardetails" replace /> },
       { path: "cardetails", element: <CarDetails /> },
       { path: "calendar", element: <Calendar /> },
       { path: "bookings/new", element: <BookingEditor /> },
-      { path: "bookings/:bookingId/edit", element: <BookingEditor /> },
+      {
+        path: "bookings/:bookingId/edit",
+        element: <BookingEditor />,
+      },
       { path: "pricing", element: <Pricing /> },
       { path: "distance", element: <Distance /> },
       { path: "photos", element: <Photos /> },

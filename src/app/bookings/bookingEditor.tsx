@@ -5,6 +5,7 @@ import {
   useParams,
   useSearchParams,
 } from "react-router-dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Booking } from "@/types/booking";
 import { CarContext } from "@/context/carContext";
 import {
@@ -26,20 +27,23 @@ import {
   getUserById,
 } from "@/services/user.service";
 import { ShareIcon } from "@heroicons/react/24/outline";
-import { updateBookingCard } from "@/services/bookings.service";
+// import { subscribeBooking } from "@/services/bookings.service";
 
 /* ===================== УТИЛИТЫ ===================== */
 
-function toLocalDT(iso: string) {
-  const d = new Date(iso);
+function toLocalDT(iso?: string) {
+  const d = iso ? new Date(iso) : new Date();
+  if (Number.isNaN(d.getTime())) return "";
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(
     d.getHours()
   )}:${pad(d.getMinutes())}`;
 }
+
 function fromLocalDT(local: string) {
   return new Date(local).toISOString();
 }
+
 function minutesSinceMidnight(d: Date) {
   return d.getHours() * 60 + d.getMinutes();
 }
@@ -77,12 +81,14 @@ export default function BookingEditor() {
   const snapshot = location.state?.snapshot as any; // BookingEditorSnapshot
 
   const { id: carIdFromCarsRoute, bookingId } = useParams();
+  const qc = useQueryClient();
 
   const hasMatchingSnapshot =
     Boolean(snapshot?.booking?.id) && snapshot!.booking.id === bookingId;
 
   // контекст
   const carCtx = useContext(CarContext);
+
   const carFromCtx = carCtx?.car as any | undefined;
   const setCar = carCtx?.setCar;
   const pricingRules = carCtx?.pricingRules ?? [];
@@ -136,40 +142,112 @@ export default function BookingEditor() {
     );
   const mode: "create" | "edit" = isUUID(bookingId) ? "edit" : "create";
 
-  // форма
-  const [loading, setLoading] = useState(!hasMatchingSnapshot);
-
   const [mark, setMark] = useState<"booking" | "block">(
     (snapshot?.booking.mark as any) ?? "booking"
   );
+
+  /* ---------- initialData из snapshot/кэша ---------- */
+  const initialBooking = useMemo(() => {
+    // 1) из snapshot
+    const fromSnap = hasMatchingSnapshot ? snapshot.booking : undefined;
+    if (fromSnap) return fromSnap;
+
+    // 2) из контекста (carCtx.bookings)
+    const fromCtx = bookingId
+      ? (carFromCtx?.bookings as Booking[] | undefined)?.find(
+          (b) => b.id === bookingId
+        )
+      : undefined;
+    if (fromCtx) return fromCtx;
+
+    // 3) из кэша React Query
+    return bookingId ? qc.getQueryData(["booking", bookingId]) : undefined;
+  }, [hasMatchingSnapshot, snapshot?.booking, bookingId, carFromCtx, qc]);
+
+  const bookingQ = useQuery({
+    queryKey: ["booking", bookingId],
+    queryFn: () => fetchBookingById(bookingId!),
+    enabled: mode === "edit" && !!bookingId && !initialBooking,
+    initialData: initialBooking,
+    staleTime: 60_000,
+    refetchOnMount: false,
+  });
+
+  const initialExtras = useMemo(() => {
+    const fromSnap = Array.isArray(snapshot?.booking_extras)
+      ? snapshot.booking_extras
+      : undefined;
+    if (fromSnap) return fromSnap;
+    if (bookingId) {
+      return qc.getQueryData<any[]>(["bookingExtras", bookingId]);
+    }
+    return undefined;
+  }, [snapshot?.booking_extras, bookingId, qc]);
+
+  const userIdForQ: string | undefined =
+    initialBooking?.user_id ?? snapshot?.booking?.user_id ?? undefined;
+
+  const initialUser = useMemo(() => {
+    const fromSnap = snapshot?.booking?.user as any | undefined;
+    if (fromSnap) return fromSnap;
+    return userIdForQ ? qc.getQueryData<any>(["user", userIdForQ]) : undefined;
+  }, [snapshot?.booking?.user, userIdForQ, qc]);
+
+  const extrasQ = useQuery({
+    queryKey: ["bookingExtras", bookingId],
+    queryFn: () => fetchBookingExtras(bookingId!),
+    enabled:
+      mode === "edit" &&
+      !!bookingId &&
+      (snapshot?.booking?.mark ?? mark) === "booking" &&
+      !initialExtras,
+    initialData: initialExtras,
+    staleTime: 60_000,
+    refetchOnMount: false,
+  });
+
+  const userQ = useQuery({
+    queryKey: ["user", userIdForQ],
+    queryFn: () => getUserById(userIdForQ!),
+    enabled: !!userIdForQ && !initialUser,
+    initialData: initialUser,
+    staleTime: 5 * 60_000,
+    refetchOnMount: false,
+  });
+
   const [userId, setUserId] = useState<string | null>(
-    snapshot?.booking.user_id ?? null
+    snapshot?.booking?.user_id ?? null
   );
   const [selectedUser, setSelectedUser] = useState<any | null>(
-    snapshot?.booking.user ?? null
+    snapshot?.booking?.user ?? null
   );
   const [startAt, setStartAt] = useState<string>(
-    snapshot?.booking.start_at || ""
+    snapshot?.booking?.start_at || ""
   );
-  const [endAt, setEndAt] = useState<string>(snapshot?.booking.end_at || "");
+  const [endAt, setEndAt] = useState<string>(snapshot?.booking?.end_at || "");
   const [startDateInp, setStartDateInp] = useState<string>(
-    snapshot?.booking.start_at || ""
+    snapshot?.booking?.start_at || ""
   );
   const [endDateInp, setEndDateInp] = useState<string>(
-    snapshot?.booking.end_at || ""
+    snapshot?.booking?.end_at || ""
   );
   const [status, setStatus] = useState<string | null>(
     hasMatchingSnapshot ? snapshot?.booking?.status ?? null : null
   );
 
   const [deposit, setDeposit] = useState<number>(
-    typeof snapshot?.booking.deposit === "number"
+    typeof snapshot?.booking?.deposit === "number"
       ? Number(snapshot!.booking.deposit)
       : Number((carFromCtx as any)?.deposit ?? 0)
   );
 
-  // Extras UI state (id-шники того, что выбрано)
-  const [pickedExtras, setPickedExtras] = useState<string[]>([]);
+  // Extras UI: мгновенно из initialExtras
+  const [pickedExtras, setPickedExtras] = useState<string[]>(() =>
+    Array.isArray(initialExtras)
+      ? initialExtras.map((r: any) => String(r.extra_id))
+      : []
+  );
+
   const [error, setError] = useState<string | null>(null);
 
   // user picker (только create-режим)
@@ -216,7 +294,7 @@ export default function BookingEditor() {
   const isFinished =
     status === "finished" ||
     status === "canceledHost" ||
-    status === "canceledClient";
+    status === "canceledGuest";
 
   const isDisabled = status === "rent" || status === "block" || isFinished;
 
@@ -226,20 +304,6 @@ export default function BookingEditor() {
   const isISO = (s?: string | null) => !!s && !Number.isNaN(Date.parse(s));
 
   useEffect(() => {
-    // delivery/fee из снапшота (если есть)
-    const b = snapshot?.booking;
-    if (b?.delivery_type) setDelivery(b.delivery_type as any);
-    if (b?.delivery_fee != null) setDeliveryFeeValue(Number(b.delivery_fee));
-
-    // extras из снапшота (даже если массив пустой — это валидно)
-    const snapExtras = snapshot?.booking_extras;
-
-    if (Array.isArray(snapExtras)) {
-      setPickedExtras(snapExtras.map((r: any) => String(r.extra_id)));
-    }
-  }, [snapshot]);
-
-  useEffect(() => {
     const t = window.setInterval(() => setTick(Date.now()), 30_000);
     return () => clearInterval(t);
   }, []);
@@ -247,179 +311,83 @@ export default function BookingEditor() {
   const now = useMemo(() => new Date(), [tick]);
 
   useEffect(() => {
-    if (mode === "edit" && bookingId && !loading && location.state?.snapshot) {
+    if (
+      mode === "edit" &&
+      bookingId &&
+      !isLoading &&
+      location.state?.snapshot
+    ) {
       navigate(location.pathname + location.search, {
         replace: true,
         state: null,
       });
     }
-  }, [mode, bookingId, loading]);
+  }, [mode, bookingId]);
 
   useEffect(() => {
-    if (hasMatchingSnapshot) {
-      if (snapshot?.booking?.delivery_type) {
-        setDelivery(snapshot.booking.delivery_type as DeliveryOption);
-      }
-      if (typeof snapshot?.booking?.delivery_fee === "number") {
-        setDeliveryFeeValue(Number(snapshot.booking.delivery_fee));
-      }
+    const b = bookingQ.data as any;
+    if (!b) return;
+    // единственная точка гидратации локального UI-состояния
+    setDelivery(b.delivery_type ?? "car_address");
+    setDeliveryFeeValue(Number(b.delivery_fee ?? 0));
+    if (!hasMatchingSnapshot) {
+      setMark(b.mark);
+      setUserId(b.user_id ?? null);
+      setStartAt(b.start_at);
+      setEndAt(b.end_at);
+      setStartDateInp(b.start_at);
+      setEndDateInp(b.end_at);
+      setStatus(b.status ?? null);
+      setDeposit(Number(b.deposit ?? 0));
     }
-  }, [
-    hasMatchingSnapshot,
-    snapshot?.booking?.delivery_type,
-    snapshot?.booking?.delivery_fee,
-  ]);
+  }, [bookingQ.data, hasMatchingSnapshot]);
 
-  // сразу после useState для delivery / deliveryFeeValue
+  // useEffect(() => {
+  //   if (!bookingId) return;
+  //   const unsubscribe = subscribeBooking(bookingId, () => {
+  //     qc.invalidateQueries({ queryKey: ["booking", bookingId] });
+  //     qc.invalidateQueries({ queryKey: ["bookingExtras", bookingId] });
+  //     if (carId) qc.invalidateQueries({ queryKey: ["bookingsByCarId", carId] });
+  //   });
+  //   return unsubscribe;
+  // }, [bookingId, carId, qc]);
+
+  // если initialExtras не было, но extrasQ догрузил — заполнить чекбоксы
   useEffect(() => {
-    if (!bookingId) return;
-
-    const hasDel =
-      (snapshot?.booking as any)?.delivery_type ??
-      (snapshot?.booking as any)?.delivery ??
-      (snapshot?.booking as any)?.deliveryType;
-
-    const hasFee =
-      (snapshot?.booking as any)?.delivery_fee ??
-      (snapshot?.booking as any)?.deliveryFee;
-
-    // Снапшот есть, но delivery/fee в нём нет — дотащим из БД
-    if (hasMatchingSnapshot && (!hasDel || hasFee == null)) {
-      (async () => {
-        try {
-          const b = await fetchBookingById(bookingId);
-          setDelivery(
-            (b as any)?.delivery_type ??
-              (b as any)?.delivery ??
-              (b as any)?.deliveryType ??
-              "car_address"
-          );
-          setDeliveryFeeValue(
-            Number((b as any)?.delivery_fee ?? (b as any)?.deliveryFee ?? 0)
-          );
-        } catch {
-          // молча — это только подхват недостающих полей
-        }
-      })();
+    if (!Array.isArray(initialExtras) && Array.isArray(extrasQ.data)) {
+      setPickedExtras(extrasQ.data.map((r: any) => String(r.extra_id)));
     }
-  }, [hasMatchingSnapshot, bookingId, snapshot?.booking]);
+  }, [extrasQ.data]); // initialExtras намеренно не в deps
+
+  // пользователь
+  useEffect(() => {
+    if (userQ.data && !snapshot?.booking?.user) {
+      setSelectedUser(userQ.data);
+    }
+  }, [userQ.data, snapshot?.booking?.user]);
 
   useEffect(() => {
-    if (!bookingId) return;
-    if (Array.isArray(snapshot?.booking_extras)) return; // уже есть — не трогаем
+    if (mode !== "create" || hasMatchingSnapshot) return;
 
-    let cancelled = false;
-    (async () => {
-      try {
-        const rows = await fetchBookingExtras(bookingId);
-        if (!cancelled && Array.isArray(rows)) {
-          setPickedExtras(rows.map((r: any) => String(r.extra_id)));
-        }
-      } catch {}
-    })();
+    const qStart = sp.get("start");
+    const qEnd = sp.get("end");
 
-    return () => {
-      cancelled = true;
-    };
-  }, [bookingId, snapshot?.booking_extras]);
+    if (isISO(qStart)) {
+      setStartAt(qStart!);
+      setStartDateInp(qStart!);
+    }
+    if (isISO(qEnd)) {
+      setEndAt(qEnd!);
+      setEndDateInp(qEnd!);
+    }
 
-  useEffect(() => {
-    if (mode !== "edit" || !bookingId || !hasMatchingSnapshot) return;
-    let ignore = false;
-
-    (async () => {
-      try {
-        const fresh = await fetchBookingById(bookingId);
-        if (ignore || !fresh) return;
-
-        // перетираем устаревший снапшот
-        setStatus(fresh.status ?? null);
-        setMark(fresh.mark);
-        setStartAt(fresh.start_at);
-        setEndAt(fresh.end_at);
-        setStartDateInp(fresh.start_at);
-        setEndDateInp(fresh.end_at);
-        setDeposit(Number((fresh as any)?.deposit ?? 0));
-        setDelivery((fresh as any)?.delivery_type ?? "car_address");
-        setDeliveryFeeValue(Number((fresh as any)?.delivery_fee ?? 0));
-      } catch {}
-    })();
-
-    return () => {
-      ignore = true;
-    };
-  }, [mode, bookingId, hasMatchingSnapshot]);
-
-  // основная загрузка/гидратация
-  useEffect(() => {
-    if (hasMatchingSnapshot) return;
-    (async () => {
-      try {
-        if (mode === "edit" && bookingId) {
-          let found: Booking | null = null;
-
-          // сначала из контекста
-          const fromCtx =
-            (carFromCtx?.bookings as Booking[] | undefined)?.find(
-              (b) => b.id === bookingId
-            ) ?? null;
-          if (fromCtx) {
-            found = fromCtx;
-          } else if (carId) {
-            const all = await fetchBookingsByCarId(carId);
-            found = all.find((b) => b.id === bookingId) ?? null;
-            if (found) setCar?.((prev) => ({ ...prev, bookings: all }));
-          } else {
-            found = await fetchBookingById(bookingId);
-          }
-
-          if (!found) throw new Error("Booking not found");
-
-          // обновим форму (если snapshot уже не сделал)
-          setMark(found.mark);
-          setUserId(found.user_id ?? null);
-          setStartAt(found.start_at);
-          setEndAt(found.end_at);
-          setStartDateInp(found.start_at);
-          setEndDateInp(found.end_at);
-          setStatus(found.status ?? null);
-          setDeposit(Number((found as any)?.deposit));
-          setDelivery(found.delivery_type ?? "car_address");
-          setDeliveryFeeValue(Number(found.delivery_fee ?? 0));
-
-          // профиль юзера (если нет в snapshot и нет в кэше)
-          if (!snapshot?.booking.user && found.user_id) {
-            try {
-              const cached = carCtx?.getCachedUser?.(found.user_id);
-              if (cached) setSelectedUser(cached);
-              else {
-                const u = await getUserById(found.user_id);
-                setSelectedUser(u);
-                carCtx?.setCachedUser?.(found.user_id, u);
-              }
-            } catch {}
-          }
-        } else {
-          const qStart = sp.get("start");
-          const qEnd = sp.get("end");
-          if (isISO(qStart)) setStartAt(qStart!);
-          if (isISO(qEnd)) setEndAt(qEnd!);
-          if (isISO(qStart)) setStartDateInp(qStart!);
-          if (isISO(qEnd)) setEndDateInp(qEnd!);
-          setMark(sp.get("mark") === "block" ? "block" : "booking");
-          setStatus("onApproval");
-          setDeposit(Number((carFromCtx as any)?.deposit ?? 0));
-          setDelivery("car_address");
-          setDeliveryFeeValue(0);
-        }
-      } catch (e: any) {
-        setError(e?.message ?? "Load error");
-      } finally {
-        setLoading(false);
-      }
-    })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, bookingId, carId, sp]);
+    setMark(sp.get("mark") === "block" ? "block" : "booking");
+    setStatus("onApproval");
+    setDeposit(Number((carFromCtx as any)?.deposit ?? 0));
+    setDelivery("car_address");
+    setDeliveryFeeValue(0);
+    // локальный loading больше не используем
+  }, [mode, hasMatchingSnapshot, sp, carFromCtx]);
 
   // не позволяем менять юзера в edit-режиме
   const allowUserPick = mode === "create" && mark === "booking";
@@ -545,49 +513,49 @@ export default function BookingEditor() {
   function overlaps(aStart: Date, aEnd: Date, bStart: Date, bEnd: Date) {
     return aStart < bEnd && bStart < aEnd;
   }
+  // гарантирует list: Booking[]
   async function assertNoConflicts(
     carId: string,
     startIso: string,
     endIso: string,
     selfId?: string
   ) {
-    const list = await fetchBookingsByCarId(carId);
-    const s = new Date(startIso),
-      e = new Date(endIso);
+    // 1) строго берём из кэша
+    let list = qc.getQueryData<Booking[]>(["bookingsByCarId", String(carId)]);
 
-    // 1) Пересечения
+    // 2) если кэша нет — один fetch, с правильной типизацией
+    if (!list) {
+      list = await qc.ensureQueryData<Booking[]>({
+        queryKey: ["bookingsByCarId", String(carId)],
+        queryFn: () => fetchBookingsByCarId(String(carId)),
+      });
+    }
+    // к этому месту list точно Booking[]
+    const s = new Date(startIso);
+    const e = new Date(endIso);
+
+    // пересечение периодов
     const clash = list.find(
       (b) =>
         b.id !== selfId &&
-        !String(b.status ?? "").startsWith("canceled") && // ← игнорим любые canceled*
+        !String(b.status ?? "").startsWith("canceled") &&
         overlaps(s, e, new Date(b.start_at), new Date(b.end_at))
     );
-
     if (clash)
       throw new Error("This period overlaps with another booking/block");
 
-    // 2) Интервал между бронями
+    // интервал между бронями
     if (effectiveIntervalBetweenBookings > 0) {
       const gapMin = effectiveIntervalBetweenBookings;
 
       const tooClose = list.find((b) => {
         if (b.id === selfId || String(b.status ?? "").startsWith("canceled"))
           return false;
-        const bs = new Date(b.start_at),
-          be = new Date(b.end_at);
+        const bs = new Date(b.start_at);
+        const be = new Date(b.end_at);
 
-        // новый старт слишком близко к окончанию существующего (be ... s)
-        if (be <= s) {
-          const gap = differenceInMinutes(s, be);
-          if (gap < gapMin) return true;
-        }
-
-        // новый конец слишком близко к началу существующего (e ... bs)
-        if (e <= bs) {
-          const gap = differenceInMinutes(bs, e);
-          if (gap < gapMin) return true;
-        }
-
+        if (be <= s) return differenceInMinutes(s, be) < gapMin;
+        if (e <= bs) return differenceInMinutes(bs, e) < gapMin;
         return false;
       });
 
@@ -737,7 +705,7 @@ export default function BookingEditor() {
             return {
               extra_id: id,
               title: ex?.title ?? "Extra",
-              qty: multiplier, // чтобы в сумме было корректно
+              qty: multiplier,
               price: ex?.price ?? 0,
               price_type: ex?.price_type ?? "per_trip",
             };
@@ -745,10 +713,15 @@ export default function BookingEditor() {
         );
       }
 
+      qc.setQueryData(["booking", saved.id], saved);
+      qc.invalidateQueries({ queryKey: ["bookingExtras", saved.id] }); // если менялись extras
+      if (saved.car_id) {
+        qc.invalidateQueries({ queryKey: ["bookingsByCarId", saved.car_id] });
+      }
+
       // Обновим контекстные брони и возвращаемся на календарь (или назад)
       if ((carFromCtx as any)?.id === saved.car_id) {
-        const fresh = await fetchBookingsByCarId(saved.car_id!);
-        setCar?.((prev: any) => ({ ...prev, bookings: fresh }));
+        setCar?.((prev: any) => prev);
         navigate(location.state?.from ?? `/cars/${saved.car_id}/calendar`);
       } else {
         navigate(location.state?.from ?? -1);
@@ -758,7 +731,7 @@ export default function BookingEditor() {
     }
   }
 
-  // подтверждение / отмена (без автопереходов в rent/finished!)
+  // подтверждение / отмена
   const canConfirm = mark === "booking" && status === "onApproval";
   const canCancel =
     mark === "booking" && (status === "onApproval" || status === "confirmed");
@@ -770,10 +743,10 @@ export default function BookingEditor() {
         status: "confirmed",
       } as any);
       setStatus(next.status ?? "confirmed");
-      // обновим список
+
+      qc.setQueryData(["booking", next.id], next);
       if (next.car_id) {
-        const fresh = await fetchBookingsByCarId(next.car_id);
-        setCar?.((prev: any) => ({ ...prev, bookings: fresh }));
+        qc.invalidateQueries({ queryKey: ["bookingsByCarId", next.car_id] });
       }
     } catch (e: any) {
       setError(e?.message ?? "Confirm error");
@@ -787,16 +760,17 @@ export default function BookingEditor() {
         status: "canceledHost",
       } as any);
       setStatus(next.status ?? "canceledHost");
+
+      qc.setQueryData(["booking", next.id], next);
       if (next.car_id) {
-        const fresh = await fetchBookingsByCarId(next.car_id);
-        setCar?.((prev: any) => ({ ...prev, bookings: fresh }));
+        qc.invalidateQueries({ queryKey: ["bookingsByCarId", next.car_id] });
       }
     } catch (e: any) {
       setError(e?.message ?? "Cancel error");
     }
   };
 
-  // QR подготовка (локально через qrcode)
+  // QR подготовка
   const displayId = useMemo(
     () => (bookingId ? bookingId.slice(0, 8).toUpperCase() : ""),
     [bookingId]
@@ -886,11 +860,13 @@ export default function BookingEditor() {
 
   // ---------- mutations (via service) ------------------------------------
   async function mutateBooking(id: string, payload: Partial<Booking>) {
-    const next = await updateBookingCard(id, payload);
-    // qc.setQueryData(["booking", id], next);
-    // qc.setQueryData<BookingCardType[]>(["bookingsByUser"], (prev = []) =>
-    //   prev.map((b) => (b.id === id ? next : b))
-    // );
+    // было: updateBookingCard → возвращал BookingCard (camelCase)
+    const next = await updateBooking(id, payload); // ← возвращает Booking (snake_case)
+
+    qc.setQueryData(["booking", id], next);
+    if (next?.car_id) {
+      qc.invalidateQueries({ queryKey: ["bookingsByCarId", next.car_id] });
+    }
     return next;
   }
 
@@ -898,8 +874,7 @@ export default function BookingEditor() {
   useEffect(() => {
     if (!bookingId || !startDate || !endDate || !status) return;
 
-    // не трогаем блоки и терминальные состояния
-    const terminal = ["canceledHost", "canceledClient", "finished"];
+    const terminal = ["canceledHost", "canceledGuest", "finished"];
     if (mark !== "booking" || terminal.includes(status)) return;
 
     const started = now >= startDate && now < endDate;
@@ -919,7 +894,6 @@ export default function BookingEditor() {
       void goRent();
       return;
     }
-    // rent → finished (когда закончилась)
     if (status === "rent" && finished) {
       void goFinished();
       return;
@@ -971,7 +945,10 @@ export default function BookingEditor() {
     return opts;
   }, [deliveryEnabled, delivery, carFromCtx]);
 
-  if (loading) return <div className="p-4">Loading…</div>;
+  const isLoading =
+    mode === "edit" ? bookingQ.isLoading && !bookingQ.data : false;
+
+  if (isLoading) return <div className="p-4">Loading…</div>;
 
   return (
     <div className={`text-gray-600 max-w-4xl ${containerPad}`}>
@@ -1045,7 +1022,6 @@ export default function BookingEditor() {
               name="mark"
               checked={mark === "booking"}
               onChange={() => setMark("booking")}
-              // disabled={mode === "edit"} // не меняем тип у существующей
             />{" "}
             Booking
           </label>
@@ -1055,7 +1031,6 @@ export default function BookingEditor() {
               name="mark"
               checked={mark === "block"}
               onChange={() => setMark("block")}
-              // disabled={mode === "edit"}
             />{" "}
             Block
           </label>
@@ -1131,7 +1106,7 @@ export default function BookingEditor() {
                     step={60}
                     className="w-full border rounded px-2 py-1 disabled:bg-white"
                     value={toLocalDT(endDateInp)}
-                    min={toLocalDT(startDateInp)}
+                    min={startDateInp ? toLocalDT(startDateInp) : undefined}
                     onChange={(e) => setEndDateInp(fromLocalDT(e.target.value))}
                     disabled={isDisabled}
                   />
@@ -1161,7 +1136,7 @@ export default function BookingEditor() {
           </section>
 
           {/* Клиент: только в create-режиме */}
-          {mark === "booking" && allowUserPick && (
+          {mark === "booking" && mode === "create" && (
             <div className="mt-4 space-y-2">
               <label className="block text-sm font-medium">Customer</label>
               <div className="flex gap-2">
@@ -1406,7 +1381,6 @@ export default function BookingEditor() {
 
           {error && <div className="mt-3 text-red-600 text-sm">{error}</div>}
 
-          {/* Кнопки сохранения */}
           {(mode === "create" ||
             status === "onApproval" ||
             status === "confirmed") && (
@@ -1420,16 +1394,15 @@ export default function BookingEditor() {
               <button
                 className="px-3 py-1 border rounded text-sm"
                 onClick={handleSave}
-                disabled={loading || invalidTime}
+                disabled={isLoading || invalidTime}
               >
                 {mode === "create" ? "Create" : "Save"}
               </button>
             </div>
           )}
-          {/* <div className=" lg:hidden border-b border-gray-100 mt-4 sm:mt-5 shadow-sm" /> */}
         </div>
 
-        {/* RIGHT — сводка/действия как в карточке */}
+        {/* RIGHT — сводка/действия */}
         <aside className="lg:col-span-1 lg:sticky lg:top-6">
           {/* Фото */}
           <section className=" hidden lg:block">

@@ -71,6 +71,8 @@ function toCamelCar(raw: any) {
     photos: raw.photos ?? [],
     content: raw.content ?? "",
     status: raw.status ?? "",
+    owner: raw.owner ?? "",
+    ownerId: raw.owner_id ?? null,
   };
 }
 
@@ -115,6 +117,83 @@ function carCamelToSnake(input: CarUpdatePayload) {
   };
 }
 
+const CARS_BASE_SELECT = `
+  id,
+  vin,
+  model_id,
+  year,
+  license_plate,
+  created_at,
+  location_id,
+  models(name, brands(name)),
+  locations(name, countries(id, name)),
+  status,
+  photos,
+  address,
+  lat,
+  long,
+  pickup_info,
+  return_info,
+  is_delivery, 
+  delivery_fee, 
+  include_mileage, 
+  price, 
+  deposit,
+  owner,
+  owner_id 
+`;
+
+function mapCarRow(car: any): CarWithRelations {
+  const modelArray = car.models;
+  const model = Array.isArray(modelArray) ? modelArray[0] : modelArray;
+
+  const brandArray = model?.brands;
+  const brand = Array.isArray(brandArray) ? brandArray[0] : brandArray;
+
+  const locationArr = car.locations;
+  const location = Array.isArray(locationArr) ? locationArr[0] : locationArr;
+
+  const countryArr = location?.countries;
+  const country = Array.isArray(countryArr)
+    ? countryArr[0]
+    : locationArr?.countries;
+
+  return {
+    id: car.id,
+    vin: car.vin,
+    year: Number(car.year),
+    licensePlate: car.license_plate,
+    modelId: car.model_id,
+    models: {
+      name: model?.name || "—",
+      brands: {
+        name: brand?.name || "—",
+      },
+    },
+    locations: {
+      name: location?.name || "-",
+      countries: {
+        name: country?.name || "-",
+        id: country?.id || "-",
+      },
+    },
+    status: car.status,
+    photos: car.photos || [],
+    address: car.address || "",
+    lat: car.lat ?? null,
+    long: car.long ?? null,
+    pickupInfo: car.pickup_info || "",
+    returnInfo: car.return_info || "",
+    isDelivery: car.is_delivery || false,
+    deliveryFee: car.delivery_fee || 0,
+    includeMileage: car.include_mileage || 100,
+    price: car.price || 0,
+    deposit: car.deposit || 0,
+    owner: car.owner || "",
+    ownerId: car.owner_id ?? null,
+  };
+}
+
 // Получение списка марок авто
 export async function fetchBrands(): Promise<Brand[]> {
   const { data, error } = await supabase.from("brands").select("*");
@@ -136,81 +215,26 @@ export async function fetchModelsByBrand(brandId: string) {
 export async function fetchCars(): Promise<CarWithRelations[]> {
   const { data } = await supabase
     .from("cars")
-    .select(
-      `
-  id,
-  vin,
-  model_id,
-  year,
-  license_plate,
-  created_at,
-  location_id,
-  models(name, brands(name)),
-  locations(name, countries(id, name)),
-  status,
-  photos,
-  address,
-  lat,
-  long,
-  pickup_info,
-  return_info,
-  is_delivery, 
-  delivery_fee, 
-  include_mileage, 
-  price, 
-  deposit
-`
-    )
+    .select(CARS_BASE_SELECT)
     .throwOnError();
 
   if (!data) return [];
+  return data.map(mapCarRow);
+}
 
-  return data.map((car: any): CarWithRelations => {
-    const modelArray = car.models;
-    const model = Array.isArray(modelArray) ? modelArray[0] : modelArray;
+// Получение авто хоста
+export async function fetchCarsByHost(
+  ownerId: string
+): Promise<CarWithRelations[]> {
+  const { data, error } = await supabase
+    .from("cars")
+    .select(CARS_BASE_SELECT)
+    .eq("owner_id", ownerId)
+    .throwOnError();
 
-    const brandArray = model?.brands;
-    const brand = Array.isArray(brandArray) ? brandArray[0] : brandArray;
-
-    const locationArr = car.locations;
-    const location = Array.isArray(locationArr) ? locationArr[0] : locationArr;
-
-    const countryArr = location?.countries;
-    const country = Array.isArray(countryArr) ? countryArr[0] : countryArr;
-
-    return {
-      id: car.id,
-      vin: car.vin,
-      year: Number(car.year),
-      licensePlate: car.license_plate,
-      modelId: car.model_id,
-      models: {
-        name: model?.name || "—",
-        brands: {
-          name: brand?.name || "—",
-        },
-      },
-      locations: {
-        name: location?.name || "-",
-        countries: {
-          name: country?.name || "-",
-          id: country?.id || "-",
-        },
-      },
-      status: car.status,
-      photos: car.photos || [],
-      address: car.address || "",
-      lat: car.lat ?? null,
-      long: car.long ?? null,
-      pickupInfo: car.pickup_info || "",
-      returnInfo: car.return_info || "",
-      isDelivery: car.is_delivery || false,
-      deliveryFee: car.delivery_fee || 0,
-      includeMileage: car.include_mileage || 100,
-      price: car.price || 0,
-      deposit: car.deposit || 0,
-    };
-  });
+  if (error) throw error;
+  if (!data) return [];
+  return data.map(mapCarRow);
 }
 
 export type NewCar = Omit<
@@ -231,6 +255,8 @@ export async function addCar(
       status,
       license_plate,
       location_id,
+      owner,
+      owner_id,
       models(name, brands(name)),
       locations(name, countries(id, name))
     `);
@@ -257,6 +283,9 @@ export async function addCar(
       year: Number(car.year),
       modelId: car.model_id,
       locationId: car.location_id ?? null,
+      owner: (car as any).owner ?? null,
+      ownerId: (car as any).owner_id ?? null,
+
       models: {
         name: model?.name || "—",
         brands: {
