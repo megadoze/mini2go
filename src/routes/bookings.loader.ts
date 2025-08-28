@@ -8,12 +8,13 @@ type BookingRow = {
   id: string;
   start_at: string;
   end_at: string;
-  mark: string;
+  // mark: string;
   status: string | null;
   car_id: string;
-  user_id: string | null;
+  // user_id: string | null;
   price_total: number | null;
-  created_at: string | null;
+  currency: string | null;
+  created_at: string;
 };
 
 async function fetchBookingsByCarIds(carIds: string[]) {
@@ -21,7 +22,7 @@ async function fetchBookingsByCarIds(carIds: string[]) {
   const { data, error } = await supabase
     .from("bookings")
     .select(
-      "id, start_at, end_at, mark, status, car_id, user_id, price_total, created_at"
+      "id, start_at, end_at, status, car_id, price_total, currency, created_at"
     )
     .in("car_id", carIds)
     .neq("mark", "block")

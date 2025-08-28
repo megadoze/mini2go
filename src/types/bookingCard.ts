@@ -8,7 +8,7 @@ export type BookingCard = {
   mark: Booking["mark"]; // "booking" | "block"
   carId: string;
   userId?: string | null;
-  createdAt?: string | null;
+  createdAt?: string;
   car?: {
     id: string;
     brand?: string | null;
@@ -19,4 +19,5 @@ export type BookingCard = {
     deposit?: number | null;
   } | null;
   priceTotal: number | null;
+  currency?: string | null;
 };

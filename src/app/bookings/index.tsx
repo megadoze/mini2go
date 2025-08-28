@@ -40,7 +40,8 @@ type BookingRow = {
   car_id: string;
   user_id: string | null;
   price_total: number | null;
-  created_at: string | null;
+  currency: string | null;
+  created_at: string;
 };
 
 type LoaderData = { ownerId: string };
@@ -58,8 +59,9 @@ function toCard(row: BookingRow, carsById: Map<string, any>): BookingCard {
     mark,
     carId: row.car_id,
     userId: row.user_id,
-    createdAt: row.created_at,
     priceTotal: row.price_total,
+    currency: row.currency,
+    createdAt: row.created_at,
     car: {
       id: row.car_id,
       brand: carBrief?.models?.brands?.name ?? null,
@@ -148,6 +150,8 @@ export default function BookingsList() {
       mark: b.mark,
       status: b.status,
       price_total: b.priceTotal,
+      currency: b.currency,
+      created_at: b.createdAt,
     };
 
     void prefetchBundle(qc, b.carId, b.id, b.userId ?? undefined);
@@ -293,28 +297,28 @@ export default function BookingsList() {
                   </div>
                 </div>
 
-                <div className="hidden sm:flex flex-col text-sm md:text-base w-56 flex-1">
-                  <p>
-                    from:
-                    <span className="pl-1">
-                      {format(parseISO(b.startAt), "eee, d MMM")}
-                    </span>
-                  </p>
-                  <p>
-                    to:
-                    <span className="pl-1">
-                      {format(parseISO(b.endAt), "eee, d MMM")}
-                    </span>
-                  </p>
+                <div className=" md:flex flex-col w-36 hidden">
+                  <div className="flex flex-1 gap-1">
+                    <span>{format(parseISO(b.startAt), "d MMM")}</span>
+                    {" → "}
+                    <span>{format(parseISO(b.endAt), "d MMM")}</span>
+                  </div>
+
+                  {b.createdAt ? (
+                    <p className="text-sm text-neutral-400">
+                      <span className=" text-gray-400">created</span>{" "}
+                      {format(parseISO(b.createdAt), "dd.MM.yyyy")}
+                    </p>
+                  ) : (
+                    "created —"
+                  )}
                 </div>
 
-                <div className="flex md:flex-1 justify-between items-center sm:ml-auto mt-2 sm:mt-0 mr-2 md:mr-auto md:text-base">
-                  <div>
-                    <StatusPill status={b.status} />
-                  </div>
-                  <p className="hidden sm:block text-base mr-2 text-gray-700">
-                    Details
+                <div className=" items-end flex flex-col flex-1 justify-between sm:ml-auto mt-2 sm:mt-0  md:mr-auto md:text-base lg:flex-col lg:items-end gap-1">
+                  <p className=" sm:block text-sm md:text-base mr-2 text-gray-900">
+                    {b.priceTotal} {b.currency}
                   </p>
+                  <StatusPill status={b.status} />
                 </div>
               </Link>
             ))}
@@ -343,7 +347,7 @@ function StatusPill({ status }: { status: BookingCard["status"] }) {
       fw={500}
       variant="dot"
       color={cls as any}
-      size={matches ? "sm" : "md"}
+      size={matches ? "xs" : "sm"}
     >
       {label}
     </Badge>
