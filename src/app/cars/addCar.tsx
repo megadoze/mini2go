@@ -32,6 +32,7 @@ import {
 } from "@mantine/core";
 import { Dropzone, IMAGE_MIME_TYPE } from "@mantine/dropzone";
 import Step3 from "./step3";
+import { useQueryClient } from "@tanstack/react-query";
 
 type MapboxFeature = {
   place_type?: string[];
@@ -65,6 +66,8 @@ type PhotoItem = {
 export default function AddCarWizard() {
   const [step, setStep] = useState(1);
   const navigate = useNavigate();
+
+  const qc = useQueryClient();
 
   const [form, setForm] = useState({
     owner: "",
@@ -170,7 +173,6 @@ export default function AddCarWizard() {
       };
 
       const result = await addCar(payload);
-
       if (!result || !result[0]?.id) {
         throw new Error("Ошибка добавления авто");
       }
@@ -178,7 +180,6 @@ export default function AddCarWizard() {
       const carId = result[0].id;
 
       let uploadedUrls: string[] = [];
-
       if (photos.length) {
         const files = photos
           .filter((p) => p.isNew && p.file)
@@ -193,6 +194,12 @@ export default function AddCarWizard() {
           .update({ photos: uploadedUrls })
           .eq("id", carId);
       }
+
+      // 🔥 ключевой момент — сказать React Query, что список «протух»
+      // Подставь свой ключ, если у тебя другой (например, QK.cars())
+      qc.invalidateQueries({ queryKey: ["cars"] });
+      // опционально, чтобы прямо сейчас дёрнуть сеть:
+      qc.refetchQueries({ queryKey: ["cars"], type: "active" });
 
       toast.success("Car is added!");
       navigate("/cars");

@@ -33,6 +33,7 @@ import { calendarLoader } from "./routes/calendarLoader";
 import Calendar from "./app/car/calendar";
 import CalendarPage from "./app/calendarGant";
 import { bookingsLoader } from "./routes/bookings.loader";
+import { carsLoader } from "./routes/carsLoader";
 
 export const router = createBrowserRouter([
   {
@@ -61,14 +62,14 @@ export const router = createBrowserRouter([
         },
         element: <CalendarPage />,
       },
-      { path: "cars", element: <CarsPage /> },
+      { id: "cars", path: "cars", loader: carsLoader, element: <CarsPage /> },
       { path: "cars/add", element: <AddCarPage /> },
       { path: "finance", element: <Finance /> },
       {
         id: "bookings",
         path: "/bookings",
         loader: bookingsLoader,
-        element: <BookingsList title="Bookings" />,
+        element: <BookingsList />,
       },
       { path: "bookings/new", element: <BookingEditor /> },
       { path: "bookings/:bookingId", element: <BookingPage /> },

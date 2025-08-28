@@ -72,11 +72,7 @@ function toCard(row: BookingRow, carsById: Map<string, any>): BookingCard {
   };
 }
 
-export default function BookingsList({
-  title = "Bookings",
-}: {
-  title?: string;
-}) {
+export default function BookingsList() {
   const { ownerId } = useLoaderData() as LoaderData;
   const qc = useQueryClient();
   const navigate = useNavigate();
@@ -239,7 +235,7 @@ export default function BookingsList({
   return (
     <main className="w-full">
       <header className="flex items-end justify-between mb-4">
-        <h1 className="font-openSans text-2xl font-bold">{title}</h1>
+        <h1 className="font-openSans text-2xl font-bold">Bookings</h1>
       </header>
 
       <section id="bookings" className="mt-6 mb-10">
