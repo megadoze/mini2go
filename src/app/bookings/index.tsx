@@ -344,10 +344,10 @@ function StatusPill({ status }: { status: BookingCard["status"] }) {
   const { label, cls } = map[s] ?? { label: status || "—", cls: "gray" };
   return (
     <Badge
-      fw={500}
+      fw={400}
       variant="dot"
       color={cls as any}
-      size={matches ? "xs" : "sm"}
+      size={matches ? "sm" : "md"}
     >
       {label}
     </Badge>
