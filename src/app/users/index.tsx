@@ -179,7 +179,7 @@ export default function UsersPage() {
         </NativeSelect>
       </div>
 
-      <div className="w-full rounded-md overflow-hidden">
+      <div className="w-full rounded-xl overflow-hidden">
         {/* header row */}
         <div className="grid grid-cols-[2fr,2fr,1.5fr,1fr,24px] px-2 sm:px-3 py-3 text-xs bg-neutral-100/90">
           <div>
