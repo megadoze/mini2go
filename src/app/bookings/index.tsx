@@ -237,7 +237,7 @@ export default function BookingsList() {
   }
 
   return (
-    <main className="w-full">
+    <main className="w-full font-roboto">
       <header className="flex items-end justify-between mb-4">
         <h1 className="font-openSans text-2xl font-bold">Bookings</h1>
       </header>
@@ -305,12 +305,12 @@ export default function BookingsList() {
                   </div>
 
                   {b.createdAt ? (
-                    <p className="text-sm text-neutral-400">
-                      <span className=" text-gray-400">created</span>{" "}
-                      {format(parseISO(b.createdAt), "dd.MM.yyyy")}
+                    <p className="text-sm font-light text-zinc-600">
+                      <span>Booked</span>{" "}
+                      {format(parseISO(b.createdAt), "d MMM y")}
                     </p>
                   ) : (
-                    "created —"
+                    "Booked —"
                   )}
                 </div>
 

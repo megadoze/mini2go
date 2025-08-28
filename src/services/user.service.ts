@@ -44,3 +44,23 @@ export async function getUserById(id: string) {
   if (error) throw error;
   return data;
 }
+
+// Список пользователей для таблицы
+export async function fetchUsers(): Promise<
+  {
+    id: string;
+    full_name: string;
+    email?: string | null;
+    phone?: string | null;
+    status?: string | null;
+    avatar_url?: string | null;
+  }[]
+> {
+  const { data, error } = await supabase
+    .from("profiles")
+    // если у тебя другие имена колонок для аватара/статуса — поправь их здесь
+    .select("id, full_name, email, phone, status, avatar_url")
+    .order("full_name", { ascending: true });
+  if (error) throw error;
+  return data ?? [];
+}
