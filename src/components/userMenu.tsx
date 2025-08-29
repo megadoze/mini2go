@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Group, Text, Menu, UnstyledButton } from "@mantine/core";
+import { Group, Menu, UnstyledButton } from "@mantine/core";
 import {
   ArrowLeftEndOnRectangleIcon,
   ChatBubbleOvalLeftIcon,
@@ -22,7 +22,7 @@ function UserMenu({ onClick }: Props) {
       displayName: "Parmegano",
       email: "parmegano@gmail.com",
       photoURL: "",
-      uid: "dskjfs410nb4986",
+      uid: "dskjfs410nb4",
     }),
     []
   );
@@ -65,23 +65,20 @@ function UserMenu({ onClick }: Props) {
     <Menu
       withArrow
       transitionProps={{ transition: "rotate-right", duration: 150 }}
-      offset={12}
+      offset={4}
     >
       <Menu.Target>
         <UnstyledButton className=" p-3">
-          <Group>
+          <Group gap={10}>
             <div
-              className="size-8"
-              // dangerouslySetInnerHTML={{ __html: multiavatar(avatar) }}
+              className="size-6"
               dangerouslySetInnerHTML={{ __html: multiavatar(avatar ?? "") }}
             />
             <div>
-              <Text size="sm" fw={500}>
-                {userName}
-              </Text>
-              <Text c="lime" size="sm">
+              <p className=" text-white/90 lg:text-green-700">{userName}</p>
+              {/* <Text c="white" size="sm">
                 {user?.email}
-              </Text>
+              </Text> */}
             </div>
           </Group>
         </UnstyledButton>

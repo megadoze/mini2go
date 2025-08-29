@@ -253,9 +253,9 @@ export default function BookingsList() {
               <Link
                 key={b.id}
                 to={`/cars/${b.carId}/bookings/${b.id}/edit`}
-                className={`flex items-center border hover:bg-lime-100/20 hover:border-lime-200/80 p-2 w-full rounded-2xl my-1 cursor-pointer ${
+                className={`flex items-center bg-gradient-to-r from-zinc-100/60 to-zinc-50/60 hover:from-green-800/10 opacity-90 hover:opacity-100 transition ease-in-out duration-300 p-2 w-full rounded-2xl my-1 cursor-pointer ${
                   openingId === b.id
-                    ? "hover:bg-lime-200/20 pointer-events-none"
+                    ? "hover:bg-green-200/20 pointer-events-none"
                     : ""
                 }`}
                 onClick={(e) => {
@@ -282,7 +282,7 @@ export default function BookingsList() {
                 </div>
 
                 <div className="flex-1 min-w-0 pl-4 pr-2">
-                  <p className="font-medium text-sm md:text-base truncate">
+                  <p className="font-medium font-robotoCondensed text-sm md:text-base truncate">
                     {b.car?.brand} {b.car?.model}
                   </p>
                   {b.car?.licensePlate && (

@@ -72,14 +72,14 @@ export default function Layout() {
           // className=" ml-1 flex px-3 py-2 items-center font-openSans font-bold text-xl"
           className="flex flex-col items-center shrink-0 font-roboto uppercase font-bold"
         >
-          <img src="/icons/logow.png" className=" w-16" />
-          <p className=" text-white text-xs">MINI2GO</p>
+          <img src="/icons/logow.png" className=" w-16 opacity-90" />
+          <p className=" text-white/90 text-xs">MINI2GO</p>
         </NavLink>
         <ul className="flex flex-col gap-1 text-left mt-5">
           {menuItems.map(({ to, icon, label, exact, onClick }) => (
             <li
               key={to}
-              className="rounded-md hover:bg-gradient-to-r hover:from-teal-900/40 from-30% hover:to-indigo-900/5 cursor-pointer text-white"
+              className="rounded-md hover:bg-gradient-to-r hover:from-teal-900/40 from-30% hover:to-indigo-900/5 cursor-pointer text-white/90"
             >
               <NavLink
                 to={to}
@@ -117,7 +117,10 @@ export default function Layout() {
       }}
       padding={{ base: "md", sm: "lg", md: "xl", lg: "xl" }}
     >
-      <AppShell.Header className=" flex items-center justify-end">
+      <AppShell.Header
+        className=" flex items-center justify-end"
+        withBorder={false}
+      >
         <Burger
           opened={opened}
           onClick={toggle}
@@ -131,9 +134,9 @@ export default function Layout() {
         </div>
       </AppShell.Header>
 
-      <AppShell.Navbar p="xs" bg={"white"}>
+      <AppShell.Navbar px="" bg={"#ffffffc9"} withBorder={false}>
         {/* #102d20cc #073b25  #184230*/}
-        <div className=" absolute right-2 top-5">
+        <div className=" absolute right-1 top-5">
           <Burger
             opened={opened}
             onClick={toggle}
@@ -144,7 +147,7 @@ export default function Layout() {
           />
         </div>
 
-        <div className="h-full bg-gradient-to-r from-teal-950 from-5% to-emerald-800 to-95% p-3">
+        <div className="h-full bg-gradient-to-r from-teal-950 from-5% to-emerald-800 to-95% p-3 ">
           <div>{SidebarMenu()}</div>
           <div className="lg:hidden fixed bottom-2">
             <UserMenu onClick={toggle} />
