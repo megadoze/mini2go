@@ -255,7 +255,7 @@ export default function CarsPage() {
           content: { borderTopLeftRadius: 16, borderTopRightRadius: 16 },
         }}
       >
-        <div className="flex flex-col gap-3">{FilterFields}</div>
+        <div className="flex flex-col gap-3 mt-2">{FilterFields}</div>
 
         {/* Reset link */}
         <div className="mt-3 text-right">

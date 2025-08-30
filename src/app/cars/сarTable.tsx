@@ -62,11 +62,11 @@ export default function CarListView({ cars, search }: Props) {
               <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/30 to-transparent" />
 
               {/* Status pill in the corner */}
-              <div className="absolute left-3 top-3 flex items-center gap-2 rounded-full bg-white/90 px-2.5 py-1 text-xs font-medium text-zinc-700 backdrop-blur-sm">
+              <div className="absolute left-3 top-3 flex items-center gap-2 rounded-full bg-white/90 px-2 py-0.5 text-xs text-zinc-700 backdrop-blur-sm">
                 <p
                   className={`text-sm leading-6 ${
                     car.status === "available"
-                      ? "text-green-600/80"
+                      ? "text-green-600"
                       : "text-zinc-500"
                   }`}
                 >
