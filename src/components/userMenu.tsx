@@ -71,7 +71,7 @@ function UserMenu({ onClick }: Props) {
         <UnstyledButton className=" p-3">
           <Group
             gap={10}
-            className="inline-flex items-center rounded-xl bg-teal-900/90 lg:bg-white/60 ring-1 ring-black/5 shadow-sm px-2.5 py-1.5 transition hover:bg-teal-800/80 "
+            className="inline-flex items-center rounded-xl bg-teal-900/90 lg:bg-white/60 ring-1 ring-black/5 shadow-sm px-2.5 py-1.5 transition hover:bg-white-800/80 "
           >
             <div
               className="size-6"
