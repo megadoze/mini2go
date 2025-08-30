@@ -75,7 +75,9 @@ function UserMenu({ onClick }: Props) {
               dangerouslySetInnerHTML={{ __html: multiavatar(avatar ?? "") }}
             />
             <div>
-              <p className=" text-white/90 lg:text-green-700">{userName}</p>
+              <p className=" text-white/90 lg:text-neutral-600/80">
+                {userName}
+              </p>
               {/* <Text c="white" size="sm">
                 {user?.email}
               </Text> */}

@@ -181,7 +181,7 @@ export default function UsersPage() {
 
       <div className="w-full rounded-xl overflow-hidden">
         {/* header row */}
-        <div className="grid grid-cols-[2fr,2fr,1.5fr,1fr,24px] px-2 sm:px-3 py-3 text-xs bg-neutral-100/90">
+        <div className="grid grid-cols-[2fr,2fr,1.5fr,1fr,24px] px-2 sm:px-3 py-3 text-xs bg-neutral-200/50">
           <div>
             <SortButton
               label="Name"
@@ -213,7 +213,7 @@ export default function UsersPage() {
               <li key={u.id}>
                 <Link
                   to={`/users/${u.id}`}
-                  className="grid grid-cols-[2fr,2fr,1.5fr,1fr,24px] items-center px-2 sm:px-3 py-3 hover:bg-neutral-50/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-black/20 rounded-[6px]"
+                  className="grid grid-cols-[2fr,2fr,1.5fr,1fr,24px] items-center px-2 sm:px-3 py-3 hover:bg-neutral-100/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-black/20 rounded-[6px]"
                 >
                   {/* name + avatar */}
                   <div className="flex items-center gap-3 min-w-0">

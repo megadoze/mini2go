@@ -297,7 +297,7 @@ export default function BookingsList() {
                   </div>
                 </div>
 
-                <div className=" md:flex flex-col w-36 hidden">
+                <div className=" sm:flex flex-col w-36 hidden">
                   <div className="flex flex-1 gap-1">
                     <span>{format(parseISO(b.startAt), "d MMM")}</span>
                     {" → "}

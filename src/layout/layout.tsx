@@ -115,21 +115,23 @@ export default function Layout() {
         breakpoint: "md",
         collapsed: { mobile: !opened },
       }}
+      bg={"#fcfcfc"}
       padding={{ base: "md", sm: "lg", md: "xl", lg: "xl" }}
     >
       <AppShell.Header
-        className=" flex items-center justify-end"
+        className=" flex items-center justify-between lg:justify-end px-4"
         withBorder={false}
+        bg={"#fcfcfc"}
       >
-        <Burger
-          opened={opened}
-          onClick={toggle}
-          hiddenFrom="md"
-          size="sm"
-          mx={10}
-        />
+        <NavLink
+          to={"/"}
+          className="lg:hidden flex flex-col items-center shrink-0 font-roboto uppercase font-bold"
+        >
+          <img src="/icons/logo.png" className=" w-14 opacity-90" />
+        </NavLink>
+        <Burger opened={opened} onClick={toggle} hiddenFrom="md" size="sm" />
 
-        <div className=" hidden lg:block px-4">
+        <div className=" hidden lg:block">
           <UserMenu onClick={toggle} />
         </div>
       </AppShell.Header>
@@ -142,12 +144,12 @@ export default function Layout() {
             onClick={toggle}
             hiddenFrom="md"
             size="sm"
-            mx={10}
+            // mx={10}
             color="white"
           />
         </div>
 
-        <div className="h-full bg-gradient-to-r from-teal-950 from-5% to-emerald-800 to-95% p-3 ">
+        <div className="h-full bg-gradient-to-r from-teal-950 from-5% to-emerald-900 md:to-emerald-800 to-95% p-3 ">
           <div>{SidebarMenu()}</div>
           <div className="lg:hidden fixed bottom-2">
             <UserMenu onClick={toggle} />

@@ -1,52 +1,72 @@
+import { NavLink } from "react-router-dom";
 import type { CarWithRelations } from "@/types/carWithRelations";
 import { highlightMatch } from "@/utils/highlightMatch";
-import { NavLink } from "react-router-dom";
+import {
+  MapPinIcon,
+  IdentificationIcon,
+  CircleStackIcon,
+} from "@heroicons/react/24/outline";
 
+// —— Props ——
 type Props = {
   cars: CarWithRelations[];
   search: string;
 };
 
+function cn(...classes: Array<string | false | null | undefined>) {
+  return classes.filter(Boolean).join(" ");
+}
+
+// —— Component ——
 export default function CarListView({ cars, search }: Props) {
   return (
-    <>
-      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
-        {cars.map((car) => (
+    <div className="grid gap-5 sm:gap-6 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+      {cars.map((car) => {
+        const brand = car.models?.brands?.name ?? "";
+        const model = car.models?.name ?? "";
+        const plate = car.licensePlate ?? "";
+        const location = car.locations?.name ?? "";
+        const photo = car.photos?.[0];
+
+        return (
           <NavLink
             key={car.id}
             to={`/cars/${car.id}`}
-            className="block border border-gray-600 p-2 shadow-sm bg-white hover:shadow-md transition cursor-pointer relative"
+            className={cn(
+              "group relative block w-full overflow-hidden rounded-2xl",
+              // Borderless, glassy card
+              "bg-white/60 backdrop-blur supports-[backdrop-filter]:bg-white/40",
+              // Soft shadow + interactive elevation
+              "shadow-[0_2px_10px_rgba(0,0,0,0.06)] hover:shadow-[0_12px_30px_rgba(0,0,0,0.10)]",
+              // Animation
+              "transition-all duration-300",
+              // Focus ring for a11y (still borderless visually)
+              "focus:outline-none focus-visible:ring-2 focus-visible:ring-black/10"
+            )}
+            aria-label={`${brand} ${model} ${plate}`}
           >
-            <div className="flex gap-4 h-28">
-              <div className="  ">
-                {car.photos?.[0] ? (
-                  <img
-                    src={car.photos[0]}
-                    alt="Фото авто"
-                    className=" w-40 h-28 object-cover"
-                  />
-                ) : (
-                  <div className="w-40 h-full bg-gray-100 rounded-md flex items-center justify-center">
-                    —
-                  </div>
-                )}
-              </div>
+            {/* Top media */}
+            <div className="relative">
+              {photo ? (
+                <img
+                  src={photo}
+                  alt={`${brand} ${model}`}
+                  loading="lazy"
+                  className="h-48 w-full object-cover sm:h-52 md:h-56 transition-transform duration-500 group-hover:scale-[1.03]"
+                />
+              ) : (
+                <div className="h-48 w-full sm:h-52 md:h-56 bg-gradient-to-br from-zinc-100 to-zinc-200" />
+              )}
 
-              <div className=" flex-1">
-                <p className="font-bold text-base leading-5">
-                  {highlightMatch(car.models?.brands?.name, search)}{" "}
-                  {highlightMatch(car.models?.name, search)}
-                </p>
-                <p className=" border border-black text-black font-medium px-1 w-fit text-sm  mt-1">
-                  {highlightMatch(car.licensePlate ?? "", search)}
-                </p>
-                <p className="text-sm text-zinc-600 pt-1">
-                  {car.locations?.name}
-                </p>
+              {/* Subtle gradient overlay for text legibility */}
+              <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/30 to-transparent" />
+
+              {/* Status pill in the corner */}
+              <div className="absolute left-3 top-3 flex items-center gap-2 rounded-full bg-white/90 px-2.5 py-1 text-xs font-medium text-zinc-700 backdrop-blur-sm">
                 <p
                   className={`text-sm leading-6 ${
                     car.status === "available"
-                      ? "text-lime-500"
+                      ? "text-green-600/80"
                       : "text-zinc-500"
                   }`}
                 >
@@ -54,9 +74,47 @@ export default function CarListView({ cars, search }: Props) {
                 </p>
               </div>
             </div>
+
+            {/* Content */}
+            <div className="p-4 sm:p-5">
+              {/* Title */}
+              <h3 className="text-lg font-semibold leading-snug text-zinc-900 line-clamp-1">
+                {highlightMatch(brand, search)} {highlightMatch(model, search)}
+              </h3>
+
+              {/* Meta */}
+              <div className="mt-2 flex flex-wrap items-center gap-2.5 text-sm text-zinc-600">
+                {plate && (
+                  <span className="inline-flex items-center gap-1 rounded-md bg-zinc-50 px-2 py-1 font-mono text-[12px] tracking-wide shadow-sm ring-1 ring-inset ring-black/5">
+                    <IdentificationIcon
+                      className="h-4 w-4"
+                      aria-hidden="true"
+                    />
+                    {highlightMatch(plate, search)}
+                  </span>
+                )}
+
+                {location && (
+                  <span className="inline-flex items-center gap-1 rounded-md bg-zinc-50 px-2 py-1 shadow-sm ring-1 ring-inset ring-black/5">
+                    <MapPinIcon className="h-4 w-4" aria-hidden="true" />
+                    <span className="truncate max-w-[12rem]">{location}</span>
+                  </span>
+                )}
+
+                {car.models?.brands?.name && (
+                  <span className="ml-auto inline-flex items-center gap-1 rounded-md bg-white/70 px-2 py-1 text-[12px] shadow-sm ring-1 ring-inset ring-black/5">
+                    <CircleStackIcon className="h-4 w-4" aria-hidden="true" />
+                    ID: {car.id}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Hover highlight strip */}
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1 opacity-0 transition-opacity duration-300 group-hover:opacity-100 bg-gradient-to-r from-transparent via-black/10 to-transparent" />
           </NavLink>
-        ))}
-      </div>
-    </>
+        );
+      })}
+    </div>
   );
 }
