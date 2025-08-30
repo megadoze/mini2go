@@ -131,8 +131,10 @@ export default function Layout() {
         </NavLink>
         <Burger opened={opened} onClick={toggle} hiddenFrom="md" size="sm" />
 
-        <div className=" hidden lg:block">
-          <UserMenu onClick={toggle} />
+        <div className="hidden lg:block">
+          {/* <div className="inline-flex items-center rounded-xl bg-white/60 backdrop-blur-sm ring-1 ring-black/5 shadow-sm px-2.5 py-1.5 transition hover:bg-white/80 "> */}
+            <UserMenu onClick={toggle} />
+          {/* </div> */}
         </div>
       </AppShell.Header>
 
