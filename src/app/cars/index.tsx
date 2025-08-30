@@ -246,9 +246,10 @@ export default function CarsPage() {
         onClose={() => setMobileFiltersOpen(false)}
         position="bottom"
         withinPortal
-        size="33%"
+        size="35%"
         padding="md"
         keepMounted
+        withCloseButton={false}
         overlayProps={{ opacity: 0.2, blur: 2 }}
         styles={{
           content: { borderTopLeftRadius: 16, borderTopRightRadius: 16 },
@@ -257,7 +258,7 @@ export default function CarsPage() {
         <div className="flex flex-col gap-3">{FilterFields}</div>
 
         {/* Reset link */}
-        <div className="mt-3">
+        <div className="mt-3 text-right">
           <button
             type="button"
             onClick={resetFilters}
