@@ -504,20 +504,21 @@ export default function CalendarPage() {
           let colorClass = "";
           let ringClass = "";
           if (isBlock) {
-            colorClass = "bg-red-500/80";
-            ringClass = "focus-visible:ring-red-400";
+            colorClass = "bg-gradient-to-r from-pink-700/80 to-rose-500/70";
+            // ringClass = "focus-visible:ring-red-400";
           } else if (booking.status === "rent") {
-            colorClass = "bg-lime-500/80";
-            ringClass = "focus-visible:ring-lime-400";
+            colorClass =
+              "bg-gradient-to-r from-emerald-800/80 to-emerald-600/70";
+            // ringClass = "focus-visible:ring-emerald-500";
           } else if (booking.status === "finished") {
-            colorClass = "bg-gray-400/80";
-            ringClass = "focus-visible:ring-gray-400";
+            colorClass = "bg-gradient-to-r from-gray-400 to-gray-400/60";
+            // ringClass = "focus-visible:ring-gray-400";
           } else if (booking.status === "confirmed") {
-            colorClass = "bg-orange-400";
-            ringClass = "focus-visible:ring-orange-300";
+            colorClass = "bg-gradient-to-r from-orange-600/80 to-orange-500/60";
+            // ringClass = "focus-visible:ring-orange-300";
           } else if (booking.status === "onApproval") {
-            colorClass = "bg-blue-400";
-            ringClass = "focus-visible:ring-blue-500";
+            colorClass = "bg-gradient-to-r from-sky-600/80 to-sky-500/70";
+            // ringClass = "focus-visible:ring-blue-500";
           } else {
             colorClass = "bg-green-500/80";
             ringClass = "focus-visible:ring-lime-400";
@@ -715,14 +716,15 @@ export default function CalendarPage() {
       {/* легенда */}
       <div className="mt-4 flex justify-around sm:justify-end items-center gap-4 text-xs text-gray-600">
         <span className="inline-flex items-center gap-1">
-          <span className="inline-block w-3 h-3 rounded bg-lime-500/80" /> rent
+          <span className="inline-block w-3 h-3 rounded bg-emerald-600/80" />{" "}
+          rent
         </span>
         <span className="inline-flex items-center gap-1">
-          <span className="inline-block w-3 h-3 rounded bg-orange-500/80" />{" "}
+          <span className="inline-block w-3 h-3 rounded bg-orange-600/70" />{" "}
           confirmed
         </span>
         <span className="inline-flex items-center gap-1">
-          <span className="inline-block w-3 h-3 rounded bg-blue-400" /> on
+          <span className="inline-block w-3 h-3 rounded bg-sky-500/80" /> on
           approval
         </span>
         <span className="inline-flex items-center gap-1">
@@ -730,7 +732,7 @@ export default function CalendarPage() {
           finished
         </span>
         <span className="inline-flex items-center gap-1">
-          <span className="inline-block w-3 h-3 rounded bg-red-500/80" /> block
+          <span className="inline-block w-3 h-3 rounded bg-rose-700/80" /> block
         </span>
       </div>
 
