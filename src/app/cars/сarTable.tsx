@@ -64,7 +64,7 @@ export default function CarListView({ cars, search }: Props) {
               {/* Status pill in the corner */}
               <div className="absolute left-3 top-3 flex items-center gap-2 rounded-full bg-white/90 px-2 py-0.5 text-xs text-zinc-700 backdrop-blur-sm">
                 <p
-                  className={`text-sm leading-6 ${
+                  className={` font-light text-sm leading-6 ${
                     car.status === "available"
                       ? "text-green-600"
                       : "text-zinc-500"
@@ -102,7 +102,7 @@ export default function CarListView({ cars, search }: Props) {
                 )}
 
                 {car.models?.brands?.name && (
-                  <span className="ml-auto inline-flex items-center gap-1 rounded-md bg-white/70 px-2 py-1 text-[12px] shadow-sm ring-1 ring-inset ring-black/5">
+                  <span className=" inline-flex items-center gap-1 rounded-md bg-white/70 px-2 py-1 text-[12px] shadow-sm ring-1 ring-inset ring-black/5">
                     <CircleStackIcon className="h-4 w-4" aria-hidden="true" />
                     ID: {car.id}
                   </span>

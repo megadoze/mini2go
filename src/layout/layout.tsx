@@ -138,7 +138,7 @@ export default function Layout() {
 
       <AppShell.Navbar px="" bg={"#ffffffc9"} withBorder={false}>
         {/* #102d20cc #073b25  #184230*/}
-        <div className=" absolute right-1 top-5">
+        <div className=" absolute right-1 top-4 mr-3">
           <Burger
             opened={opened}
             onClick={toggle}

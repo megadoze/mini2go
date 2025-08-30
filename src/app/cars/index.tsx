@@ -1,18 +1,9 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Badge, Loader, TextInput, Drawer } from "@mantine/core";
 import {
-  Badge,
-  Button,
-  Loader,
-  NativeSelect,
-  TextInput,
-  Drawer,
-} from "@mantine/core";
-import {
-  GlobeAltIcon,
   MagnifyingGlassIcon,
-  MapPinIcon,
   XMarkIcon,
   FunnelIcon,
 } from "@heroicons/react/24/outline";
@@ -28,6 +19,8 @@ import {
   fetchCountries,
   fetchLocationsByCountry,
 } from "@/services/geo.service";
+import type { CarStatus } from "@/components/carFilters";
+import CarFilters from "@/components/carFilters";
 
 export default function CarsPage() {
   const navigate = useNavigate();
@@ -36,6 +29,7 @@ export default function CarsPage() {
   // UI state
   const [countryId, setCountryId] = useState<string | null>(null);
   const [locationFilter, setLocationFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState<CarStatus>("");
   const [search, setSearch] = useState("");
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
@@ -103,14 +97,18 @@ export default function CarsPage() {
       ? byText.filter((car) => car.locations?.countries.id === countryId)
       : byText;
 
-    return byCountry.filter((car) => {
+    const byStatus = statusFilter
+      ? byCountry.filter((car) => car.status === statusFilter)
+      : byCountry;
+
+    return byStatus.filter((car) => {
       const loc = car.locations?.name?.toLowerCase() ?? "";
       return (
         locationFilter === "" ||
         loc.includes(locationFilter.trim().toLowerCase())
       );
     });
-  }, [cars, search, countryId, locationFilter]);
+  }, [cars, search, countryId, locationFilter, statusFilter]);
 
   const loading = carsQ.isLoading || countriesQ.isLoading;
 
@@ -120,52 +118,8 @@ export default function CarsPage() {
     setSearch("");
     setCountryId(null);
     setLocationFilter("");
+    setStatusFilter("");
   };
-
-  // shared filter fields (reused in desktop bar and mobile drawer)
-  const FilterFields = (
-    <>
-      <div className="relative">
-        <GlobeAltIcon className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-zinc-500 pointer-events-none" />
-        <NativeSelect
-          value={countryId ?? ""}
-          onChange={(e) => {
-            setCountryId(e.currentTarget.value || null);
-            setLocationFilter("");
-          }}
-          className="min-w-[150px] rounded-xl bg-white/60 backdrop-blur-sm shadow-sm pl-9 pr-3 py-2 text-sm transition hover:bg-white/80 focus:ring-2 focus:ring-black/10"
-        >
-          <option value="">Country</option>
-          {countries.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </NativeSelect>
-      </div>
-
-      <div className="relative">
-        <MapPinIcon className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-zinc-500 pointer-events-none" />
-        <NativeSelect
-          value={locationFilter ?? ""}
-          onChange={(e) => setLocationFilter(e.currentTarget.value)}
-          disabled={!countryId}
-          className={`min-w-[150px] rounded-xl pl-9 pr-3 py-2 text-sm shadow-sm transition focus:ring-2 focus:ring-black/10 ${
-            !countryId
-              ? "bg-gray-100/80 text-zinc-400 cursor-not-allowed"
-              : "bg-white/60 backdrop-blur-sm hover:bg-white/80"
-          }`}
-        >
-          <option value="">Location</option>
-          {locations.map((l) => (
-            <option key={l.id} value={l.name}>
-              {l.name}
-            </option>
-          ))}
-        </NativeSelect>
-      </div>
-    </>
-  );
 
   /* -------------------- render -------------------- */
 
@@ -177,33 +131,40 @@ export default function CarsPage() {
           <h1 className="font-openSans font-bold text-2xl">Cars</h1>
           {cars.length > 0 && <Badge color="black">{cars.length}</Badge>}
         </div>
-        <Button
-          variant="filled"
+        <button
           color="black"
-          size="xs"
-          radius="md"
           onClick={addNewCar}
+          className=" rounded-xl bg-black py-2 px-3 text-white text-sm hover:opacity-85"
         >
           + Add car
-        </Button>
+        </button>
       </div>
 
       {/* Desktop / tablet filters (>= sm) — inline, immediate apply */}
       <div className="hidden sm:flex flex-wrap gap-3 items-center w-full mb-6">
-        {FilterFields}
+        <CarFilters
+          countries={countries}
+          locations={locations}
+          countryId={countryId}
+          locationFilter={locationFilter}
+          statusFilter={statusFilter}
+          onChangeCountry={setCountryId}
+          onChangeLocation={setLocationFilter}
+          onChangeStatus={setStatusFilter}
+        />
 
-        {/* Search inline with filters */}
-        <div className="relative flex-1 min-w-[200px] max-w-[300px]">
+        {/* Search inline */}
+        <div className="relative flex-1 min-w-[300px]">
           <MagnifyingGlassIcon className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-zinc-500" />
           <TextInput
             placeholder="Поиск по марке, модели или номеру"
             value={search}
             onChange={(e) => setSearch(e.currentTarget.value)}
-            className="w-full rounded-xl bg-white/60 backdrop-blur-sm shadow-sm pl-9 pr-3 py-2 text-sm hover:bg-white/80 focus:ring-2 focus:ring-black/10"
+            className="w-full rounded-xl bg-white/60 shadow-sm pl-9 pr-3 py-2 text-sm hover:bg-white/80 focus:ring-2 focus:ring-black/10"
           />
         </div>
 
-        {/* Reset button */}
+        {/* Reset */}
         <button
           type="button"
           onClick={resetFilters}
@@ -222,13 +183,12 @@ export default function CarsPage() {
           placeholder="Поиск по марке, модели или номеру"
           value={search}
           onChange={(e) => setSearch(e.currentTarget.value)}
-          className="w-full rounded-xl bg-white/60 backdrop-blur-sm shadow-sm pl-9 pr-3 py-2 text-sm hover:bg-white/80 focus:ring-2 focus:ring-black/10"
+          className="w-full rounded-xl bg-white/60 shadow-sm pl-9 pr-3 py-2 text-sm hover:bg-white/80 focus:ring-2 focus:ring-black/10"
         />
       </div>
 
       {/* Mobile floating Filters button (< sm) */}
       <div className="sm:hidden">
-        {/* floating center-bottom button */}
         <button
           type="button"
           onClick={() => setMobileFiltersOpen(true)}
@@ -236,7 +196,7 @@ export default function CarsPage() {
           aria-label="Открыть фильтры"
         >
           <FunnelIcon className="size-4" />
-          Фильтры
+          Filters
         </button>
       </div>
 
@@ -255,16 +215,26 @@ export default function CarsPage() {
           content: { borderTopLeftRadius: 16, borderTopRightRadius: 16 },
         }}
       >
-        <div className="flex flex-col gap-3 mt-2">{FilterFields}</div>
+        <div className="w-full flex flex-col gap-3 mt-2">
+          <CarFilters
+            countries={countries}
+            locations={locations}
+            countryId={countryId}
+            locationFilter={locationFilter}
+            statusFilter={statusFilter}
+            onChangeCountry={setCountryId}
+            onChangeLocation={setLocationFilter}
+            onChangeStatus={setStatusFilter}
+          />
+        </div>
 
-        {/* Reset link */}
         <div className="mt-3 text-right">
           <button
             type="button"
             onClick={resetFilters}
             className="text-sm text-zinc-500 underline underline-offset-4"
           >
-            Сбросить фильтры
+            Reset filters
           </button>
         </div>
       </Drawer>

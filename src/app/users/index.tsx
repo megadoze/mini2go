@@ -7,6 +7,7 @@ import {
   NativeSelect,
   TextInput,
   UnstyledButton,
+  Drawer,
 } from "@mantine/core";
 import {
   MagnifyingGlassIcon,
@@ -14,8 +15,12 @@ import {
   ChevronUpIcon,
   ChevronDownIcon,
   ChevronRightIcon,
+  FunnelIcon,
+  XMarkIcon,
+  EyeIcon,
 } from "@heroicons/react/24/outline";
 import { fetchUsers } from "@/services/user.service";
+import { highlightMatch } from "@/utils/highlightMatch";
 
 type UserRow = {
   id: string;
@@ -56,6 +61,7 @@ export default function UsersPage() {
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [sortBy, setSortBy] = useState<SortKey>("name");
   const [reversed, setReversed] = useState(false);
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
   const usersQ = useQuery<UserRow[]>({
     queryKey: ["users", "all"],
@@ -78,7 +84,7 @@ export default function UsersPage() {
   const filteredSorted = useMemo(() => {
     const q = search.trim().toLowerCase();
 
-    // 1) text filter
+    // 1) text
     let arr = q
       ? users.filter((u) => {
           const hay = `${u.full_name ?? ""} ${u.email ?? ""} ${
@@ -88,7 +94,7 @@ export default function UsersPage() {
         })
       : users;
 
-    // 2) status filter
+    // 2) status
     if (statusFilter) {
       arr = arr.filter((u) => (u.status ?? "") === statusFilter);
     }
@@ -143,32 +149,20 @@ export default function UsersPage() {
     </UnstyledButton>
   );
 
-  return (
-    <div className="w-full max-w-screen-2xl">
-      {/* header */}
-      <div className="flex items-center gap-2 mb-4">
-        <h1 className="font-openSans font-bold text-2xl">Users</h1>
-        {users.length > 0 && <Badge color="black">{users.length}</Badge>}
-        {usersQ.isFetching && <Loader size="xs" color="gray" />}
-      </div>
+  const resetFilters = () => {
+    setSearch("");
+    setStatusFilter("");
+  };
 
-      {/* controls */}
-      <div className="flex gap-2 items-center w-full mb-5">
-        <TextInput
-          variant="unstyled"
-          placeholder="Search name / email / phone"
-          value={search}
-          onChange={(e) => setSearch(e.currentTarget.value)}
-          radius="xs"
-          className="flex-1 md:flex-none w-80 border border-gray-300 focus-within:border-gray-500 rounded px-1"
-          leftSection={<MagnifyingGlassIcon className="size-4" />}
-        />
+  // общие поля фильтров (статус)
+  const FilterFields = (
+    <>
+      <div className="relative w-full sm:w-auto sm:shrink-0">
+        <EyeIcon className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-zinc-500 pointer-events-none" />
         <NativeSelect
           value={statusFilter}
-          variant="unstyled"
           onChange={(e) => setStatusFilter(e.currentTarget.value)}
-          radius="xs"
-          className="pl-2 rounded border border-gray-300 font-normal"
+          className="w-full sm:w-auto min-w-[180px] rounded-xl bg-white/60 shadow-sm pl-9 pr-3 py-2 text-sm transition hover:bg-white/80 focus:ring-2 focus:ring-black/10"
         >
           <option value="">All statuses</option>
           {statuses.map((s) => (
@@ -178,6 +172,95 @@ export default function UsersPage() {
           ))}
         </NativeSelect>
       </div>
+    </>
+  );
+
+  return (
+    <div className="w-full max-w-screen-2xl">
+      {/* header */}
+      <div className="flex items-center gap-2 mb-4">
+        <h1 className="font-openSans font-bold text-2xl">Users</h1>
+        {users.length > 0 && <Badge color="black">{users.length}</Badge>}
+        {usersQ.isFetching && <Loader size="xs" color="gray" />}
+      </div>
+
+      {/* Desktop controls row (status + search + reset) */}
+      <div className="hidden sm:flex sm:flex-nowrap items-center gap-3 w-full mb-5 overflow-x-auto">
+        {FilterFields}
+
+        {/* Search inline */}
+        <div className="relative flex-1 min-w-[220px]">
+          <MagnifyingGlassIcon className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-zinc-500" />
+          <TextInput
+            placeholder="Search name / email / phone"
+            value={search}
+            onChange={(e) => setSearch(e.currentTarget.value)}
+            className="w-full rounded-xl bg-white/60 shadow-sm pl-9 pr-3 py-2 text-sm hover:bg-white/80 focus:ring-2 focus:ring-black/10"
+          />
+        </div>
+
+        {/* Reset */}
+        <button
+          type="button"
+          onClick={resetFilters}
+          className="p-2 rounded hover:bg-gray-100 active:bg-gray-200 transition"
+          aria-label="Reset filters"
+          title="Reset filters"
+        >
+          <XMarkIcon className="size-5 text-gray-800 stroke-1" />
+        </button>
+      </div>
+
+      {/* Mobile search (always visible) */}
+      <div className="relative w-full mb-4 sm:hidden">
+        <MagnifyingGlassIcon className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-zinc-500" />
+        <TextInput
+          placeholder="Search name / email / phone"
+          value={search}
+          onChange={(e) => setSearch(e.currentTarget.value)}
+          className="w-full rounded-xl bg-white/60 shadow-sm pl-9 pr-3 py-2 text-sm hover:bg-white/80 focus:ring-2 focus:ring-black/10"
+        />
+      </div>
+
+      {/* Mobile floating Filters button */}
+      <div className="sm:hidden">
+        <button
+          type="button"
+          onClick={() => setMobileFiltersOpen(true)}
+          className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm shadow-md bg-black text-white active:opacity-80"
+          aria-label="Open filters"
+        >
+          <FunnelIcon className="size-4" />
+          Filters
+        </button>
+      </div>
+
+      {/* Bottom sheet for mobile filters (status) */}
+      <Drawer
+        opened={mobileFiltersOpen}
+        onClose={() => setMobileFiltersOpen(false)}
+        position="bottom"
+        withinPortal
+        size="35%"
+        padding="md"
+        keepMounted
+        withCloseButton={false}
+        overlayProps={{ opacity: 0.2, blur: 2 }}
+        styles={{
+          content: { borderTopLeftRadius: 16, borderTopRightRadius: 16 },
+        }}
+      >
+        <div className="flex flex-col gap-3 mt-2">{FilterFields}</div>
+        <div className="mt-3 text-right">
+          <button
+            type="button"
+            onClick={resetFilters}
+            className="text-sm text-zinc-500 underline underline-offset-4"
+          >
+            Reset filters
+          </button>
+        </div>
+      </Drawer>
 
       <div className="w-full rounded-xl overflow-hidden">
         {/* header row */}
@@ -230,19 +313,21 @@ export default function UsersPage() {
                     )}
                     <div className="truncate">
                       <div className="text-sm font-medium text-gray-900 truncate">
-                        {u.full_name ?? "—"}
+                        {u.full_name
+                          ? highlightMatch(u.full_name, search)
+                          : "—"}
                       </div>
                     </div>
                   </div>
 
                   {/* email */}
                   <div className=" col-start-2 col-span-2 md:col-auto text-sm text-gray-800 truncate">
-                    {u.email ?? "—"}
+                    {u.email ? highlightMatch(u.email, search) : "—"}
                   </div>
 
                   {/* phone */}
                   <div className="hidden md:block text-sm text-gray-800 truncate">
-                    {u.phone ?? "—"}
+                    {u.phone ? highlightMatch(u.phone, search) : "—"}
                   </div>
 
                   {/* status */}
