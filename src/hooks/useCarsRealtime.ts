@@ -24,7 +24,9 @@ type RTCar = {
   include_mileage?: number | null;
 };
 
-export function useCarsRealtime() {
+export function useCarsRealtime(
+  onCarPatched?: (id: string, patch: any) => void
+) {
   const qc = useQueryClient();
 
   useEffect(() => {
@@ -88,6 +90,7 @@ export function useCarsRealtime() {
                   )
                 : list
           );
+          onCarPatched?.(id, normalizedPatch);
         }
       )
       .subscribe();

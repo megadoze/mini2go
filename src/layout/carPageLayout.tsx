@@ -38,7 +38,6 @@ type LoaderData = {
 };
 
 export default function CarPageLayout() {
-  useCarsRealtime();
   const [opened, { toggle }] = useDisclosure();
   const { carId } = useParams();
 
@@ -93,6 +92,26 @@ export default function CarPageLayout() {
   const [loadingGlobal, setLoadingGlobal] = useState(false);
 
   const getCarId = () => String((car as any)?.id ?? carId);
+
+  useCarsRealtime((id, patch) => {
+    const currentId = String(car?.id ?? carId ?? "");
+    if (!currentId || String(id) !== currentId) return;
+
+    // Обновляем объект авто в контексте
+    setCar((prev: any) => (prev ? { ...prev, ...patch } : prev));
+
+    // Точечно синкаем поля, которые у тебя лежат отдельными стейтами
+    if ("includeMileage" in patch) setIncludeMileage(patch.includeMileage);
+    if ("isDelivery" in patch) setIsDelivery(patch.isDelivery);
+    if ("deliveryFee" in patch) setDeliveryFee(patch.deliveryFee);
+    if ("address" in patch) setParkingAddress(patch.address ?? "");
+    if ("lat" in patch || "long" in patch) {
+      setCoords({
+        latitude: patch.lat ?? parkingCoords.latitude,
+        longitude: patch.long ?? parkingCoords.longitude,
+      });
+    }
+  });
 
   // Синхронизация из loader без перетирания bookings
   useEffect(() => {
