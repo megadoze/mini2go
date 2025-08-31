@@ -1,5 +1,6 @@
 import { optionsDistance } from "@/constants/carOptions";
 import { useCarContext } from "@/context/carContext";
+import { useCarCache } from "@/hooks/useCarCache";
 import { updateCar } from "@/services/car.service";
 import { NativeSelect } from "@mantine/core";
 import { useMemo, useState } from "react";
@@ -7,6 +8,8 @@ import { toast } from "sonner";
 
 const Distance = () => {
   const { car, setIncludeMileage, includeMileage } = useCarContext();
+
+  const { patchCar } = useCarCache();
 
   const [distance, setDistance] = useState(includeMileage ?? 100);
   const [saved, setSaved] = useState(false);
@@ -28,11 +31,13 @@ const Distance = () => {
       if (!carId) return null;
       await updateCar(carId, { includeMileage: distance });
 
+      patchCar(carId, { includeMileage: distance });
+
       setSaved(true);
       setIncludeMileage(distance);
 
       setTimeout(() => setSaved(false), 2000);
-      toast.success("Location saved successfully!");
+      toast.success("Distance saved successfully!");
     } catch (error) {
       console.error(error);
       toast.error("Something went wrong while saving!");
@@ -89,7 +94,7 @@ const Distance = () => {
         </div>
         <div className="mt-8 text-right">
           <span
-            className={`text-lime-500 font-medium text-sm transition-opacity duration-500 mr-2 ${
+            className={`text-green-500 font-medium text-sm transition-opacity duration-500 mr-2 ${
               saved ? "opacity-100" : "opacity-0 pointer-events-none"
             }`}
           >

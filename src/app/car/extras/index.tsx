@@ -28,7 +28,7 @@ const Extras = () => {
               <div
                 className={`${
                   e.is_available
-                    ? "border-lime-300 bg-green-50/10"
+                    ? "border-green-400 bg-green-50/10"
                     : " hover:border-gray-400/50"
                 } border rounded-3xl h-20 flex items-center mt-5 `}
               >
@@ -37,7 +37,7 @@ const Extras = () => {
                   <div className="inline-flex">
                     <p
                       className={`${
-                        e.is_available ? "text-lime-500" : ""
+                        e.is_available ? "text-green-500" : ""
                       } text-gray-500`}
                     >
                       {e.is_available ? "On" : "Off"}

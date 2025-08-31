@@ -21,6 +21,7 @@ type RTCar = {
   doors?: number | null;
   photos?: string[] | null;
   content?: string | null;
+  include_mileage?: number | null;
 };
 
 export function useCarsRealtime() {
@@ -66,9 +67,15 @@ export function useCarsRealtime() {
           // UPDATE: точечно патчим
           const patch = newRow ?? {};
 
+          // 👇 нормализация snake -> camel
+          const normalizedPatch: any = { ...patch };
+          if (Object.prototype.hasOwnProperty.call(patch, "include_mileage")) {
+            normalizedPatch.includeMileage = (patch as any).include_mileage;
+          }
+
           // карточка
           qc.setQueryData(QK.car(id), (prev: any) =>
-            prev ? { ...prev, ...patch } : prev
+            prev ? { ...prev, ...normalizedPatch } : prev
           );
 
           // списки
@@ -77,7 +84,7 @@ export function useCarsRealtime() {
             (list: any[] | undefined) =>
               Array.isArray(list)
                 ? list.map((c) =>
-                    String(c.id) === id ? { ...c, ...patch } : c
+                    String(c.id) === id ? { ...c, ...normalizedPatch } : c
                   )
                 : list
           );

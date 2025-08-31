@@ -342,7 +342,7 @@ function Parking() {
               id="pickupInfo"
               maxLength={500}
               rows={5}
-              className="py-1 w-full border border-gray-300 hover:border-gray-400 focus:border-lime-300 outline-none pl-2 mt-2"
+              className="py-1 w-full border border-gray-300 hover:border-gray-400 focus:border-green-300 outline-none pl-2 mt-2"
               value={info.pickupInfo ?? ""}
               onChange={handleChangeInfo}
               placeholder="Pick-up information"
@@ -357,7 +357,7 @@ function Parking() {
               id="returnInfo"
               maxLength={500}
               rows={5}
-              className="py-1 w-full border border-gray-300 hover:border-gray-400 focus:border-lime-300 outline-none pl-2 mt-2"
+              className="py-1 w-full border border-gray-300 hover:border-gray-400 focus:border-green-300 outline-none pl-2 mt-2"
               value={info.returnInfo ?? ""}
               onChange={handleChangeInfo}
               placeholder="Return information"
@@ -374,7 +374,7 @@ function Parking() {
             </button>
             <div>
               {saved && (
-                <span className="text-lime-500 font-medium text-sm animate-fade-in mr-2">
+                <span className="text-green-500 font-medium text-sm animate-fade-in mr-2">
                   ✓ Saved
                 </span>
               )}

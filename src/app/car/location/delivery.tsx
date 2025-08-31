@@ -74,12 +74,12 @@ const Delivery = () => {
         </p>
         <div
           className={`${
-            deliveryState ? "border-lime-300 bg-white" : ""
+            deliveryState ? "border-green-400 bg-white" : ""
           } flex justify-between items-center mt-8 rounded-2xl border bg-gray-50 py-5 px-6`}
         >
           <p
             className={`${
-              deliveryState ? "text-lime-500" : ""
+              deliveryState ? "text-green-600" : ""
             } text-lg text-gray-500`}
           >
             Enable delivery
@@ -88,7 +88,7 @@ const Delivery = () => {
             // data-ison={isSelected}
             className={`${
               deliveryState
-                ? "bg-lime-300 justify-end"
+                ? "bg-green-500 justify-end"
                 : "justify-start bg-gray-300"
             } cursor-pointer w-16 h-10 flex items-center rounded-full p-1`}
             onClick={() => handleSwitch()}

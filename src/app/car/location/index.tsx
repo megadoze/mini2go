@@ -53,7 +53,7 @@ const Location = () => {
                 <p className="font-medium">Delivery to guest location </p>
                 <p
                   className={`${
-                    isDelivery ? "text-lime-500" : ""
+                    isDelivery ? "text-green-500" : ""
                   } text-gray-500`}
                 >
                   {isDelivery ? "On" : "Off"}

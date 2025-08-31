@@ -753,7 +753,7 @@ export default function BookingSettingsSection() {
       {/* Save */}
       <div className="mt-8 text-right">
         {saved && (
-          <span className="text-lime-400 font-medium text-sm animate-fade-in mr-2">
+          <span className="text-green-400 font-medium text-sm animate-fade-in mr-2">
             ✓ Saved
           </span>
         )}
@@ -796,7 +796,7 @@ function ToggleWithGlobal({
   return (
     <div
       className={`${
-        checked && !useGlobal ? "border-lime-300 bg-white" : ""
+        checked && !useGlobal ? "border-green-400 bg-white" : ""
       } mt-8 rounded-2xl border bg-gray-50 p-4`}
       aria-disabled={disabled}
     >
@@ -804,7 +804,7 @@ function ToggleWithGlobal({
         <div className="flex-1">
           <p
             className={`${
-              checked && !useGlobal ? "text-lime-500" : ""
+              checked && !useGlobal ? "text-green-600" : ""
             } text-lg font-medium`}
           >
             {label}
@@ -827,7 +827,7 @@ function ToggleWithGlobal({
 
         <div
           className={`${
-            checked ? "bg-lime-300 justify-end" : "justify-start bg-gray-300"
+            checked ? "bg-green-500 justify-end" : "justify-start bg-gray-300"
           } w-16 h-10 flex items-center rounded-full p-1 ${
             disabled ? "opacity-50 pointer-events-none" : "cursor-pointer"
           }`}

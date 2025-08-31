@@ -6,12 +6,13 @@ import { useCarContext } from "@/context/carContext";
 import { upsertCarExtra } from "@/services/car.service";
 import { toast } from "sonner";
 import { optionsExtraPrices } from "@/constants/carOptions";
+import { getCurrencySymbol } from "@/lib/currency";
 
 const ExtraComponent = () => {
-  const { id: carId, extraId } = useParams();
+  const { carId, extraId } = useParams();
 
   const navigate = useNavigate();
-  const { extras, setExtras } = useCarContext();
+  const { extras, setExtras, effectiveCurrency } = useCarContext();
 
   const [isAvailable, setIsAvailable] = useState(false);
   const [price, setPrice] = useState(0);
@@ -102,12 +103,12 @@ const ExtraComponent = () => {
 
         <div
           className={`${
-            isAvailable ? "border-lime-300 bg-white" : ""
+            isAvailable ? "border-green-400 bg-white" : ""
           } flex justify-between items-center mt-8 rounded-2xl border bg-gray-50 py-5 px-6`}
         >
           <p
             className={`${
-              isAvailable ? "text-lime-500" : ""
+              isAvailable ? "text-green-600" : ""
             } text-lg text-gray-500`}
           >
             Enable extra
@@ -115,7 +116,7 @@ const ExtraComponent = () => {
           <div
             className={`${
               isAvailable
-                ? "bg-lime-300 justify-end"
+                ? "bg-green-500 justify-end"
                 : "justify-start bg-gray-300"
             } cursor-pointer w-16 h-10 flex items-center rounded-full p-1`}
             onClick={handleSwitch}
@@ -133,7 +134,10 @@ const ExtraComponent = () => {
             <p className=" text-sm mb-1">Price</p>
             <div className="flex">
               <NativeSelect
-                leftSection="€"
+                leftSection={
+                  effectiveCurrency &&
+                  (getCurrencySymbol(effectiveCurrency) || "€")
+                }
                 value={price}
                 onChange={handlePriceChange}
                 data={optionsExtraPrices}
@@ -162,7 +166,7 @@ const ExtraComponent = () => {
           </button>
           <div>
             {saved && (
-              <span className="text-lime-500 font-medium text-sm animate-fade-in mr-2">
+              <span className="text-green-500 font-medium text-sm animate-fade-in mr-2">
                 ✓ Saved
               </span>
             )}

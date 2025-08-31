@@ -464,7 +464,7 @@ export default function CarDetails() {
         </button>
         <div className="">
           <span
-            className={`text-lime-500 font-medium text-sm transition-opacity duration-500 mr-2 ${
+            className={`text-green-500 font-medium text-sm transition-opacity duration-500 mr-2 ${
               saved ? "opacity-100" : "opacity-0 pointer-events-none"
             }`}
           >
