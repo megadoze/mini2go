@@ -19,10 +19,16 @@ import {
 } from "date-fns";
 import { useCarContext } from "@/context/carContext";
 import type { Booking } from "@/types/booking";
-import { createBooking, deleteBooking } from "./calendar.service";
+import {
+  createBooking,
+  deleteBooking,
+  fetchBookingsByCarId,
+} from "./calendar.service";
 import { getUserById } from "@/services/user.service";
 import type { BookingEditorSnapshot } from "@/types/booking-ui";
 import { fetchBookingExtras } from "@/services/booking-extras.service";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { QK } from "@/queryKeys";
 
 const TIME_OPTIONS = Array.from({ length: 24 * 2 }, (_, i) => {
   const hours = Math.floor((i * 30) / 60);
@@ -44,6 +50,8 @@ export default function Calendar() {
   const location = useLocation();
   const navigate = useNavigate();
   const carId = car?.id;
+
+  const initial = car?.bookings ?? [];
 
   const currency = effectiveCurrency ?? "EUR";
 
@@ -74,10 +82,17 @@ export default function Calendar() {
       d.getDate()
     ).padStart(2, "0")}`;
 
-  const allBookings: Booking[] = useMemo(
-    () => car?.bookings ?? [],
-    [car?.bookings]
-  );
+  const qc = useQueryClient();
+  const listKey = QK.bookingsByCarId(String(carId));
+
+  const { data: allBookings = [] } = useQuery({
+    queryKey: listKey,
+    queryFn: () => fetchBookingsByCarId(String(carId)),
+    enabled: !!carId,
+    initialData: initial,
+    staleTime: 60_000,
+    refetchOnMount: false,
+  });
 
   const blockedBookings = useMemo(
     () => allBookings.filter((b) => b.mark === "block"),
@@ -294,11 +309,13 @@ export default function Calendar() {
 
     const result = await createBooking(payload);
     if (result) {
+      qc.setQueryData<Booking[]>(listKey, (prev) => [result, ...(prev ?? [])]);
       setCar((prev) => ({
         ...prev,
         bookings: [...(prev?.bookings ?? []), result],
       }));
       resetSelection();
+      qc.invalidateQueries({ queryKey: listKey });
     }
   };
 
@@ -330,23 +347,31 @@ export default function Calendar() {
   // удаление
   const handleRemoveBlock = async (id: string) => {
     await deleteBooking(id);
+    // оптимистично убрать из кэша
+    qc.setQueryData<Booking[]>(listKey, (prev) =>
+      (prev ?? []).filter((b) => b.id !== id)
+    );
     setCar((prev) => ({
       ...prev,
       bookings: (prev?.bookings ?? []).filter((b) => b.id !== id),
     }));
-
     setSelectedBlockId(null);
     if (editMode === "block") setEditMode(null);
+    qc.invalidateQueries({ queryKey: listKey });
   };
+
   const handleRemoveBooking = async (id: string) => {
     await deleteBooking(id);
+    qc.setQueryData<Booking[]>(listKey, (prev) =>
+      (prev ?? []).filter((b) => b.id !== id)
+    );
     setCar((prev) => ({
       ...prev,
       bookings: (prev?.bookings ?? []).filter((b) => b.id !== id),
     }));
-
     setSelectedBookingId(null);
     if (editMode === "booking") setEditMode(null);
+    qc.invalidateQueries({ queryKey: listKey });
   };
 
   // утилиты

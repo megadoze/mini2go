@@ -3,6 +3,7 @@ export const QK = {
   extras: ["extras"] as const,
   appSettings: ["appSettings"] as const,
   car: (id: string) => ["car", id] as const,
+  cars: ["cars"] as const,
   carExtras: (id: string) => ["carExtras", id] as const,
   pricingRules: (id: string) => ["pricingRules", id] as const,
   seasonalRates: (id: string) => ["seasonalRates", id] as const,

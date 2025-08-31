@@ -19,7 +19,7 @@ import {
   upsertBookingExtras,
 } from "@/services/booking-extras.service";
 import { calculateFinalPriceProRated } from "@/hooks/useFinalPriceHourly";
-import { differenceInMinutes, isAfter, parseISO } from "date-fns";
+import { differenceInMinutes, isAfter, isEqual, parseISO } from "date-fns";
 import { Select, Checkbox, Badge } from "@mantine/core";
 import {
   searchUsers,
@@ -27,6 +27,8 @@ import {
   getUserById,
 } from "@/services/user.service";
 import { ShareIcon } from "@heroicons/react/24/outline";
+import { subscribeBooking } from "@/services/bookings.service";
+import { QK } from "@/queryKeys";
 // import { subscribeBooking } from "@/services/bookings.service";
 
 /* ===================== УТИЛИТЫ ===================== */
@@ -78,6 +80,7 @@ function mmToHHMM(m: number) {
 
 export default function BookingEditor() {
   const location = useLocation() as any;
+
   const snapshot = location.state?.snapshot as any; // BookingEditorSnapshot
 
   const { id: carIdFromCarsRoute, bookingId } = useParams();
@@ -241,6 +244,8 @@ export default function BookingEditor() {
       : Number((carFromCtx as any)?.deposit ?? 0)
   );
 
+  const [saved, setSaved] = useState(false);
+
   // Extras UI: мгновенно из initialExtras
   const [pickedExtras, setPickedExtras] = useState<string[]>(() =>
     Array.isArray(initialExtras)
@@ -310,6 +315,9 @@ export default function BookingEditor() {
 
   const now = useMemo(() => new Date(), [tick]);
 
+  const isLoading =
+    mode === "edit" ? bookingQ.isLoading && !bookingQ.data : false;
+
   useEffect(() => {
     if (
       mode === "edit" &&
@@ -319,10 +327,12 @@ export default function BookingEditor() {
     ) {
       navigate(location.pathname + location.search, {
         replace: true,
-        state: null,
+        state: {
+          from: location.state.from, // сохраняем откуда пришли
+        },
       });
     }
-  }, [mode, bookingId]);
+  }, [mode, bookingId, location, isLoading, navigate]);
 
   useEffect(() => {
     const b = bookingQ.data as any;
@@ -342,15 +352,15 @@ export default function BookingEditor() {
     }
   }, [bookingQ.data, hasMatchingSnapshot]);
 
-  // useEffect(() => {
-  //   if (!bookingId) return;
-  //   const unsubscribe = subscribeBooking(bookingId, () => {
-  //     qc.invalidateQueries({ queryKey: ["booking", bookingId] });
-  //     qc.invalidateQueries({ queryKey: ["bookingExtras", bookingId] });
-  //     if (carId) qc.invalidateQueries({ queryKey: ["bookingsByCarId", carId] });
-  //   });
-  //   return unsubscribe;
-  // }, [bookingId, carId, qc]);
+  useEffect(() => {
+    if (!bookingId) return;
+    const unsubscribe = subscribeBooking(bookingId, () => {
+      qc.invalidateQueries({ queryKey: QK.booking(bookingId) });
+      qc.invalidateQueries({ queryKey: QK.bookingExtras(bookingId) });
+      if (carId) qc.invalidateQueries({ queryKey: QK.bookingsByCarId(carId) });
+    });
+    return unsubscribe;
+  }, [bookingId, carId, qc]);
 
   // если initialExtras не было, но extrasQ догрузил — заполнить чекбоксы
   useEffect(() => {
@@ -521,12 +531,12 @@ export default function BookingEditor() {
     selfId?: string
   ) {
     // 1) строго берём из кэша
-    let list = qc.getQueryData<Booking[]>(["bookingsByCarId", String(carId)]);
+    let list = qc.getQueryData<Booking[]>(QK.bookingsByCarId(String(carId)));
 
     // 2) если кэша нет — один fetch, с правильной типизацией
     if (!list) {
       list = await qc.ensureQueryData<Booking[]>({
-        queryKey: ["bookingsByCarId", String(carId)],
+        queryKey: QK.bookingsByCarId(String(carId)),
         queryFn: () => fetchBookingsByCarId(String(carId)),
       });
     }
@@ -573,6 +583,125 @@ export default function BookingEditor() {
     const m = now.getMonth() - d.getMonth();
     if (m < 0 || (m === 0 && now.getDate() < d.getDate())) years--;
     return years;
+  }
+
+  function upsertBookingsIndexRow(
+    qc: ReturnType<typeof useQueryClient>,
+    saved: Booking
+  ) {
+    // пробуем найти ВСЕ bookingsIndex ключи и обновить их
+    qc.setQueriesData<Booking[]>(
+      {
+        predicate: (q) =>
+          Array.isArray(q.queryKey) && q.queryKey[0] === "bookingsIndex",
+      },
+      (prev) => {
+        if (!prev) return prev;
+        const idx = prev.findIndex((r) => r.id === saved.id);
+        const patch: Partial<Booking> = {
+          start_at: saved.start_at,
+          end_at: saved.end_at,
+          status: saved.status ?? null,
+          mark: saved.mark,
+          car_id: String(saved.car_id),
+          user_id: saved.user_id ?? null,
+          price_total: saved.price_total ?? null,
+          currency: saved.currency,
+        };
+        if (idx === -1) {
+          return [
+            {
+              ...(patch as Booking),
+              id: saved.id,
+              created_at: saved.created_at ?? new Date().toISOString(),
+            },
+            ...prev,
+          ];
+        }
+        const next = prev.slice();
+        next[idx] = { ...next[idx], ...patch };
+        return next;
+      }
+    );
+  }
+
+  // === УНИВЕРСАЛЬНЫЙ ТРИГГЕР ОБНОВЛЕНИЙ КЭША ==================================
+  function touchBookingCache(
+    qc: ReturnType<typeof useQueryClient>,
+    saved: Booking
+  ) {
+    qc.setQueryData(QK.booking(saved.id), saved);
+    if (saved.car_id) {
+      qc.invalidateQueries({ queryKey: QK.bookingsByCarId(saved.car_id) });
+    }
+    qc.invalidateQueries({ queryKey: QK.bookingExtras(saved.id) });
+    upsertBookingsIndexRow(qc, saved); // <— сюда
+  }
+
+  // === ОПТИМИСТИЧЕСКИЕ ХЕЛПЕРЫ (необязательно, но приятно) ====================
+  async function createBookingOptimistic(
+    qc: ReturnType<typeof useQueryClient>,
+    payload: Omit<Booking, "id">
+  ) {
+    const tempId = `temp-${Date.now()}`;
+    const temp: Booking = { ...(payload as any), id: tempId };
+
+    const listKey = QK.bookingsByCarId(String(payload.car_id));
+    const prev = qc.getQueryData<Booking[]>(listKey) ?? [];
+
+    // оптимистично добавляем в список
+    qc.setQueryData(listKey, [temp, ...prev]);
+
+    try {
+      const saved = await createBooking(payload as any);
+      // заменяем временную запись реальной
+      qc.setQueryData(listKey, (curr?: Booking[]) =>
+        (curr ?? []).map((b) => (b.id === tempId ? saved : b))
+      );
+      touchBookingCache(qc, saved);
+      return saved;
+    } catch (e) {
+      // откат
+      qc.setQueryData(listKey, prev);
+      throw e;
+    }
+  }
+
+  async function updateBookingOptimistic(
+    qc: ReturnType<typeof useQueryClient>,
+    id: string,
+    patch: Partial<Booking>
+  ) {
+    const prev = qc.getQueryData<Booking>(QK.booking(id));
+    if (prev) {
+      const optimistic = { ...prev, ...patch } as Booking;
+      qc.setQueryData(QK.booking(id), optimistic);
+      if (optimistic.car_id) {
+        const listKey = QK.bookingsByCarId(String(optimistic.car_id));
+        const prevList = qc.getQueryData<Booking[]>(listKey);
+        if (prevList) {
+          qc.setQueryData(
+            listKey,
+            prevList.map((b) => (b.id === id ? optimistic : b))
+          );
+        }
+      }
+    }
+    try {
+      const saved = await updateBooking(id, patch);
+      touchBookingCache(qc, saved);
+      return saved;
+    } catch (e) {
+      // точечный откат
+      if (prev) qc.setQueryData(QK.booking(id), prev);
+      throw e;
+    }
+  }
+
+  // === ЗАМЕНА: mutateBooking (используй везде вместо прямого updateBooking) ===
+  async function mutateBooking(id: string, payload: Partial<Booking>) {
+    const next = await updateBookingOptimistic(qc, id, payload);
+    return next;
   }
 
   async function handleSave() {
@@ -691,38 +820,54 @@ export default function BookingEditor() {
 
     try {
       let saved: Booking;
-      if (mode === "create") saved = await createBooking(payload);
-      else saved = await updateBooking(bookingId!, payload);
-
-      // Сохраняем экстра-услуги
-      if (mark === "booking") {
-        await upsertBookingExtras(
-          saved.id,
-          pickedExtras.map((id) => {
-            const ex = extrasMap.byId[id];
-            const multiplier =
-              ex?.price_type === "per_day" ? billableDaysForExtras : 1;
-            return {
-              extra_id: id,
-              title: ex?.title ?? "Extra",
-              qty: multiplier,
-              price: ex?.price ?? 0,
-              price_type: ex?.price_type ?? "per_trip",
-            };
-          })
+      if (mode === "create") {
+        // оптимистическое создание
+        saved = await createBookingOptimistic(
+          qc,
+          payload as Omit<Booking, "id">
+        );
+      } else {
+        // оптимистическое обновление
+        saved = await updateBookingOptimistic(
+          qc,
+          bookingId!,
+          payload as Partial<Booking>
         );
       }
 
-      qc.setQueryData(["booking", saved.id], saved);
-      qc.invalidateQueries({ queryKey: ["bookingExtras", saved.id] }); // если менялись extras
-      if (saved.car_id) {
-        qc.invalidateQueries({ queryKey: ["bookingsByCarId", saved.car_id] });
+      // Сохраняем экстра-услуги
+
+      if (mark === "booking") {
+        const fresh = pickedExtras.map((id) => {
+          const ex = extrasMap.byId[id];
+          const qty = ex?.price_type === "per_day" ? billableDaysForExtras : 1;
+          return {
+            extra_id: id,
+            title: ex?.title ?? "Extra",
+            qty,
+            price: ex?.price ?? 0,
+            price_type: ex?.price_type ?? "per_trip",
+          };
+        });
+
+        await upsertBookingExtras(saved.id, fresh);
+        qc.setQueryData(QK.bookingExtras(saved.id), fresh);
       }
+
+      if (saved.car_id) {
+        touchBookingCache(qc, saved);
+      }
+      setSaved(true);
+      setTimeout(() => setSaved(false), 1500);
 
       // Обновим контекстные брони и возвращаемся на календарь (или назад)
       if ((carFromCtx as any)?.id === saved.car_id) {
         setCar?.((prev: any) => prev);
-        navigate(location.state?.from ?? `/cars/${saved.car_id}/calendar`);
+        setTimeout(
+          () =>
+            navigate(location.state?.from ?? `/cars/${saved.car_id}/calendar`),
+          1000
+        );
       } else {
         navigate(location.state?.from ?? -1);
       }
@@ -739,15 +884,10 @@ export default function BookingEditor() {
   const handleConfirm = async () => {
     if (!bookingId) return;
     try {
-      const next = await updateBooking(bookingId, {
+      const next = await updateBookingOptimistic(qc, bookingId, {
         status: "confirmed",
       } as any);
       setStatus(next.status ?? "confirmed");
-
-      qc.setQueryData(["booking", next.id], next);
-      if (next.car_id) {
-        qc.invalidateQueries({ queryKey: ["bookingsByCarId", next.car_id] });
-      }
     } catch (e: any) {
       setError(e?.message ?? "Confirm error");
     }
@@ -756,15 +896,10 @@ export default function BookingEditor() {
   const handleCancel = async () => {
     if (!bookingId) return;
     try {
-      const next = await updateBooking(bookingId, {
+      const next = await updateBookingOptimistic(qc, bookingId, {
         status: "canceledHost",
       } as any);
       setStatus(next.status ?? "canceledHost");
-
-      qc.setQueryData(["booking", next.id], next);
-      if (next.car_id) {
-        qc.invalidateQueries({ queryKey: ["bookingsByCarId", next.car_id] });
-      }
     } catch (e: any) {
       setError(e?.message ?? "Cancel error");
     }
@@ -819,6 +954,7 @@ export default function BookingEditor() {
       hour: "2-digit",
       minute: "2-digit",
     });
+
   const invalidTime = !isAfter(new Date(endDateInp), new Date(startDateInp));
 
   // вычисления для прогресса/таймеров
@@ -826,6 +962,7 @@ export default function BookingEditor() {
     () => (isISO(startAt) ? parseISO(startAt) : null),
     [startAt]
   );
+
   const endDate = useMemo(
     () => (isISO(endAt) ? parseISO(endAt) : null),
     [endAt]
@@ -843,6 +980,39 @@ export default function BookingEditor() {
       ? Math.max(0, Math.min(100, Math.round((elapsedMs / totalMs) * 100)))
       : 0;
 
+  const isChanged = useMemo(() => {
+    if (mode === "create") return true;
+    const s0 = startAt ? parseISO(startAt) : null;
+    const s1 = startDateInp ? parseISO(startDateInp) : null;
+    const e0 = endAt ? parseISO(endAt) : null;
+    const e1 = endDateInp ? parseISO(endDateInp) : null;
+
+    const datesChanged =
+      (!!s0 && !!s1 && !isEqual(s0, s1)) || (!!e0 && !!e1 && !isEqual(e0, e1));
+
+    const extrasIds0 = (extrasQ.data ?? [])
+      .map((e: any) => String(e.extra_id))
+      .sort();
+    const extrasIds1 = pickedExtras.slice().sort();
+    const extrasChanged =
+      JSON.stringify(extrasIds0) !== JSON.stringify(extrasIds1);
+
+    return (
+      datesChanged ||
+      (bookingQ.data?.delivery_type ?? "car_address") !== delivery ||
+      extrasChanged
+    );
+  }, [
+    startAt,
+    startDateInp,
+    endAt,
+    endDateInp,
+    bookingQ.data?.delivery_type,
+    delivery,
+    extrasQ.data,
+    pickedExtras,
+  ]);
+
   const countdownParts = (target?: Date | null) => {
     if (!target) return null as any;
     const diffMs = Math.max(0, target.getTime() - now.getTime());
@@ -857,18 +1027,6 @@ export default function BookingEditor() {
     () => (startDate ? countdownParts(startDate) : null),
     [startDate, now]
   );
-
-  // ---------- mutations (via service) ------------------------------------
-  async function mutateBooking(id: string, payload: Partial<Booking>) {
-    // было: updateBookingCard → возвращал BookingCard (camelCase)
-    const next = await updateBooking(id, payload); // ← возвращает Booking (snake_case)
-
-    qc.setQueryData(["booking", id], next);
-    if (next?.car_id) {
-      qc.invalidateQueries({ queryKey: ["bookingsByCarId", next.car_id] });
-    }
-    return next;
-  }
 
   // автопрогрессия статусов (rent/finished)
   useEffect(() => {
@@ -944,9 +1102,6 @@ export default function BookingEditor() {
     }
     return opts;
   }, [deliveryEnabled, delivery, carFromCtx]);
-
-  const isLoading =
-    mode === "edit" ? bookingQ.isLoading && !bookingQ.data : false;
 
   if (isLoading) return <div className="p-4">Loading…</div>;
 
@@ -1380,7 +1535,7 @@ export default function BookingEditor() {
           )}
 
           {error && <div className="mt-3 text-red-600 text-sm">{error}</div>}
-
+          {/* 
           {(mode === "create" ||
             status === "onApproval" ||
             status === "confirmed") && (
@@ -1399,7 +1554,36 @@ export default function BookingEditor() {
                 {mode === "create" ? "Create" : "Save"}
               </button>
             </div>
-          )}
+          )} */}
+
+          <div className="flex justify-between items-centermt-8 text-right mt-10">
+            <button
+              type="button"
+              className={`border-gray-300 border rounded-md px-6 py-2 mr-2`}
+              onClick={() => navigate(-1)}
+            >
+              Back
+            </button>
+            <div>
+              {saved && (
+                <span className="text-lime-500 font-medium text-sm animate-fade-in mr-2">
+                  ✓ Saved
+                </span>
+              )}
+              <button
+                type="button"
+                className={`${
+                  isChanged
+                    ? "border-gray-600 text-gray-700"
+                    : "border-gray-300 text-gray-400 cursor-not-allowed"
+                } border rounded-md px-8 py-2`}
+                onClick={handleSave}
+                disabled={isLoading || invalidTime || !isChanged}
+              >
+                Save
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* RIGHT — сводка/действия */}
