@@ -33,6 +33,7 @@ import {
 import { Dropzone, IMAGE_MIME_TYPE } from "@mantine/dropzone";
 import Step3 from "./step3";
 import { useQueryClient } from "@tanstack/react-query";
+import { QK } from "@/queryKeys";
 
 type MapboxFeature = {
   place_type?: string[];
@@ -195,11 +196,7 @@ export default function AddCarWizard() {
           .eq("id", carId);
       }
 
-      // 🔥 ключевой момент — сказать React Query, что список «протух»
-      // Подставь свой ключ, если у тебя другой (например, QK.cars())
-      qc.invalidateQueries({ queryKey: ["cars"] });
-      // опционально, чтобы прямо сейчас дёрнуть сеть:
-      qc.refetchQueries({ queryKey: ["cars"], type: "active" });
+      await qc.invalidateQueries({ queryKey: QK.cars, refetchType: "all" });
 
       toast.success("Car is added!");
       navigate("/cars");
