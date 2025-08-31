@@ -3,6 +3,7 @@ import type { PostgrestSingleResponse } from "@supabase/supabase-js";
 import type { Booking as DbBooking } from "@/types/booking";
 import type { BookingCard as BookingCardType } from "@/types/bookingCard";
 import { eachDayOfInterval, parseISO } from "date-fns";
+import type { Booking } from "./calendar-window.service";
 
 // Тип под конкретный select-ответ
 export type BookingJoinedRow = {
@@ -193,4 +194,16 @@ export async function cancelAndUnlock(
   }
 
   return updated;
+}
+
+// calendar.service.ts (или где у тебя это)
+export async function fetchBookingById(id: string) {
+  const { data, error } = await supabase
+    .from("bookings")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle(); // << вместо .single()
+
+  if (error) throw error; // реальные ошибки
+  return data as Booking | null; // когда записи нет — null без 406
 }

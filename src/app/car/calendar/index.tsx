@@ -29,6 +29,7 @@ import type { BookingEditorSnapshot } from "@/types/booking-ui";
 import { fetchBookingExtras } from "@/services/booking-extras.service";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { QK } from "@/queryKeys";
+import { toast } from "sonner";
 
 const TIME_OPTIONS = Array.from({ length: 24 * 2 }, (_, i) => {
   const hours = Math.floor((i * 30) / 60);
@@ -98,6 +99,7 @@ export default function Calendar() {
     () => allBookings.filter((b) => b.mark === "block"),
     [allBookings]
   );
+
   const activeBookings = useMemo(
     () =>
       allBookings.filter(
@@ -110,6 +112,9 @@ export default function Calendar() {
       ),
     [allBookings]
   );
+
+  const isOnApproval = (s?: string | null) =>
+    String(s ?? "").toLowerCase() === "onapproval";
 
   // дни
   const bookedDays = useMemo(
@@ -309,13 +314,16 @@ export default function Calendar() {
 
     const result = await createBooking(payload);
     if (result) {
-      qc.setQueryData<Booking[]>(listKey, (prev) => [result, ...(prev ?? [])]);
+      qc.setQueryData<Booking[]>(QK.bookingsByCarId(String(carId)), (prev) => [
+        result,
+        ...(prev ?? []),
+      ]);
       setCar((prev) => ({
         ...prev,
         bookings: [...(prev?.bookings ?? []), result],
       }));
       resetSelection();
-      qc.invalidateQueries({ queryKey: listKey });
+      qc.invalidateQueries({ queryKey: QK.bookingsByCarId(String(carId)) });
     }
   };
 
@@ -344,34 +352,110 @@ export default function Calendar() {
     );
   };
 
+  function removeFromCalendarWindowsCache(
+    qc: ReturnType<typeof useQueryClient>,
+    removed: Booking
+  ) {
+    qc.setQueriesData<any>(
+      {
+        predicate: (q) =>
+          Array.isArray(q.queryKey) && q.queryKey[0] === "calendarWindow",
+      },
+      (win: {
+        rangeStart: string | number | Date;
+        rangeEnd: string | number | Date;
+        cars: any;
+      }) => {
+        if (!win) return win;
+
+        const wStart = new Date(win.rangeStart);
+        const wEnd = new Date(win.rangeEnd);
+        const bStart = new Date(removed.start_at);
+        const bEnd = new Date(removed.end_at);
+
+        // только если бронь/блок пересекает окно
+        const intersects = !(bEnd < wStart || bStart > wEnd);
+        if (!intersects) return win;
+
+        return {
+          ...win,
+          cars: (win.cars ?? []).map((c: any) =>
+            String(c.id) === String(removed.car_id)
+              ? {
+                  ...c,
+                  bookings: (c.bookings ?? []).filter(
+                    (x: Booking) => x.id !== removed.id
+                  ),
+                }
+              : c
+          ),
+        };
+      }
+    );
+
+    // можно оставить, чтобы подтянуть актуалку с сервера
+    qc.invalidateQueries({
+      predicate: (q) =>
+        Array.isArray(q.queryKey) && q.queryKey[0] === "calendarWindow",
+    });
+  }
+
   // удаление
   const handleRemoveBlock = async (id: string) => {
+    const b = allBookings.find((x) => x.id === id);
+    if (!b) return;
+
+    // оптимистично: сразу уберём из всех кэшей
+    removeFromCalendarWindowsCache(qc, b);
+
     await deleteBooking(id);
     // оптимистично убрать из кэша
     qc.setQueryData<Booking[]>(listKey, (prev) =>
       (prev ?? []).filter((b) => b.id !== id)
     );
+
     setCar((prev) => ({
       ...prev,
       bookings: (prev?.bookings ?? []).filter((b) => b.id !== id),
     }));
+
     setSelectedBlockId(null);
     if (editMode === "block") setEditMode(null);
     qc.invalidateQueries({ queryKey: listKey });
+    // на всякий — очистить точечные кэши этой брони
+    qc.removeQueries({ queryKey: QK.booking(id) });
+    qc.removeQueries({ queryKey: QK.bookingExtras(id) });
   };
 
   const handleRemoveBooking = async (id: string) => {
+    const b = allBookings.find((x) => x.id === id);
+    if (!b) return;
+
+    if (!isOnApproval(b.status)) {
+      toast.warning("You can delete booking only with status onApproval");
+      return;
+    }
+
+    // оптимистично сразу убрать из большого календаря
+    removeFromCalendarWindowsCache(qc, b);
+
     await deleteBooking(id);
+
     qc.setQueryData<Booking[]>(listKey, (prev) =>
-      (prev ?? []).filter((b) => b.id !== id)
+      (prev ?? []).filter((r) => r.id !== id)
     );
+
     setCar((prev) => ({
       ...prev,
-      bookings: (prev?.bookings ?? []).filter((b) => b.id !== id),
+      bookings: (prev?.bookings ?? []).filter((r) => r.id !== id),
     }));
+
     setSelectedBookingId(null);
     if (editMode === "booking") setEditMode(null);
+
     qc.invalidateQueries({ queryKey: listKey });
+    qc.removeQueries({ queryKey: QK.booking(id) });
+    qc.removeQueries({ queryKey: QK.bookingExtras(id) });
   };
 
   // утилиты
@@ -443,17 +527,19 @@ export default function Calendar() {
             </p>
           )}
           <div className="flex gap-2 justify-end pt-1">
-            {!isPastDay(parseISO(booking.start_at)) && (
-              <button
-                onClick={() => {
-                  handleRemoveBooking(booking.id);
-                  setAnchorKey(null);
-                }}
-                className="px-2 py-1 border border-gray-500 rounded text-xs"
-              >
-                Remove
-              </button>
-            )}
+            {!isPastDay(parseISO(booking.start_at)) &&
+              isOnApproval(booking.status) && (
+                <button
+                  onClick={() => {
+                    handleRemoveBooking(booking.id);
+                    setAnchorKey(null);
+                  }}
+                  className="px-2 py-1 border border-gray-500 rounded text-xs"
+                >
+                  Remove
+                </button>
+              )}
+
             <button
               className="px-2 py-1 border border-gray-400 rounded text-xs"
               onClick={() => setAnchorKey(null)}

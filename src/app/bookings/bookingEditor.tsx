@@ -168,7 +168,7 @@ export default function BookingEditor() {
   }, [hasMatchingSnapshot, snapshot?.booking, bookingId, carFromCtx, qc]);
 
   const bookingQ = useQuery({
-    queryKey: ["booking", bookingId],
+    queryKey: QK.booking(bookingId!),
     queryFn: () => fetchBookingById(bookingId!),
     enabled: mode === "edit" && !!bookingId && !initialBooking,
     initialData: initialBooking,
@@ -299,7 +299,7 @@ export default function BookingEditor() {
   const isFinished =
     status === "finished" ||
     status === "canceledHost" ||
-    status === "canceledGuest";
+    status === "canceledClient";
 
   const isDisabled = status === "rent" || status === "block" || isFinished;
 
@@ -638,6 +638,57 @@ export default function BookingEditor() {
     upsertBookingsIndexRow(qc, saved); // <— сюда
   }
 
+  function upsertById(list: Booking[], row: Booking) {
+    const i = list.findIndex((x) => x.id === row.id);
+    if (i === -1) return [row, ...list];
+    const next = list.slice();
+    next[i] = { ...next[i], ...row };
+    return next;
+  }
+
+  function patchCalendarWindowsCache(
+    qc: ReturnType<typeof useQueryClient>,
+    saved: Booking
+  ) {
+    // 1) оптимистично патчим активные окна в кэше
+    qc.setQueriesData<any>(
+      {
+        predicate: (q) =>
+          Array.isArray(q.queryKey) && q.queryKey[0] === "calendarWindow",
+      },
+      (win: {
+        rangeStart: string | number | Date;
+        rangeEnd: string | number | Date;
+        cars: any;
+      }) => {
+        if (!win) return win;
+        const wStart = new Date(win.rangeStart);
+        const wEnd = new Date(win.rangeEnd);
+        const bStart = new Date(saved.start_at);
+        const bEnd = new Date(saved.end_at);
+
+        // пересекается ли бронь с окном
+        const intersects = !(bEnd < wStart || bStart > wEnd);
+        if (!intersects) return win;
+
+        return {
+          ...win,
+          cars: (win.cars ?? []).map((c: any) =>
+            String(c.id) === String(saved.car_id)
+              ? { ...c, bookings: upsertById(c.bookings ?? [], saved) }
+              : c
+          ),
+        };
+      }
+    );
+
+    // 2) и триггерим refetch активных окон
+    qc.invalidateQueries({
+      predicate: (q) =>
+        Array.isArray(q.queryKey) && q.queryKey[0] === "calendarWindow",
+    });
+  }
+
   // === ОПТИМИСТИЧЕСКИЕ ХЕЛПЕРЫ (необязательно, но приятно) ====================
   async function createBookingOptimistic(
     qc: ReturnType<typeof useQueryClient>,
@@ -659,6 +710,8 @@ export default function BookingEditor() {
         (curr ?? []).map((b) => (b.id === tempId ? saved : b))
       );
       touchBookingCache(qc, saved);
+      patchCalendarWindowsCache(qc, saved);
+
       return saved;
     } catch (e) {
       // откат
@@ -690,6 +743,8 @@ export default function BookingEditor() {
     try {
       const saved = await updateBooking(id, patch);
       touchBookingCache(qc, saved);
+      patchCalendarWindowsCache(qc, saved);
+
       return saved;
     } catch (e) {
       // точечный откат
@@ -856,6 +911,7 @@ export default function BookingEditor() {
 
       if (saved.car_id) {
         touchBookingCache(qc, saved);
+        patchCalendarWindowsCache(qc, saved);
       }
       setSaved(true);
       setTimeout(() => setSaved(false), 1500);
@@ -1032,7 +1088,7 @@ export default function BookingEditor() {
   useEffect(() => {
     if (!bookingId || !startDate || !endDate || !status) return;
 
-    const terminal = ["canceledHost", "canceledGuest", "finished"];
+    const terminal = ["canceledHost", "canceledClient", "finished"];
     if (mark !== "booking" || terminal.includes(status)) return;
 
     const started = now >= startDate && now < endDate;
