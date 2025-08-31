@@ -243,9 +243,7 @@ export type NewCar = Omit<
 >;
 
 // Добавление нового авто
-export async function addCar(
-  car: Partial<NewCar>
-): Promise<Promise<CreatedCar[]>> {
+export async function addCar(car: Partial<NewCar>): Promise<CreatedCar[]> {
   const { data, error } = await supabase.from("cars").insert(car).select(`
       id,
       vin,

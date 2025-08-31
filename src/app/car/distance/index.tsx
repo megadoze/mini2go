@@ -3,7 +3,7 @@ import { useCarContext } from "@/context/carContext";
 import { useCarCache } from "@/hooks/useCarCache";
 import { updateCar } from "@/services/car.service";
 import { NativeSelect } from "@mantine/core";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 const Distance = () => {
@@ -20,6 +20,10 @@ const Distance = () => {
 
   const carId = car.id;
 
+  useEffect(() => {
+    setDistance(includeMileage ?? 100);
+  }, [includeMileage]);
+
   const handleChangeDistance = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setDistance(Number(e.target.value));
   };
@@ -29,6 +33,7 @@ const Distance = () => {
 
     try {
       if (!carId) return null;
+      // await updateCar(carId, { includeMileage: distance });
       await updateCar(carId, { includeMileage: distance });
 
       patchCar(carId, { includeMileage: distance });
