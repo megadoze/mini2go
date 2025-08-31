@@ -32,6 +32,8 @@ import type { CarUpdatePayload } from "@/types/сarUpdatePayload";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
 import { useCarCache } from "@/hooks/useCarCache";
+import { useQueryClient } from "@tanstack/react-query";
+import { QK } from "@/queryKeys";
 
 /** ВНУТРЕННИЙ формат формы — CAMEL */
 type CarFormData = {
@@ -116,9 +118,11 @@ function toApiPayload(form: CarFormData): CarUpdatePayload {
 }
 
 export default function CarDetails() {
+  const qc = useQueryClient();
+
   const navigate = useNavigate();
 
-  const { patchCar } = useCarCache();
+  const { patchCar, removeCar } = useCarCache();
 
   const { car, setCar } = useCarContext();
   const carId = car?.id;
@@ -247,6 +251,8 @@ export default function CarDetails() {
         updateCarFeatures(carId, selectedFeatureIds),
       ]);
 
+      qc.setQueryData(QK.carFeatures(carId), selectedFeatureIds);
+
       // локально обновили контекст
       setCar?.((prev: any) => ({ ...prev, ...patch }));
 
@@ -274,6 +280,7 @@ export default function CarDetails() {
       if (!carId) throw new Error("No car ID");
 
       await deleteCar(carId);
+      removeCar(carId);
       toast.success("Car deleted");
       navigate("/cars");
     } catch (error) {

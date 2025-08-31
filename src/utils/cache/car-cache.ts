@@ -1,9 +1,13 @@
+// src/cache/patchCarCaches.ts
 import type { QueryClient, QueryKey } from "@tanstack/react-query";
 import { QK } from "@/queryKeys";
 
-// если у тебя другой ключ списка авто — поправь условие ниже
+// единый предикат для списков машин
 const isCarsListKey = (key: QueryKey) =>
-  Array.isArray(key) && key[0] === "carsList";
+  Array.isArray(key) && (key[0] === QK.cars[0] || key[0] === "carsList");
+
+const isCarsByHostKey = (key: QueryKey) =>
+  Array.isArray(key) && key[0] === "carsByHost";
 
 export type CarPatch = Partial<any>;
 
@@ -20,9 +24,12 @@ export function patchCarCaches(
     prev ? { ...prev, ...patch } : prev
   );
 
-  // 2) любые списки авто (carsList ...)
+  // 2) любые списки авто
   qc.setQueriesData(
-    { predicate: (q) => isCarsListKey(q.queryKey) },
+    {
+      predicate: (q) =>
+        isCarsListKey(q.queryKey) || isCarsByHostKey(q.queryKey),
+    },
     (list: any[] | undefined) =>
       Array.isArray(list)
         ? list.map((c) =>
@@ -31,7 +38,7 @@ export function patchCarCaches(
         : list
   );
 
-  // 3) активные окна большого календаря
+  // 3) окна большого календаря (если где-то показывается info об авто)
   qc.setQueriesData(
     {
       predicate: (q) =>
@@ -49,22 +56,65 @@ export function patchCarCaches(
   );
 }
 
-/** Ресурсы, «привязанные» к авто: экстра/локации/цены — заменяем полностью */
-export function replaceCarExtras(
-  qc: QueryClient,
-  carId: string,
-  extras: any[]
-) {
-  qc.setQueryData(QK.carExtras(carId), extras);
+/** Удалить авто из всех мест кэша */
+export function removeCarEverywhere(qc: QueryClient, carId: string) {
+  if (!carId) return;
+
+  // 1) убрать детальную запись
+  qc.removeQueries({ queryKey: QK.car(carId), exact: true });
+
+  // 2) убрать из любых списков машин
+  qc.setQueriesData(
+    {
+      predicate: (q) =>
+        isCarsListKey(q.queryKey) || isCarsByHostKey(q.queryKey),
+    },
+    (list: any[] | undefined) =>
+      Array.isArray(list)
+        ? list.filter((c) => String(c.id) !== String(carId))
+        : list
+  );
+
+  // 3) убрать из активных окон календаря
+  qc.setQueriesData(
+    {
+      predicate: (q) =>
+        Array.isArray(q.queryKey) && q.queryKey[0] === "calendarWindow",
+    },
+    (win: any) =>
+      !win
+        ? win
+        : {
+            ...win,
+            cars: (win.cars ?? []).filter(
+              (c: any) => String(c.id) !== String(carId)
+            ),
+          }
+  );
+
+  // 4) привязанные к авто ресурсы
+  qc.removeQueries({ queryKey: QK.carExtras(carId), exact: true }); // extras (если есть)
+  // если у тебя есть ключ фич: QK.carFeatures
+
+  qc.removeQueries({ queryKey: QK.carFeatures?.(carId), exact: true });
+
+  // 5) связанные брони по машине
+  qc.removeQueries({ queryKey: QK.bookingsByCarId(carId), exact: true });
 }
 
-/** Опционально: подтянуть консистентность с сервера после optimistic-патча */
+/** Опционально подтянуть консистентность после optimistic-патча */
 export function invalidateCarEverywhere(qc: QueryClient, carId: string) {
   qc.invalidateQueries({ queryKey: QK.car(carId) });
-  qc.invalidateQueries({ predicate: (q) => isCarsListKey(q.queryKey) });
+  qc.invalidateQueries({
+    predicate: (q) => isCarsListKey(q.queryKey) || isCarsByHostKey(q.queryKey),
+  });
   qc.invalidateQueries({
     predicate: (q) =>
       Array.isArray(q.queryKey) && q.queryKey[0] === "calendarWindow",
   });
   qc.invalidateQueries({ queryKey: QK.carExtras(carId) });
+  // если есть ключ фич:
+
+  qc.invalidateQueries({ queryKey: QK.carFeatures?.(carId) });
+  qc.invalidateQueries({ queryKey: QK.bookingsByCarId(carId) });
 }
