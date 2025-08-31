@@ -27,6 +27,7 @@ import type { AppSettings } from "@/types/setting";
 import { fetchCarById, fetchCarExtras } from "@/services/car.service";
 import { fetchBookingsByCarId } from "@/app/car/calendar/calendar.service"; // ⬅️ добавлено
 import { useQueryClient } from "@tanstack/react-query";
+import { useCarsRealtime } from "@/hooks/useCarsRealtime";
 
 type LoaderData = {
   car: CarWithModelRelations;
@@ -37,6 +38,7 @@ type LoaderData = {
 };
 
 export default function CarPageLayout() {
+  useCarsRealtime();
   const [opened, { toggle }] = useDisclosure();
   const { carId } = useParams();
 
@@ -253,7 +255,7 @@ export default function CarPageLayout() {
           </p>
           <p
             className={`text-sm pt-1 ${
-              car.status === "available" ? "text-lime-500" : "text-zinc-500"
+              car.status === "available" ? "text-green-600" : "text-zinc-500"
             }`}
           >
             ◉ {car.status}
@@ -330,9 +332,10 @@ export default function CarPageLayout() {
       <AppShell.Header className="flex items-center justify-between">
         <NavLink
           to={"/"}
-          className="ml-1 flex px-3 py-2 items-center font-openSans font-black text-2xl"
+          className="ml-3 flex items-center shrink-0 uppercase  gap-1"
         >
-          MINI2go
+          <img src="/icons/logo.png" className=" w-11 opacity-90" />
+          <p className=" text-black font-medium">MINI2GO</p>
         </NavLink>
         <Burger
           opened={opened}

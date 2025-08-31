@@ -6,6 +6,7 @@ import {
   IdentificationIcon,
   CircleStackIcon,
 } from "@heroicons/react/24/outline";
+import { Badge } from "@mantine/core";
 
 // —— Props ——
 type Props = {
@@ -62,16 +63,19 @@ export default function CarListView({ cars, search }: Props) {
               <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/30 to-transparent" />
 
               {/* Status pill in the corner */}
-              <div className="absolute left-3 top-3 flex items-center gap-2 rounded-full bg-white/90 px-2 py-0.5 text-xs text-zinc-700 backdrop-blur-sm">
-                <p
-                  className={` font-light text-sm leading-6 ${
+              <div className="absolute left-3 top-3 ">
+                <Badge
+                  variant="gradient"
+                  gradient={
                     car.status === "available"
-                      ? "text-green-600"
-                      : "text-zinc-500"
-                  }`}
+                      ? { from: "teal", to: "cyan", deg: 90 }
+                      : { from: "gray", to: "rgba(173, 173, 173, 1)", deg: 90 }
+                  }
+                  size="sm"
                 >
+                  {" "}
                   ◉ {car.status}
-                </p>
+                </Badge>
               </div>
             </div>
 

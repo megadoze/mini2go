@@ -31,6 +31,7 @@ import { useCarContext } from "@/context/carContext";
 import type { CarUpdatePayload } from "@/types/сarUpdatePayload";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
+import { useCarCache } from "@/hooks/useCarCache";
 
 /** ВНУТРЕННИЙ формат формы — CAMEL */
 type CarFormData = {
@@ -116,6 +117,8 @@ function toApiPayload(form: CarFormData): CarUpdatePayload {
 
 export default function CarDetails() {
   const navigate = useNavigate();
+
+  const { patchCar } = useCarCache();
 
   const { car, setCar } = useCarContext();
   const carId = car?.id;
@@ -213,56 +216,52 @@ export default function CarDetails() {
 
   const handleSubmit = async () => {
     if (!isChanged) return;
-
-    if (!form.modelId) {
-      alert("Please fill in all required fields");
-      return;
-    }
-
-    if (!form.licensePlate?.trim()) {
-      toast.error("Please enter the vehicle registration number");
-      return;
-    }
-
-    if (!carId) {
-      alert("Car ID not found");
-      return;
-    }
+    if (!form.modelId) return alert("Please fill in all required fields");
+    if (!form.licensePlate?.trim())
+      return toast.error("Please enter the vehicle registration number");
+    if (!carId) return alert("Car ID not found");
 
     setLoading(true);
     try {
       const payload = toApiPayload(form);
-      await updateCar(carId, payload);
-      await updateCarFeatures(carId, selectedFeatureIds);
 
-      // Обновляем car и сбрасываем сравнение
-      if (setCar) {
-        setCar((prev: any) => ({
-          ...prev,
-          vin: form.vin,
-          year: form.year ? Number(form.year) : prev?.year,
-          fuelType: form.fuelType,
-          transmission: form.transmission,
-          seats: form.seats ? Number(form.seats) : prev?.seats,
-          licensePlate: form.licensePlate,
-          engineCapacity: form.engineCapacity,
-          status: form.status,
-          bodyType: form.bodyType,
-          driveType: form.driveType,
-          color: form.color,
-          doors: form.doors ? Number(form.doors) : prev?.doors,
-          photos: form.photos,
-          content: form.content,
-        }));
-      }
+      const patch = {
+        vin: form.vin,
+        year: form.year ? Number(form.year) : undefined,
+        fuelType: form.fuelType,
+        transmission: form.transmission,
+        seats: form.seats ? Number(form.seats) : undefined,
+        licensePlate: form.licensePlate,
+        engineCapacity: form.engineCapacity,
+        status: form.status,
+        bodyType: form.bodyType,
+        driveType: form.driveType,
+        color: form.color,
+        doors: form.doors ? Number(form.doors) : undefined,
+        photos: form.photos,
+        content: form.content,
+      } as const;
 
+      await Promise.all([
+        updateCar(carId, payload),
+        updateCarFeatures(carId, selectedFeatureIds),
+      ]);
+
+      // локально обновили контекст
+      setCar?.((prev: any) => ({ ...prev, ...patch }));
+
+      // единая точка синка кэша + инвалидаций
+      patchCar(carId, patch); // <-- утилита сама инвалидаит что нужно
+
+      // сброс "грязности"
       initialFeatureIdsRef.current = [...selectedFeatureIds];
+
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
       toast.success("Car saved successfully!");
     } catch (e) {
       console.error(e);
-      alert("Error while saving");
+      toast.error("Error while saving");
     } finally {
       setLoading(false);
     }
