@@ -29,7 +29,6 @@ import {
 import { ShareIcon } from "@heroicons/react/24/outline";
 import { subscribeBooking } from "@/services/bookings.service";
 import { QK } from "@/queryKeys";
-// import { subscribeBooking } from "@/services/bookings.service";
 
 /* ===================== УТИЛИТЫ ===================== */
 

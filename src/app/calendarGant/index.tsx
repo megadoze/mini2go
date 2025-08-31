@@ -31,12 +31,21 @@ import { fetchBookingExtras } from "@/services/booking-extras.service";
 import { QK } from "@/queryKeys";
 // загрузчик окна календаря (месяц ±1)
 import { fetchCalendarWindowByMonth } from "@/services/calendar-window.service";
+import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
+import { supabase } from "@/lib/supabase";
 
 /* -------------------- types -------------------- */
 
 type CarLite = { id: string; name: string };
 type CarWithBookings = CarLite & { bookings: Booking[] };
 type LoaderShape = { monthISO?: string };
+
+type RTBooking = Pick<
+  Booking,
+  "id" | "car_id" | "start_at" | "end_at" | "status" | "mark"
+>;
+
+type RTPayload = RealtimePostgresChangesPayload<Record<string, unknown>>;
 
 /* -------------------- consts -------------------- */
 
@@ -188,6 +197,112 @@ export default function CalendarPage() {
 
     return { full, extras, user };
   }
+
+  const carIdsKey = useMemo(
+    () =>
+      (calQ.data?.cars ?? [])
+        .map((c) => String(c.id))
+        .sort()
+        .join(","),
+    [calQ.data?.cars]
+  );
+
+  useEffect(() => {
+    if (!carIdsKey) return;
+
+    const idsCsv = carIdsKey; // уже отсортированный join(",") из useMemo выше
+
+    const channel = supabase
+      .channel(`bookings-calendar-${idsCsv}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "bookings",
+          filter: `car_id=in.(${idsCsv})`,
+        },
+        (payload: RTPayload) => {
+          const newRow = payload.new as Partial<RTBooking> | null;
+          const oldRow = payload.old as Partial<RTBooking> | null;
+
+          const id = newRow?.id ?? oldRow?.id;
+          const carId = newRow?.car_id ?? oldRow?.car_id;
+
+          // --- МГНОВЕННОЕ УДАЛЕНИЕ -------------------------------------------------
+          if (payload.eventType === "DELETE") {
+            if (id) {
+              // 1) выкидываем из всех открытых окон календаря
+              qc.setQueriesData(
+                {
+                  predicate: (q) =>
+                    Array.isArray(q.queryKey) &&
+                    q.queryKey[0] === "calendarWindow",
+                },
+                (win: any) => {
+                  if (!win) return win;
+                  return {
+                    ...win,
+                    cars: (win.cars ?? []).map((c: any) => ({
+                      ...c,
+                      bookings: (c.bookings ?? []).filter(
+                        (b: Booking) => b.id !== id
+                      ),
+                    })),
+                  };
+                }
+              );
+
+              // 2) аккуратно чистим список по машине, если знаем car_id
+              if (carId) {
+                qc.setQueryData<Booking[]>(
+                  QK.bookingsByCarId(String(carId)),
+                  (prev) => (prev ?? []).filter((b) => b.id !== id)
+                );
+              }
+            }
+
+            // 3) мягко инвалидируем окна для подтяжки с сервера
+            qc.invalidateQueries({
+              predicate: (q) =>
+                Array.isArray(q.queryKey) && q.queryKey[0] === "calendarWindow",
+            });
+            return;
+          }
+          // ------------------------------------------------------------------------
+
+          // INSERT/UPDATE: обновим список по машине (если есть) и инвалидируем окна
+          if (carId && payload.new) {
+            const incoming = payload.new as Booking;
+            qc.setQueryData<Booking[]>(
+              QK.bookingsByCarId(String(carId)),
+              (prev) => {
+                const list = prev ?? [];
+                const i = list.findIndex((b) => b.id === incoming.id);
+                if (i === -1) return [incoming, ...list];
+                const next = list.slice();
+                next[i] = { ...next[i], ...incoming };
+                return next;
+              }
+            );
+          }
+
+          qc.invalidateQueries({
+            predicate: (q) =>
+              Array.isArray(q.queryKey) && q.queryKey[0] === "calendarWindow",
+          });
+
+          if (id) {
+            qc.invalidateQueries({ queryKey: QK.booking(id) });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [carIdsKey, qc]);
 
   /* ---------- scroll helpers ---------- */
 
@@ -368,8 +483,9 @@ export default function CalendarPage() {
       const inRange = !(e < rangeStart || s > rangeEnd);
       if (!inRange) return false;
       if (b.mark === "block" || b.status === "block") return true;
-      const canceled =
-        b.status === "canceledHost" || b.status === "canceledClient";
+
+      const canceled = String(b.status ?? "").startsWith("canceled");
+
       return !canceled;
     });
 
@@ -416,8 +532,8 @@ export default function CalendarPage() {
     const isBusyDay = (date: Date) => {
       const bookings = car?.bookings ?? [];
       return bookings.some((b) => {
-        const canceled =
-          b.status === "canceledHost" || b.status === "canceledClient";
+        const canceled = String(b.status ?? "").startsWith("canceled");
+
         if (canceled) return false;
         return intersectsDay(b, date);
       });
