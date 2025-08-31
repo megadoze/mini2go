@@ -105,15 +105,6 @@ export default function BookingsList() {
   const bookingsKey = ["bookingsIndex", ownerId];
   const initialRows = qc.getQueryData<BookingRow[]>(bookingsKey);
 
-  // const { data: bookingRows = [] } = useQuery({
-  //   queryKey: bookingsKey,
-  //   queryFn: () => Promise.resolve(initialRows ?? []),
-  //   initialData: initialRows,
-  //   enabled: !!initialRows,
-  //   refetchOnMount: false,
-  //   refetchOnWindowFocus: false,
-  //   staleTime: 60_000,
-  // });
   const { data: bookingRows = [] } = useQuery({
     queryKey: bookingsKey,
     // Никаких сетевых вызовов — читаем текущее содержимое кэша.

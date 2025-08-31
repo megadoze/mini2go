@@ -21,6 +21,7 @@ import {
 } from "@/services/geo.service";
 import type { CarStatus } from "@/components/carFilters";
 import CarFilters from "@/components/carFilters";
+import { QK } from "@/queryKeys";
 
 export default function CarsPage() {
   const navigate = useNavigate();
@@ -36,9 +37,9 @@ export default function CarsPage() {
   /* -------------------- queries -------------------- */
 
   const carsQ = useQuery<CarWithRelations[], Error>({
-    queryKey: ["cars"],
+    queryKey: QK.cars,
     queryFn: () => fetchCars(),
-    initialData: qc.getQueryData<CarWithRelations[]>(["cars"]),
+    initialData: qc.getQueryData(QK.cars),
     staleTime: 24 * 60 * 60 * 1000,
     gcTime: 7 * 24 * 60 * 60 * 1000,
     refetchOnMount: false,

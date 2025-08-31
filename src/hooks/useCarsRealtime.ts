@@ -1,10 +1,10 @@
+// src/realtime/useCarsRealtime.ts
 import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import { QK } from "@/queryKeys";
 
-// Подмножество полей, которые реально приходят/нужны
 type RTCar = {
   id: string;
   vin?: string | null;
@@ -27,6 +27,10 @@ export function useCarsRealtime() {
   const qc = useQueryClient();
 
   useEffect(() => {
+    const isCarsList = (q: any) =>
+      Array.isArray(q.queryKey) &&
+      (q.queryKey[0] === QK.cars[0] || q.queryKey[0] === QK.carsByHost("_")[0]); // "cars" | "carsByHost"
+
     const ch = supabase
       .channel("cars-realtime")
       .on(
@@ -38,33 +42,38 @@ export function useCarsRealtime() {
           const id = String(newRow?.id ?? oldRow?.id ?? "");
           if (!id) return;
 
-          // DELETE → убрать из списков и инвалиднуть деталь
           if (payload.eventType === "DELETE") {
+            // списки
             qc.setQueriesData(
-              {
-                predicate: (q) =>
-                  Array.isArray(q.queryKey) && q.queryKey[0] === "carsList",
-              },
+              { predicate: isCarsList },
               (list: any[] | undefined) =>
-                list?.filter((c) => String(c.id) !== id)
+                Array.isArray(list)
+                  ? list.filter((c) => String(c.id) !== id)
+                  : list
             );
+            // карточка
             qc.invalidateQueries({ queryKey: QK.car(id) });
             return;
           }
 
-          // INSERT/UPDATE → точечно патчим кэш
+          if (payload.eventType === "INSERT") {
+            // проще и надёжнее: подтянуть свежий список(и)
+            qc.invalidateQueries({ queryKey: QK.cars });
+            qc.setQueriesData({ predicate: isCarsList }, (list: any) => list); // no-op, но триггерит subscribers
+            return;
+          }
+
+          // UPDATE: точечно патчим
           const patch = newRow ?? {};
-          // 1) карточка
+
+          // карточка
           qc.setQueryData(QK.car(id), (prev: any) =>
             prev ? { ...prev, ...patch } : prev
           );
 
-          // 2) любые списки машин (если у вас ключ другой — поправьте predicate)
+          // списки
           qc.setQueriesData(
-            {
-              predicate: (q) =>
-                Array.isArray(q.queryKey) && q.queryKey[0] === "carsList",
-            },
+            { predicate: isCarsList },
             (list: any[] | undefined) =>
               Array.isArray(list)
                 ? list.map((c) =>
