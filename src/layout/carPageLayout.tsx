@@ -29,6 +29,7 @@ import { fetchBookingsByCarId } from "@/app/car/calendar/calendar.service"; // â
 import { useQueryClient } from "@tanstack/react-query";
 import { useCarsRealtime } from "@/hooks/useCarsRealtime";
 import { useCarFeaturesRealtimeRQ } from "@/hooks/useCarFeaturesRealtime";
+import { useCarExtrasRealtime } from "@/hooks/useCarExtrasRealtime";
 
 type LoaderData = {
   car: CarWithModelRelations;
@@ -97,6 +98,7 @@ export default function CarPageLayout() {
   const getCarId = () => String((car as any)?.id ?? carId);
 
   useCarFeaturesRealtimeRQ(carId || null);
+  useCarExtrasRealtime(car?.id ?? null, setExtras);
 
   useCarsRealtime((id, patch) => {
     const currentId = String(car?.id ?? carId ?? "");
