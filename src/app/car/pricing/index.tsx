@@ -18,6 +18,7 @@ import { getCurrencySymbol } from "@/lib/currency";
 import { toast } from "sonner";
 import { DatePickerInput } from "@mantine/dates";
 import "dayjs/locale/ru";
+import { useCarCache } from "@/hooks/useCarCache";
 
 // Валидация дат (start <= end)
 const isValidDateRange = (start: string, end: string) =>
@@ -40,6 +41,8 @@ const fromISODate = (iso?: string) =>
 
 const Pricing = () => {
   const { carId } = useParams();
+
+  const { patchCar } = useCarCache();
 
   const {
     car,
@@ -124,7 +127,7 @@ const Pricing = () => {
     try {
       await updateCar(carId, { price });
       setCar((prev) => (prev ? { ...prev, price } : prev));
-
+      patchCar(carId, { price });
       setSavingPrice(true);
       setTimeout(() => setSavingPrice(false), 2000);
       toast.success("Price saved!");
@@ -138,11 +141,10 @@ const Pricing = () => {
     if (!carId) return;
 
     try {
+      setSavingDeposit(true);
       await updateCar(carId, { deposit });
       setCar((prev) => (prev ? { ...prev, deposit } : prev));
-
-      setSavingDeposit(true);
-      setTimeout(() => setSavingDeposit(true), 2000);
+      patchCar(carId, { deposit });
       toast.success("Deposit saved!");
     } catch (e) {
       console.error(e);
@@ -168,6 +170,7 @@ const Pricing = () => {
           : [...prev, saved];
         return [...list].sort((a, b) => a.min_days - b.min_days);
       });
+
       setRuleDraft({ car_id: carId, min_days: 3, discount_percent: "-10" });
       toast.success("Discount rule saved");
     } catch (e) {

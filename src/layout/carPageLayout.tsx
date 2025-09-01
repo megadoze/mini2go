@@ -77,6 +77,8 @@ export default function CarPageLayout() {
     latitude: loaderCar.lat ?? 0,
     longitude: loaderCar.long ?? 0,
   });
+  // console.log(parkingCoords);
+
   const [pickupInfo, setPickupInfo] = useState({
     pickupInfo: loaderCar.pickupInfo,
     returnInfo: loaderCar.returnInfo,

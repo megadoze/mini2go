@@ -94,6 +94,8 @@ function carCamelToSnake(input: CarUpdatePayload) {
     photos: input.photos,
     content: input.content,
     location_id: input.locationId,
+    lat: input.lat,
+    long: input.long,
     address: input.address,
     pickup_info: input.pickupInfo,
     return_info: input.returnInfo,

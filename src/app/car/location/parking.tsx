@@ -162,6 +162,8 @@ function Parking() {
     if (!feature?.geometry?.coordinates) return;
 
     const [longitude, latitude] = feature.geometry.coordinates;
+    console.log(longitude, latitude);
+
     // const full_address = data.features[0].properties.full_address;
     const full_address =
       feature?.properties?.full_address || feature?.place_name || data.query;
@@ -175,7 +177,6 @@ function Parking() {
     };
 
     setLocalCoords(newCoords);
-
     setFullAddress(full_address);
     setAddress(full_address);
   };
@@ -201,6 +202,7 @@ function Parking() {
 
     try {
       if (!carId) return null;
+
       await updateCar(carId, {
         address: fullAddress,
         lat: coords.latitude,
@@ -294,7 +296,7 @@ function Parking() {
             <GeolocateControl
               trackUserLocation
               showUserHeading
-              onGeolocate={(pos) => {
+              onGeolocate={async (pos) => {
                 const { latitude, longitude } = pos.coords;
                 const newCoords = {
                   latitude,
@@ -304,6 +306,19 @@ function Parking() {
                   pitch: 0,
                 };
                 setLocalCoords(newCoords);
+                try {
+                  const data = await fetchAddressFromCoords(
+                    latitude,
+                    longitude
+                  );
+                  if (data) {
+                    setAddress(data.address);
+                    setFullAddress(data.address);
+                    setParkingAddress(data.address); // ← ключевая строка
+                  }
+                } catch (err) {
+                  console.error("Failed to fetch address by pin drag", err);
+                }
               }}
             />
 
@@ -327,7 +342,7 @@ function Parking() {
               autoComplete="address-line1"
               value={parkingAddress}
               onChange={(e) => setParkingAddress(e.target.value)}
-              className="outline-none pl-2 py-2 w-full border border-gray-300 hover:border-gray-400 focus:border-lime-300"
+              className="outline-none pl-2 py-2 w-full border border-gray-300 hover:border-gray-400 focus:border-green-300"
             />
           </AddressAutofillWrapper>
           {error.address && (
