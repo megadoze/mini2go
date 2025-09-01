@@ -27,7 +27,7 @@ import type { AppSettings } from "@/types/setting";
 import { fetchCarById, fetchCarExtras } from "@/services/car.service";
 import { fetchBookingsByCarId } from "@/app/car/calendar/calendar.service"; // ⬅️ добавлено
 import { useQueryClient } from "@tanstack/react-query";
-import { useCarsRealtime } from "@/hooks/useCarsRealtime";
+// import { useCarsRealtime } from "@/hooks/useCarsRealtime";
 
 type LoaderData = {
   car: CarWithModelRelations;
@@ -93,25 +93,25 @@ export default function CarPageLayout() {
 
   const getCarId = () => String((car as any)?.id ?? carId);
 
-  useCarsRealtime((id, patch) => {
-    const currentId = String(car?.id ?? carId ?? "");
-    if (!currentId || String(id) !== currentId) return;
+  // useCarsRealtime((id, patch) => {
+  //   const currentId = String(car?.id ?? carId ?? "");
+  //   if (!currentId || String(id) !== currentId) return;
 
-    // Обновляем объект авто в контексте
-    setCar((prev: any) => (prev ? { ...prev, ...patch } : prev));
+  //   // Обновляем объект авто в контексте
+  //   setCar((prev: any) => (prev ? { ...prev, ...patch } : prev));
 
-    // Точечно синкаем поля, которые у тебя лежат отдельными стейтами
-    if ("includeMileage" in patch) setIncludeMileage(patch.includeMileage);
-    if ("isDelivery" in patch) setIsDelivery(patch.isDelivery);
-    if ("deliveryFee" in patch) setDeliveryFee(patch.deliveryFee);
-    if ("address" in patch) setParkingAddress(patch.address ?? "");
-    if ("lat" in patch || "long" in patch) {
-      setCoords({
-        latitude: patch.lat ?? parkingCoords.latitude,
-        longitude: patch.long ?? parkingCoords.longitude,
-      });
-    }
-  });
+  //   // Точечно синкаем поля, которые у тебя лежат отдельными стейтами
+  //   if ("includeMileage" in patch) setIncludeMileage(patch.includeMileage);
+  //   if ("isDelivery" in patch) setIsDelivery(patch.isDelivery);
+  //   if ("deliveryFee" in patch) setDeliveryFee(patch.deliveryFee);
+  //   if ("address" in patch) setParkingAddress(patch.address ?? "");
+  //   if ("lat" in patch || "long" in patch) {
+  //     setCoords({
+  //       latitude: patch.lat ?? parkingCoords.latitude,
+  //       longitude: patch.long ?? parkingCoords.longitude,
+  //     });
+  //   }
+  // });
 
   // Синхронизация из loader без перетирания bookings
   useEffect(() => {

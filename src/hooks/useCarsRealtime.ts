@@ -72,13 +72,13 @@ export function useCarsRealtime(
           // 👇 нормализация snake -> camel
           const normalized: any = { ...patch };
 
-          if ("include_mileage" in patch)
-            normalized.includeMileage = patch.include_mileage;
-          if ("license_plate" in patch)
-            normalized.licensePlate = patch.license_plate;
-          if ("is_delivery" in patch) normalized.isDelivery = patch.is_delivery;
-          if ("delivery_fee" in patch)
-            normalized.deliveryFee = patch.delivery_fee;
+          // if ("include_mileage" in patch)
+          //   normalized.includeMileage = patch.include_mileage;
+          // if ("license_plate" in patch)
+          //   normalized.licensePlate = patch.license_plate;
+          // if ("is_delivery" in patch) normalized.isDelivery = patch.is_delivery;
+          // if ("delivery_fee" in patch)
+          //   normalized.deliveryFee = patch.delivery_fee;
 
           // if (Object.prototype.hasOwnProperty.call(patch, "include_mileage")) {
           //   normalized.includeMileage = (patch as any).include_mileage;

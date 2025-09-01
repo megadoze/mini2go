@@ -6,10 +6,13 @@ import { updateCar } from "@/services/car.service";
 import { toast } from "sonner";
 import { NativeSelect } from "@mantine/core";
 import { optionsDeliveryFee } from "@/constants/carOptions";
+import { useCarCache } from "@/hooks/useCarCache";
 
 const Delivery = () => {
   const { car, setIsDelivery, setDeliveryFee, isDelivery, deliveryFee } =
     useCarContext();
+
+  const { patchCar } = useCarCache();
 
   const navigate = useNavigate();
 
@@ -46,6 +49,9 @@ const Delivery = () => {
         isDelivery: deliveryState,
         deliveryFee: Number(fee),
       });
+
+      // обновляем в кеше
+      patchCar(carId, { isDelivery: deliveryState, deliveryFee: Number(fee) });
 
       setIsDelivery(deliveryState);
       setDeliveryFee(fee);
