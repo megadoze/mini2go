@@ -65,6 +65,8 @@ export function useCarExtrasRealtime(
           filter: `car_id=eq.${carId}`,
         },
         (payload) => {
+          console.log(payload);
+
           const row = payload.old; // <-- ВАЖНО: на DELETE берём old
           onChange?.({ type: "DELETE", row });
           qc.invalidateQueries({
