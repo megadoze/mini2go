@@ -18,6 +18,7 @@ const Delivery = () => {
 
   const [deliveryState, setDeliveryState] = useState(isDelivery ?? false);
   const [fee, setFee] = useState<number>(deliveryFee ?? 0);
+  const [loading, setLoading] = useState(false);
   const [saved, setSaved] = useState(false);
 
   const spring: Transition = {
@@ -33,7 +34,11 @@ const Delivery = () => {
   const carId = car.id;
 
   const handleSwitch = () => {
-    setDeliveryState(!deliveryState);
+    setDeliveryState((v) => {
+      const next = !v;
+      if (!next) setFee(0);
+      return next;
+    });
   };
 
   const handleChangeDeliveryFee = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -42,6 +47,8 @@ const Delivery = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    setLoading(true);
 
     try {
       if (!carId) return null;
@@ -58,10 +65,12 @@ const Delivery = () => {
 
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
-      toast.success("Location saved successfully!");
+      toast.success("Delivery saved successfully!");
     } catch (error) {
       console.error(error);
       toast.error("Something went wrong while saving!");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -149,7 +158,7 @@ const Delivery = () => {
                   ? "border-gray-600 text-gray-700"
                   : "border-gray-300 text-gray-400 cursor-not-allowed"
               } border rounded-md px-8 py-2`}
-              disabled={!isChanged}
+              disabled={!isChanged || loading}
               onClick={handleSubmit}
             >
               Save
