@@ -7,9 +7,13 @@ import { upsertCarExtra } from "@/services/car.service";
 import { toast } from "sonner";
 import { optionsExtraPrices } from "@/constants/carOptions";
 import { getCurrencySymbol } from "@/lib/currency";
+import { useQueryClient } from "@tanstack/react-query";
+import { QK } from "@/queryKeys";
 
 const ExtraComponent = () => {
   const { carId, extraId } = useParams();
+
+  const qc = useQueryClient();
 
   const navigate = useNavigate();
   const { extras, setExtras, effectiveCurrency } = useCarContext();
@@ -58,6 +62,11 @@ const ExtraComponent = () => {
         extra_id: extraId,
         price: isAvailable ? price : 0,
         is_available: isAvailable,
+      });
+
+      qc.invalidateQueries({
+        queryKey: QK.carExtras(carId),
+        refetchType: "all",
       });
 
       // обновляем контекст
