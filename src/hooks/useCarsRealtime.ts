@@ -82,6 +82,12 @@ export function useCarsRealtime(
           if ("license_plate" in patch)
             normalized.licensePlate = patch.license_plate;
 
+          if ("body_type" in patch) normalized.bodyType = patch.body_type;
+          if ("fuel_type" in patch) normalized.fuelType = patch.fuel_type;
+          if ("drive_type" in patch) normalized.driveType = patch.drive_type;
+          if ("engine_capacity" in patch)
+            normalized.engineCapacity = patch.engine_capacity;
+
           // карточка
           qc.setQueryData(QK.car(id), (prev: any) =>
             prev ? { ...prev, ...normalized } : prev
