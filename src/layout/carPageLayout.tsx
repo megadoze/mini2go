@@ -225,6 +225,36 @@ export default function CarPageLayout() {
     }
   );
 
+  useEffect(() => {
+    const bc = new BroadcastChannel("car-extras");
+    const handler = (ev: MessageEvent) => {
+      const msg = ev.data as {
+        carId: string;
+        extraId: string;
+        isAvailable: boolean;
+        price: number;
+      };
+      const currentId = String(car?.id ?? carId ?? "");
+      if (!currentId || msg.carId !== currentId) return;
+
+      setExtras((prev) =>
+        Array.isArray(prev)
+          ? prev.map((e) =>
+              e.extra_id === msg.extraId
+                ? {
+                    ...e,
+                    is_available: msg.isAvailable,
+                    price: msg.isAvailable ? msg.price : 0,
+                  }
+                : e
+            )
+          : prev
+      );
+    };
+    bc.addEventListener("message", handler);
+    return () => bc.close();
+  }, [car?.id, carId, setExtras]);
+
   // Синхронизация из loader без перетирания bookings
   useEffect(() => {
     setCar((prev) => ({

@@ -61,6 +61,11 @@ const ExtraComponent = () => {
         is_available: isAvailable,
       });
 
+      // 👇 мгновенная рассылка в другие вкладки
+      const bc = new BroadcastChannel("car-extras");
+      bc.postMessage({ carId, extraId, isAvailable, price });
+      bc.close();
+
       // обновляем контекст
       setExtras((prev) =>
         prev.map((e) =>
