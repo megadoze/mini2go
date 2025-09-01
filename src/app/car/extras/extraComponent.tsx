@@ -103,12 +103,12 @@ const ExtraComponent = () => {
 
         <div
           className={`${
-            isAvailable ? "border-green-400 bg-white" : ""
+            isAvailable ? "border-green-300 bg-white" : ""
           } flex justify-between items-center mt-8 rounded-2xl border bg-gray-50 py-5 px-6`}
         >
           <p
             className={`${
-              isAvailable ? "text-green-600" : ""
+              isAvailable ? "text-green-500" : ""
             } text-lg text-gray-500`}
           >
             Enable extra
@@ -116,7 +116,7 @@ const ExtraComponent = () => {
           <div
             className={`${
               isAvailable
-                ? "bg-green-500 justify-end"
+                ? "bg-green-400 justify-end"
                 : "justify-start bg-gray-300"
             } cursor-pointer w-16 h-10 flex items-center rounded-full p-1`}
             onClick={handleSwitch}

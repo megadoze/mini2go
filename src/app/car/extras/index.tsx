@@ -28,7 +28,7 @@ const Extras = () => {
               <div
                 className={`${
                   e.is_available
-                    ? "border-green-400 bg-green-50/10"
+                    ? "border-green-300 bg-green-50/10"
                     : " hover:border-gray-400/50"
                 } border rounded-3xl h-20 flex items-center mt-5 `}
               >

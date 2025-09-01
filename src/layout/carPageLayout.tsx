@@ -106,13 +106,13 @@ export default function CarPageLayout() {
     if ("includeMileage" in patch) setIncludeMileage(patch.includeMileage);
     if ("isDelivery" in patch) setIsDelivery(patch.isDelivery);
     if ("deliveryFee" in patch) setDeliveryFee(patch.deliveryFee);
-    //   if ("address" in patch) setParkingAddress(patch.address ?? "");
-    //   if ("lat" in patch || "long" in patch) {
-    //     setCoords({
-    //       latitude: patch.lat ?? parkingCoords.latitude,
-    //       longitude: patch.long ?? parkingCoords.longitude,
-    //     });
-    //   }
+    if ("address" in patch) setParkingAddress(patch.address ?? "");
+    if ("lat" in patch || "long" in patch) {
+      setCoords({
+        latitude: patch.lat ?? parkingCoords.latitude,
+        longitude: patch.long ?? parkingCoords.longitude,
+      });
+    }
   });
 
   // Синхронизация из loader без перетирания bookings
@@ -276,7 +276,7 @@ export default function CarPageLayout() {
           </p>
           <p
             className={`text-sm pt-1 ${
-              car.status === "available" ? "text-green-600" : "text-zinc-500"
+              car.status === "available" ? "text-green-500" : "text-zinc-500"
             }`}
           >
             ◉ {car.status}
