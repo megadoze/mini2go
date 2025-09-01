@@ -32,8 +32,9 @@ import type { CarUpdatePayload } from "@/types/сarUpdatePayload";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
 import { useCarCache } from "@/hooks/useCarCache";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { QK } from "@/queryKeys";
+import { useCarFeaturesRealtimeRQ } from "@/hooks/useCarFeaturesRealtime";
 
 /** ВНУТРЕННИЙ формат формы — CAMEL */
 type CarFormData = {
@@ -127,6 +128,8 @@ export default function CarDetails() {
   const { car, setCar } = useCarContext();
   const carId = car?.id;
 
+  useCarFeaturesRealtimeRQ(car?.id ?? carId ?? null);
+
   const [features, setFeatures] = useState<Feature[]>([]);
   const [selectedFeatureIds, setSelectedFeatureIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
@@ -157,18 +160,27 @@ export default function CarDetails() {
 
   const initialFeatureIdsRef = useRef<string[] | null>(null);
 
+  const featuresIdsQ = useQuery({
+    queryKey: QK.carFeatures(carId!),
+    queryFn: () => fetchCarFeatures(carId!),
+    enabled: !!carId,
+  });
   useEffect(() => {
-    const loadCarFeatures = async (id: string) => {
-      if (!carId) return;
-      const featureIds = await fetchCarFeatures(id);
-      setSelectedFeatureIds(featureIds);
-      if (initialFeatureIdsRef.current === null) {
-        initialFeatureIdsRef.current = featureIds;
-      }
-    };
+    if (featuresIdsQ.data) setSelectedFeatureIds(featuresIdsQ.data);
+  }, [featuresIdsQ.data]);
 
-    if (carId) loadCarFeatures(carId);
-  }, [carId]);
+  // useEffect(() => {
+  //   const loadCarFeatures = async (id: string) => {
+  //     if (!carId) return;
+  //     const featureIds = await fetchCarFeatures(id);
+  //     setSelectedFeatureIds(featureIds);
+  //     if (initialFeatureIdsRef.current === null) {
+  //       initialFeatureIdsRef.current = featureIds;
+  //     }
+  //   };
+
+  //   if (carId) loadCarFeatures(carId);
+  // }, [carId]);
 
   const isChanged = useMemo(() => {
     if (!car) return false;

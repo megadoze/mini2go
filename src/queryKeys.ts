@@ -4,6 +4,7 @@ export const QK = {
   appSettings: ["appSettings"] as const,
   car: (id: string) => ["car", id] as const,
   cars: ["cars"] as const,
+  carFeatures: (id: string) => ["carFeatures", id] as const,
   carExtras: (id: string) => ["carExtras", id] as const,
   pricingRules: (id: string) => ["pricingRules", id] as const,
   seasonalRates: (id: string) => ["seasonalRates", id] as const,
@@ -14,5 +15,4 @@ export const QK = {
   carsByHost: (ownerId: string) => ["carsByHost", ownerId] as const,
   bookingsIndex: (ownerId: string) => ["bookingsIndex", ownerId] as const,
   calendarWindow: (monthISO: string) => ["calendarWindow", monthISO] as const,
-  carFeatures: (id: string) => ["carFeatures", id] as const,
 };
