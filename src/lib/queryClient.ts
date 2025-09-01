@@ -7,8 +7,8 @@ export const queryClient = new QueryClient({
     queries: {
       staleTime: 60_000, // базово 1 минута
       gcTime: 10 * 60_000, // держим в памяти 10 минут
-      refetchOnWindowFocus: false,
-      refetchOnReconnect: false,
+      refetchOnWindowFocus: true,
+      refetchOnReconnect: true,
       refetchOnMount: false,
       retry: 1,
     },

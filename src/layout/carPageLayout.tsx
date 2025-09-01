@@ -251,8 +251,12 @@ export default function CarPageLayout() {
           : prev
       );
     };
+
     bc.addEventListener("message", handler);
-    return () => bc.close();
+    return () => {
+      bc.removeEventListener("message", handler); // ← добавили
+      bc.close();
+    };
   }, [car?.id, carId, setExtras]);
 
   // Синхронизация из loader без перетирания bookings
