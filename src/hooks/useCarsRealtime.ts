@@ -75,12 +75,16 @@ export function useCarsRealtime(
           if ("include_mileage" in patch)
             normalized.includeMileage = patch.include_mileage;
 
-          if (Object.prototype.hasOwnProperty.call(patch, "is_delivery")) {
-            normalized.isDelivery = (patch as any).is_delivery;
-          }
-          if (Object.prototype.hasOwnProperty.call(patch, "delivery_fee")) {
-            normalized.deliveryFee = (patch as any).delivery_fee;
-          }
+          if ("is_delivery" in patch) normalized.isDelivery = patch.is_delivery;
+          if ("delivery_fee" in patch)
+            normalized.deliveryFee = patch.delivery_fee;
+
+          // if (Object.prototype.hasOwnProperty.call(patch, "is_delivery")) {
+          //   normalized.isDelivery = (patch as any).is_delivery;
+          // }
+          // if (Object.prototype.hasOwnProperty.call(patch, "delivery_fee")) {
+          //   normalized.deliveryFee = (patch as any).delivery_fee;
+          // }
           // if ("license_plate" in patch)
           //   normalized.licensePlate = patch.license_plate;
           // if ("is_delivery" in patch) normalized.isDelivery = patch.is_delivery;
