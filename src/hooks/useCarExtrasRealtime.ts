@@ -1,3 +1,4 @@
+// src/realtime/useCarExtrasRealtimeCTX.ts
 import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -26,66 +27,70 @@ export function useCarExtrasRealtime(
           filter: `car_id=eq.${carId}`,
         },
         (payload: any) => {
-          // аккуратно достаём old/new (на DELETE может быть только old)
+          // CHANGED: аккуратно достаём данные с учётом DELETE
           const row =
-            payload?.new && Object.keys(payload.new).length
-              ? payload.new
-              : null;
-          const old =
-            payload?.old && Object.keys(payload.old).length
-              ? payload.old
-              : null;
-          const extraId = String(row?.extra_id ?? old?.extra_id ?? "");
-          if (!extraId) return;
+            payload?.eventType === "DELETE" ? payload?.old : payload?.new;
+          if (!row) return; // всё ещё пусто — игнор
+          const { car_id, extra_id, price } = row;
+          if (String(car_id) !== String(carId)) return;
 
-          // 1) инвалидируем RQ-кэш (для списка на useQuery)
+          // CHANGED: инвалидируем RQ-список
           qc.invalidateQueries({
             queryKey: QK.carExtras(carId),
             refetchType: "all",
           });
 
-          // 2) патчим контекст extras (для твоего ExtraComponent)
+          // CHANGED: патчим контекст для твоего ExtraComponent
           setExtras((prev) => {
-            const allMeta = qc.getQueryData<any[]>(QK.extras) ?? [];
-            const idx = prev.findIndex((e) => e.extra_id === extraId);
-
+            const idx = prev.findIndex((e) => e.extra_id === extra_id);
             if (payload.eventType === "DELETE") {
-              // выключили extra → отмечаем как Off (цена 0)
               if (idx >= 0) {
                 const copy = [...prev];
                 copy[idx] = { ...copy[idx], is_available: false, price: 0 };
                 return copy;
               }
-              // если записи не было — оставляем как есть
               return prev;
             }
-
-            // INSERT / UPDATE → включаем/обновляем цену
-            const price = Number(row?.price ?? 0);
-            const meta =
-              (idx >= 0 ? prev[idx].meta : null) ??
-              allMeta.find((m) => m.id === extraId) ??
-              undefined;
-
+            // INSERT/UPDATE
             if (idx >= 0) {
               const copy = [...prev];
-              copy[idx] = { ...copy[idx], is_available: true, price, meta };
+              copy[idx] = {
+                ...copy[idx],
+                is_available: true,
+                price: Number(price ?? 0),
+              };
               return copy;
             }
-            // если раньше было Off и в prev отсутствует — добавим строку
+            // если строки раньше не было в контексте
+            const metaList = qc.getQueryData<any[]>(QK.extras) ?? [];
+            const meta = metaList.find((m) => m.id === extra_id);
             return [
               ...prev,
               {
-                extra_id: extraId,
-                price,
+                extra_id,
+                price: Number(price ?? 0),
                 is_available: true,
-                meta,
+                meta: meta
+                  ? {
+                      id: meta.id,
+                      name: meta.name,
+                      description: meta.description,
+                      price_type: meta.price_type,
+                      is_active: meta.is_active,
+                    }
+                  : prev[0]?.meta ?? undefined,
               } as CarExtraWithMeta,
             ];
           });
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status === "CHANNEL_ERROR" || status === "CLOSED") {
+          // не паникуем — supabase сам переподключится
+          // можно залогировать при отладке
+          // console.warn("[RT car_extras]", status, carId);
+        }
+      });
 
     return () => {
       void supabase.removeChannel(ch);
