@@ -30,6 +30,7 @@ import { fetchBookingExtras } from "@/services/booking-extras.service";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { QK } from "@/queryKeys";
 import { toast } from "sonner";
+import { useBookingsRealtimeRQ } from "@/hooks/useBookingsRealtime";
 
 const TIME_OPTIONS = Array.from({ length: 24 * 2 }, (_, i) => {
   const hours = Math.floor((i * 30) / 60);
@@ -51,6 +52,8 @@ export default function Calendar() {
   const location = useLocation();
   const navigate = useNavigate();
   const carId = car?.id;
+
+  useBookingsRealtimeRQ(carId ?? null);
 
   const initial = car?.bookings ?? [];
 

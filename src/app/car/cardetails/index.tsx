@@ -20,7 +20,6 @@ import {
   Checkbox,
   Input,
   Loader,
-  // Loader,
   Modal,
   NativeSelect,
   NumberInput,
