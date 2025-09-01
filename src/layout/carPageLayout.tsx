@@ -97,7 +97,6 @@ export default function CarPageLayout() {
   const getCarId = () => String((car as any)?.id ?? carId);
 
   useCarFeaturesRealtimeRQ(carId || null);
-  useCarExtrasRealtime(String(loaderCar.id ?? carId ?? ""), setExtras);
 
   useCarsRealtime((id, patch) => {
     const currentId = String(car?.id ?? carId ?? "");
@@ -118,6 +117,33 @@ export default function CarPageLayout() {
       });
     }
   });
+
+  useCarExtrasRealtime(
+    String(car?.id ?? carId ?? "") || null,
+    ({ type, row }) => {
+      if (!row || !row.extra_id) return;
+      setExtras((prev) => {
+        if (!Array.isArray(prev)) return prev;
+
+        if (type === "DELETE") {
+          // выключили экстру
+          return prev.map((e) =>
+            e.extra_id === row.extra_id
+              ? { ...e, is_available: false, price: 0 }
+              : e
+          );
+        }
+
+        // INSERT/UPDATE — включили/обновили цену
+        const nextPrice = Number(row.price ?? 0);
+        return prev.map((e) =>
+          e.extra_id === row.extra_id
+            ? { ...e, is_available: true, price: nextPrice }
+            : e
+        );
+      });
+    }
+  );
 
   // Синхронизация из loader без перетирания bookings
   useEffect(() => {
