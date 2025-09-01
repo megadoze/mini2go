@@ -98,7 +98,7 @@ export default function CarPageLayout() {
   const getCarId = () => String((car as any)?.id ?? carId);
 
   useCarFeaturesRealtimeRQ(carId || null);
-  useCarExtrasRealtime(car?.id ?? null, setExtras);
+  useCarExtrasRealtime(carId ?? null);
 
   useCarsRealtime((id, patch) => {
     const currentId = String(car?.id ?? carId ?? "");
