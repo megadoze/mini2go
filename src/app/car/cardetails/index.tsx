@@ -165,8 +165,14 @@ export default function CarDetails() {
     queryFn: () => fetchCarFeatures(carId!),
     enabled: !!carId,
   });
+
   useEffect(() => {
-    if (featuresIdsQ.data) setSelectedFeatureIds(featuresIdsQ.data);
+    const ids = featuresIdsQ.data;
+    if (!ids) return;
+    setSelectedFeatureIds(ids);
+    if (initialFeatureIdsRef.current === null) {
+      initialFeatureIdsRef.current = ids;
+    }
   }, [featuresIdsQ.data]);
 
   // useEffect(() => {

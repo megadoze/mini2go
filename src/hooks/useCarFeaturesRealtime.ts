@@ -25,6 +25,10 @@ export function useCarFeaturesRealtimeRQ(carId: string | null) {
             queryKey: QK.carFeatures(carId),
             refetchType: "all",
           });
+          qc.refetchQueries({
+            queryKey: QK.carFeatures(carId),
+            type: "active",
+          });
         }
       )
       .subscribe();
