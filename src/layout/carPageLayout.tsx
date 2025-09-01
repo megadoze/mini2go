@@ -30,6 +30,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useCarsRealtime } from "@/hooks/useCarsRealtime";
 import { useCarFeaturesRealtimeRQ } from "@/hooks/useCarFeaturesRealtime";
 import { useCarExtrasRealtime } from "@/hooks/useCarExtrasRealtime";
+import { QK } from "@/queryKeys";
 
 type LoaderData = {
   car: CarWithModelRelations;
@@ -118,111 +119,111 @@ export default function CarPageLayout() {
     }
   });
 
-  useCarExtrasRealtime(
-    String(car?.id ?? carId ?? "") || null,
-    ({ type, row }) => {
-      if (!row || !row.extra_id) return;
-      setExtras((prev) => {
-        if (!Array.isArray(prev)) return prev;
-
-        if (type === "DELETE") {
-          // выключили экстру
-          return prev.map((e) =>
-            e.extra_id === row.extra_id
-              ? { ...e, is_available: false, price: 0 }
-              : e
-          );
-        }
-
-        // INSERT/UPDATE — включили/обновили цену
-        const nextPrice = Number(row.price ?? 0);
-        return prev.map((e) =>
-          e.extra_id === row.extra_id
-            ? { ...e, is_available: true, price: nextPrice }
-            : e
-        );
-      });
-    }
-  );
   // useCarExtrasRealtime(
   //   String(car?.id ?? carId ?? "") || null,
-  //   async ({ type, row }) => {
-  //     const currentCarId = String(car?.id ?? carId ?? "");
-  //     if (!currentCarId) return;
+  //   ({ type, row }) => {
+  //     if (!row || !row.extra_id) return;
+  //     setExtras((prev) => {
+  //       if (!Array.isArray(prev)) return prev;
 
-  //     // ВАРИАНТ А: пришёл extra_id — патчим точечно
-  //     const patchByExtraId = (
-  //       extraId: string,
-  //       next: { on: boolean; price?: number }
-  //     ) => {
-  //       setExtras((prev) => {
-  //         if (!Array.isArray(prev)) return prev;
+  //       if (type === "DELETE") {
+  //         // выключили экстру
   //         return prev.map((e) =>
-  //           e.extra_id === extraId
-  //             ? {
-  //                 ...e,
-  //                 is_available: next.on,
-  //                 price: next.on ? Number(next.price ?? 0) : 0,
-  //               }
+  //           e.extra_id === row.extra_id
+  //             ? { ...e, is_available: false, price: 0 }
   //             : e
   //         );
-  //       });
-  //     };
-
-  //     if (type === "DELETE") {
-  //       const extraId = row?.extra_id as string | undefined;
-
-  //       if (extraId) {
-  //         // обычный путь: пришёл extra_id
-  //         patchByExtraId(extraId, { on: false });
-  //       } else {
-  //         // ВАЖНО: fallback — когда в payload.old НЕТ extra_id.
-  //         // Берём актуальные связи из БД и полностью пересобираем контекст extras.
-  //         const carExtras = await fetchCarExtras(currentCarId);
-  //         const allExtras = (qc.getQueryData<any[]>(QK.extras) ?? []).filter(
-  //           (x) => x.is_active
-  //         );
-
-  //         setExtras(
-  //           allExtras.map((meta: any) => {
-  //             const match = carExtras.find((ce) => ce.extra_id === meta.id);
-  //             return {
-  //               extra_id: meta.id,
-  //               price: match?.price ?? 0,
-  //               is_available: !!match,
-  //               meta,
-  //             };
-  //           })
-  //         );
   //       }
-  //       return;
-  //     }
 
-  //     if (type === "INSERT" || type === "UPDATE") {
-  //       const extraId = row?.extra_id as string | undefined;
-  //       if (extraId) {
-  //         patchByExtraId(extraId, { on: true, price: row?.price });
-  //       } else {
-  //         // крайне редко, но на всякий — одинаковый fallback
-  //         const carExtras = await fetchCarExtras(currentCarId);
-  //         const allExtras = (qc.getQueryData<any[]>(QK.extras) ?? []).filter(
-  //           (x) => x.is_active
-  //         );
-  //         setExtras(
-  //           allExtras.map((meta: any) => {
-  //             const match = carExtras.find((ce) => ce.extra_id === meta.id);
-  //             return {
-  //               extra_id: meta.id,
-  //               price: match?.price ?? 0,
-  //               is_available: !!match,
-  //               meta,
-  //             };
-  //           })
-  //         );
-  //       }
-  //     }
+  //       // INSERT/UPDATE — включили/обновили цену
+  //       const nextPrice = Number(row.price ?? 0);
+  //       return prev.map((e) =>
+  //         e.extra_id === row.extra_id
+  //           ? { ...e, is_available: true, price: nextPrice }
+  //           : e
+  //       );
+  //     });
   //   }
   // );
+  useCarExtrasRealtime(
+    String(car?.id ?? carId ?? "") || null,
+    async ({ type, row }) => {
+      const currentCarId = String(car?.id ?? carId ?? "");
+      if (!currentCarId) return;
+
+      // ВАРИАНТ А: пришёл extra_id — патчим точечно
+      const patchByExtraId = (
+        extraId: string,
+        next: { on: boolean; price?: number }
+      ) => {
+        setExtras((prev) => {
+          if (!Array.isArray(prev)) return prev;
+          return prev.map((e) =>
+            e.extra_id === extraId
+              ? {
+                  ...e,
+                  is_available: next.on,
+                  price: next.on ? Number(next.price ?? 0) : 0,
+                }
+              : e
+          );
+        });
+      };
+
+      if (type === "DELETE") {
+        const extraId = row?.extra_id as string | undefined;
+
+        if (extraId) {
+          // обычный путь: пришёл extra_id
+          patchByExtraId(extraId, { on: false });
+        } else {
+          // ВАЖНО: fallback — когда в payload.old НЕТ extra_id.
+          // Берём актуальные связи из БД и полностью пересобираем контекст extras.
+          const carExtras = await fetchCarExtras(currentCarId);
+          const allExtras = (qc.getQueryData<any[]>(QK.extras) ?? []).filter(
+            (x) => x.is_active
+          );
+
+          setExtras(
+            allExtras.map((meta: any) => {
+              const match = carExtras.find((ce) => ce.extra_id === meta.id);
+              return {
+                extra_id: meta.id,
+                price: match?.price ?? 0,
+                is_available: !!match,
+                meta,
+              };
+            })
+          );
+        }
+        return;
+      }
+
+      if (type === "INSERT" || type === "UPDATE") {
+        const extraId = row?.extra_id as string | undefined;
+        if (extraId) {
+          patchByExtraId(extraId, { on: true, price: row?.price });
+        } else {
+          // крайне редко, но на всякий — одинаковый fallback
+          const carExtras = await fetchCarExtras(currentCarId);
+          const allExtras = (qc.getQueryData<any[]>(QK.extras) ?? []).filter(
+            (x) => x.is_active
+          );
+          setExtras(
+            allExtras.map((meta: any) => {
+              const match = carExtras.find((ce) => ce.extra_id === meta.id);
+              return {
+                extra_id: meta.id,
+                price: match?.price ?? 0,
+                is_available: !!match,
+                meta,
+              };
+            })
+          );
+        }
+      }
+    }
+  );
 
   // useEffect(() => {
   //   const bc = new BroadcastChannel("car-extras");
