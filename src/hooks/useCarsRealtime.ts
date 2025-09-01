@@ -70,14 +70,23 @@ export function useCarsRealtime(
           const patch = newRow ?? {};
 
           // 👇 нормализация snake -> camel
-          const normalizedPatch: any = { ...patch };
-          if (Object.prototype.hasOwnProperty.call(patch, "include_mileage")) {
-            normalizedPatch.includeMileage = (patch as any).include_mileage;
-          }
+          const normalized: any = { ...patch };
+
+          if ("include_mileage" in patch)
+            normalized.includeMileage = patch.include_mileage;
+          if ("license_plate" in patch)
+            normalized.licensePlate = patch.license_plate;
+          if ("is_delivery" in patch) normalized.isDelivery = patch.is_delivery;
+          if ("delivery_fee" in patch)
+            normalized.deliveryFee = patch.delivery_fee;
+
+          // if (Object.prototype.hasOwnProperty.call(patch, "include_mileage")) {
+          //   normalized.includeMileage = (patch as any).include_mileage;
+          // }
 
           // карточка
           qc.setQueryData(QK.car(id), (prev: any) =>
-            prev ? { ...prev, ...normalizedPatch } : prev
+            prev ? { ...prev, ...normalized } : prev
           );
 
           // списки
@@ -86,11 +95,12 @@ export function useCarsRealtime(
             (list: any[] | undefined) =>
               Array.isArray(list)
                 ? list.map((c) =>
-                    String(c.id) === id ? { ...c, ...normalizedPatch } : c
+                    String(c.id) === id ? { ...c, ...normalized } : c
                   )
                 : list
           );
-          onCarPatched?.(id, normalizedPatch);
+
+          onCarPatched?.(id, normalized);
         }
       )
       .subscribe();

@@ -33,12 +33,16 @@ const Distance = () => {
 
     try {
       if (!carId) return null;
-      // await updateCar(carId, { includeMileage: distance });
+
+      // обновляем на сервере
       await updateCar(carId, { includeMileage: distance });
 
+      // обновляем в кеше
       patchCar(carId, { includeMileage: distance });
 
       setSaved(true);
+
+      // обновляем в стейте
       setIncludeMileage(distance);
 
       setTimeout(() => setSaved(false), 2000);
