@@ -79,8 +79,8 @@ export function useCarsRealtime(
           if ("delivery_fee" in patch)
             normalized.deliveryFee = patch.delivery_fee;
 
-          // if ("license_plate" in patch)
-          //   normalized.licensePlate = patch.license_plate;
+          if ("license_plate" in patch)
+            normalized.licensePlate = patch.license_plate;
 
           // карточка
           qc.setQueryData(QK.car(id), (prev: any) =>

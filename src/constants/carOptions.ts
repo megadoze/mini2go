@@ -5,7 +5,6 @@ export const bodyTypes = [
   "Sedan",
   "Hatchback",
   "Station wagon",
-  "Crossover",
   "SUV",
   "Coupe",
   "Convertible",
@@ -24,8 +23,8 @@ export const colors = [
   "Orange",
   "Brown",
 ] as const;
-export const doorOptions = [2, 3, 4, 5] as const;
-export const seatOptions = [2, 4, 5, 6, 7, 8] as const;
+export const doorOptions = ["2", "3", "4", "5"] as const;
+export const seatOptions = ["2", "4", "5", "6", "7", "8"] as const;
 
 export const optionsDeliveryFee = [
   "0",

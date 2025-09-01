@@ -218,9 +218,40 @@ export default function CarDetails() {
     }));
   };
 
+  // const validateForm = () => {
+  //   console.log(form);
+
+  //   if (
+  // !form.licensePlate ||
+  //   !form.bodyType ||
+  //   !form.transmission ||
+  //   !form.modelId ||
+  //   !form.driveType ||
+  //   !form.fuelType ||
+  //   !form.engineCapacity ||
+  //   !form.seats ||
+  //   !form.color ||
+  //   !form.doors
+  //   )
+  //     return;
+  // };
+
   const handleSubmit = async () => {
     if (!isChanged) return;
-    if (!form.modelId) return alert("Please fill in all required fields");
+    if (
+      !form.licensePlate ||
+      !form.bodyType ||
+      !form.transmission ||
+      !form.modelId ||
+      !form.driveType ||
+      !form.fuelType ||
+      !form.engineCapacity ||
+      !form.seats ||
+      !form.color ||
+      !form.doors
+    )
+      // validateForm();
+      return toast.warning("Please fill in all required fields");
     if (!form.licensePlate?.trim())
       return toast.error("Please enter the vehicle registration number");
     if (!carId) return alert("Car ID not found");
@@ -324,12 +355,11 @@ export default function CarDetails() {
           styles={{ input: { backgroundColor: "#f3f4f6", color: "black" } }}
         />
 
-        <Input.Wrapper label="License plate number">
+        <Input.Wrapper label="License plate number" withAsterisk>
           <Input
             value={form.licensePlate}
             onChange={(e) => handleChange("licensePlate", e.target.value)}
-            disabled
-            styles={{ input: { backgroundColor: "#f3f4f6", color: "black" } }}
+            // styles={{ input: { backgroundColor: "#f3f4f6", color: "black" } }}
           />
         </Input.Wrapper>
 
@@ -337,14 +367,22 @@ export default function CarDetails() {
           label="Type"
           value={form.bodyType}
           onChange={(e) => handleChange("bodyType", e.target.value)}
-          data={bodyTypes}
+          data={[
+            { value: "", label: "Select body type" }, // пустое значение
+            ...bodyTypes.map((b) => ({ value: b, label: b })),
+          ]}
+          withAsterisk
         />
 
         <NativeSelect
           label="Transmission"
           value={form.transmission}
           onChange={(e) => handleChange("transmission", e.target.value)}
-          data={transmissions}
+          data={[
+            { value: "", label: "Select transmission type" }, // пустое значение
+            ...transmissions.map((t) => ({ value: t, label: t })),
+          ]}
+          withAsterisk
         />
       </div>
 
@@ -356,14 +394,22 @@ export default function CarDetails() {
           label="Fuel type"
           value={form.fuelType}
           onChange={(e) => handleChange("fuelType", e.target.value)}
-          data={fuelTypes}
+          data={[
+            { value: "", label: "Select fuel type" }, // пустое значение
+            ...fuelTypes.map((d) => ({ value: d, label: d })),
+          ]}
+          withAsterisk
         />
 
         <NativeSelect
           label="Drive type"
           value={form.driveType}
           onChange={(e) => handleChange("driveType", e.target.value)}
-          data={driveTypes}
+          data={[
+            { value: "", label: "Select drive type" }, // пустое значение
+            ...driveTypes.map((d) => ({ value: d, label: d })),
+          ]}
+          withAsterisk
         />
 
         <NumberInput
@@ -381,33 +427,40 @@ export default function CarDetails() {
           defaultValue={1.0}
           min={1}
           max={5}
+          withAsterisk
         />
 
         <NativeSelect
           label="Color"
           value={form.color}
           onChange={(e) => handleChange("color", e.target.value)}
-          data={colors}
+          data={[
+            { value: "", label: "Select color" }, // пустое значение
+            ...colors.map((d) => ({ value: d, label: d })),
+          ]}
+          withAsterisk
         />
 
         <NativeSelect
           label="Number of seats"
           value={form.seats}
           onChange={(e) => handleChange("seats", e.target.value)}
-          data={seatOptions.map((s) => ({
-            value: String(s),
-            label: String(s),
-          }))}
+          data={[
+            { value: "", label: "Select num of seats" }, // пустое значение
+            ...seatOptions.map((s) => ({ value: s, label: s })),
+          ]}
+          withAsterisk
         />
 
         <NativeSelect
           label="Number of doors"
           value={form.doors}
           onChange={(e) => handleChange("doors", e.target.value)}
-          data={doorOptions.map((d) => ({
-            value: String(d),
-            label: String(d),
-          }))}
+          data={[
+            { value: "", label: "Select num of seats" }, // пустое значение
+            ...doorOptions.map((d) => ({ value: d, label: d })),
+          ]}
+          withAsterisk
         />
       </div>
 
