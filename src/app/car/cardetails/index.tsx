@@ -34,7 +34,6 @@ import { toast } from "sonner";
 import { useCarCache } from "@/hooks/useCarCache";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { QK } from "@/queryKeys";
-import { useCarFeaturesRealtimeRQ } from "@/hooks/useCarFeaturesRealtime";
 
 /** ВНУТРЕННИЙ формат формы — CAMEL */
 type CarFormData = {
@@ -127,8 +126,6 @@ export default function CarDetails() {
 
   const { car, setCar } = useCarContext();
   const carId = car?.id;
-
-  useCarFeaturesRealtimeRQ(car?.id ?? carId ?? null);
 
   const [features, setFeatures] = useState<Feature[]>([]);
   const [selectedFeatureIds, setSelectedFeatureIds] = useState<string[]>([]);
