@@ -267,7 +267,7 @@ export default function CarPageLayout() {
       bookings: (loaderCar as any)?.bookings ?? prev.bookings ?? [],
     }));
     setGlobalSettings(loaderGS);
-    setExtras(loaderExtras);
+    // setExtras(loaderExtras);
     setPricingRules(loaderPR);
     setSeasonalRates(loaderSR);
 
@@ -280,7 +280,25 @@ export default function CarPageLayout() {
     setIsDelivery(loaderCar.isDelivery);
     setDeliveryFee(loaderCar.deliveryFee);
     setIncludeMileage(loaderCar.includeMileage);
-  }, [loaderCar?.id, loaderGS, loaderExtras, loaderPR, loaderSR]);
+
+    const allExtras = (qc.getQueryData<any[]>(QK.extras) ?? []) as any[];
+    if (allExtras.length) {
+      const merged = allExtras
+        .filter((x) => x.is_active) // если надо, показывай только активные
+        .map((meta) => {
+          const match = loaderExtras.find((ce) => ce.extra_id === meta.id);
+          return {
+            extra_id: meta.id,
+            price: match?.price ?? 0,
+            is_available: !!match,
+            meta,
+          };
+        });
+      setExtras(merged);
+    } else {
+      setExtras((prev) => (Array.isArray(prev) && prev.length ? prev : []));
+    }
+  }, [loaderCar?.id, loaderGS, loaderExtras, loaderPR, loaderSR, qc]);
 
   // 4) Рефетчи
   const refreshPricingData = async () => {
