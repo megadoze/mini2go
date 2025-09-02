@@ -3,10 +3,7 @@ import { useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { QK } from "@/queryKeys";
-import type {
-  RealtimePostgresChangesPayload,
-  RealtimeChannel,
-} from "@supabase/supabase-js";
+import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 
 type ChangeType = "INSERT" | "UPDATE" | "DELETE";
 type OnChange = (e: { type: ChangeType; row: any }) => void;
@@ -17,7 +14,7 @@ export function useCarExtrasRealtime(
 ) {
   const qc = useQueryClient();
 
-  // хранить колбэк без пересоздания подписки
+  // фиксируем колбэк в ref, чтобы эффект НЕ зависел от его идентичности
   const cbRef = useRef<OnChange | undefined>(onChange);
   useEffect(() => {
     cbRef.current = onChange;
@@ -25,78 +22,47 @@ export function useCarExtrasRealtime(
 
   useEffect(() => {
     if (!carId) return;
-    let ch: RealtimeChannel | null = null;
-    let disposed = false;
-    let attempt = 0;
-    const MAX_DELAY = 30_000;
 
-    const log = (msg: string) => console.log("[RT car_extras]", msg, { carId });
+    const topic = `car-extras-${carId}`;
 
-    const subscribe = () => {
-      if (disposed) return;
+    // убьём возможные дубли перед подпиской
+    supabase.getChannels?.().forEach((c: any) => {
+      if (c?.topic === topic) {
+        void supabase.removeChannel(c);
+      }
+    });
 
-      // на всякий пожарный: если вдруг есть старый канал с таким именем — уберём
-      supabase
-        .getChannels()
-        .filter(
-          (c) =>
-            c.topic === `realtime:public:car_extras:car_id=eq.${carId}` ||
-            c.topic === `car-extras-${carId}`
-        )
-        .forEach((c) => supabase.removeChannel(c));
+    const ch = supabase
+      .channel(topic)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "car_extras",
+          filter: `car_id=eq.${carId}`,
+        },
+        (payload: RealtimePostgresChangesPayload<any>) => {
+          const type = payload.eventType as ChangeType;
+          const row = type === "DELETE" ? payload.old : payload.new;
 
-      ch = supabase
-        .channel(`car-extras-${carId}`)
-        .on(
-          "postgres_changes",
-          {
-            event: "*",
-            schema: "public",
-            table: "car_extras",
-            filter: `car_id=eq.${carId}`,
-          },
-          (payload: RealtimePostgresChangesPayload<any>) => {
-            const type = payload.eventType as ChangeType;
-            const row = type === "DELETE" ? payload.old : payload.new;
+          // локальный патч
+          cbRef.current?.({ type, row });
 
-            cbRef.current?.({ type, row });
-            qc.invalidateQueries({
-              queryKey: QK.carExtras(carId),
-              refetchType: "all",
-            });
-          }
-        )
-        .subscribe((status) => {
-          log(status);
-          if (status === "SUBSCRIBED") {
-            attempt = 0; // сбросить бэкофф
-          }
-          if (
-            status === "CLOSED" ||
-            status === "CHANNEL_ERROR" ||
-            status === "TIMED_OUT"
-          ) {
-            // аккуратно переподключаемся с бэкоффом
-            if (disposed) return;
-            const delay = Math.min(1000 * Math.pow(2, attempt++), MAX_DELAY);
-            // подчистить текущий канал
-            if (ch) {
-              void supabase.removeChannel(ch);
-              ch = null;
-            }
-            window.setTimeout(() => !disposed && subscribe(), delay);
-          }
-        });
-    };
-
-    subscribe();
+          // и на всякий — инвалидация RQ
+          qc.invalidateQueries({
+            queryKey: QK.carExtras(carId),
+            refetchType: "all",
+          });
+        }
+      )
+      .subscribe((status) => {
+        console.log("[RT car_extras]", status, { carId });
+      });
 
     return () => {
-      disposed = true;
-      if (ch) {
-        void supabase.removeChannel(ch);
-        ch = null;
-      }
+      // ВАЖНО: вызываем только removeChannel (НЕ дублировать unsubscribe())
+      void supabase.removeChannel(ch);
     };
   }, [carId, qc]);
 }
