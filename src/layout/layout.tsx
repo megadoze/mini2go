@@ -166,7 +166,7 @@ export default function Layout() {
 
         <div className="h-full bg-gradient-to-r from-teal-950 from-5% to-emerald-900 md:to-emerald-800 to-95% p-3 ">
           <div>{SidebarMenu()}</div>
-          <div className="lg:hidden fixed bottom-2">
+          <div className="lg:hidden fixed bottom-2 text-white border rounded-xl">
             <UserMenu onClick={toggle} />
           </div>
         </div>
