@@ -68,9 +68,15 @@ export default function Layout() {
     },
   ];
 
-  // блокируем прокрутку фона при открытом меню navbar
   useEffect(() => {
-    document.body.classList.toggle("overflow-hidden", opened);
+    if (opened) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
   }, [opened]);
 
   const SidebarMenu = () => {
