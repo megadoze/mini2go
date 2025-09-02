@@ -24,13 +24,9 @@ import {
 } from "@/app/car/pricing/pricing.service";
 import { getGlobalSettings } from "@/services/settings.service";
 import type { AppSettings } from "@/types/setting";
-import {
-  fetchCarById,
-  fetchCarExtras,
-  fetchExtras,
-} from "@/services/car.service";
+import { fetchCarById, fetchCarExtras } from "@/services/car.service";
 import { fetchBookingsByCarId } from "@/app/car/calendar/calendar.service";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { useCarsRealtime } from "@/hooks/useCarsRealtime";
 import { useCarFeaturesRealtimeRQ } from "@/hooks/useCarFeaturesRealtime";
 import { useCarExtrasRealtime } from "@/hooks/useCarExtrasRealtime";
@@ -103,50 +99,50 @@ export default function CarPageLayout() {
   );
 
   // справочник экстр
-  const extrasQ = useQuery({
-    queryKey: QK.extras,
-    queryFn: fetchExtras,
-    staleTime: 5 * 60_000,
-  });
+  // const extrasQ = useQuery({
+  //   queryKey: QK.extras,
+  //   queryFn: fetchExtras,
+  //   staleTime: 5 * 60_000,
+  // });
 
   // экстры конкретной машины + бэкап-пуллинг
-  const carExtrasQ = useQuery({
-    queryKey: QK.carExtras(carIdStr),
-    queryFn: () => fetchCarExtras(carIdStr),
-    enabled: !!carIdStr,
-    staleTime: 30_000,
-    refetchOnWindowFocus: true,
-    refetchInterval: 60_000,
-  });
+  // const carExtrasQ = useQuery({
+  //   queryKey: QK.carExtras(carIdStr),
+  //   queryFn: () => fetchCarExtras(carIdStr),
+  //   enabled: !!carIdStr,
+  //   staleTime: 30_000,
+  //   refetchOnWindowFocus: true,
+  //   refetchInterval: 60_000,
+  // });
 
   // вместо onSuccess:
-  useEffect(() => {
-    const rows = carExtrasQ.data;
-    const allExtras = extrasQ.data;
+  // useEffect(() => {
+  //   const rows = carExtrasQ.data;
+  //   const allExtras = extrasQ.data;
 
-    if (!rows || !allExtras) return;
+  //   if (!rows || !allExtras) return;
 
-    const merged = allExtras
-      .filter((x: any) => x.is_active)
-      .map((meta: any) => {
-        const hit = rows.find((r: any) => r.extra_id === meta.id);
-        return {
-          extra_id: meta.id,
-          price: hit?.price ?? 0,
-          is_available: !!hit,
-          meta,
-        };
-      });
+  //   const merged = allExtras
+  //     .filter((x: any) => x.is_active)
+  //     .map((meta: any) => {
+  //       const hit = rows.find((r: any) => r.extra_id === meta.id);
+  //       return {
+  //         extra_id: meta.id,
+  //         price: hit?.price ?? 0,
+  //         is_available: !!hit,
+  //         meta,
+  //       };
+  //     });
 
-    setExtras((prev) => {
-      const compact = (a: any[]) =>
-        a.map((e) => ({ id: e.extra_id, p: e.price, on: e.is_available }));
-      return JSON.stringify(compact(prev ?? [])) ===
-        JSON.stringify(compact(merged))
-        ? prev
-        : merged;
-    });
-  }, [carExtrasQ.data, extrasQ.data, setExtras]);
+  //   setExtras((prev) => {
+  //     const compact = (a: any[]) =>
+  //       a.map((e) => ({ id: e.extra_id, p: e.price, on: e.is_available }));
+  //     return JSON.stringify(compact(prev ?? [])) ===
+  //       JSON.stringify(compact(merged))
+  //       ? prev
+  //       : merged;
+  //   });
+  // }, [carExtrasQ.data, extrasQ.data, setExtras]);
 
   // ===== Realtime фичи/экстры/машина =====
   useCarFeaturesRealtimeRQ(carIdStr || null);
