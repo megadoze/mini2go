@@ -18,8 +18,8 @@ export const queryClient = new QueryClient({
 queryClient.setQueryDefaults(QK.extras, {
   staleTime: 10 * 60_000,
   refetchOnMount: false,
-  refetchOnWindowFocus: false,
-  refetchOnReconnect: false,
+  refetchOnWindowFocus: true,
+  refetchOnReconnect: true,
 });
 
 queryClient.setQueryDefaults(["appSettings"], {

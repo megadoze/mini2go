@@ -1,4 +1,5 @@
-import { useEffect } from "react";
+// src/hooks/useCarExtrasRealtime.ts
+import { useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { QK } from "@/queryKeys";
@@ -13,6 +14,13 @@ export function useCarExtrasRealtime(
 ) {
   const qc = useQueryClient();
 
+  // 1) Храним последний колбэк, не ломая подписку
+  const cbRef = useRef<OnChange | undefined>(onChange);
+  useEffect(() => {
+    cbRef.current = onChange;
+  }, [onChange]);
+
+  // 2) Подписка зависит ТОЛЬКО от carId (и qc)
   useEffect(() => {
     if (!carId) return;
 
@@ -30,26 +38,22 @@ export function useCarExtrasRealtime(
           const type = payload.eventType as ChangeType;
           const row = type === "DELETE" ? payload.old : payload.new;
 
-          // безопасно: если вдруг пусто — просто дёрнем рефетч
-          if (!row) {
-            qc.invalidateQueries({
-              queryKey: QK.carExtras(carId),
-              refetchType: "all",
-            });
-            return;
-          }
+          // вызываем актуальный onChange из ref
+          cbRef.current?.({ type, row });
 
-          onChange?.({ type, row });
+          // и дергаем рефетч для бэкапа
           qc.invalidateQueries({
             queryKey: QK.carExtras(carId),
             refetchType: "all",
           });
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log("[RT car_extras]", status, { carId });
+      });
 
     return () => {
       void supabase.removeChannel(ch);
     };
-  }, [carId, onChange, qc]);
+  }, [carId, qc]); // <-- без onChange!
 }

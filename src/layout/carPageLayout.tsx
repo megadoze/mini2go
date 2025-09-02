@@ -119,39 +119,12 @@ export default function CarPageLayout() {
     }
   });
 
-  // useCarExtrasRealtime(
-  //   String(car?.id ?? carId ?? "") || null,
-  //   ({ type, row }) => {
-  //     if (!row || !row.extra_id) return;
-  //     setExtras((prev) => {
-  //       if (!Array.isArray(prev)) return prev;
-
-  //       if (type === "DELETE") {
-  //         // выключили экстру
-  //         return prev.map((e) =>
-  //           e.extra_id === row.extra_id
-  //             ? { ...e, is_available: false, price: 0 }
-  //             : e
-  //         );
-  //       }
-
-  //       // INSERT/UPDATE — включили/обновили цену
-  //       const nextPrice = Number(row.price ?? 0);
-  //       return prev.map((e) =>
-  //         e.extra_id === row.extra_id
-  //           ? { ...e, is_available: true, price: nextPrice }
-  //           : e
-  //       );
-  //     });
-  //   }
-  // );
   useCarExtrasRealtime(
     String(car?.id ?? carId ?? "") || null,
     async ({ type, row }) => {
       const currentCarId = String(car?.id ?? carId ?? "");
       if (!currentCarId) return;
 
-      // ВАРИАНТ А: пришёл extra_id — патчим точечно
       const patchByExtraId = (
         extraId: string,
         next: { on: boolean; price?: number }
@@ -174,11 +147,8 @@ export default function CarPageLayout() {
         const extraId = row?.extra_id as string | undefined;
 
         if (extraId) {
-          // обычный путь: пришёл extra_id
           patchByExtraId(extraId, { on: false });
         } else {
-          // ВАЖНО: fallback — когда в payload.old НЕТ extra_id.
-          // Берём актуальные связи из БД и полностью пересобираем контекст extras.
           const carExtras = await fetchCarExtras(currentCarId);
           const allExtras = (qc.getQueryData<any[]>(QK.extras) ?? []).filter(
             (x) => x.is_active
@@ -224,40 +194,6 @@ export default function CarPageLayout() {
       }
     }
   );
-
-  // useEffect(() => {
-  //   const bc = new BroadcastChannel("car-extras");
-  //   const handler = (ev: MessageEvent) => {
-  //     const msg = ev.data as {
-  //       carId: string;
-  //       extraId: string;
-  //       isAvailable: boolean;
-  //       price: number;
-  //     };
-  //     const currentId = String(car?.id ?? carId ?? "");
-  //     if (!currentId || msg.carId !== currentId) return;
-
-  //     setExtras((prev) =>
-  //       Array.isArray(prev)
-  //         ? prev.map((e) =>
-  //             e.extra_id === msg.extraId
-  //               ? {
-  //                   ...e,
-  //                   is_available: msg.isAvailable,
-  //                   price: msg.isAvailable ? msg.price : 0,
-  //                 }
-  //               : e
-  //           )
-  //         : prev
-  //     );
-  //   };
-
-  //   bc.addEventListener("message", handler);
-  //   return () => {
-  //     bc.removeEventListener("message", handler); // ← добавили
-  //     bc.close();
-  //   };
-  // }, [car?.id, carId, setExtras]);
 
   // Синхронизация из loader без перетирания bookings
   useEffect(() => {
