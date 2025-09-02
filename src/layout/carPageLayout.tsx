@@ -24,9 +24,13 @@ import {
 } from "@/app/car/pricing/pricing.service";
 import { getGlobalSettings } from "@/services/settings.service";
 import type { AppSettings } from "@/types/setting";
-import { fetchCarById, fetchCarExtras } from "@/services/car.service";
-import { fetchBookingsByCarId } from "@/app/car/calendar/calendar.service"; // ⬅️ добавлено
-import { useQueryClient } from "@tanstack/react-query";
+import {
+  fetchCarById,
+  fetchCarExtras,
+  fetchExtras,
+} from "@/services/car.service";
+import { fetchBookingsByCarId } from "@/app/car/calendar/calendar.service";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCarsRealtime } from "@/hooks/useCarsRealtime";
 import { useCarFeaturesRealtimeRQ } from "@/hooks/useCarFeaturesRealtime";
 import { useCarExtrasRealtime } from "@/hooks/useCarExtrasRealtime";
@@ -43,12 +47,11 @@ type LoaderData = {
 export default function CarPageLayout() {
   const [opened, { toggle }] = useDisclosure();
   const { carId } = useParams();
-
   const qc = useQueryClient();
 
   const userCache = useRef(new Map<string, any>());
 
-  // 1) Из loader
+  // ----- loader -----
   const {
     car: loaderCar,
     globalSettings: loaderGS,
@@ -57,7 +60,7 @@ export default function CarPageLayout() {
     seasonalRates: loaderSR,
   } = useLoaderData() as LoaderData;
 
-  // 2) Локальные состояния (с безопасными bookings)
+  // ----- локальные стейты -----
   const [car, setCar] = useState<CarWithModelRelations>({
     ...loaderCar,
     bookings: (loaderCar as any)?.bookings ?? [],
@@ -80,7 +83,6 @@ export default function CarPageLayout() {
     latitude: loaderCar.lat ?? 0,
     longitude: loaderCar.long ?? 0,
   });
-
   const [pickupInfo, setPickupInfo] = useState({
     pickupInfo: loaderCar.pickupInfo,
     returnInfo: loaderCar.returnInfo,
@@ -91,22 +93,69 @@ export default function CarPageLayout() {
     loaderCar.includeMileage
   );
 
-  // 3) Флаги загрузки
   const [loadingCar, setLoadingCar] = useState(false);
   const [loadingGlobal, setLoadingGlobal] = useState(false);
 
-  const getCarId = () => String((car as any)?.id ?? carId);
+  // ===== ЕДИНСТВЕННЫЙ id МАШИНЫ =====
+  const carIdStr = useMemo(
+    () => String(car?.id ?? carId ?? ""),
+    [car?.id, carId]
+  );
 
-  useCarFeaturesRealtimeRQ(carId || null);
+  // справочник экстр
+  const extrasQ = useQuery({
+    queryKey: QK.extras,
+    queryFn: fetchExtras,
+    staleTime: 5 * 60_000,
+  });
+
+  // экстры конкретной машины + бэкап-пуллинг
+  const carExtrasQ = useQuery({
+    queryKey: QK.carExtras(carIdStr),
+    queryFn: () => fetchCarExtras(carIdStr),
+    enabled: !!carIdStr,
+    staleTime: 30_000,
+    refetchOnWindowFocus: true,
+    refetchInterval: 60_000,
+  });
+
+  // вместо onSuccess:
+  useEffect(() => {
+    const rows = carExtrasQ.data;
+    const allExtras = extrasQ.data;
+
+    if (!rows || !allExtras) return;
+
+    const merged = allExtras
+      .filter((x: any) => x.is_active)
+      .map((meta: any) => {
+        const hit = rows.find((r: any) => r.extra_id === meta.id);
+        return {
+          extra_id: meta.id,
+          price: hit?.price ?? 0,
+          is_available: !!hit,
+          meta,
+        };
+      });
+
+    setExtras((prev) => {
+      const compact = (a: any[]) =>
+        a.map((e) => ({ id: e.extra_id, p: e.price, on: e.is_available }));
+      return JSON.stringify(compact(prev ?? [])) ===
+        JSON.stringify(compact(merged))
+        ? prev
+        : merged;
+    });
+  }, [carExtrasQ.data, extrasQ.data, setExtras]);
+
+  // ===== Realtime фичи/экстры/машина =====
+  useCarFeaturesRealtimeRQ(carIdStr || null);
 
   useCarsRealtime((id, patch) => {
-    const currentId = String(car?.id ?? carId ?? "");
-    if (!currentId || String(id) !== currentId) return;
+    if (!carIdStr || String(id) !== carIdStr) return;
 
-    //   // Обновляем объект авто в контексте
     setCar((prev: any) => (prev ? { ...prev, ...patch } : prev));
 
-    //   // Точечно синкаем поля, которые у тебя лежат отдельными стейтами
     if ("includeMileage" in patch) setIncludeMileage(patch.includeMileage);
     if ("isDelivery" in patch) setIsDelivery(patch.isDelivery);
     if ("deliveryFee" in patch) setDeliveryFee(patch.deliveryFee);
@@ -119,83 +168,77 @@ export default function CarPageLayout() {
     }
   });
 
-  useCarExtrasRealtime(
-    String(car?.id ?? carId ?? "") || null,
-    async ({ type, row }) => {
-      const currentCarId = String(car?.id ?? carId ?? "");
-      if (!currentCarId) return;
+  useCarExtrasRealtime(carIdStr || null, async ({ type, row }) => {
+    if (!carIdStr) return;
 
-      const patchByExtraId = (
-        extraId: string,
-        next: { on: boolean; price?: number }
-      ) => {
-        setExtras((prev) => {
-          if (!Array.isArray(prev)) return prev;
-          return prev.map((e) =>
-            e.extra_id === extraId
-              ? {
-                  ...e,
-                  is_available: next.on,
-                  price: next.on ? Number(next.price ?? 0) : 0,
-                }
-              : e
-          );
-        });
-      };
+    const patchByExtraId = (
+      extraId: string,
+      next: { on: boolean; price?: number }
+    ) => {
+      setExtras((prev) =>
+        Array.isArray(prev)
+          ? prev.map((e) =>
+              e.extra_id === extraId
+                ? {
+                    ...e,
+                    is_available: next.on,
+                    price: next.on ? Number(next.price ?? 0) : 0,
+                  }
+                : e
+            )
+          : prev
+      );
+    };
 
-      if (type === "DELETE") {
-        const extraId = row?.extra_id as string | undefined;
-
-        if (extraId) {
-          patchByExtraId(extraId, { on: false });
-        } else {
-          const carExtras = await fetchCarExtras(currentCarId);
-          const allExtras = (qc.getQueryData<any[]>(QK.extras) ?? []).filter(
-            (x) => x.is_active
-          );
-
-          setExtras(
-            allExtras.map((meta: any) => {
-              const match = carExtras.find((ce) => ce.extra_id === meta.id);
-              return {
-                extra_id: meta.id,
-                price: match?.price ?? 0,
-                is_available: !!match,
-                meta,
-              };
-            })
-          );
-        }
-        return;
+    if (type === "DELETE") {
+      const extraId = row?.extra_id as string | undefined;
+      if (extraId) {
+        patchByExtraId(extraId, { on: false });
+      } else {
+        const carExtras = await fetchCarExtras(carIdStr);
+        const allExtras = (qc.getQueryData<any[]>(QK.extras) ?? []).filter(
+          (x) => x.is_active
+        );
+        setExtras(
+          allExtras.map((meta: any) => {
+            const match = carExtras.find((ce) => ce.extra_id === meta.id);
+            return {
+              extra_id: meta.id,
+              price: match?.price ?? 0,
+              is_available: !!match,
+              meta,
+            };
+          })
+        );
       }
+      return;
+    }
 
-      if (type === "INSERT" || type === "UPDATE") {
-        const extraId = row?.extra_id as string | undefined;
-        if (extraId) {
-          patchByExtraId(extraId, { on: true, price: row?.price });
-        } else {
-          // крайне редко, но на всякий — одинаковый fallback
-          const carExtras = await fetchCarExtras(currentCarId);
-          const allExtras = (qc.getQueryData<any[]>(QK.extras) ?? []).filter(
-            (x) => x.is_active
-          );
-          setExtras(
-            allExtras.map((meta: any) => {
-              const match = carExtras.find((ce) => ce.extra_id === meta.id);
-              return {
-                extra_id: meta.id,
-                price: match?.price ?? 0,
-                is_available: !!match,
-                meta,
-              };
-            })
-          );
-        }
+    if (type === "INSERT" || type === "UPDATE") {
+      const extraId = row?.extra_id as string | undefined;
+      if (extraId) {
+        patchByExtraId(extraId, { on: true, price: row?.price });
+      } else {
+        const carExtras = await fetchCarExtras(carIdStr);
+        const allExtras = (qc.getQueryData<any[]>(QK.extras) ?? []).filter(
+          (x) => x.is_active
+        );
+        setExtras(
+          allExtras.map((meta: any) => {
+            const match = carExtras.find((ce) => ce.extra_id === meta.id);
+            return {
+              extra_id: meta.id,
+              price: match?.price ?? 0,
+              is_available: !!match,
+              meta,
+            };
+          })
+        );
       }
     }
-  );
+  });
 
-  // Синхронизация из loader без перетирания bookings
+  // ===== Синк из loader (без перетирания bookings) =====
   useEffect(() => {
     setCar((prev) => ({
       ...prev,
@@ -218,13 +261,12 @@ export default function CarPageLayout() {
     setIncludeMileage(loaderCar.includeMileage);
   }, [loaderCar?.id, loaderGS, loaderExtras, loaderPR, loaderSR]);
 
-  // 4) Рефетчи
+  // ===== Рефетчи =====
   const refreshPricingData = async () => {
-    const carId = getCarId();
-    if (!carId) return;
+    if (!carIdStr) return;
     const [rules, seasons] = await Promise.all([
-      fetchPricingRules(carId),
-      fetchSeasonalRates(carId),
+      fetchPricingRules(carIdStr),
+      fetchSeasonalRates(carIdStr),
     ]);
     setPricingRules(rules);
     setSeasonalRates(seasons);
@@ -241,14 +283,13 @@ export default function CarPageLayout() {
   };
 
   const refreshCar = async () => {
-    const carId = getCarId();
-    if (!carId) return;
+    if (!carIdStr) return;
     setLoadingCar(true);
     try {
       const [data, bookings, carExtras] = await Promise.all([
-        fetchCarById(carId),
-        fetchBookingsByCarId(carId), // ⬅️ тянем брони вместе с машиной
-        fetchCarExtras(carId),
+        fetchCarById(carIdStr),
+        fetchBookingsByCarId(carIdStr),
+        fetchCarExtras(carIdStr),
       ]);
 
       setCar((prev) => ({
@@ -267,7 +308,7 @@ export default function CarPageLayout() {
       setDeliveryFee(data.deliveryFee);
       setIncludeMileage(data.includeMileage);
 
-      const allExtras = qc.getQueryData<any[]>(["extras"]) ?? [];
+      const allExtras = qc.getQueryData<any[]>(QK.extras) ?? [];
       const extrasWithState = allExtras.map((extra) => {
         const match = carExtras.find((ce) => ce.extra_id === extra.id);
         return {
@@ -283,7 +324,7 @@ export default function CarPageLayout() {
     }
   };
 
-  // 5) Меню
+  // ===== Меню =====
   const menuItems = useMemo(
     () => [
       {
@@ -388,7 +429,7 @@ export default function CarPageLayout() {
     </>
   );
 
-  // 6) Effective
+  // ===== Effective =====
   const effective = useMemo(() => {
     if (!car || !globalSettings) return {};
     const coalesce = <T,>(a: T | null | undefined, b: T) =>
