@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { NavLink, Outlet, useParams, useLoaderData } from "react-router-dom";
-import { AppShell, Burger } from "@mantine/core";
-import { useDisclosure } from "@mantine/hooks";
+import { AppShell, Burger, Drawer } from "@mantine/core";
+import { useDisclosure, useMediaQuery } from "@mantine/hooks";
 import {
   AdjustmentsHorizontalIcon,
   CalendarDateRangeIcon,
@@ -47,6 +47,8 @@ type LoaderData = {
 export default function CarPageLayout() {
   const [opened, { toggle }] = useDisclosure();
   const { carId: routeCarId } = useParams();
+
+  const isMobile = useMediaQuery("(max-width: 48em)");
 
   const qc = useQueryClient();
 
@@ -118,17 +120,6 @@ export default function CarPageLayout() {
     refetchOnWindowFocus: true,
     refetchInterval: 60_000,
   });
-
-  useEffect(() => {
-    if (opened) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
-    }
-    return () => {
-      document.body.style.overflow = "";
-    };
-  }, [opened]);
 
   // вместо onSuccess:
   useEffect(() => {
@@ -452,12 +443,33 @@ export default function CarPageLayout() {
         </div>
       </AppShell.Header>
 
-      <AppShell.Navbar p="md">
-        <SidebarMenu />
-        <div className="lg:hidden fixed bottom-0">
-          <UserMenu onClick={toggle} />
-        </div>
-      </AppShell.Navbar>
+      {!isMobile && (
+        <AppShell.Navbar p="md">
+          <SidebarMenu />
+          <div className="lg:hidden fixed bottom-0">
+            <UserMenu onClick={toggle} />
+          </div>
+        </AppShell.Navbar>
+      )}
+
+      {isMobile && (
+        <Drawer
+          opened={opened}
+          onClose={toggle}
+          size="100%"
+          withCloseButton={true}
+          padding="md"
+          lockScroll // дефолт true, но оставлю явно
+          trapFocus
+          withinPortal
+          overlayProps={{ opacity: 0.2 }}
+        >
+          <SidebarMenu />
+          <div className="fixed bottom-0">
+            <UserMenu onClick={toggle} />
+          </div>
+        </Drawer>
+      )}
 
       <AppShell.Main>
         <CarContext.Provider

@@ -1414,7 +1414,7 @@ export default function BookingEditor() {
                   aria-valuenow={tripProgress}
                 >
                   <div
-                    className="h-full rounded-full transition-[width] duration-500 bg-green-400"
+                    className="h-full rounded-full transition-[width] duration-500 bg-green-400/90"
                     style={{ width: `${tripProgress}%` }}
                   />
                 </div>

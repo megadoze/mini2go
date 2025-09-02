@@ -433,21 +433,21 @@ function MotionToggle({
   return (
     <div
       className={`${
-        checked ? "border-emerald-500 bg-white" : ""
+        checked ? "border-green-300 bg-white" : ""
       } flex justify-between items-center mt-8 rounded-2xl border bg-gray-50 py-5 px-6 ${
         disabled ? "opacity-60" : ""
       }`}
       aria-disabled={disabled}
     >
       <div className="flex-1">
-        <p className={`${checked ? "text-emerald-600" : ""} text-lg font-medium`}>
+        <p className={`${checked ? "text-green-500" : ""} text-lg font-medium`}>
           {label}
         </p>
         <p className="text-gray-600 mt-1">{description}</p>
       </div>
       <div
         className={`${
-          checked ? "bg-emerald-500 justify-end" : "justify-start bg-gray-300"
+          checked ? "bg-green-400 justify-end" : "justify-start bg-gray-300"
         } ${
           disabled ? "pointer-events-none" : "cursor-pointer"
         } w-16 h-10 flex items-center rounded-full p-1`}
