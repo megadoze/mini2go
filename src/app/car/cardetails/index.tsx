@@ -338,7 +338,7 @@ export default function CarDetails() {
 
   return (
     <div className="mb-4 w-full xl:max-w-2xl">
-      <h1 className="font-openSans text-2xl font-bold">Car details</h1>
+      <h1 className="font-robotoCondensed text-2xl font-bold">Car details</h1>
       <div className="border-b border-gray-100 mt-5 shadow-sm"></div>
       <div className="flex justify-between items-center mt-5">
         <p className="text-lg font-medium text-gray-800">Your car</p>

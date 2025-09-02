@@ -325,7 +325,7 @@ export default function BookingsList() {
   return (
     <main className="w-full font-roboto">
       <header className="flex items-end justify-between mb-4">
-        <h1 className="font-openSans text-2xl font-bold">Bookings</h1>
+        <h1 className="font-robotoCondensed text-2xl font-bold">Bookings</h1>
       </header>
 
       {/* Desktop filters row */}

@@ -129,7 +129,7 @@ export default function CarsPage() {
       {/* Header */}
       <div className="flex justify-between items-center mb-4">
         <div className="flex items-center gap-2">
-          <h1 className="font-openSans font-bold text-2xl">Cars</h1>
+          <h1 className="font-robotoCondensed font-bold text-2xl">Cars</h1>
           {cars.length > 0 && <Badge color="black">{cars.length}</Badge>}
         </div>
         <button

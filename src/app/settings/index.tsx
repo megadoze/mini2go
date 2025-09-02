@@ -193,7 +193,7 @@ export default function SettingsGlobal() {
 
   return (
     <main className="mb-4 w-full xl:max-w-2xl">
-      <h2 className="text-2xl font-semibold text-gray-900">
+      <h2 className="text-2xl font-robotoCondensed font-semibold text-gray-900">
         Global booking settings
       </h2>
       {/* <hr className="border-gray-200 my-4" /> */}
@@ -405,7 +405,9 @@ export default function SettingsGlobal() {
         )}
         <button
           className={`${
-            dirty ? "border-gray-600 text-gray-700" : "border-gray-300 text-gray-400 cursor-not-allowed"
+            dirty
+              ? "border-gray-600 text-gray-700"
+              : "border-gray-300 text-gray-400 cursor-not-allowed"
           } border rounded-md px-8 py-2`}
           disabled={!dirty}
           onClick={handleSave}

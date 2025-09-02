@@ -100,7 +100,7 @@ const ExtraComponent = () => {
 
   return (
     <div className="mb-4 w-full xl:max-w-2xl">
-      <div className="font-semibold text-2xl text-gray-800">{extraName}</div>
+      <div className=" font-robotoCondensed font-semibold text-2xl text-gray-800">{extraName}</div>
       <div className="border-b border-gray-100 mt-5 shadow-sm"></div>
 
       <div className="mt-5">

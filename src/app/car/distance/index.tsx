@@ -55,7 +55,7 @@ const Distance = () => {
 
   return (
     <div className="mb-4 w-full xl:max-w-2xl">
-      <div className="font-semibold text-2xl text-gray-800">
+      <div className=" font-robotoCondensed font-semibold text-2xl text-gray-800">
         Distance included
       </div>
       <div className="border-b border-gray-100 mt-5 shadow-sm"></div>
