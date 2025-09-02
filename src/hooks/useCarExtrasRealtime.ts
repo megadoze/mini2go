@@ -1,50 +1,42 @@
-// // src/hooks/useCarExtrasRealtime.ts
+// src/hooks/useCarExtrasRealtime.ts
 import { useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { QK } from "@/queryKeys";
 import type {
-  RealtimeChannel,
   RealtimePostgresChangesPayload,
+  RealtimeChannel,
 } from "@supabase/supabase-js";
 
 type ChangeType = "INSERT" | "UPDATE" | "DELETE";
 type OnChange = (e: { type: ChangeType; row: any }) => void;
-
-// реюзаем один канал на topic, чтобы не плодить дубли при ремаунтах
-const byTopic: Record<string, RealtimeChannel> = {};
 
 export function useCarExtrasRealtime(
   carId: string | null,
   onChange?: OnChange
 ) {
   const qc = useQueryClient();
-  const cbRef = useRef(onChange);
+
+  const cbRef = useRef<OnChange | undefined>(onChange);
   useEffect(() => {
     cbRef.current = onChange;
   }, [onChange]);
-
-  const kickTs = useRef(0);
 
   useEffect(() => {
     if (!carId) return;
 
     const topic = `car-extras-${carId}`;
+    let ch: RealtimeChannel | null = null;
+    let cancelled = false;
+    let attempt = 0;
+    let reopening = false;
 
-    // берём существующий или создаём
-    const ch = byTopic[topic] ?? (byTopic[topic] = supabase.channel(topic));
-    let wired = false;
-    let joined = (ch as any).state === "joined";
+    const backoff = () =>
+      Math.min(1500 * Math.pow(2, attempt++), 10_000) +
+      Math.floor(Math.random() * 300);
 
-    const isOnline = () =>
-      typeof navigator === "undefined" ? true : navigator.onLine;
-
-    const wireOnce = () => {
-      if (wired) return;
-      wired = true;
-
-      // изменения из БД
-      ch.on(
+    const wire = (channel: RealtimeChannel) => {
+      channel.on(
         "postgres_changes",
         {
           event: "*",
@@ -56,6 +48,8 @@ export function useCarExtrasRealtime(
           const type = payload.eventType as ChangeType;
           const row = type === "DELETE" ? payload.old : payload.new;
           cbRef.current?.({ type, row });
+
+          // страховочный рефетч
           qc.invalidateQueries({
             queryKey: QK.carExtras(carId),
             refetchType: "all",
@@ -63,67 +57,79 @@ export function useCarExtrasRealtime(
         }
       );
 
-      // единый обработчик статусов
-      ch.subscribe(async (status) => {
+      channel.subscribe(async (status) => {
         console.log("[RT car_extras]", status, { carId });
 
         if (status === "SUBSCRIBED") {
-          joined = true;
+          attempt = 0;
+          reopening = false;
           await qc.invalidateQueries({
             queryKey: QK.carExtras(carId),
             refetchType: "all",
           });
-        } else if (
+          return;
+        }
+
+        if (
           status === "CHANNEL_ERROR" ||
           status === "TIMED_OUT" ||
           status === "CLOSED"
         ) {
-          // не отписываемся и не удаляем канал — даём Realtime самому реjoin'иться
-          joined = false;
+          if (cancelled || reopening) return;
+          reopening = true;
+
+          const delay = backoff();
+          setTimeout(async () => {
+            if (cancelled) return;
+            try {
+              await ch?.unsubscribe();
+            } catch {}
+            try {
+              supabase.removeChannel(ch!);
+            } catch {}
+
+            ch = supabase.channel(topic);
+            wire(ch);
+          }, delay);
         }
       });
     };
 
-    wireOnce();
+    // первый запуск
+    ch = supabase.channel(topic);
+    wire(ch);
 
-    // лёгкий пинок: НИЧЕГО не делаем с сокетом здесь, только просим канал попробовать join и рефетчим
+    // «пинок» когда вкладка снова видима или сеть вернулась
     const kick = () => {
-      const now = Date.now();
-      if (now - kickTs.current < 1500) return; // троттлинг
-      kickTs.current = now;
+      if (cancelled) return;
+      const st = (ch as any)?.state; // private, но другого нет
+      if (st === "joined" || st === "joining") return;
 
-      if (isOnline() && !joined) {
-        // повторный join БЕЗ колбэка (чтобы не плодить обработчики)
-        ch.subscribe();
-      }
-      qc.invalidateQueries({
-        queryKey: QK.carExtras(carId),
-        refetchType: "all",
-      });
+      try {
+        supabase.removeChannel(ch!);
+      } catch {}
+      ch = supabase.channel(topic);
+      wire(ch);
     };
 
-    const onOnline = () => kick();
-    const onVisibility = () => {
+    const onVisible = () => {
       if (document.visibilityState === "visible") kick();
     };
+    const onOnline = () => kick();
 
+    document.addEventListener("visibilitychange", onVisible);
     window.addEventListener("online", onOnline);
-    document.addEventListener("visibilitychange", onVisibility);
 
     return () => {
+      cancelled = true;
+      document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("online", onOnline);
-      document.removeEventListener("visibilitychange", onVisibility);
-      // Канал не удаляем — он шарится по topic.
-      // Если хочешь агрессивный cleanup: расскомментируй блок ниже, но тогда следи, чтобы других подписок на этот topic не было.
-      // (async () => {
-      //   try {
-      //     await ch.unsubscribe();
-      //   } catch {}
-      //   try {
-      //     supabase.removeChannel(ch);
-      //   } catch {}
-      //   delete byTopic[topic];
-      // })();
+      try {
+        ch?.unsubscribe();
+      } catch {}
+      try {
+        supabase.removeChannel(ch!);
+      } catch {}
     };
   }, [carId, qc]);
 }
