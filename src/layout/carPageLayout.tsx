@@ -347,13 +347,13 @@ export default function CarPageLayout() {
         <img
           src={car?.photos?.[0]}
           alt=""
-          className="rounded-full w-20 h-20 object-cover object-left"
+          className="rounded-full w-16 h-16 object-cover object-left"
         />
         <div>
           <p className="font-medium leading-4">
             {car?.model?.brands?.name} {car?.model?.name}
           </p>
-          <p className="mt-2 px-1 rounded-sm border border-black w-fit text-sm">
+          <p className="mt-1 px-1 rounded-sm border border-zinc/80 shadow shadow-sm w-fit text-sm">
             {car.licensePlate}
           </p>
           <p
