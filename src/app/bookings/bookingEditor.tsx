@@ -19,14 +19,24 @@ import {
   upsertBookingExtras,
 } from "@/services/booking-extras.service";
 import { calculateFinalPriceProRated } from "@/hooks/useFinalPriceHourly";
-import { differenceInMinutes, isAfter, isEqual, parseISO } from "date-fns";
+import {
+  differenceInMinutes,
+  format,
+  isAfter,
+  isEqual,
+  parseISO,
+} from "date-fns";
 import { Select, Checkbox, Badge } from "@mantine/core";
 import {
   searchUsers,
   createUserProfile,
   getUserById,
 } from "@/services/user.service";
-import { ShareIcon } from "@heroicons/react/24/outline";
+import {
+  ArrowRightIcon,
+  CalendarDaysIcon,
+  ShareIcon,
+} from "@heroicons/react/24/outline";
 import { subscribeBooking } from "@/services/bookings.service";
 import { QK } from "@/queryKeys";
 
@@ -301,6 +311,16 @@ export default function BookingEditor() {
     status === "canceledClient";
 
   const isDisabled = status === "rent" || status === "block" || isFinished;
+
+  // ДО JSX
+  const s = String(status);
+  const backOnly =
+    s === "rent" ||
+    s === "finished" ||
+    s === "canceled" ||
+    s === "canceledHost" ||
+    s === "canceledClient" ||
+    s.startsWith("canceled");
 
   // Лайв-тик раз в 30 сек
   const [tick, setTick] = useState(0);
@@ -1124,7 +1144,7 @@ export default function BookingEditor() {
   // статус UI
   const statusView = useMemo(() => {
     const s = status;
-    if (s === "rent") return { text: s, cls: "lime" };
+    if (s === "rent") return { text: s, cls: "green" };
     if (s === "confirmed") return { text: s, cls: "orange" };
     if (s === "onApproval") return { text: s, cls: "blue" };
     if (s === "finished") return { text: s, cls: "dark" };
@@ -1137,6 +1157,9 @@ export default function BookingEditor() {
     status && (status === "confirmed" || status === "onApproval");
 
   const containerPad = showMobileActionBar ? "pb-24 lg:pb-0" : "";
+
+  // если backOnly === true — принудительно показываем бар
+  const showBar = showMobileActionBar || backOnly;
 
   const deliveryOptions = useMemo(() => {
     const opts = [
@@ -1173,7 +1196,7 @@ export default function BookingEditor() {
             ) : (
               <>
                 Booking #
-                <span className=" font-normal text-lime-500">{displayId}</span>
+                <span className=" font-normal text-green-500">{displayId}</span>
               </>
             )}
           </h1>
@@ -1289,37 +1312,64 @@ export default function BookingEditor() {
             <p className="font-medium text-base sm:text-lg text-gray-800">
               Dates of trip
             </p>
-            <div className="flex flex-col md:flex-row md:items-center gap-6 mt-2">
+            <div className="flex items-center justify-between sm:justify-normal flex-wrap md:items-center mt-2">
               <div>
                 <label className="block text-sm mb-1">Start</label>
                 {!isFinished ? (
-                  <input
-                    type="datetime-local"
-                    step={60}
-                    className="w-full border rounded px-2 py-1 disabled:bg-white"
-                    value={toLocalDT(startDateInp)}
-                    onChange={(e) =>
-                      setStartDateInp(fromLocalDT(e.target.value))
-                    }
-                    disabled={isDisabled}
-                  />
+                  status !== "rent" ? (
+                    <input
+                      type="datetime-local"
+                      step={60}
+                      className="w-full border rounded px-2 py-1 disabled:bg-white"
+                      value={toLocalDT(startDateInp)}
+                      onChange={(e) =>
+                        setStartDateInp(fromLocalDT(e.target.value))
+                      }
+                      disabled={isDisabled}
+                    />
+                  ) : (
+                    // fmt(startDateInp)
+                    // <div className="mt-1 text-sm sm:hidden">
+                    <p className=" inline-flex items-center gap-2">
+                      <CalendarDaysIcon className="size-5" />
+                      {format(
+                        new Date(startDateInp).toISOString(),
+                        "d MMM yy, hh:mm"
+                      )}
+                    </p>
+                  )
                 ) : (
                   <p className="line-through">{fmt(startDateInp)} </p>
                 )}
               </div>
-
+              {isFinished && <ArrowRightIcon className="sm:mx-5 size-5" />}
+              {!isFinished && (
+                <div className="w-full sm:mx-2 sm:my-0 sm:w-0 my-2"></div>
+              )}
               <div>
                 <label className="block text-sm mb-1">End</label>
                 {!isFinished ? (
-                  <input
-                    type="datetime-local"
-                    step={60}
-                    className="w-full border rounded px-2 py-1 disabled:bg-white"
-                    value={toLocalDT(endDateInp)}
-                    min={startDateInp ? toLocalDT(startDateInp) : undefined}
-                    onChange={(e) => setEndDateInp(fromLocalDT(e.target.value))}
-                    disabled={isDisabled}
-                  />
+                  status !== "rent" ? (
+                    <input
+                      type="datetime-local"
+                      step={60}
+                      className="w-full border rounded px-2 py-1 disabled:bg-white"
+                      value={toLocalDT(endDateInp)}
+                      min={startDateInp ? toLocalDT(startDateInp) : undefined}
+                      onChange={(e) =>
+                        setEndDateInp(fromLocalDT(e.target.value))
+                      }
+                      disabled={isDisabled}
+                    />
+                  ) : (
+                    <p className=" inline-flex items-center gap-2">
+                      <CalendarDaysIcon className="size-5" />
+                      {format(
+                        new Date(endDateInp).toISOString(),
+                        "d MMM yy, hh:mm"
+                      )}
+                    </p>
+                  )
                 ) : (
                   <p className="line-through">{fmt(endDateInp)}</p>
                 )}
@@ -1343,6 +1393,33 @@ export default function BookingEditor() {
                 {durationDays}d {durationHours}h {durationMinutes}m
               </span>
             </div>
+          </section>
+
+          <section>
+            {status === "rent" && typeof tripProgress === "number" && (
+              <div className="mt-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-gray-800">
+                    Trip progress
+                  </span>
+                  <span className="text-sm font-medium text-gray-800">
+                    {tripProgress}%
+                  </span>
+                </div>
+                <div
+                  className="h-2 w-full rounded-full bg-gray-100 overflow-hidden"
+                  role="progressbar"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={tripProgress}
+                >
+                  <div
+                    className="h-full rounded-full transition-[width] duration-500 bg-green-400"
+                    style={{ width: `${tripProgress}%` }}
+                  />
+                </div>
+              </div>
+            )}
           </section>
 
           {/* Клиент: только в create-режиме */}
@@ -1590,28 +1667,8 @@ export default function BookingEditor() {
           )}
 
           {error && <div className="mt-3 text-red-600 text-sm">{error}</div>}
-          {/* 
-          {(mode === "create" ||
-            status === "onApproval" ||
-            status === "confirmed") && (
-            <div className="mt-4 flex justify-end gap-2">
-              <button
-                className="px-3 py-1 border rounded text-sm"
-                onClick={() => navigate(-1)}
-              >
-                Cancel
-              </button>
-              <button
-                className="px-3 py-1 border rounded text-sm"
-                onClick={handleSave}
-                disabled={isLoading || invalidTime}
-              >
-                {mode === "create" ? "Create" : "Save"}
-              </button>
-            </div>
-          )} */}
 
-          <div className="flex justify-between items-centermt-8 text-right mt-10">
+          <div className="hidden lg:flex justify-between items-centermt-8 text-right mt-10">
             <button
               type="button"
               className={`border-gray-300 border rounded-md px-6 py-2 mr-2`}
@@ -1714,30 +1771,11 @@ export default function BookingEditor() {
             <>
               <section id="dates" className="mt-6">
                 {status === "rent" && typeof tripProgress === "number" && (
-                  <div className="mt-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium text-gray-800">
-                        Trip progress
-                      </span>
-                      <span className="text-sm font-medium text-gray-800">
-                        {tripProgress}%
-                      </span>
-                    </div>
-                    <div
-                      className="h-2 w-full rounded-full bg-gray-100 overflow-hidden"
-                      role="progressbar"
-                      aria-valuemin={0}
-                      aria-valuemax={100}
-                      aria-valuenow={tripProgress}
-                    >
-                      <div
-                        className="h-full rounded-full transition-[width] duration-500 bg-lime-400"
-                        style={{ width: `${tripProgress}%` }}
-                      />
-                    </div>
-                  </div>
+                  <p className="w-full inline-flex justify-between border rounded-md px-4 py-2">
+                    <span>Trip progress</span>
+                    {tripProgress}%
+                  </p>
                 )}
-
                 {status === "confirmed" ? (
                   <p className=" border rounded-md px-4 py-2">
                     Trip starts in:&nbsp;
@@ -1886,7 +1924,7 @@ export default function BookingEditor() {
       </div>
 
       {/* MOBILE ACTION BAR (floating) */}
-      {showMobileActionBar && (
+      {showMobileActionBar && backOnly && (
         <div className="lg:hidden fixed inset-x-0 bottom-0 z-50 border-t border-gray-200 bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/70">
           <div
             className="px-4 py-3 flex gap-3 max-w-7xl mx-auto"
@@ -1894,21 +1932,76 @@ export default function BookingEditor() {
               paddingBottom: "calc(env(safe-area-inset-bottom) + 0.75rem)",
             }}
           >
-            {(status === "onApproval" || status === "confirmed") && (
+            <button
+              type="button"
+              className="flex-1 border-gray-300 border rounded-md px-6 py-2 mr-2"
+              onClick={() => navigate(-1)}
+            >
+              Back
+            </button>
+          </div>
+        </div>
+      )}
+
+      {showBar && (
+        <div className="lg:hidden fixed inset-x-0 bottom-0 z-50 border-t border-gray-200 bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/70">
+          <div
+            className="px-4 py-3 flex gap-3 max-w-7xl mx-auto"
+            style={{
+              paddingBottom: "calc(env(safe-area-inset-bottom) + 0.75rem)",
+            }}
+          >
+            {backOnly ? ( // ← если rent/finished/canceled* — только Back
               <button
-                onClick={handleCancel}
-                className="flex-1 border rounded-md border-gray-300 text-gray-700 py-3 text-sm active:scale-[.99] transition"
+                type="button"
+                className="flex-1 border-gray-300 border rounded-md px-6 py-2 mr-2 text-gray-700"
+                onClick={() => navigate(-1)}
               >
-                Cancel booking
+                Back
               </button>
-            )}
-            {status === "onApproval" && (
-              <button
-                onClick={handleConfirm}
-                className="flex-1 rounded-md border border-lime-400 text-lime-500 py-3 text-sm active:scale-[.99] transition"
-              >
-                Confirm booking
-              </button>
+            ) : (
+              <>
+                {mode !== "create" &&
+                (status === "onApproval" || status === "confirmed") &&
+                !isChanged ? (
+                  <button
+                    onClick={handleCancel}
+                    className="flex-1 border rounded-md border-gray-300 text-gray-700 py-3 text-sm active:scale-[.99] transition"
+                  >
+                    Cancel booking
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="flex-1 border-gray-300 border rounded-md px-6 py-2 mr-2 text-gray-700"
+                    onClick={() => navigate(-1)}
+                  >
+                    Back
+                  </button>
+                )}
+
+                {mode !== "create" && status === "onApproval" && !isChanged ? (
+                  <button
+                    onClick={handleConfirm}
+                    className="flex-1 rounded-md border border-green-300 text-green-400 py-3 text-sm active:scale-[.99] transition"
+                  >
+                    Confirm booking
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className={`${
+                      isChanged
+                        ? "border-green-300 text-green-400"
+                        : "border-gray-300 text-gray-400 cursor-not-allowed"
+                    } flex-1 border rounded-md px-8 py-2`}
+                    onClick={handleSave}
+                    disabled={isLoading || invalidTime || !isChanged}
+                  >
+                    Save
+                  </button>
+                )}
+              </>
             )}
           </div>
         </div>

@@ -12,6 +12,7 @@ import {
 } from "@heroicons/react/24/outline";
 import UserMenu from "@/components/userMenu";
 import { useCarsRealtime } from "@/hooks/useCarsRealtime";
+import { useEffect } from "react";
 
 export default function Layout() {
   useCarsRealtime();
@@ -66,6 +67,11 @@ export default function Layout() {
       onClick: toggle,
     },
   ];
+
+  // блокируем прокрутку фона при открытом меню navbar
+  useEffect(() => {
+    document.body.classList.toggle("overflow-hidden", opened);
+  }, [opened]);
 
   const SidebarMenu = () => {
     return (

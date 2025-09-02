@@ -119,6 +119,11 @@ export default function CarPageLayout() {
     refetchInterval: 60_000,
   });
 
+  // блокируем прокрутку фона при открытом меню navbar
+  useEffect(() => {
+    document.body.classList.toggle("overflow-hidden", opened);
+  }, [opened]);
+
   // вместо onSuccess:
   useEffect(() => {
     const rows = carExtrasQ.data;
@@ -187,76 +192,6 @@ export default function CarPageLayout() {
       );
     });
   });
-
-  // useCarExtrasRealtime(carIdStr || null, async ({ type, row }) => {
-  //   if (!carIdStr) return;
-
-  //   const patchByExtraId = (
-  //     extraId: string,
-  //     next: { on: boolean; price?: number }
-  //   ) => {
-  //     setExtras((prev) =>
-  //       Array.isArray(prev)
-  //         ? prev.map((e) =>
-  //             e.extra_id === extraId
-  //               ? {
-  //                   ...e,
-  //                   is_available: next.on,
-  //                   price: next.on ? Number(next.price ?? 0) : 0,
-  //                 }
-  //               : e
-  //           )
-  //         : prev
-  //     );
-  //   };
-
-  //   if (type === "DELETE") {
-  //     const extraId = row?.extra_id as string | undefined;
-  //     if (extraId) {
-  //       patchByExtraId(extraId, { on: false });
-  //     } else {
-  //       const carExtras = await fetchCarExtras(carIdStr);
-  //       const allExtras = (qc.getQueryData<any[]>(QK.extras) ?? []).filter(
-  //         (x) => x.is_active
-  //       );
-  //       setExtras(
-  //         allExtras.map((meta: any) => {
-  //           const match = carExtras.find((ce) => ce.extra_id === meta.id);
-  //           return {
-  //             extra_id: meta.id,
-  //             price: match?.price ?? 0,
-  //             is_available: !!match,
-  //             meta,
-  //           };
-  //         })
-  //       );
-  //     }
-  //     return;
-  //   }
-
-  //   if (type === "INSERT" || type === "UPDATE") {
-  //     const extraId = row?.extra_id as string | undefined;
-  //     if (extraId) {
-  //       patchByExtraId(extraId, { on: true, price: row?.price });
-  //     } else {
-  //       const carExtras = await fetchCarExtras(carIdStr);
-  //       const allExtras = (qc.getQueryData<any[]>(QK.extras) ?? []).filter(
-  //         (x) => x.is_active
-  //       );
-  //       setExtras(
-  //         allExtras.map((meta: any) => {
-  //           const match = carExtras.find((ce) => ce.extra_id === meta.id);
-  //           return {
-  //             extra_id: meta.id,
-  //             price: match?.price ?? 0,
-  //             is_available: !!match,
-  //             meta,
-  //           };
-  //         })
-  //       );
-  //     }
-  //   }
-  // });
 
   // ===== Синк из loader (без перетирания bookings) =====
   useEffect(() => {
