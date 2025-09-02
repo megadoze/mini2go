@@ -46,7 +46,8 @@ type LoaderData = {
 
 export default function CarPageLayout() {
   const [opened, { toggle }] = useDisclosure();
-  const { carId } = useParams();
+  const { carId: routeCarId } = useParams();
+
   const qc = useQueryClient();
 
   const userCache = useRef(new Map<string, any>());
@@ -59,6 +60,11 @@ export default function CarPageLayout() {
     pricingRules: loaderPR,
     seasonalRates: loaderSR,
   } = useLoaderData() as LoaderData;
+
+  // сразу после useParams:
+
+  // Один стабильный id для экрана (route → loader/ctx не меняют сам id)
+  const currentCarId = String(routeCarId ?? loaderCar?.id ?? "");
 
   // ----- локальные стейты -----
   const [car, setCar] = useState<CarWithModelRelations>({
@@ -96,12 +102,6 @@ export default function CarPageLayout() {
   const [loadingCar, setLoadingCar] = useState(false);
   const [loadingGlobal, setLoadingGlobal] = useState(false);
 
-  // ===== ЕДИНСТВЕННЫЙ id МАШИНЫ =====
-  const carIdStr = useMemo(
-    () => String(car?.id ?? carId ?? ""),
-    [car?.id, carId]
-  );
-
   // справочник экстр
   const extrasQ = useQuery({
     queryKey: QK.extras,
@@ -111,9 +111,9 @@ export default function CarPageLayout() {
 
   // экстры конкретной машины + бэкап-пуллинг
   const carExtrasQ = useQuery({
-    queryKey: QK.carExtras(carIdStr),
-    queryFn: () => fetchCarExtras(carIdStr),
-    enabled: !!carIdStr,
+    queryKey: QK.carExtras(currentCarId),
+    queryFn: () => fetchCarExtras(currentCarId),
+    enabled: !!currentCarId,
     staleTime: 30_000,
     refetchOnWindowFocus: true,
     refetchInterval: 60_000,
@@ -149,10 +149,10 @@ export default function CarPageLayout() {
   }, [carExtrasQ.data, extrasQ.data, setExtras]);
 
   // ===== Realtime фичи/экстры/машина =====
-  useCarFeaturesRealtimeRQ(carIdStr || null);
+  useCarFeaturesRealtimeRQ(currentCarId || null);
 
   useCarsRealtime((id, patch) => {
-    if (!carIdStr || String(id) !== carIdStr) return;
+    if (!currentCarId || String(id) !== currentCarId) return;
 
     setCar((prev: any) => (prev ? { ...prev, ...patch } : prev));
 
@@ -168,7 +168,7 @@ export default function CarPageLayout() {
     }
   });
 
-  useCarExtrasRealtime(carIdStr || null, ({ type, row }) => {
+  useCarExtrasRealtime(currentCarId || null, ({ type, row }) => {
     if (!row || !row.extra_id) return;
     setExtras((prev) => {
       if (!Array.isArray(prev)) return prev;
@@ -283,10 +283,10 @@ export default function CarPageLayout() {
 
   // ===== Рефетчи =====
   const refreshPricingData = async () => {
-    if (!carIdStr) return;
+    if (!currentCarId) return;
     const [rules, seasons] = await Promise.all([
-      fetchPricingRules(carIdStr),
-      fetchSeasonalRates(carIdStr),
+      fetchPricingRules(currentCarId),
+      fetchSeasonalRates(currentCarId),
     ]);
     setPricingRules(rules);
     setSeasonalRates(seasons);
@@ -303,13 +303,13 @@ export default function CarPageLayout() {
   };
 
   const refreshCar = async () => {
-    if (!carIdStr) return;
+    if (!currentCarId) return;
     setLoadingCar(true);
     try {
       const [data, bookings, carExtras] = await Promise.all([
-        fetchCarById(carIdStr),
-        fetchBookingsByCarId(carIdStr),
-        fetchCarExtras(carIdStr),
+        fetchCarById(currentCarId),
+        fetchBookingsByCarId(currentCarId),
+        fetchCarExtras(currentCarId),
       ]);
 
       setCar((prev) => ({

@@ -14,7 +14,7 @@ export function useCarExtrasRealtime(
 ) {
   const qc = useQueryClient();
 
-  // фиксируем колбэк в ref, чтобы эффект НЕ зависел от его идентичности
+  // фиксируем колбэк
   const cbRef = useRef<OnChange | undefined>(onChange);
   useEffect(() => {
     cbRef.current = onChange;
@@ -24,45 +24,94 @@ export function useCarExtrasRealtime(
     if (!carId) return;
 
     const topic = `car-extras-${carId}`;
+    let cancelled = false;
+    let attempt = 0;
 
-    // убьём возможные дубли перед подпиской
-    supabase.getChannels?.().forEach((c: any) => {
-      if (c?.topic === topic) {
-        void supabase.removeChannel(c);
-      }
-    });
-
-    const ch = supabase
-      .channel(topic)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "car_extras",
-          filter: `car_id=eq.${carId}`,
-        },
-        (payload: RealtimePostgresChangesPayload<any>) => {
-          const type = payload.eventType as ChangeType;
-          const row = type === "DELETE" ? payload.old : payload.new;
-
-          // локальный патч
-          cbRef.current?.({ type, row });
-
-          // и на всякий — инвалидация RQ
-          qc.invalidateQueries({
-            queryKey: QK.carExtras(carId),
-            refetchType: "all",
-          });
+    const ensureOneChannel = () => {
+      supabase.getChannels?.().forEach((c: any) => {
+        if (c?.topic === topic) {
+          void supabase.removeChannel(c);
         }
-      )
-      .subscribe((status) => {
-        console.log("[RT car_extras]", status, { carId });
       });
+    };
+
+    const subscribe = () => {
+      if (cancelled) return;
+
+      ensureOneChannel();
+
+      const ch = supabase
+        .channel(topic)
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "car_extras",
+            filter: `car_id=eq.${carId}`,
+          },
+          (payload: RealtimePostgresChangesPayload<any>) => {
+            const type = payload.eventType as ChangeType;
+            const row = type === "DELETE" ? payload.old : payload.new;
+
+            // локальный патч
+            cbRef.current?.({ type, row });
+
+            // и подстраховка — RQ-инвалидация
+            qc.invalidateQueries({
+              queryKey: QK.carExtras(carId),
+              refetchType: "all",
+            });
+          }
+        )
+        .subscribe(async (status) => {
+          console.log("[RT car_extras]", status, { carId });
+
+          if (status === "SUBSCRIBED") {
+            attempt = 0; // успех — сбрасываем счётчик
+            return;
+          }
+
+          // Ошибки/таймауты/закрытия — пробуем восстановиться
+          if (
+            status === "CHANNEL_ERROR" ||
+            status === "TIMED_OUT" ||
+            status === "CLOSED"
+          ) {
+            if (cancelled) return;
+
+            // пробуем обновить сессию (если есть авторизация)
+            try {
+              await supabase.auth.refreshSession();
+            } catch {}
+
+            try {
+              await supabase.removeChannel(ch);
+            } catch {}
+
+            // экспоненциальный бэкофф с джиттером (до ~20с)
+            const base = 1500;
+            const delay =
+              Math.min(base * Math.pow(2, attempt), 20000) +
+              Math.round(Math.random() * 500);
+            attempt = Math.min(attempt + 1, 8);
+
+            setTimeout(() => {
+              if (!cancelled) subscribe();
+            }, delay);
+          }
+        });
+
+      return ch;
+    };
+
+    const ch = subscribe();
 
     return () => {
-      // ВАЖНО: вызываем только removeChannel (НЕ дублировать unsubscribe())
-      void supabase.removeChannel(ch);
+      cancelled = true;
+      try {
+        if (ch) void supabase.removeChannel(ch);
+      } catch {}
     };
   }, [carId, qc]);
 }
