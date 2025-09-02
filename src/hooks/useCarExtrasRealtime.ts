@@ -3,7 +3,10 @@ import { useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { QK } from "@/queryKeys";
-import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
+import type {
+  RealtimePostgresChangesPayload,
+  RealtimeChannel,
+} from "@supabase/supabase-js";
 
 type ChangeType = "INSERT" | "UPDATE" | "DELETE";
 type OnChange = (e: { type: ChangeType; row: any }) => void;
@@ -14,7 +17,7 @@ export function useCarExtrasRealtime(
 ) {
   const qc = useQueryClient();
 
-  // фиксируем колбэк
+  // держим onChange стабильным
   const cbRef = useRef<OnChange | undefined>(onChange);
   useEffect(() => {
     cbRef.current = onChange;
@@ -24,23 +27,30 @@ export function useCarExtrasRealtime(
     if (!carId) return;
 
     const topic = `car-extras-${carId}`;
+    let ch: RealtimeChannel | null = null;
     let cancelled = false;
     let attempt = 0;
+    let reopening = false; // чтобы не ловить повторные CLOSED от нас же
 
-    const ensureOneChannel = () => {
-      supabase.getChannels?.().forEach((c: any) => {
+    const ensureNoDuplicates = () => {
+      // удалим все старые каналы с таким же topic (если остались после hot-reload и т.п.)
+      const channels = (supabase.getChannels?.() ?? []).slice();
+      for (const c of channels) {
+        // @ts-ignore — у канала есть topic
         if (c?.topic === topic) {
-          void supabase.removeChannel(c);
+          try {
+            void supabase.removeChannel(c);
+          } catch {}
         }
-      });
+      }
     };
 
-    const subscribe = () => {
+    const open = () => {
       if (cancelled) return;
 
-      ensureOneChannel();
+      ensureNoDuplicates();
 
-      const ch = supabase
+      ch = supabase
         .channel(topic)
         .on(
           "postgres_changes",
@@ -54,10 +64,9 @@ export function useCarExtrasRealtime(
             const type = payload.eventType as ChangeType;
             const row = type === "DELETE" ? payload.old : payload.new;
 
-            // локальный патч
             cbRef.current?.({ type, row });
 
-            // и подстраховка — RQ-инвалидация
+            // подстраховочный рефетч
             qc.invalidateQueries({
               queryKey: QK.carExtras(carId),
               refetchType: "all",
@@ -68,28 +77,30 @@ export function useCarExtrasRealtime(
           console.log("[RT car_extras]", status, { carId });
 
           if (status === "SUBSCRIBED") {
-            attempt = 0; // успех — сбрасываем счётчик
+            attempt = 0;
+            reopening = false;
             return;
           }
 
-          // Ошибки/таймауты/закрытия — пробуем восстановиться
           if (
             status === "CHANNEL_ERROR" ||
             status === "TIMED_OUT" ||
             status === "CLOSED"
           ) {
-            if (cancelled) return;
+            if (cancelled || reopening) return;
 
-            // пробуем обновить сессию (если есть авторизация)
+            reopening = true;
+
+            // попробуем освежить сессию (если есть auth)
             try {
               await supabase.auth.refreshSession();
             } catch {}
 
+            // аккуратно закроем текущий канал (без removeChannel в этом же колбэке)
             try {
-              await supabase.removeChannel(ch);
+              await ch?.unsubscribe();
             } catch {}
 
-            // экспоненциальный бэкофф с джиттером (до ~20с)
             const base = 1500;
             const delay =
               Math.min(base * Math.pow(2, attempt), 20000) +
@@ -97,21 +108,155 @@ export function useCarExtrasRealtime(
             attempt = Math.min(attempt + 1, 8);
 
             setTimeout(() => {
-              if (!cancelled) subscribe();
+              if (!cancelled) {
+                open();
+              }
             }, delay);
           }
         });
-
-      return ch;
     };
 
-    const ch = subscribe();
+    open();
+
+    // переподписка при возврате вкладки
+    const onVisibility = () => {
+      if (document.visibilityState === "visible" && !cancelled) {
+        // лёгкая “тычка”: реоткроем канал, если он умер
+        setTimeout(() => {
+          if (!cancelled) {
+            // если подписка не активна — откроем заново
+            // не вызываем removeChannel тут — просто пробуем заново
+            open();
+          }
+        }, 200);
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibility);
 
     return () => {
       cancelled = true;
+      document.removeEventListener("visibilitychange", onVisibility);
       try {
-        if (ch) void supabase.removeChannel(ch);
+        void ch?.unsubscribe();
       } catch {}
     };
   }, [carId, qc]);
 }
+
+// // src/hooks/useCarExtrasRealtime.ts
+// import { useEffect, useRef } from "react";
+// import { useQueryClient } from "@tanstack/react-query";
+// import { supabase } from "@/lib/supabase";
+// import { QK } from "@/queryKeys";
+// import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
+
+// type ChangeType = "INSERT" | "UPDATE" | "DELETE";
+// type OnChange = (e: { type: ChangeType; row: any }) => void;
+
+// export function useCarExtrasRealtime(
+//   carId: string | null,
+//   onChange?: OnChange
+// ) {
+//   const qc = useQueryClient();
+
+//   // фиксируем колбэк
+//   const cbRef = useRef<OnChange | undefined>(onChange);
+//   useEffect(() => {
+//     cbRef.current = onChange;
+//   }, [onChange]);
+
+//   useEffect(() => {
+//     if (!carId) return;
+
+//     const topic = `car-extras-${carId}`;
+//     let cancelled = false;
+//     let attempt = 0;
+
+//     const ensureOneChannel = () => {
+//       supabase.getChannels?.().forEach((c: any) => {
+//         if (c?.topic === topic) {
+//           void supabase.removeChannel(c);
+//         }
+//       });
+//     };
+
+//     const subscribe = () => {
+//       if (cancelled) return;
+
+//       ensureOneChannel();
+
+//       const ch = supabase
+//         .channel(topic)
+//         .on(
+//           "postgres_changes",
+//           {
+//             event: "*",
+//             schema: "public",
+//             table: "car_extras",
+//             filter: `car_id=eq.${carId}`,
+//           },
+//           (payload: RealtimePostgresChangesPayload<any>) => {
+//             const type = payload.eventType as ChangeType;
+//             const row = type === "DELETE" ? payload.old : payload.new;
+
+//             // локальный патч
+//             cbRef.current?.({ type, row });
+
+//             // и подстраховка — RQ-инвалидация
+//             qc.invalidateQueries({
+//               queryKey: QK.carExtras(carId),
+//               refetchType: "all",
+//             });
+//           }
+//         )
+//         .subscribe(async (status) => {
+//           console.log("[RT car_extras]", status, { carId });
+
+//           if (status === "SUBSCRIBED") {
+//             attempt = 0; // успех — сбрасываем счётчик
+//             return;
+//           }
+
+//           // Ошибки/таймауты/закрытия — пробуем восстановиться
+//           if (
+//             status === "CHANNEL_ERROR" ||
+//             status === "TIMED_OUT" ||
+//             status === "CLOSED"
+//           ) {
+//             if (cancelled) return;
+
+//             // пробуем обновить сессию (если есть авторизация)
+//             try {
+//               await supabase.auth.refreshSession();
+//             } catch {}
+
+//             try {
+//               await supabase.removeChannel(ch);
+//             } catch {}
+
+//             // экспоненциальный бэкофф с джиттером (до ~20с)
+//             const base = 1500;
+//             const delay =
+//               Math.min(base * Math.pow(2, attempt), 20000) +
+//               Math.round(Math.random() * 500);
+//             attempt = Math.min(attempt + 1, 8);
+
+//             setTimeout(() => {
+//               if (!cancelled) subscribe();
+//             }, delay);
+//           }
+//         });
+
+//       return ch;
+//     };
+
+//     const ch = subscribe();
+
+//     return () => {
+//       cancelled = true;
+//       try {
+//         if (ch) void supabase.removeChannel(ch);
+//       } catch {}
+//     };
+//   }, [carId, qc]);
+// }
