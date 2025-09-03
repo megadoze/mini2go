@@ -187,17 +187,19 @@ export default function BookingEditor() {
   });
 
   const initialExtras = useMemo(() => {
-    const fromSnap = Array.isArray(snapshot?.booking_extras)
-      ? snapshot.booking_extras
-      : undefined;
+    const fromSnap =
+      Array.isArray(snapshot?.booking_extras) &&
+      snapshot.booking_extras.length > 0
+        ? snapshot.booking_extras
+        : undefined;
+
     if (fromSnap) return fromSnap;
+
     if (bookingId) {
       return qc.getQueryData(QK.bookingExtras(bookingId));
     }
     return undefined;
   }, [snapshot?.booking_extras, bookingId, qc]);
-
-  console.log("bookingExtrasFromSnap:", initialExtras);
 
   const userIdForQ: string | undefined =
     initialBooking?.user_id ?? snapshot?.booking?.user_id ?? undefined;
@@ -215,7 +217,8 @@ export default function BookingEditor() {
       mode === "edit" &&
       !!bookingId &&
       (snapshot?.booking?.mark ?? mark) === "booking" &&
-      !initialExtras,
+      (!initialExtras ||
+        (Array.isArray(initialExtras) && initialExtras.length === 0)),
     initialData: initialExtras,
     staleTime: 60_000,
     refetchOnMount: false,

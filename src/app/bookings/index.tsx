@@ -221,8 +221,8 @@ export default function BookingsList() {
     if (openingId) return;
     setOpeningId(b.id);
 
-    const cachedBooking = qc.getQueryData<any>(["booking", b.id]);
-    const cachedExtras = qc.getQueryData<any[]>(["bookingExtras", b.id]);
+    const cachedBooking = qc.getQueryData<any>(QK.booking(b.id));
+    const cachedExtras = qc.getQueryData<any[]>(QK.bookingExtras(b.id));
     const cachedUser = b.userId
       ? qc.getQueryData<any>(["user", b.userId])
       : null;
@@ -250,7 +250,9 @@ export default function BookingsList() {
             ...(cachedBooking ?? {}),
             ...(cachedUser ? { user: cachedUser } : {}),
           },
-          booking_extras: Array.isArray(cachedExtras) ? cachedExtras : [],
+          booking_extras: Array.isArray(cachedExtras)
+            ? cachedExtras
+            : undefined,
         },
         from: location.pathname + location.search,
       },
