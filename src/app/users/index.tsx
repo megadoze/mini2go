@@ -179,7 +179,7 @@ export default function UsersPage() {
     <div className="w-full max-w-screen-2xl">
       {/* header */}
       <div className="flex items-center gap-2 mb-4">
-        <h1 className="font-robotoCondensed font-bold text-2xl">Users</h1>
+        <h1 className="font-roboto text-2xl font-bold">Users</h1>
         {users.length > 0 && <Badge color="black">{users.length}</Badge>}
         {usersQ.isFetching && <Loader size="xs" color="gray" />}
       </div>

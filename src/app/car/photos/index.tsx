@@ -186,7 +186,7 @@ export default function Photos() {
 
   return (
     <div className="mb-4 w-full xl:max-w-2xl">
-      <h1 className="text-2xl font-robotoCondensed font-bold">Photos</h1>
+      <h1 className="font-roboto text-2xl font-medium">Photos</h1>
       <div className="border-b border-gray-100 mt-5 shadow-sm"></div>
       <p className="pt-5">
         Upload up to {MAX_PHOTOS} photos of your car. You may not use stock

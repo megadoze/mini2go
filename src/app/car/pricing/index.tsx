@@ -275,7 +275,7 @@ const Pricing = () => {
 
   return (
     <div className="mb-4 w-full xl:max-w-2xl">
-      <h1 className=" font-robotoCondensed font-semibold text-2xl text-gray-800">Pricing</h1>
+      <h1 className="font-roboto text-2xl font-medium">Pricing</h1>
       <div className="border-b border-gray-100 mt-5 shadow-sm"></div>
 
       {/* Базовая цена */}

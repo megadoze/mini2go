@@ -422,7 +422,7 @@ export default function BookingSettingsSection() {
 
   return (
     <main className="mb-4 w-full xl:max-w-2xl">
-      <h2 className="text-2xl font-semibold text-gray-900">Booking settings</h2>
+      <h2 className="font-roboto text-2xl font-medium">Booking settings</h2>
       <hr className="border-gray-200 my-4" />
 
       {/* Currency */}

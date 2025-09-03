@@ -26,7 +26,6 @@ import HydrateFallback from "./components/hydrateFallback";
 import CarErrorBoundary from "./components/carErrorBoundary";
 import Finance from "./app/finance";
 import BookingsList from "./app/bookings";
-import BookingPage from "./app/bookings/bookingPage";
 import BookingEditor from "./app/bookings/bookingEditor";
 import MiniLandingPage from "./app/landingpage";
 import { calendarLoader } from "./routes/calendarLoader";
@@ -73,7 +72,6 @@ export const router = createBrowserRouter([
         element: <BookingsList />,
       },
       { path: "bookings/new", element: <BookingEditor /> },
-      { path: "bookings/:bookingId", element: <BookingPage /> },
       {
         path: "/users",
         loader: usersLoader,

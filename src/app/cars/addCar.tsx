@@ -292,7 +292,7 @@ export default function AddCarWizard() {
 
   return (
     <div className="max-w-xl mx-auto p-0">
-      <h1 className="text-2xl font-semibold text-gray-900">List your car</h1>
+      <h1 className="font-roboto text-2xl font-bold">List your car</h1>
       <div className="bg-slate-100 h-2 rounded shadow-inner overflow-hidden mt-10">
         <div
           className="h-full bg-fuchsia-600 transition-all duration-300"

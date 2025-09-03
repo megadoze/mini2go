@@ -90,9 +90,10 @@ function mmToHHMM(m: number) {
 export default function BookingEditor() {
   const location = useLocation() as any;
 
-  const snapshot = location.state?.snapshot as any; // BookingEditorSnapshot
+  const snapshot = location.state?.snapshot as any;
 
   const { id: carIdFromCarsRoute, bookingId } = useParams();
+
   const qc = useQueryClient();
 
   const hasMatchingSnapshot =
@@ -191,10 +192,12 @@ export default function BookingEditor() {
       : undefined;
     if (fromSnap) return fromSnap;
     if (bookingId) {
-      return qc.getQueryData<any[]>(["bookingExtras", bookingId]);
+      return qc.getQueryData(QK.bookingExtras(bookingId));
     }
     return undefined;
   }, [snapshot?.booking_extras, bookingId, qc]);
+
+  console.log("bookingExtrasFromSnap:", initialExtras);
 
   const userIdForQ: string | undefined =
     initialBooking?.user_id ?? snapshot?.booking?.user_id ?? undefined;
@@ -206,7 +209,7 @@ export default function BookingEditor() {
   }, [snapshot?.booking?.user, userIdForQ, qc]);
 
   const extrasQ = useQuery({
-    queryKey: ["bookingExtras", bookingId],
+    queryKey: QK.bookingExtras(bookingId!),
     queryFn: () => fetchBookingExtras(bookingId!),
     enabled:
       mode === "edit" &&
@@ -217,6 +220,26 @@ export default function BookingEditor() {
     staleTime: 60_000,
     refetchOnMount: false,
   });
+
+  // экстра, сохранённые в самой броне (фиксируем цену/название/price_type)
+  const bookedExtras = useMemo(() => {
+    const rows = Array.isArray(extrasQ.data)
+      ? extrasQ.data
+      : Array.isArray(initialExtras)
+      ? initialExtras
+      : [];
+    // ожидаем, что в booking_extras лежат: extra_id, title, price, price_type, qty
+    return rows.map((r: any) => ({
+      id: String(r.extra_id),
+      title: r.title ?? "Extra",
+      price: Number(r.price ?? 0),
+      price_type: (r.price_type ?? "per_trip") as
+        | "per_trip"
+        | "per_day"
+        | string,
+      qty: Number(r.qty ?? 1),
+    }));
+  }, [extrasQ.data, initialExtras]);
 
   const userQ = useQuery({
     queryKey: ["user", userIdForQ],
@@ -261,6 +284,8 @@ export default function BookingEditor() {
       ? initialExtras.map((r: any) => String(r.extra_id))
       : []
   );
+
+  console.log("pickedExtras", pickedExtras);
 
   const [error, setError] = useState<string | null>(null);
 
@@ -469,8 +494,9 @@ export default function BookingEditor() {
   const durationHours = Math.floor((totalMinutes % (24 * 60)) / 60);
   const durationMinutes = totalMinutes % 60;
 
-  // map экстр (только доступные)
+  // map экстра
   const extrasMap = useMemo(() => {
+    // Утилита доставания значений с несколькими вариантами ключей
     const pick = (obj: any, ...paths: string[]) => {
       for (const p of paths) {
         const v = p.split(".").reduce((o, k) => (o ? o[k] : undefined), obj);
@@ -479,7 +505,8 @@ export default function BookingEditor() {
       return undefined;
     };
 
-    const list = (extras ?? [])
+    // 1) Активные экстра из контекста
+    const activeList = (extras ?? [])
       .filter((ex: any) => {
         const avail =
           pick(ex, "is_available", "meta.is_available") ??
@@ -494,8 +521,24 @@ export default function BookingEditor() {
           (pick(ex, "price_type", "meta.price_type") as string) ??
           (pick(ex, "priceType", "meta.priceType") as string) ??
           "per_trip";
-        return { id, title, price, price_type };
+        return { id, title, price, price_type, inactive: false as boolean };
       });
+
+    // 2) Зафиксированные экстра из booking_extras (то, что реально в броне)
+    const bookedById: Record<
+      string,
+      { id: string; title: string; price: number; price_type: string }
+    > = {};
+    for (const b of bookedExtras) {
+      bookedById[b.id] = {
+        id: b.id,
+        title: b.title,
+        price: b.price,
+        price_type: b.price_type,
+      };
+    }
+
+    // 3) Слить: начинаем с активных; если экстра есть в брони — перезаписываем её полями из брони (фиксируем цену/название/тип)
     const byId: Record<
       string,
       {
@@ -503,11 +546,71 @@ export default function BookingEditor() {
         title: string;
         price: number;
         price_type: "per_trip" | "per_day" | string;
+        inactive: boolean;
       }
     > = {};
-    list.forEach((x) => (byId[x.id] = x));
+
+    for (const ex of activeList) {
+      const locked = bookedById[ex.id];
+      byId[ex.id] = locked
+        ? { ...locked, inactive: false }
+        : { ...ex, inactive: false };
+    }
+
+    // 4) Добавляем те, которых больше нет среди активных, но они есть в брони — помечаем как inactive, но НЕ выкидываем
+    for (const id of Object.keys(bookedById)) {
+      if (!byId[id]) {
+        byId[id] = { ...bookedById[id], inactive: true };
+      }
+    }
+
+    // Список для UI — сортируем, чтобы «неактивные» шли ниже
+    const list = Object.values(byId).sort((a, b) => {
+      if (a.inactive === b.inactive) return a.title.localeCompare(b.title);
+      return a.inactive ? 1 : -1;
+    });
+
     return { list, byId };
-  }, [extras]);
+  }, [extras, bookedExtras]);
+
+  // const extrasMap = useMemo(() => {
+  //   const pick = (obj: any, ...paths: string[]) => {
+  //     for (const p of paths) {
+  //       const v = p.split(".").reduce((o, k) => (o ? o[k] : undefined), obj);
+  //       if (v !== undefined) return v;
+  //     }
+  //     return undefined;
+  //   };
+
+  //   const list = (extras ?? [])
+  //     .filter((ex: any) => {
+  //       const avail =
+  //         pick(ex, "is_available", "meta.is_available") ??
+  //         pick(ex, "isAvailable", "meta.isAvailable");
+  //       return avail === true;
+  //     })
+  //     .map((ex: any) => {
+  //       const id = String(ex.extra_id ?? ex.meta?.id ?? ex.id);
+  //       const title = ex.meta?.title ?? ex.meta?.name ?? "Extra";
+  //       const price = Number(ex.price ?? ex.meta?.price ?? 0);
+  //       const price_type =
+  //         (pick(ex, "price_type", "meta.price_type") as string) ??
+  //         (pick(ex, "priceType", "meta.priceType") as string) ??
+  //         "per_trip";
+  //       return { id, title, price, price_type };
+  //     });
+  //   const byId: Record<
+  //     string,
+  //     {
+  //       id: string;
+  //       title: string;
+  //       price: number;
+  //       price_type: "per_trip" | "per_day" | string;
+  //     }
+  //   > = {};
+  //   list.forEach((x) => (byId[x.id] = x));
+  //   return { list, byId };
+  // }, [extras]);
 
   // дни для экстр «per_day»
   const billableDaysForExtras = useMemo(() => {
@@ -1188,7 +1291,7 @@ export default function BookingEditor() {
       {/* Header */}
       <div className="flex flex-wrap flex-col md:flex-row justify-between md:items-center">
         <div className="flex items-center gap-2">
-          <h1 className="font-semibold text-xl md:text-2xl text-gray-800">
+          <h1 className=" font-roboto font-semibold text-xl md:text-2xl text-gray-800">
             {mode === "create" && mark === "booking" ? (
               "New Booking"
             ) : mark === "block" ? (
@@ -1640,9 +1743,17 @@ export default function BookingEditor() {
                   >
                     <Checkbox
                       color="dark"
-                      label={`${ex.title} (${ex.price} ${effectiveCurrency}${
-                        ex.price_type === "per_day" ? " / day" : ""
-                      })`}
+                      label={
+                        <>
+                          {ex.title} ({ex.price} {effectiveCurrency}
+                          {ex.price_type === "per_day" ? " / day" : ""})
+                          {ex.inactive && (
+                            <span className="ml-2 text-xs text-sky-600">
+                              (больше не предлагается)
+                            </span>
+                          )}
+                        </>
+                      }
                       checked={pickedExtras.includes(ex.id)}
                       onChange={(e) => {
                         const checked = e.currentTarget.checked;
@@ -1657,7 +1768,9 @@ export default function BookingEditor() {
                       classNames={{
                         root: isDisabled ? "!cursor-not-allowed" : "",
                         input: isDisabled ? "!cursor-not-allowed" : "",
-                        label: isDisabled ? "!cursor-not-allowed" : "",
+                        label:
+                          (isDisabled ? "!cursor-not-allowed " : "") +
+                          (ex.inactive ? "opacity-70" : ""),
                       }}
                     />
                   </div>
@@ -1744,7 +1857,7 @@ export default function BookingEditor() {
               {deliveryFee > 0 && (
                 <div className="flex justify-between">
                   <span>Delivery</span>
-                  {deliveryFeeValue.toFixed(2)} {effectiveCurrency}
+                  {deliveryFee.toFixed(2)} {effectiveCurrency}
                 </div>
               )}
               {extrasTotal > 0 && (
@@ -1908,7 +2021,7 @@ export default function BookingEditor() {
           {/* Customer mini card */}
           {userId && selectedUser && mode !== "create" && (
             <section className=" mt-6 text-gray-700  ">
-              <p className="md:text-lg font-semibold">Client</p>
+              <p className="md:text-lg font-semibold">Guest</p>
               <div className=" flex flex-col items-start gap-2 border rounded-md  border-gray-400 p-3 mt-2">
                 <div className="font-medium">
                   {selectedUser.full_name ?? "—"}

@@ -193,7 +193,7 @@ export default function SettingsGlobal() {
 
   return (
     <main className="mb-4 w-full xl:max-w-2xl">
-      <h2 className="text-2xl font-robotoCondensed font-semibold text-gray-900">
+      <h2 className="font-roboto text-2xl font-bold">
         Global booking settings
       </h2>
       {/* <hr className="border-gray-200 my-4" /> */}
