@@ -55,13 +55,15 @@ const Distance = () => {
 
   return (
     <div className="mb-4 w-full xl:max-w-2xl">
-      <div className="font-roboto text-2xl font-medium">Distance included</div>
+      <div className="font-roboto text-xl md:text-2xl font-medium">
+        Distance included
+      </div>
       <div className="border-b border-gray-100 mt-5 shadow-sm"></div>
       <div className="mt-8">
         <p className=" text-lg font-medium text-gray-800">
           Daily distance included
         </p>
-        <p className="mt-2">
+        <p className="mt-2 text-gray-800">
           Decide how far you’ll allow your guests to drive — the minimum
           distance per day is determined based on the value of your vehicle.
           Higher value vehicles that qualify for Deluxe and Super Deluxe Class
@@ -91,7 +93,7 @@ const Distance = () => {
           <p className=" text-lg font-medium text-gray-800">
             Additional distance fee
           </p>
-          <p className="mt-2">
+          <p className="mt-2 text-gray-800">
             If your guest drives farther than the distance included, they’ll be
             charged a fee per mile calculated using your daily price.
           </p>

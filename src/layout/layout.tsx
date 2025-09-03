@@ -1,5 +1,5 @@
-import { AppShell, Burger } from "@mantine/core";
-import { useDisclosure } from "@mantine/hooks";
+import { AppShell, Burger, Drawer } from "@mantine/core";
+import { useDisclosure, useMediaQuery } from "@mantine/hooks";
 import { NavLink, Outlet } from "react-router-dom";
 import {
   AdjustmentsHorizontalIcon,
@@ -12,12 +12,13 @@ import {
 } from "@heroicons/react/24/outline";
 import UserMenu from "@/components/userMenu";
 import { useCarsRealtime } from "@/hooks/useCarsRealtime";
-import { useEffect } from "react";
 
 export default function Layout() {
   useCarsRealtime();
 
   const [opened, { toggle }] = useDisclosure();
+
+  const isMobile = useMediaQuery("(max-width: 48em)");
 
   const menuItems = [
     {
@@ -67,17 +68,6 @@ export default function Layout() {
       onClick: toggle,
     },
   ];
-
-  useEffect(() => {
-    if (opened) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
-    }
-    return () => {
-      document.body.style.overflow = "";
-    };
-  }, [opened]);
 
   const SidebarMenu = () => {
     return (
@@ -151,26 +141,46 @@ export default function Layout() {
         </div>
       </AppShell.Header>
 
-      <AppShell.Navbar px="" bg={"#ffffffc9"} withBorder={false}>
-        {/* #102d20cc #073b25  #184230*/}
-        <div className=" absolute right-1 top-4 mr-3">
-          <Burger
-            opened={opened}
-            onClick={toggle}
-            hiddenFrom="md"
-            size="sm"
-            // mx={10}
-            color="white"
-          />
-        </div>
+      {!isMobile && (
+        <AppShell.Navbar px="" bg={"#ffffffc9"} withBorder={false}>
+          {/* #102d20cc #073b25  #184230*/}
+          <div className="h-full bg-gradient-to-r from-teal-950 from-5% to-emerald-900 md:to-emerald-800 to-95% p-3 ">
+            {SidebarMenu()}
+          </div>
+        </AppShell.Navbar>
+      )}
 
-        <div className="h-full bg-gradient-to-r from-teal-950 from-5% to-emerald-900 md:to-emerald-800 to-95% p-3 ">
-          <div>{SidebarMenu()}</div>
-          <div className="lg:hidden fixed bottom-2 text-white border rounded-xl">
+      {isMobile && (
+        <Drawer
+          opened={opened}
+          onClose={toggle}
+          size="100%"
+          withCloseButton={false}
+          padding="md"
+          lockScroll
+          trapFocus
+          withinPortal
+          overlayProps={{ opacity: 0.2 }}
+          classNames={{
+            body: "h-full bg-gradient-to-r from-teal-950 from-5% to-emerald-900 md:to-emerald-800 to-95%",
+          }}
+        >
+          <div className=" absolute right-1 top-4 mr-3">
+            <Burger
+              opened={opened}
+              onClick={toggle}
+              hiddenFrom="md"
+              size="sm"
+              // mx={10}
+              color="white"
+            />
+          </div>
+          <SidebarMenu />
+          <div className="lg:hidden fixed bottom-2 text-white/80 border border-white/80 rounded-xl">
             <UserMenu onClick={toggle} />
           </div>
-        </div>
-      </AppShell.Navbar>
+        </Drawer>
+      )}
 
       <AppShell.Main>
         <Outlet />

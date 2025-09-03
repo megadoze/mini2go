@@ -667,7 +667,7 @@ export default function Calendar() {
 
   return (
     <div className="mb-4 w-full xl:max-w-2xl">
-      <h1 className="font-roboto text-2xl font-medium">Calendar</h1>
+      <h1 className="font-roboto text-xl md:text-2xl font-medium">Calendar</h1>
       <div className="border-b border-gray-100 mt-5 shadow-sm"></div>
 
       <div className="flex justify-between items-center mb-4 mt-5">

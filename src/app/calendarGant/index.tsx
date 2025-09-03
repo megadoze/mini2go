@@ -713,7 +713,8 @@ export default function CalendarPage() {
 
   return (
     <div className="w-full max-w-screen-2xl">
-      <div className="flex flex-wrap items-center justify-between mb-3">
+      <h1 className="font-roboto text-xl md:text-2xl font-medium md:font-bold">Calendar</h1>
+      <div className="flex flex-wrap items-center justify-between mb-3 mt-5">
         <div className="flex items-center gap-2">
           <button
             className="px-3 py-1 text-sm border rounded"

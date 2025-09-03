@@ -1287,11 +1287,11 @@ export default function BookingEditor() {
   if (isLoading) return <div className="p-4">Loading…</div>;
 
   return (
-    <div className={`text-gray-600 max-w-4xl ${containerPad}`}>
+    <div className={`text-gray-800 max-w-4xl ${containerPad}`}>
       {/* Header */}
       <div className="flex flex-wrap flex-col md:flex-row justify-between md:items-center">
         <div className="flex items-center gap-2">
-          <h1 className=" font-roboto font-semibold text-xl md:text-2xl text-gray-800">
+          <h1 className="font-roboto text-xl md:text-2xl font-medium md:font-semibold">
             {mode === "create" && mark === "booking" ? (
               "New Booking"
             ) : mark === "block" ? (

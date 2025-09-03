@@ -129,13 +129,15 @@ export default function CarsPage() {
       {/* Header */}
       <div className="flex justify-between items-center mb-4">
         <div className="flex items-center gap-2">
-          <h1 className="font-roboto text-2xl font-bold">Cars</h1>
+          <h1 className="font-roboto text-xl md:text-2xl font-medium md:font-bold">
+            Cars
+          </h1>
           {cars.length > 0 && <Badge color="black">{cars.length}</Badge>}
         </div>
         <button
           color="black"
           onClick={addNewCar}
-          className=" rounded-xl bg-black py-2 px-3 text-white text-sm hover:opacity-85"
+          className="rounded-2xl md:rounded-3xl bg-black py-1 px-2 md:py-2 md:px-3 text-white text-sm hover:opacity-85"
         >
           + Add car
         </button>

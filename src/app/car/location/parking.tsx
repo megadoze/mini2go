@@ -240,7 +240,7 @@ function Parking() {
 
   return (
     <div className="mb-4 w-full xl:max-w-2xl">
-      <h2 className="font-roboto text-2xl font-medium">
+      <h2 className="font-roboto text-xl md:text-2xl font-medium">
         Location & delivery
       </h2>
       <div className="border-b border-gray-100 mt-5 shadow-sm" />
