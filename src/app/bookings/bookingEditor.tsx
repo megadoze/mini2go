@@ -25,6 +25,7 @@ import {
   isAfter,
   isEqual,
   parseISO,
+  startOfDay,
 } from "date-fns";
 import { Select, Checkbox, Badge } from "@mantine/core";
 import {
@@ -35,25 +36,27 @@ import {
 import {
   ArrowRightIcon,
   CalendarDaysIcon,
+  ChevronRightIcon,
   ShareIcon,
 } from "@heroicons/react/24/outline";
 import { subscribeBooking } from "@/services/bookings.service";
 import { QK } from "@/queryKeys";
+import RentalDateTimePicker from "@/components/RentalDateTimePicker";
 
 /* ===================== УТИЛИТЫ ===================== */
 
-function toLocalDT(iso?: string) {
-  const d = iso ? new Date(iso) : new Date();
-  if (Number.isNaN(d.getTime())) return "";
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(
-    d.getHours()
-  )}:${pad(d.getMinutes())}`;
-}
+// function toLocalDT(iso?: string) {
+//   const d = iso ? new Date(iso) : new Date();
+//   if (Number.isNaN(d.getTime())) return "";
+//   const pad = (n: number) => String(n).padStart(2, "0");
+//   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(
+//     d.getHours()
+//   )}:${pad(d.getMinutes())}`;
+// }
 
-function fromLocalDT(local: string) {
-  return new Date(local).toISOString();
-}
+// function fromLocalDT(local: string) {
+//   return new Date(local).toISOString();
+// }
 
 function minutesSinceMidnight(d: Date) {
   return d.getHours() * 60 + d.getMinutes();
@@ -269,6 +272,16 @@ export default function BookingEditor() {
   const [endDateInp, setEndDateInp] = useState<string>(
     snapshot?.booking?.end_at || ""
   );
+
+  // Прокладка между календарём и существующими стейтами startDateInp/endDateInp
+  const calendarRange = useMemo(
+    () => ({
+      startAt: startDateInp ? new Date(startDateInp) : null,
+      endAt: endDateInp ? new Date(endDateInp) : null,
+    }),
+    [startDateInp, endDateInp]
+  );
+
   const [status, setStatus] = useState<string | null>(
     hasMatchingSnapshot ? snapshot?.booking?.status ?? null : null
   );
@@ -287,8 +300,6 @@ export default function BookingEditor() {
       ? initialExtras.map((r: any) => String(r.extra_id))
       : []
   );
-
-  console.log("pickedExtras", pickedExtras);
 
   const [error, setError] = useState<string | null>(null);
 
@@ -309,6 +320,8 @@ export default function BookingEditor() {
     age: "",
     driver_license_issue: "",
   });
+
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   // Delivery
   type DeliveryOption = "car_address" | "by_address";
@@ -333,6 +346,28 @@ export default function BookingEditor() {
   const [qrOpen, setQrOpen] = useState(false);
   const [qrSrc, setQrSrc] = useState<string | null>(null);
 
+  // disabledIntervals для занятых/заблокированных периодов (кроме текущей записи и отменённых)
+  const disabledIntervals = useMemo(() => {
+    const cached =
+      (carFromCtx?.bookings as Booking[] | undefined) ??
+      qc.getQueryData<Booking[]>(QK.bookingsByCarId(String(carId))) ??
+      [];
+    return (cached || [])
+      .filter(
+        (b) =>
+          b.id !== bookingId && !String(b.status ?? "").startsWith("canceled")
+      )
+      .map((b) => ({ start: new Date(b.start_at), end: new Date(b.end_at) }));
+  }, [carFromCtx?.bookings, qc, carId, bookingId]);
+
+  const handleCalendarChange = (next: {
+    startAt: Date | null;
+    endAt: Date | null;
+  }) => {
+    setStartDateInp(next.startAt ? next.startAt.toISOString() : "");
+    setEndDateInp(next.endAt ? next.endAt.toISOString() : "");
+  };
+
   const isFinished =
     status === "finished" ||
     status === "canceledHost" ||
@@ -354,6 +389,14 @@ export default function BookingEditor() {
   const [tick, setTick] = useState(0);
 
   const isISO = (s?: string | null) => !!s && !Number.isNaN(Date.parse(s));
+
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = pickerOpen ? "hidden" : prev || "";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [pickerOpen]);
 
   useEffect(() => {
     const t = window.setInterval(() => setTick(Date.now()), 30_000);
@@ -575,45 +618,6 @@ export default function BookingEditor() {
 
     return { list, byId };
   }, [extras, bookedExtras]);
-
-  // const extrasMap = useMemo(() => {
-  //   const pick = (obj: any, ...paths: string[]) => {
-  //     for (const p of paths) {
-  //       const v = p.split(".").reduce((o, k) => (o ? o[k] : undefined), obj);
-  //       if (v !== undefined) return v;
-  //     }
-  //     return undefined;
-  //   };
-
-  //   const list = (extras ?? [])
-  //     .filter((ex: any) => {
-  //       const avail =
-  //         pick(ex, "is_available", "meta.is_available") ??
-  //         pick(ex, "isAvailable", "meta.isAvailable");
-  //       return avail === true;
-  //     })
-  //     .map((ex: any) => {
-  //       const id = String(ex.extra_id ?? ex.meta?.id ?? ex.id);
-  //       const title = ex.meta?.title ?? ex.meta?.name ?? "Extra";
-  //       const price = Number(ex.price ?? ex.meta?.price ?? 0);
-  //       const price_type =
-  //         (pick(ex, "price_type", "meta.price_type") as string) ??
-  //         (pick(ex, "priceType", "meta.priceType") as string) ??
-  //         "per_trip";
-  //       return { id, title, price, price_type };
-  //     });
-  //   const byId: Record<
-  //     string,
-  //     {
-  //       id: string;
-  //       title: string;
-  //       price: number;
-  //       price_type: "per_trip" | "per_day" | string;
-  //     }
-  //   > = {};
-  //   list.forEach((x) => (byId[x.id] = x));
-  //   return { list, byId };
-  // }, [extras]);
 
   // дни для экстр «per_day»
   const billableDaysForExtras = useMemo(() => {
@@ -1414,7 +1418,7 @@ export default function BookingEditor() {
           </section>
 
           {/* даты/время */}
-          <section id="dates">
+          {/* <section id="dates">
             <p className="font-medium text-base sm:text-lg text-gray-800">
               Dates of trip
             </p>
@@ -1481,6 +1485,7 @@ export default function BookingEditor() {
                 )}
               </div>
             </div>
+
             {!isFinished && (
               <div className="text-xs text-gray-500 mt-1">
                 {effectiveOpenTime === effectiveCloseTime ? (
@@ -1494,6 +1499,156 @@ export default function BookingEditor() {
               </div>
             )}
             <div className="mt-5 ">
+              Duration:{" "}
+              <span>
+                {durationDays}d {durationHours}h {durationMinutes}m
+              </span>
+            </div>
+          </section> */}
+
+          <section id="dates">
+            <p className="font-medium text-base sm:text-lg text-gray-800">
+              Dates of trip
+            </p>
+            {/* Календарь выбора дат/времени */}
+            {/* {!isFinished ? (
+              status !== "rent" ? (
+                <div
+                  className={`${
+                    isDisabled ? "opacity-60 pointer-events-none" : ""
+                  } mt-2`}
+                >
+                  <RentalDateTimePicker
+                    value={calendarRange}
+                    onChange={handleCalendarChange}
+                    minuteStep={30}
+                    minDate={startOfDay(new Date())}
+                    disabledIntervals={disabledIntervals}
+                  />
+                </div>
+              ) : (
+                <p className="mt-2 inline-flex items-center gap-2">
+                  <CalendarDaysIcon className="size-5" />
+                  {format(
+                    new Date(startDateInp).toISOString(),
+                    "d MMM yy, hh:mm"
+                  )}{" "}
+                  —{" "}
+                  {format(
+                    new Date(endDateInp).toISOString(),
+                    "d MMM yy, hh:mm"
+                  )}
+                </p>
+              )
+            ) : (
+              <p className="line-through mt-2">
+                {fmt(startDateInp)} — {fmt(endDateInp)}
+              </p>
+            )} */}
+            {/* Триггер-поле: открывает полноэкранный оверлей с календарём */}
+            {!isFinished ? (
+              status !== "rent" ? (
+                <button
+                  type="button"
+                  className={`mt-2 w-full rounded-2xl border border-gray-200 px-3 py-3 text-left hover:bg-gray-50 active:scale-[.999] $isDisabled ? "opacity-60 cursor-not-allowed" : ""}`}
+                  onClick={() => !isDisabled && setPickerOpen(true)}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <CalendarDaysIcon className="size-5 text-gray-700" />
+                      <div>
+                        <div className="text-xs text-gray-500">
+                          Rental period
+                        </div>
+                        <div className="text-sm font-medium text-gray-800">
+                          {startDateInp && endDateInp
+                            ? `${format(
+                                new Date(startDateInp).toISOString(),
+                                "d MMM, HH:mm"
+                              )} — ${format(
+                                new Date(endDateInp).toISOString(),
+                                "d MM, HH:mm"
+                              )}`
+                            : "Select start and end"}
+                        </div>
+                      </div>
+                    </div>
+                    {/* <span className="text-gray-400"></span> */}
+                    <ChevronRightIcon className=" size-4 text-gray-400" />
+                  </div>
+                </button>
+              ) : (
+                <p className="mt-2 inline-flex items-center gap-2">
+                  <CalendarDaysIcon className="size-5" />
+                  {format(
+                    new Date(startDateInp).toISOString(),
+                    "d MMM yy, hh:mm"
+                  )}
+                  <ArrowRightIcon className="size-4 text-gray-700" />
+                  {format(new Date(endDateInp).toISOString(), "d MMM yy, h:mm")}
+                </p>
+              )
+            ) : (
+              <p className="line-through mt-2">
+                {fmt(startDateInp)} — {fmt(endDateInp)}
+              </p>
+            )}
+
+            {/* Резюме под календарём */}
+            {/* {!isFinished && (
+              <div className="text-sm text-gray-700 mt-3">
+                <div>
+                  <b>Start:</b> {startDateInp ? fmt(startDateInp) : "—"}
+                </div>
+                <div>
+                  <b>End:</b> {endDateInp ? fmt(endDateInp) : "—"}
+                </div>
+              </div>
+            )} */}
+            {/* {!isFinished && (
+              <div className="text-xs text-gray-500 mt-2">
+                {effectiveOpenTime === effectiveCloseTime ? (
+                  "Working hours: 24/7"
+                ) : (
+                  <>
+                    Working hours: {mmToHHMM(effectiveOpenTime)} –{" "}
+                    {mmToHHMM(effectiveCloseTime)}
+                  </>
+                )}
+              </div>
+            )} */}
+            {/* <div className="mt-5">
+              Duration:{" "}
+              <span>
+                {durationDays}d {durationHours}h {durationMinutes}m
+              </span>
+            </div> */}
+            {/* Резюме под полем */}
+            {/* {!isFinished && (
+              <div className="text-sm text-gray-700 mt-3">
+                <div>
+                  <b>Start:</b> {startDateInp ? fmt(startDateInp) : "—"}
+                </div>
+                <div>
+                  <b>End:</b> {endDateInp ? fmt(endDateInp) : "—"}
+                </div>
+              </div>
+            )} */}
+
+            {!isFinished && (
+              <div className="text-xs text-gray-500 mt-2">
+                {effectiveOpenTime === effectiveCloseTime ? (
+                  "Working hours: 24/7"
+                ) : (
+                  <>
+                    Working hours: {mmToHHMM(effectiveOpenTime)} –{" "}
+                    {mmToHHMM(effectiveCloseTime)}
+                  </>
+                )}
+              </div>
+            )}
+
+            <div className="mt-5">
               Duration:{" "}
               <span>
                 {durationDays}d {durationHours}h {durationMinutes}m
@@ -2119,6 +2274,47 @@ export default function BookingEditor() {
                 )}
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Календарь */}
+      {pickerOpen && (
+        <div
+          className="fixed inset-0 z-[60] bg-black/40 flex items-center justify-center"
+          onClick={() => setPickerOpen(false)}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div
+            className="bg-white sm:rounded-2xl rounded-none shadow-xl w-full h-full sm:w-[680px] sm:h-[580px] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* header */}
+            <div className="flex items-center justify-between border-b border-gray-200 p-3">
+              <div className="font-medium">Select dates</div>
+              <button
+                className="px-2.5 py-1.5 rounded-md border border-gray-300 text-sm"
+                onClick={() => setPickerOpen(false)}
+              >
+                Close
+              </button>
+            </div>
+
+            {/* body */}
+            <div className="flex-1 overflow-auto p-3">
+              <RentalDateTimePicker
+                value={calendarRange}
+                onChange={(next) => {
+                  handleCalendarChange(next);
+                  setPickerOpen(false);
+                }}
+                minuteStep={30}
+                minDate={startOfDay(new Date())}
+                disabledIntervals={disabledIntervals}
+                mobileStartOpen
+              />
+            </div>
           </div>
         </div>
       )}
