@@ -95,9 +95,17 @@ export default function RentalDateTimePicker({
       : startOfMonth(value.startAt ?? today)
   );
   const [tempRange, setTempRange] = useState<DateRange>(value);
-  //   const [mobileOpen, setMobileOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState<boolean>(!!mobileStartOpen);
   const [hoverDay, setHoverDay] = useState<Date | null>(null);
+  const [canHover, setCanHover] = useState(false);
+
+  useEffect(() => {
+    const m = window.matchMedia("(hover: hover) and (pointer: fine)");
+    const on = () => setCanHover(m.matches);
+    on();
+    m.addEventListener("change", on);
+    return () => m.removeEventListener("change", on);
+  }, []);
 
   useEffect(() => setMobileOpen(!!mobileStartOpen), [mobileStartOpen]);
 
@@ -212,6 +220,7 @@ export default function RentalDateTimePicker({
       isInDisabledIntervals(d, disabledIntervals);
     const isStart = tempRange.startAt && isSameDay(d, tempRange.startAt);
     const isEnd = tempRange.endAt && isSameDay(d, tempRange.endAt);
+    const isSingle = Boolean(isStart && isEnd);
 
     // Compute continuous band (no circles) + hover preview
     let inRange = false;
@@ -220,7 +229,7 @@ export default function RentalDateTimePicker({
         start: startOfDay(tempRange.startAt),
         end: startOfDay(tempRange.endAt),
       });
-    } else if (tempRange.startAt && hoverDay) {
+    } else if (canHover && tempRange.startAt && hoverDay) {
       const start = startOfDay(tempRange.startAt);
       const end = startOfDay(hoverDay);
       if (!isBefore(end, start)) {
@@ -229,20 +238,36 @@ export default function RentalDateTimePicker({
     }
 
     const classes = [
-      "relative h-10 w-full flex items-center justify-center text-sm select-none transition-none",
+      "relative h-10 my-1 w-full flex items-center justify-center text-sm select-none ",
       !inCurrent ? "text-gray-400" : "",
       disabled ? "opacity-40 cursor-not-allowed" : "cursor-pointer",
-      inRange ? "bg-green-200/50" : "",
-      isStart ? "bg-emerald-300 rounded-l-full" : "",
-      isEnd ? "bg-emerald-300 rounded-r-full" : "",
+      inRange ? "bg-green-100/20 border-y-2 border-green-300" : "",
+      // Акцент границ
+      isSingle ? "border-green-300 rounded-full border-2 border-green-300" : "",
+      isStart && !isEnd
+        ? "border border-2 border-green-300 rounded-l-full border-r-0 pr-minus"
+        : "",
+      isEnd && !isStart
+        ? " border-2 border-green-300 rounded-r-full border-l-0 pl-plus"
+        : "",
     ].join(" ");
 
     return (
       <div
-        onMouseEnter={() => setHoverDay(d)}
-        onMouseLeave={() => setHoverDay(null)}
+        onPointerEnter={(e) => {
+          if (canHover && e.pointerType === "mouse") setHoverDay(d);
+        }}
+        onPointerLeave={(e) => {
+          if (canHover && e.pointerType === "mouse") setHoverDay(null);
+        }}
+        onPointerUp={() => {
+          handleDayClick(d);
+        }}
+        style={{
+          touchAction: "manipulation",
+          WebkitTapHighlightColor: "transparent",
+        }}
         className={classes}
-        onClick={() => handleDayClick(d)}
       >
         <span className={isStart || isEnd ? "font-medium text-green-900" : ""}>
           {format(d, "d", { locale })}

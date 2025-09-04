@@ -49,3 +49,11 @@
 .text-shadow {
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
+
+.pr-minus {
+  padding-right: 2px;
+}
+
+.pl-plus {
+  padding-left: 2px;
+}
