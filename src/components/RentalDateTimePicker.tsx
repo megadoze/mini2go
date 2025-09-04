@@ -150,8 +150,8 @@ export default function RentalDateTimePicker({
     }
   }
 
-  function commit() {
-    onChange({ ...tempRange });
+  function commit(next?: DateRange) {
+    onChange(next ?? { ...tempRange });
   }
 
   // --- Time slider helpers
@@ -245,10 +245,10 @@ export default function RentalDateTimePicker({
       // Акцент границ
       isSingle ? "border-green-300 rounded-full border-2 border-green-300" : "",
       isStart && !isEnd
-        ? "border border-2 border-green-300 rounded-l-full border-r-0 pr-minus"
+        ? "border border-2 border-green-300 rounded-l-full border-r-0 pr-[2px]"
         : "",
       isEnd && !isStart
-        ? " border-2 border-green-300 rounded-r-full border-l-0 pl-plus"
+        ? " border-2 border-green-300 rounded-r-full border-l-0 pl-[2px]"
         : "",
     ].join(" ");
 
@@ -323,7 +323,7 @@ export default function RentalDateTimePicker({
         ))}
       </div>
 
-      <div className=" mt-4 grid grid-cols-2 gap-3">
+      <div className=" mt-4 grid sm:grid-cols-2 gap-3">
         <div className="rounded-xl border border-gray-200 p-3">
           <div className="text-xs text-gray-500">Pick Up</div>
           <div className="mt-1 text-sm font-medium min-h-[20px]">
@@ -332,7 +332,7 @@ export default function RentalDateTimePicker({
               : "—"}
           </div>
           {tempRange.startAt && (
-            <div className="mt-2">
+            <div className="my-3">
               <Slider
                 min={0}
                 max={timeStepsPerDay - 1}
@@ -342,15 +342,10 @@ export default function RentalDateTimePicker({
                 color="green"
                 size="sm"
                 radius="xl"
+                thumbSize={25}
                 className="w-full"
+                label={null}
               />
-              <div className="mt-1 text-[11px] text-gray-500">
-                Step {minuteStep} min ·{" "}
-                {format(
-                  idxToTime(tempRange.startAt, startIdx, minuteStep),
-                  "HH:mm"
-                )}
-              </div>
             </div>
           )}
         </div>
@@ -363,7 +358,7 @@ export default function RentalDateTimePicker({
               : "—"}
           </div>
           {tempRange.endAt && (
-            <div className="mt-2">
+            <div className="my-3">
               <Slider
                 min={0}
                 max={timeStepsPerDay - 1}
@@ -373,71 +368,60 @@ export default function RentalDateTimePicker({
                 color="green"
                 size="sm"
                 radius="xl"
+                thumbSize={25}
                 className="w-full"
+                label={null}
               />
-              <div className="mt-1 text-[11px] text-gray-500">
-                Step {minuteStep} min ·{" "}
-                {format(
-                  idxToTime(tempRange.endAt, endIdx, minuteStep),
-                  "HH:mm"
-                )}
-              </div>
             </div>
           )}
         </div>
       </div>
 
-      <div className="mt-3 flex items-center justify-between gap-2">
+      <div className="mt-0">
         <div className="text-xs text-red-500 min-h-[1rem]">
           {rangeBlocked ? "Выбранный диапазон пересекается с блокировками" : ""}
         </div>
-        <div className="flex gap-2">
-          <button
-            className="px-3 py-2 rounded-xl border border-gray-200 hover:bg-gray-50"
-            onClick={() => setTempRange(value)}
-          >
-            Reset
-          </button>
-          <button
-            className="px-4 py-2 rounded-xl bg-black text-white disabled:opacity-50"
-            disabled={!tempRange.startAt || !tempRange.endAt || rangeBlocked}
-            onClick={commit}
-          >
-            Apply
-          </button>
+        <div className="flex items-center justify-between">
+          <div>
+            <button
+              className=" px-4 py-2 border rounded-xl hover:bg-gray-100"
+              onClick={() => {
+                commit(value);
+                setTempRange(value);
+                setMobileOpen(false);
+              }}
+            >
+              Close
+            </button>
+          </div>
+
+          <div className="py-2 px-4 flex items-center gap-2">
+            <button
+              className="px-3 py-2 rounded-xl border border-gray-200 hover:bg-gray-50"
+              onClick={() => setTempRange(value)}
+            >
+              Reset
+            </button>
+            <button
+              className="px-4 py-2 rounded-xl bg-black text-white disabled:opacity-50"
+              disabled={!tempRange.startAt || !tempRange.endAt || rangeBlocked}
+              onClick={() => commit()}
+            >
+              Apply
+            </button>
+          </div>
         </div>
       </div>
     </div>
   );
 
   return (
-    <div className={"w-full" + (className ?? "")}>
+    <div className={"w-full " + (className ?? "")}>
       {/* Desktop / Tablet inline */}
       <div className="hidden sm:block">{CalendarGrid}</div>
 
-      {/* Mobile: button + full-screen sheet with sliders at bottom */}
+      {/* Mobile*/}
       <div className="sm:hidden">
-        {/* <button
-          className="w-full rounded-2xl border border-gray-200 p-3 flex items-center justify-between"
-          onClick={() => setMobileOpen(true)}
-        >
-          <div className="flex items-center gap-2 text-left">
-            <IconCalendar />
-            <div>
-              <div className="text-xs text-gray-500">Даты аренды</div>
-              <div className="text-sm font-medium">
-                {value.startAt && value.endAt
-                  ? `${format(value.startAt, "d MMM, HH:mm", {
-                      locale,
-                    })} — ${format(value.endAt, "d MMM, HH:mm", { locale })}`
-                  : "Выберите даты"}
-              </div>
-            </div>
-          </div>
-          <IconChevron dir="right" />
-
-        </button> */}
-
         <AnimatePresence>
           {mobileOpen && (
             <motion.div
@@ -447,108 +431,7 @@ export default function RentalDateTimePicker({
               transition={{ type: "spring", stiffness: 260, damping: 30 }}
               className="fixed inset-0 z-50 bg-white top-16"
             >
-              {/* Header */}
-              <div className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-200 p-2 bg-white">
-                <div className="w-[64px]" />
-                <div className="font-medium">Выбор дат</div>
-                <button
-                  className="p-2 border rounded-xl hover:bg-gray-100 text-sm"
-                  onClick={() => {
-                    commit();
-                    setMobileOpen(false);
-                  }}
-                >
-                  Закрыть
-                </button>
-              </div>
-
               <div className="p-4 pb-40">{CalendarGrid}</div>
-
-              {/* Bottom time sliders */}
-              <div className="hidden fixed bottom-0 left-0 right-0 border-t border-gray-200 bg-white p-4">
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="rounded-xl border border-gray-200 p-3">
-                    <div className="text-xs text-gray-500">Выдача</div>
-                    <div className="mt-1 text-sm font-medium min-h-[20px]">
-                      {tempRange.startAt
-                        ? format(tempRange.startAt, "d MMM, HH:mm", { locale })
-                        : "—"}
-                    </div>
-                    {tempRange.startAt && (
-                      <div className="mt-2">
-                        <input
-                          type="range"
-                          min={0}
-                          max={timeStepsPerDay - 1}
-                          step={1}
-                          value={startIdx}
-                          onChange={(e) =>
-                            setStartIdx(parseInt(e.target.value))
-                          }
-                          className="w-full accent-green-400"
-                        />
-                        <div className="mt-1 text-[11px] text-gray-500">
-                          Шаг {minuteStep} мин ·{" "}
-                          {format(
-                            idxToTime(tempRange.startAt, startIdx, minuteStep),
-                            "HH:mm"
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="rounded-xl border border-gray-200 p-3">
-                    <div className="text-xs text-gray-500">Возврат</div>
-                    <div className="mt-1 text-sm font-medium min-h-[20px]">
-                      {tempRange.endAt
-                        ? format(tempRange.endAt, "d MMM, HH:mm", { locale })
-                        : "—"}
-                    </div>
-                    {tempRange.endAt && (
-                      <div className="mt-2">
-                        <input
-                          type="range"
-                          min={0}
-                          max={timeStepsPerDay - 1}
-                          step={1}
-                          value={endIdx}
-                          onChange={(e) => setEndIdx(parseInt(e.target.value))}
-                          className="w-full accent-green-600"
-                        />
-                        <div className="mt-1 text-[11px] text-gray-500">
-                          Шаг {minuteStep} мин ·{" "}
-                          {format(
-                            idxToTime(tempRange.endAt, endIdx, minuteStep),
-                            "HH:mm"
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="mt-3 flex items-center justify-between gap-2">
-                  <button
-                    className="px-3 py-2 rounded-xl border border-gray-200 hover:bg-gray-50"
-                    onClick={() => setTempRange(value)}
-                  >
-                    Сбросить
-                  </button>
-                  <button
-                    className="px-4 py-2 rounded-xl bg-black text-white disabled:opacity-50"
-                    disabled={
-                      !tempRange.startAt || !tempRange.endAt || rangeBlocked
-                    }
-                    onClick={() => {
-                      commit();
-                      setMobileOpen(false);
-                    }}
-                  >
-                    Готово
-                  </button>
-                </div>
-              </div>
             </motion.div>
           )}
         </AnimatePresence>

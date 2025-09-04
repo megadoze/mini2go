@@ -2124,22 +2124,11 @@ export default function BookingEditor() {
           aria-modal="true"
         >
           <div
-            className="bg-white sm:rounded-2xl rounded-none shadow-xl w-full h-full sm:w-[680px] sm:h-[580px] flex flex-col"
+            className="bg-white sm:rounded-2xl rounded-none shadow-xl w-full h-full sm:w-[680px] sm:h-fit flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* header */}
-            <div className="flex items-center justify-between border-b border-gray-200 p-3">
-              <div className="font-medium">Select dates</div>
-              <button
-                className="px-2.5 py-1.5 rounded-md border border-gray-300 text-sm"
-                onClick={() => setPickerOpen(false)}
-              >
-                Close
-              </button>
-            </div>
-
             {/* body */}
-            <div className="flex-1 overflow-auto p-3">
+            <div className="flex-1 overflow-hidden p-0">
               <RentalDateTimePicker
                 value={calendarRange}
                 onChange={(next) => {
