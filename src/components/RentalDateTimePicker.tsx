@@ -115,8 +115,14 @@ export default function RentalDateTimePicker({
   );
 
   const weeks = useMemo(() => {
-    const start = startOfWeek(startOfMonth(currentMonth), { locale });
-    const end = endOfWeek(endOfMonth(currentMonth), { locale });
+    const start = startOfWeek(startOfMonth(currentMonth), {
+      locale,
+      weekStartsOn: 1,
+    });
+    const end = endOfWeek(endOfMonth(currentMonth), {
+      locale,
+      weekStartsOn: 1,
+    });
     const days = eachDayOfInterval({ start, end });
     return Array.from({ length: Math.ceil(days.length / 7) }, (_, i) =>
       days.slice(i * 7, i * 7 + 7)
@@ -277,7 +283,7 @@ export default function RentalDateTimePicker({
   };
 
   const CalendarGrid = (
-    <div className="rounded-2xl border border-gray-200 p-4 shadow-sm overflow-hidden">
+    <div className="rounded-2xl border border-gray-200 p-3 shadow-sm overflow-hidden">
       <div className="flex items-center justify-between">
         <button
           className="p-2 rounded-xl hover:bg-gray-100"
@@ -301,9 +307,13 @@ export default function RentalDateTimePicker({
       <div className="mt-3 grid grid-cols-7 text-center text-xs text-gray-500">
         {Array.from({ length: 7 }).map((_, i) => (
           <div key={i}>
-            {format(addDays(startOfWeek(new Date(), { locale }), i), "EEEEE", {
-              locale,
-            })}
+            {format(
+              addDays(startOfWeek(new Date(), { locale, weekStartsOn: 1 }), i),
+              "EEEEE",
+              {
+                locale,
+              }
+            )}
           </div>
         ))}
       </div>
@@ -325,12 +335,15 @@ export default function RentalDateTimePicker({
 
       <div className=" mt-4 grid sm:grid-cols-2 gap-3">
         <div className="rounded-xl border border-gray-200 p-3">
-          <div className="text-xs text-gray-500">Pick Up</div>
-          <div className="mt-1 text-sm font-medium min-h-[20px]">
-            {tempRange.startAt
-              ? format(tempRange.startAt, "d MMM, HH:mm", { locale })
-              : "—"}
+          <div className=" flex justify-between">
+            <div className="text-xs text-gray-500">Pick Up</div>
+            <div className="mt-1 text-sm font-medium min-h-[20px]">
+              {tempRange.startAt
+                ? format(tempRange.startAt, "d MMM, HH:mm", { locale })
+                : "—"}
+            </div>
           </div>
+
           {tempRange.startAt && (
             <div className="my-3">
               <Slider
@@ -351,12 +364,15 @@ export default function RentalDateTimePicker({
         </div>
 
         <div className="rounded-xl border border-gray-200 p-3">
-          <div className="text-xs text-gray-500">Drop Off</div>
-          <div className="mt-1 text-sm font-medium min-h-[20px]">
-            {tempRange.endAt
-              ? format(tempRange.endAt, "d MMM, HH:mm", { locale })
-              : "—"}
+          <div className=" flex justify-between">
+            <div className="text-xs text-gray-500">Drop Off</div>
+            <div className="mt-1 text-sm font-medium min-h-[20px]">
+              {tempRange.endAt
+                ? format(tempRange.endAt, "d MMM, HH:mm", { locale })
+                : "—"}
+            </div>
           </div>
+
           {tempRange.endAt && (
             <div className="my-3">
               <Slider
@@ -395,7 +411,7 @@ export default function RentalDateTimePicker({
             </button>
           </div>
 
-          <div className="py-2 px-4 flex items-center gap-2">
+          <div className="py-2 flex items-center gap-2">
             <button
               className="px-3 py-2 rounded-xl border border-gray-200 hover:bg-gray-50"
               onClick={() => setTempRange(value)}
@@ -429,7 +445,7 @@ export default function RentalDateTimePicker({
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
               transition={{ type: "spring", stiffness: 260, damping: 30 }}
-              className="fixed inset-0 z-50 bg-white top-16"
+              className="fixed inset-0 z-50 bg-white top-14"
             >
               <div className="p-4 pb-40">{CalendarGrid}</div>
             </motion.div>
