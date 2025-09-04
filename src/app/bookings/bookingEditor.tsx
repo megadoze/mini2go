@@ -1410,141 +1410,18 @@ export default function BookingEditor() {
                 {carFromCtx?.year}
               </p>
               {carFromCtx?.licensePlate ? (
-                <p className="w-fit border border-gray-600 rounded-sm p-1 text-gray-700 text-sm">
+                <p className="w-fit border border-gray-200 shadow-sm rounded-sm p-1 text-gray-700 text-sm">
                   {carFromCtx.licensePlate}
                 </p>
               ) : null}
             </div>
           </section>
 
-          {/* даты/время */}
-          {/* <section id="dates">
-            <p className="font-medium text-base sm:text-lg text-gray-800">
-              Dates of trip
-            </p>
-            <div className="flex items-center justify-between sm:justify-normal flex-wrap md:items-center mt-2">
-              <div>
-                <label className="block text-sm mb-1">Start</label>
-                {!isFinished ? (
-                  status !== "rent" ? (
-                    <input
-                      type="datetime-local"
-                      step={60}
-                      className="w-full border rounded px-2 py-1 disabled:bg-white"
-                      value={toLocalDT(startDateInp)}
-                      onChange={(e) =>
-                        setStartDateInp(fromLocalDT(e.target.value))
-                      }
-                      disabled={isDisabled}
-                    />
-                  ) : (
-                    // fmt(startDateInp)
-                    // <div className="mt-1 text-sm sm:hidden">
-                    <p className=" inline-flex items-center gap-2">
-                      <CalendarDaysIcon className="size-5" />
-                      {format(
-                        new Date(startDateInp).toISOString(),
-                        "d MMM yy, hh:mm"
-                      )}
-                    </p>
-                  )
-                ) : (
-                  <p className="line-through">{fmt(startDateInp)} </p>
-                )}
-              </div>
-              {isFinished && <ArrowRightIcon className="sm:mx-5 size-5" />}
-              {!isFinished && (
-                <div className="w-full sm:mx-2 sm:my-0 sm:w-0 my-2"></div>
-              )}
-              <div>
-                <label className="block text-sm mb-1">End</label>
-                {!isFinished ? (
-                  status !== "rent" ? (
-                    <input
-                      type="datetime-local"
-                      step={60}
-                      className="w-full border rounded px-2 py-1 disabled:bg-white"
-                      value={toLocalDT(endDateInp)}
-                      min={startDateInp ? toLocalDT(startDateInp) : undefined}
-                      onChange={(e) =>
-                        setEndDateInp(fromLocalDT(e.target.value))
-                      }
-                      disabled={isDisabled}
-                    />
-                  ) : (
-                    <p className=" inline-flex items-center gap-2">
-                      <CalendarDaysIcon className="size-5" />
-                      {format(
-                        new Date(endDateInp).toISOString(),
-                        "d MMM yy, hh:mm"
-                      )}
-                    </p>
-                  )
-                ) : (
-                  <p className="line-through">{fmt(endDateInp)}</p>
-                )}
-              </div>
-            </div>
-
-            {!isFinished && (
-              <div className="text-xs text-gray-500 mt-1">
-                {effectiveOpenTime === effectiveCloseTime ? (
-                  "Working hours: 24/7"
-                ) : (
-                  <>
-                    Working hours: {mmToHHMM(effectiveOpenTime)} –{" "}
-                    {mmToHHMM(effectiveCloseTime)}
-                  </>
-                )}
-              </div>
-            )}
-            <div className="mt-5 ">
-              Duration:{" "}
-              <span>
-                {durationDays}d {durationHours}h {durationMinutes}m
-              </span>
-            </div>
-          </section> */}
-
+          {/* Даты проката */}
           <section id="dates">
             <p className="font-medium text-base sm:text-lg text-gray-800">
               Dates of trip
             </p>
-            {/* Календарь выбора дат/времени */}
-            {/* {!isFinished ? (
-              status !== "rent" ? (
-                <div
-                  className={`${
-                    isDisabled ? "opacity-60 pointer-events-none" : ""
-                  } mt-2`}
-                >
-                  <RentalDateTimePicker
-                    value={calendarRange}
-                    onChange={handleCalendarChange}
-                    minuteStep={30}
-                    minDate={startOfDay(new Date())}
-                    disabledIntervals={disabledIntervals}
-                  />
-                </div>
-              ) : (
-                <p className="mt-2 inline-flex items-center gap-2">
-                  <CalendarDaysIcon className="size-5" />
-                  {format(
-                    new Date(startDateInp).toISOString(),
-                    "d MMM yy, hh:mm"
-                  )}{" "}
-                  —{" "}
-                  {format(
-                    new Date(endDateInp).toISOString(),
-                    "d MMM yy, hh:mm"
-                  )}
-                </p>
-              )
-            ) : (
-              <p className="line-through mt-2">
-                {fmt(startDateInp)} — {fmt(endDateInp)}
-              </p>
-            )} */}
             {/* Триггер-поле: открывает полноэкранный оверлей с календарём */}
             {!isFinished ? (
               status !== "rent" ? (
@@ -1594,47 +1471,6 @@ export default function BookingEditor() {
               </p>
             )}
 
-            {/* Резюме под календарём */}
-            {/* {!isFinished && (
-              <div className="text-sm text-gray-700 mt-3">
-                <div>
-                  <b>Start:</b> {startDateInp ? fmt(startDateInp) : "—"}
-                </div>
-                <div>
-                  <b>End:</b> {endDateInp ? fmt(endDateInp) : "—"}
-                </div>
-              </div>
-            )} */}
-            {/* {!isFinished && (
-              <div className="text-xs text-gray-500 mt-2">
-                {effectiveOpenTime === effectiveCloseTime ? (
-                  "Working hours: 24/7"
-                ) : (
-                  <>
-                    Working hours: {mmToHHMM(effectiveOpenTime)} –{" "}
-                    {mmToHHMM(effectiveCloseTime)}
-                  </>
-                )}
-              </div>
-            )} */}
-            {/* <div className="mt-5">
-              Duration:{" "}
-              <span>
-                {durationDays}d {durationHours}h {durationMinutes}m
-              </span>
-            </div> */}
-            {/* Резюме под полем */}
-            {/* {!isFinished && (
-              <div className="text-sm text-gray-700 mt-3">
-                <div>
-                  <b>Start:</b> {startDateInp ? fmt(startDateInp) : "—"}
-                </div>
-                <div>
-                  <b>End:</b> {endDateInp ? fmt(endDateInp) : "—"}
-                </div>
-              </div>
-            )} */}
-
             {!isFinished && (
               <div className="text-xs text-gray-500 mt-2">
                 {effectiveOpenTime === effectiveCloseTime ? (
@@ -1656,6 +1492,7 @@ export default function BookingEditor() {
             </div>
           </section>
 
+          {/* Прогресс бар */}
           <section>
             {status === "rent" && typeof tripProgress === "number" && (
               <div className="mt-4">
@@ -1998,7 +1835,7 @@ export default function BookingEditor() {
                 {carFromCtx?.year}
               </p>
               {carFromCtx?.licensePlate ? (
-                <p className="w-fit border border-gray-600 rounded-sm p-1 text-gray-700 text-sm">
+                <p className="w-fit border border-gray-200 shadow-sm rounded-sm p-1 text-gray-700 text-sm">
                   {carFromCtx.licensePlate}
                 </p>
               ) : null}
