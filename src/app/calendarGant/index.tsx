@@ -36,7 +36,13 @@ import { supabase } from "@/lib/supabase";
 
 /* -------------------- types -------------------- */
 
-type CarLite = { id: string; name: string };
+// type CarLite = { id: string; name: string };
+type CarLite = {
+  id: string;
+  brand: string | null;
+  model: string | null;
+  license_plate: string | null;
+};
 type CarWithBookings = CarLite & { bookings: Booking[] };
 type LoaderShape = { monthISO?: string };
 
@@ -52,7 +58,8 @@ type RTPayload = RealtimePostgresChangesPayload<Record<string, unknown>>;
 const COL_W = 32;
 const ROW_H = 36;
 const HEADER_H = 36;
-const LEFT_W = 200;
+const LEFT_W = 230;
+const PLATE_COL_W = 64;
 const LIST_MAX_H = 520;
 
 /* -------------------- helpers -------------------- */
@@ -210,7 +217,7 @@ export default function CalendarPage() {
   useEffect(() => {
     if (!carIdsKey) return;
 
-    const idsCsv = carIdsKey; // уже отсортированный join(",") из useMemo выше
+    const idsCsv = carIdsKey;
 
     const channel = supabase
       .channel(`bookings-calendar-${idsCsv}`)
@@ -509,15 +516,31 @@ export default function CalendarPage() {
   }: {
     index: number;
     style: React.CSSProperties;
-  }) => (
-    <div
-      style={{ ...style, height: ROW_H }}
-      className="px-3 flex items-center whitespace-nowrap overflow-hidden text-sm text-ellipsis border-b border-gray-100"
-      title={cars[index]?.name}
-    >
-      {cars[index]?.name}
-    </div>
-  );
+  }) => {
+    const car = cars[index];
+    const brandModel = [car?.brand, car?.model].filter(Boolean).join(" ");
+    const plate = car?.license_plate ?? "—";
+
+    return (
+      <div
+        style={{ ...style, height: ROW_H }}
+        className="px-2 whitespace-nowrap text-sm border-b border-gray-100"
+        title={`${brandModel}${plate ? ` • ${plate}` : ""}`}
+      >
+        <div
+          className="grid items-center h-full gap-2"
+          style={{ gridTemplateColumns: `1fr ${PLATE_COL_W}px` }}
+        >
+          <span className=" overflow-auto text-gray-800">
+            {brandModel || "—"}
+          </span>
+          <span className=" text-xs text-gray-600 border border-gray-200 shadow-sm text-center py-1">
+            {plate}
+          </span>
+        </div>
+      </div>
+    );
+  };
 
   const RightRow = ({
     index,
@@ -713,7 +736,9 @@ export default function CalendarPage() {
 
   return (
     <div className="w-full max-w-screen-2xl">
-      <h1 className="font-roboto text-xl md:text-2xl font-medium md:font-bold">Calendar</h1>
+      <h1 className="font-roboto text-xl md:text-2xl font-medium md:font-bold">
+        Calendar
+      </h1>
       <div className="flex flex-wrap items-center justify-between mb-3 mt-5">
         <div className="flex items-center gap-2">
           <button
@@ -751,10 +776,10 @@ export default function CalendarPage() {
             style={{ width: LEFT_W }}
           >
             <div
-              className="sticky top-0 z-20 bg-white border-b border-gray-200 px-3 flex items-center"
+              className="sticky grid grid-cols-2 top-0 z-20 bg-white border-b border-gray-200 px-2  items-center"
               style={{ height: HEADER_H }}
             >
-              {format(visibleMonth, "LLLL yyyy")}
+              <p className=" col-span-2">{format(visibleMonth, "LLLL yyyy")}</p>
             </div>
             {calQ.isLoading && !calQ.data ? (
               <div className="px-3 py-2 text-sm text-gray-500">Loading…</div>

@@ -481,7 +481,7 @@ export default function BookingsList() {
 
                 <div className="flex-1 min-w-0 pl-4 pr-2">
                   {/* brand + model with highlight */}
-                  <p className="font-medium font-robotoCondensed text-sm md:text-base truncate">
+                  <p className="font-medium font-roboto text-sm md:text-base truncate">
                     {highlightMatch(
                       `${b.car?.brand ?? ""} ${b.car?.model ?? ""}`,
                       search
