@@ -1794,7 +1794,7 @@ export default function BookingEditor() {
                 type="button"
                 className={`${
                   isChanged
-                    ? "border-gray-600 text-gray-700"
+                    ? "border-green-400 text-green-500"
                     : "border-gray-300 text-gray-400 cursor-not-allowed"
                 } border rounded-md px-8 py-2`}
                 onClick={handleSave}
