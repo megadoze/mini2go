@@ -491,13 +491,13 @@ export default function Calendar() {
                   handleRemoveBlock(block.id);
                   setAnchorKey(null);
                 }}
-                className="px-2 py-1 border border-gray-600 rounded text-xs"
+                className="px-2 py-1 border border-gray-600 rounded text-sm"
               >
                 Remove
               </button>
             )}
             <button
-              className="px-2 py-1 border border-gray-400 rounded text-xs"
+              className="px-3 py-1 border border-gray-400 rounded text-sm"
               onClick={() => setAnchorKey(null)}
             >
               Close
@@ -537,20 +537,20 @@ export default function Calendar() {
                     handleRemoveBooking(booking.id);
                     setAnchorKey(null);
                   }}
-                  className="px-2 py-1 border border-gray-500 rounded text-xs"
+                  className="px-2 py-1 border border-gray-500 rounded text-sm"
                 >
                   Remove
                 </button>
               )}
 
             <button
-              className="px-2 py-1 border border-gray-400 rounded text-xs"
+              className="px-3 py-1 border border-gray-400 rounded text-sm"
               onClick={() => setAnchorKey(null)}
             >
               Close
             </button>
             <button
-              className="px-3 py-1 border border-lime-500 text-lime-600 rounded text-xs"
+              className="px-4 py-1 border border-lime-500 text-lime-600 rounded text-sm"
               onClick={async () => {
                 const uid = booking.user_id ?? null;
                 const [user, extras] = await Promise.all([
