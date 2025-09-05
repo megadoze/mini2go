@@ -1913,7 +1913,7 @@ export default function BookingEditor() {
               {!isDisabled && (
                 <div className="hidden mt-6 space-y-2 lg:block">
                   <button
-                    className="w-full border rounded-md border-lime-400 text-lime-500 py-2 text-sm disabled:border-gray-300 disabled:text-gray-400"
+                    className="w-full border rounded-md border-green-400 text-green-500 py-2 text-sm disabled:border-gray-300 disabled:text-gray-400"
                     onClick={handleConfirm}
                     disabled={!canConfirm}
                   >
@@ -2091,7 +2091,7 @@ export default function BookingEditor() {
                 {mode !== "create" && status === "onApproval" && !isChanged ? (
                   <button
                     onClick={handleConfirm}
-                    className="flex-1 rounded-md border border-green-300 text-green-400 py-3 text-sm active:scale-[.99] transition"
+                    className="flex-1 rounded-md border border-green-400 text-green-500 py-3 text-sm active:scale-[.99] transition"
                   >
                     Confirm booking
                   </button>
@@ -2100,7 +2100,7 @@ export default function BookingEditor() {
                     type="button"
                     className={`${
                       isChanged
-                        ? "border-green-300 text-green-400"
+                        ? "border-green-400 text-green-500"
                         : "border-gray-300 text-gray-400 cursor-not-allowed"
                     } flex-1 border rounded-md px-8 py-2`}
                     onClick={handleSave}
