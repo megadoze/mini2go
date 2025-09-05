@@ -27,7 +27,7 @@ import {
   parseISO,
   startOfDay,
 } from "date-fns";
-import { Select, Checkbox, Badge } from "@mantine/core";
+import { Select, Checkbox, Badge, Loader } from "@mantine/core";
 import {
   searchUsers,
   createUserProfile,
@@ -42,21 +42,45 @@ import {
 import { subscribeBooking } from "@/services/bookings.service";
 import { QK } from "@/queryKeys";
 import RentalDateTimePicker from "@/components/RentalDateTimePicker";
+// +++ для блока адреса доставки
+import "mapbox-gl/dist/mapbox-gl.css";
+import {
+  Map,
+  Marker,
+  FullscreenControl,
+  ScaleControl,
+  NavigationControl,
+  GeolocateControl,
+} from "react-map-gl/mapbox";
+import { AddressAutofill } from "@mapbox/search-js-react";
+import Pin from "@/components/pin";
+import { fetchAddressFromCoords } from "@/services/geo.service";
+import type { MapRef, ViewState } from "react-map-gl/mapbox";
+
+// ========== Types ===========
+type MapboxFeature = {
+  place_type?: string[];
+  place_name?: string;
+  geometry: {
+    coordinates: [number, number];
+  };
+  properties: {
+    [key: string]: any;
+    full_address?: string;
+  };
+};
+
+type AddressAutofillWrapperProps = {
+  accessToken: string;
+  onRetrieve?: (event: { features: MapboxFeature[]; query: string }) => void;
+  browserAutofillEnabled?: boolean;
+  children?: React.ReactNode;
+};
+
+const AddressAutofillWrapper =
+  AddressAutofill as React.FC<AddressAutofillWrapperProps>;
 
 /* ===================== УТИЛИТЫ ===================== */
-
-// function toLocalDT(iso?: string) {
-//   const d = iso ? new Date(iso) : new Date();
-//   if (Number.isNaN(d.getTime())) return "";
-//   const pad = (n: number) => String(n).padStart(2, "0");
-//   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(
-//     d.getHours()
-//   )}:${pad(d.getMinutes())}`;
-// }
-
-// function fromLocalDT(local: string) {
-//   return new Date(local).toISOString();
-// }
 
 function minutesSinceMidnight(d: Date) {
   return d.getHours() * 60 + d.getMinutes();
@@ -157,6 +181,8 @@ export default function BookingEditor() {
       s
     );
   const mode: "create" | "edit" = isUUID(bookingId) ? "edit" : "create";
+
+  const [saving, setSaving] = useState(false);
 
   const [mark, setMark] = useState<"booking" | "block">(
     (snapshot?.booking.mark as any) ?? "booking"
@@ -342,6 +368,43 @@ export default function BookingEditor() {
     return isByAddr ? def : 0;
   });
 
+  // +++ адрес доставки (для delivery === "by_address")
+  const [deliveryAddress, setDeliveryAddress] = useState<string>(
+    (snapshot?.booking?.delivery_address as string) ?? ""
+  );
+  const [deliveryLat, setDeliveryLat] = useState<number | null>(
+    (snapshot?.booking?.delivery_lat as number) ?? null
+  );
+  const [deliveryLong, setDeliveryLong] = useState<number | null>(
+    (snapshot?.booking?.delivery_long as number) ?? null
+  );
+
+  // страна/город для delivery
+  const [deliveryCountry, setDeliveryCountry] = useState<string>(
+    (snapshot?.booking?.delivery_country as string) ?? ""
+  );
+  const [deliveryCity, setDeliveryCity] = useState<string>(
+    (snapshot?.booking?.delivery_city as string) ?? ""
+  );
+
+  const toNum = (v: unknown, fallback: number) =>
+    Number.isFinite(Number(v)) ? Number(v) : fallback;
+
+  const initialLat = toNum(deliveryLat ?? carFromCtx?.lat, 50.45);
+  const initialLng = toNum(deliveryLong ?? carFromCtx?.long, 30.52);
+
+  // карта: управляемый viewState + ref
+  const [mapView, setMapView] = useState<ViewState>({
+    latitude: initialLat,
+    longitude: initialLng,
+    zoom: 12,
+    bearing: 0,
+    pitch: 0,
+    padding: { top: 0, bottom: 0, left: 0, right: 0 },
+  });
+
+  const mapRef = useRef<MapRef | null>(null);
+
   // QR
   const [qrOpen, setQrOpen] = useState(false);
   const [qrSrc, setQrSrc] = useState<string | null>(null);
@@ -430,6 +493,13 @@ export default function BookingEditor() {
     // единственная точка гидратации локального UI-состояния
     setDelivery(b.delivery_type ?? "car_address");
     setDeliveryFeeValue(Number(b.delivery_fee ?? 0));
+    // +++ гидратация адреса доставки
+    setDeliveryAddress(b.delivery_address ?? "");
+    setDeliveryLat(typeof b.delivery_lat === "number" ? b.delivery_lat : null);
+    setDeliveryLong(
+      typeof b.delivery_long === "number" ? b.delivery_long : null
+    );
+
     if (!hasMatchingSnapshot) {
       setMark(b.mark);
       setUserId(b.user_id ?? null);
@@ -439,6 +509,18 @@ export default function BookingEditor() {
       setEndDateInp(b.end_at);
       setStatus(b.status ?? null);
       setDeposit(Number(b.deposit ?? 0));
+    }
+    if (b.delivery_lat != null && b.delivery_long != null) {
+      (async () => {
+        try {
+          const a = await fetchAddressFromCoords(
+            b.delivery_lat,
+            b.delivery_long
+          );
+          setDeliveryCountry(a?.country || "");
+          setDeliveryCity(a?.city || "");
+        } catch {}
+      })();
     }
   }, [bookingQ.data, hasMatchingSnapshot]);
 
@@ -890,6 +972,8 @@ export default function BookingEditor() {
 
   async function handleSave() {
     setError(null);
+    setSaving(true);
+
     if (!carId) {
       setError("Car ID is missing");
       return;
@@ -968,6 +1052,18 @@ export default function BookingEditor() {
       }
     }
 
+    // +++ проверка адреса для доставки
+    if (delivery === "by_address") {
+      if (
+        !deliveryAddress?.trim() ||
+        deliveryLat == null ||
+        deliveryLong == null
+      ) {
+        setError("Please select a delivery address (pin on map or search).");
+        return;
+      }
+    }
+
     try {
       await assertNoConflicts(
         String(carId),
@@ -992,6 +1088,9 @@ export default function BookingEditor() {
       delivery_type: delivery,
       delivery_fee: deliveryFee,
       currency: effectiveCurrency,
+      delivery_address: delivery === "by_address" ? deliveryAddress : null,
+      delivery_lat: delivery === "by_address" ? deliveryLat : null,
+      delivery_long: delivery === "by_address" ? deliveryLong : null,
     };
 
     const payload =
@@ -1058,6 +1157,8 @@ export default function BookingEditor() {
       }
     } catch (e: any) {
       setError(e?.message ?? "Save error");
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -1167,6 +1268,7 @@ export default function BookingEditor() {
 
   const isChanged = useMemo(() => {
     if (mode === "create") return true;
+
     const s0 = startAt ? parseISO(startAt) : null;
     const s1 = startDateInp ? parseISO(startDateInp) : null;
     const e0 = endAt ? parseISO(endAt) : null;
@@ -1182,20 +1284,59 @@ export default function BookingEditor() {
     const extrasChanged =
       JSON.stringify(extrasIds0) !== JSON.stringify(extrasIds1);
 
-    return (
-      datesChanged ||
-      (bookingQ.data?.delivery_type ?? "car_address") !== delivery ||
-      extrasChanged
-    );
+    // helper сравнения чисел (координаты/fee)
+    const eqNum = (
+      a: number | null | undefined,
+      b: number | null | undefined
+    ) => {
+      if (a == null && b == null) return true;
+      if (a == null || b == null) return false;
+      return Math.abs(Number(a) - Number(b)) < 1e-6;
+    };
+
+    const initialDeliveryType = (bookingQ.data?.delivery_type ??
+      "car_address") as DeliveryOption;
+    const initialAddr = bookingQ.data?.delivery_address ?? "";
+    const initialLat = bookingQ.data?.delivery_lat ?? null;
+    const initialLong = bookingQ.data?.delivery_long ?? null;
+    const initialFee = Number(bookingQ.data?.delivery_fee ?? 0);
+
+    // текущее (из UI)
+    const currentType = delivery;
+    const currentAddr = delivery === "by_address" ? deliveryAddress ?? "" : "";
+    const currentLat = delivery === "by_address" ? deliveryLat : null;
+    const currentLong = delivery === "by_address" ? deliveryLong : null;
+    const currentFee = Number(deliveryFee ?? 0); // уже учитывает тип
+
+    const deliveryChanged =
+      initialDeliveryType !== currentType ||
+      (currentType === "by_address" &&
+        ((initialAddr || "") !== (currentAddr || "") ||
+          !eqNum(initialLat, currentLat) ||
+          !eqNum(initialLong, currentLong) ||
+          !eqNum(initialFee, currentFee))) ||
+      // если вернулись в car_address — fee должен быть 0
+      (currentType === "car_address" && !eqNum(currentFee, 0));
+
+    return datesChanged || extrasChanged || deliveryChanged;
   }, [
+    mode,
     startAt,
     startDateInp,
     endAt,
     endDateInp,
-    bookingQ.data?.delivery_type,
-    delivery,
     extrasQ.data,
     pickedExtras,
+    bookingQ.data?.delivery_type,
+    bookingQ.data?.delivery_address,
+    bookingQ.data?.delivery_lat,
+    bookingQ.data?.delivery_long,
+    bookingQ.data?.delivery_fee,
+    delivery,
+    deliveryAddress,
+    deliveryLat,
+    deliveryLong,
+    deliveryFee,
   ]);
 
   const countdownParts = (target?: Date | null) => {
@@ -1349,6 +1490,7 @@ export default function BookingEditor() {
             variant="dot"
             color={statusView.cls as any}
             className="mt-2 md:mt-0"
+            fw={500}
           >
             {statusView.text}
           </Badge>
@@ -1427,16 +1569,16 @@ export default function BookingEditor() {
               status !== "rent" ? (
                 <button
                   type="button"
-                  className={`mt-2 w-full rounded-2xl border border-gray-200 px-3 py-3 text-left hover:bg-gray-50 active:scale-[.999] $isDisabled ? "opacity-60 cursor-not-allowed" : ""}`}
+                  className={`mt-2 w-full rounded-xl border border-gray-200 px-3 py-3 text-left hover:bg-gray-50 active:scale-[.999] $isDisabled ? "opacity-60 cursor-not-allowed" : ""}`}
                   onClick={() => !isDisabled && setPickerOpen(true)}
                 >
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 md:py-1">
                       <CalendarDaysIcon className="size-5 text-gray-700" />
                       <div>
-                        <div className="text-xs text-gray-500">
+                        {/* <div className="text-xs text-gray-500">
                           Rental period
-                        </div>
+                        </div> */}
                         <div className="text-sm font-medium text-gray-800">
                           {startDateInp && endDateInp
                             ? `${format(
@@ -1444,13 +1586,12 @@ export default function BookingEditor() {
                                 "d MMM, HH:mm"
                               )} — ${format(
                                 new Date(endDateInp).toISOString(),
-                                "d MM, HH:mm"
+                                "d MMM, HH:mm"
                               )}`
                             : "Select start and end"}
                         </div>
                       </div>
                     </div>
-                    {/* <span className="text-gray-400"></span> */}
                     <ChevronRightIcon className=" size-4 text-gray-400" />
                   </div>
                 </button>
@@ -1659,7 +1800,7 @@ export default function BookingEditor() {
                 </div>
               )}
               {userId && selectedUser && (
-                <div className="mt-2 border border-lime-400 rounded p-2 text-sm flex items-start gap-2">
+                <div className="mt-2 border border-green-400 rounded p-2 text-sm flex items-start gap-2">
                   <div className="grow">
                     <div className="font-medium">
                       {selectedUser.full_name ?? "—"}
@@ -1691,12 +1832,17 @@ export default function BookingEditor() {
               </label>
               <Select
                 value={delivery}
-                onChange={(v: any) => {
+                onChange={async (v: any) => {
                   const next = (v ?? "car_address") as DeliveryOption;
                   setDelivery(next);
+
                   if (next === "car_address") {
                     setDeliveryFeeValue(0);
-                  } else if (
+                    return;
+                  }
+
+                  // next === "by_address"
+                  if (
                     !deliveryFeeValue &&
                     (carFromCtx as any)?.deliveryFee != null
                   ) {
@@ -1704,9 +1850,50 @@ export default function BookingEditor() {
                       Number((carFromCtx as any).deliveryFee)
                     );
                   }
+
+                  // если адрес ещё пуст — подставляем "текущий" (как в AddCar):
+                  if (
+                    !deliveryAddress &&
+                    carFromCtx?.lat != null &&
+                    carFromCtx?.long != null
+                  ) {
+                    // 1) координаты берем из машины
+                    const lat = Number(carFromCtx.lat);
+                    const lng = Number(carFromCtx.long);
+                    setDeliveryLat(lat);
+                    setDeliveryLong(lng);
+
+                    try {
+                      // 2) обратное геокодирование адреса
+                      const addr = await fetchAddressFromCoords(lat, lng);
+                      setDeliveryAddress(
+                        addr?.address || carFromCtx?.address || ""
+                      );
+                      setDeliveryCountry(addr?.country || "");
+                      setDeliveryCity(addr?.city || "");
+                    } catch {
+                      setDeliveryAddress(carFromCtx?.address || "");
+                      setDeliveryCountry("");
+                      setDeliveryCity("");
+                    }
+
+                    // 3) подвинем карту
+                    setMapView((prev) => ({
+                      ...prev,
+                      latitude: lat,
+                      longitude: lng,
+                      zoom: 13,
+                    }));
+                    mapRef.current?.flyTo({
+                      center: [lng, lat],
+                      zoom: 13,
+                      essential: true,
+                    });
+                  }
                 }}
                 data={deliveryOptions}
                 readOnly={isDisabled}
+                radius="md"
                 className={isDisabled ? "opacity-60" : ""}
                 classNames={{
                   input: isDisabled
@@ -1721,6 +1908,158 @@ export default function BookingEditor() {
                   {deliveryFee.toFixed(2)} {effectiveCurrency}
                 </b>
               </div>
+              {/* +++ адресный блок — показываем только при by_address */}
+              {delivery === "by_address" && (
+                <div
+                  className={`mt-3 space-y-3 ${isDisabled ? "opacity-60" : ""}`}
+                >
+                  <div className="h-60 rounded-xl overflow-hidden border border-gray-200 my-3">
+                    <Map
+                      ref={mapRef}
+                      {...mapView}
+                      onMove={(e) => setMapView(e.viewState as ViewState)}
+                      style={{ width: "100%", height: "100%" }}
+                      mapStyle="mapbox://styles/megadoze/cldamjew5003701p5mbqrrwkc"
+                      mapboxAccessToken={import.meta.env.VITE_MAPBOX_TOKEN}
+                      interactive={!isDisabled}
+                    >
+                      <Marker
+                        longitude={deliveryLong ?? carFromCtx?.long ?? 30.52}
+                        latitude={deliveryLat ?? carFromCtx?.lat ?? 50.45}
+                        draggable={!isDisabled}
+                        onDragEnd={async (e) => {
+                          const { lat, lng } = e.lngLat;
+                          setDeliveryLat(lat);
+                          setDeliveryLong(lng);
+                          setMapView((prev) => ({
+                            ...prev,
+                            latitude: lat,
+                            longitude: lng,
+                            zoom: Math.max(prev.zoom, 13),
+                          }));
+
+                          try {
+                            const addr = await fetchAddressFromCoords(lat, lng);
+                            if (addr) {
+                              setDeliveryAddress(addr.address || "");
+                              setDeliveryCountry(addr.country || "");
+                              setDeliveryCity(addr.city || "");
+                            }
+                          } catch {}
+                        }}
+                      >
+                        <Pin />
+                      </Marker>
+
+                      <GeolocateControl
+                        trackUserLocation
+                        showUserHeading
+                        onGeolocate={async (pos) => {
+                          if (isDisabled) return;
+                          const lat = pos.coords.latitude;
+                          const lng = pos.coords.longitude;
+                          setDeliveryLat(lat);
+                          setDeliveryLong(lng);
+                          setMapView((prev) => ({
+                            ...prev,
+                            latitude: lat,
+                            longitude: lng,
+                            zoom: Math.max(prev.zoom, 13),
+                          }));
+                          mapRef.current?.flyTo({
+                            center: [lng, lat],
+                            zoom: Math.max(mapView.zoom, 13),
+                            essential: true,
+                          });
+
+                          try {
+                            const addr = await fetchAddressFromCoords(lat, lng);
+                            if (addr) {
+                              setDeliveryAddress(addr.address || "");
+                              setDeliveryCountry(addr.country || "");
+                              setDeliveryCity(addr.city || "");
+                            }
+                          } catch {}
+                        }}
+                      />
+
+                      <NavigationControl />
+                      <ScaleControl />
+                      <FullscreenControl />
+                    </Map>
+                  </div>
+
+                  <AddressAutofillWrapper
+                    accessToken={import.meta.env.VITE_MAPBOX_TOKEN}
+                    onRetrieve={async (res: any) => {
+                      if (isDisabled) return;
+                      const f = res?.features?.[0];
+                      const coords = f?.geometry?.coordinates as
+                        | [number, number]
+                        | undefined;
+                      if (!coords) return;
+
+                      const [lng, lat] = coords;
+                      setDeliveryLat(lat);
+                      setDeliveryLong(lng);
+
+                      // сразу показать адрес в инпуте:
+                      const fallback =
+                        f?.properties?.full_address || f?.place_name || "";
+                      try {
+                        const addr = await fetchAddressFromCoords(lat, lng);
+                        setDeliveryAddress(addr?.address || fallback);
+                        setDeliveryCountry(addr?.country || "");
+                        setDeliveryCity(addr?.city || "");
+                      } catch {
+                        setDeliveryAddress(fallback);
+                        setDeliveryCountry("");
+                        setDeliveryCity("");
+                      }
+
+                      // подвигать карту
+                      setMapView((prev) => ({
+                        ...prev,
+                        latitude: lat,
+                        longitude: lng,
+                        zoom: Math.max(prev.zoom, 13),
+                      }));
+                      mapRef.current?.flyTo({
+                        center: [lng, lat],
+                        zoom: Math.max(mapView.zoom, 14),
+                        essential: true,
+                      });
+                    }}
+                  >
+                    <input
+                      name="delivery-address"
+                      id="delivery-address"
+                      type="text"
+                      value={deliveryAddress}
+                      onChange={(e) => setDeliveryAddress(e.target.value)}
+                      placeholder="Enter delivery address"
+                      autoComplete="address-line1"
+                      className="w-full p-2 outline-none border border-gray-300 focus:border-gray-600 rounded-md"
+                      disabled={isDisabled}
+                    />
+                  </AddressAutofillWrapper>
+
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <p>
+                      Country:{" "}
+                      <span className="font-semibold">
+                        {deliveryCountry || "—"}
+                      </span>
+                    </p>
+                    <p>
+                      City:{" "}
+                      <span className="font-semibold">
+                        {deliveryCity || "—"}
+                      </span>
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -1779,13 +2118,14 @@ export default function BookingEditor() {
           <div className="hidden lg:flex justify-between items-centermt-8 text-right mt-10">
             <button
               type="button"
-              className={`border-gray-300 border rounded-md px-6 py-2 mr-2`}
+              className="border-gray-300 border rounded-md px-6 py-2 mr-2 disabled:opacity-50"
               onClick={() => navigate(-1)}
+              disabled={saving}
             >
               Back
             </button>
-            <div>
-              {saved && (
+            <div className="flex items-center">
+              {saved && !saving && (
                 <span className="text-lime-500 font-medium text-sm animate-fade-in mr-2">
                   ✓ Saved
                 </span>
@@ -1793,14 +2133,21 @@ export default function BookingEditor() {
               <button
                 type="button"
                 className={`${
-                  isChanged
+                  isChanged && !saving
                     ? "border-green-400 text-green-500"
                     : "border-gray-300 text-gray-400 cursor-not-allowed"
-                } border rounded-md px-8 py-2`}
+                } border rounded-md px-8 py-2 inline-flex items-center gap-2`}
                 onClick={handleSave}
-                disabled={isLoading || invalidTime || !isChanged}
+                disabled={isLoading || invalidTime || !isChanged || saving}
               >
-                Save
+                {saving ? (
+                  <>
+                    <Loader size="xs" color="gray" />
+                    Saving…
+                  </>
+                ) : (
+                  "Save"
+                )}
               </button>
             </div>
           </div>
@@ -1915,14 +2262,14 @@ export default function BookingEditor() {
                   <button
                     className="w-full border rounded-md border-green-400 text-green-500 py-2 text-sm disabled:border-gray-300 disabled:text-gray-400"
                     onClick={handleConfirm}
-                    disabled={!canConfirm}
+                    disabled={!canConfirm || saving}
                   >
                     Confirm booking
                   </button>
                   <button
                     className="w-full border rounded-md border-gray-300 text-gray-700 py-2 text-sm disabled:border-gray-300 disabled:text-gray-400"
                     onClick={handleCancel}
-                    disabled={!canCancel}
+                    disabled={!canCancel || saving}
                   >
                     Cancel booking
                   </button>
@@ -2044,6 +2391,7 @@ export default function BookingEditor() {
               type="button"
               className="flex-1 border-gray-300 border rounded-md px-6 py-2 mr-2"
               onClick={() => navigate(-1)}
+              disabled={saving}
             >
               Back
             </button>
@@ -2064,6 +2412,7 @@ export default function BookingEditor() {
                 type="button"
                 className="flex-1 border-gray-300 border rounded-md px-6 py-2 mr-2 text-gray-700"
                 onClick={() => navigate(-1)}
+                disabled={saving}
               >
                 Back
               </button>
@@ -2075,6 +2424,7 @@ export default function BookingEditor() {
                   <button
                     onClick={handleCancel}
                     className="flex-1 border rounded-md border-gray-300 text-gray-700 py-3 text-sm active:scale-[.99] transition"
+                    disabled={saving}
                   >
                     Cancel booking
                   </button>
@@ -2083,6 +2433,7 @@ export default function BookingEditor() {
                     type="button"
                     className="flex-1 border-gray-300 border rounded-md px-6 py-2 mr-2 text-gray-700"
                     onClick={() => navigate(-1)}
+                    disabled={saving}
                   >
                     Back
                   </button>
@@ -2092,6 +2443,7 @@ export default function BookingEditor() {
                   <button
                     onClick={handleConfirm}
                     className="flex-1 rounded-md border border-green-400 text-green-500 py-3 text-sm active:scale-[.99] transition"
+                    disabled={saving}
                   >
                     Confirm booking
                   </button>
@@ -2099,14 +2451,21 @@ export default function BookingEditor() {
                   <button
                     type="button"
                     className={`${
-                      isChanged
+                      isChanged && !saving
                         ? "border-green-400 text-green-500"
                         : "border-gray-300 text-gray-400 cursor-not-allowed"
-                    } flex-1 border rounded-md px-8 py-2`}
+                    } flex-1 border rounded-md px-8 py-2 inline-flex items-center justify-center gap-2`}
                     onClick={handleSave}
-                    disabled={isLoading || invalidTime || !isChanged}
+                    disabled={isLoading || invalidTime || !isChanged || saving}
                   >
-                    Save
+                    {saving ? (
+                      <>
+                        <Loader size="xs" color="gray" />
+                        Saving…
+                      </>
+                    ) : (
+                      "Save"
+                    )}
                   </button>
                 )}
               </>
@@ -2141,6 +2500,17 @@ export default function BookingEditor() {
                 mobileStartOpen
               />
             </div>
+          </div>
+        </div>
+      )}
+      {saving && (
+        <div
+          className="fixed inset-0 z-[70] bg-white/40 backdrop-blur-[2px]"
+          aria-hidden="true"
+        >
+          <div className="absolute inset-0 flex items-center justify-center">
+            {/* Если не хочешь зависеть от Mantine — оставь простой CSS-спиннер ниже */}
+            <div className="h-8 w-8 rounded-full border-2 border-gray-300 border-t-gray-800 animate-spin" />
           </div>
         </div>
       )}
