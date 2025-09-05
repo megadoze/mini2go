@@ -3,6 +3,7 @@ import {
   addDays,
   addMonths,
   eachDayOfInterval,
+  endOfDay,
   endOfMonth,
   endOfWeek,
   format,
@@ -56,9 +57,37 @@ function isDateDisabled(d: Date, minDate?: Date, maxDate?: Date) {
 }
 
 function isInDisabledIntervals(d: Date, intervals: DisabledInterval[] = []) {
-  return intervals.some((iv) =>
-    isWithinInterval(d, { start: iv.start, end: iv.end })
-  );
+  const dayStart = startOfDay(d);
+  const dayEnd = endOfDay(d);
+  return intervals.some((iv) => {
+    const ivStart = startOfDay(iv.start);
+    const ivEnd = endOfDay(iv.end);
+    // пересечение интервалов [dayStart..dayEnd] и [ivStart..ivEnd]
+    return dayStart <= ivEnd && ivStart <= dayEnd;
+  });
+}
+
+function overlaps(aStart: Date, aEnd: Date, bStart: Date, bEnd: Date) {
+  return aStart <= bEnd && bStart <= aEnd; // пересечение по датам (дни)
+}
+
+function firstBlockingIntervalBetween(
+  a: Date,
+  b: Date,
+  intervals: DisabledInterval[]
+) {
+  // вернуть ПЕРВУЮ блокировку, пересекающую диапазон [min(a,b) .. max(a,b)]
+  const s = startOfDay(a < b ? a : b);
+  const e = startOfDay(a < b ? b : a);
+  let found: { start: Date; end: Date } | null = null;
+  for (const iv of intervals) {
+    const ivS = startOfDay(iv.start);
+    const ivE = startOfDay(iv.end);
+    if (overlaps(s, e, ivS, ivE)) {
+      if (!found || ivS < found.start) found = { start: ivS, end: ivE };
+    }
+  }
+  return found;
 }
 
 function idxToTime(base: Date, idx: number, step: number) {
@@ -149,10 +178,33 @@ export default function RentalDateTimePicker({
 
     // selecting end
     if (isBefore(day, startOfDay(startAt))) {
-      // if picked before start, swap
-      setTempRange({ startAt: day, endAt: startAt });
+      // Пользователь кликает НАЗАД относительно старта
+      const block = firstBlockingIntervalBetween(
+        day,
+        startAt,
+        disabledIntervals
+      );
+      if (block) {
+        // clamp старт к ДНЮ ПОСЛЕ блокировки
+        const clampedStart = addDays(block.end, 1);
+        setTempRange({ startAt: clampedStart, endAt: startAt });
+      } else {
+        setTempRange({ startAt: day, endAt: startAt });
+      }
     } else {
-      setTempRange({ startAt, endAt: day });
+      // Пользователь кликает ВПЕРЁД относительно старта
+      const block = firstBlockingIntervalBetween(
+        startAt,
+        day,
+        disabledIntervals
+      );
+      if (block) {
+        // clamp конец к ДНЮ ПЕРЕД блокировкой
+        const clampedEnd = addDays(block.start, -1);
+        setTempRange({ startAt, endAt: clampedEnd });
+      } else {
+        setTempRange({ startAt, endAt: day });
+      }
     }
   }
 
@@ -236,10 +288,14 @@ export default function RentalDateTimePicker({
         end: startOfDay(tempRange.endAt),
       });
     } else if (canHover && tempRange.startAt && hoverDay) {
-      const start = startOfDay(tempRange.startAt);
-      const end = startOfDay(hoverDay);
-      if (!isBefore(end, start)) {
-        inRange = isWithinInterval(d, { start, end });
+      const s = startOfDay(tempRange.startAt);
+      const h = startOfDay(hoverDay);
+      if (!isBefore(h, s)) {
+        const block = firstBlockingIntervalBetween(s, h, disabledIntervals);
+        const limit = block ? addDays(block.start, -1) : h;
+        if (!isBefore(limit, s)) {
+          inRange = isWithinInterval(d, { start: s, end: limit });
+        }
       }
     }
 
@@ -352,7 +408,7 @@ export default function RentalDateTimePicker({
                 step={1}
                 value={startIdx}
                 onChange={setStartIdx}
-                color="green"
+                color="#4ade80"
                 size="sm"
                 radius="xl"
                 thumbSize={25}
@@ -381,7 +437,7 @@ export default function RentalDateTimePicker({
                 step={1}
                 value={endIdx}
                 onChange={setEndIdx}
-                color="green"
+                color="#4ade80"
                 size="sm"
                 radius="xl"
                 thumbSize={25}
