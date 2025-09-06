@@ -188,27 +188,27 @@ export default function DashboardPage() {
   const bookings6m = bookings6mQ.data ?? [];
 
   // -------- derived --------
-  const carOptions = useMemo(
-    () =>
-      cars.map((c) => ({
-        id: c.id,
-        label:
-          `${c.models?.brands?.name ?? ""} ${c.models?.name ?? ""}`.trim() ||
-          c.id,
-      })),
-    [cars]
-  );
-
   const carsById = useMemo(() => {
     const m = new Map<string, string>();
     for (const c of cars) {
       const label =
         `${c.models?.brands?.name ?? ""} ${c.models?.name ?? ""}`.trim() ||
         c.id;
-      m.set(c.id, label);
+      m.set(c.id, label); // id теперь строго string
     }
     return m;
   }, [cars]);
+
+  const carOptions = useMemo(
+    () =>
+      cars.map((c) => ({
+        id: c.id, // строго string
+        label:
+          `${c.models?.brands?.name ?? ""} ${c.models?.name ?? ""}`.trim() ||
+          c.id,
+      })),
+    [cars]
+  );
 
   const filtered = useMemo(() => {
     let arr = bookings;
