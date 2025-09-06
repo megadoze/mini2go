@@ -44,7 +44,8 @@ import {
   subDays,
   startOfDay,
   endOfDay,
-  format as dfFormat,
+  parseISO,
+  isValid,
 } from "date-fns";
 
 import { supabase } from "@/lib/supabase";
@@ -78,30 +79,45 @@ function normalizeStatus(row: BookingRow): NormStatus {
   return "reserved";
 }
 
-const fmtDate = (isoOrDate: string | Date) =>
-  new Date(isoOrDate).toLocaleDateString();
+// iOS-safe парсер строк из БД ("YYYY-MM-DD HH:mm:ss+00" → ISO)
+const parseDbDate = (s: string) =>
+  parseISO(s.includes("T") ? s : s.replace(" ", "T"));
+
+// NB: принимаем Date | string | null
+const safeDate = (d: Date | string | null | undefined, fallback: Date) => {
+  if (d instanceof Date) return isValid(d) ? d : fallback;
+  if (typeof d === "string") {
+    const p = parseDbDate(d);
+    return isValid(p) ? p : fallback;
+  }
+  return fallback;
+};
+
+const safeISOStart = (d: Date | string | null | undefined, fb: Date) =>
+  startOfDay(safeDate(d, fb)).toISOString();
+
+const safeISOEnd = (d: Date | string | null | undefined, fb: Date) =>
+  endOfDay(safeDate(d, fb)).toISOString();
+
+const fmtDate = (x: string | Date) =>
+  (x instanceof Date ? x : parseDbDate(x)).toLocaleDateString();
+
 const ym = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-const toDateObj = (v: Date | string | null | undefined) =>
-  v instanceof Date ? v : v ? new Date(v) : null;
 
-const daysBetween = (a: Date | string, b: Date | string) => {
-  const A = toDateObj(a)!;
-  const B = toDateObj(b)!;
-  return Math.max(1, Math.ceil((B.getTime() - A.getTime()) / 86_400_000));
-};
+const daysBetween = (a: Date, b: Date) =>
+  Math.max(1, Math.ceil((b.getTime() - a.getTime()) / 86400000));
 
 const nowBetween = (aISO: string, bISO: string) => {
+  const a = parseDbDate(aISO).getTime();
+  const b = parseDbDate(bISO).getTime();
   const n = Date.now();
-  return new Date(aISO).getTime() <= n && n <= new Date(bISO).getTime() ? 1 : 0;
+  return a <= n && n <= b ? 1 : 0;
 };
-
-const toISOStart = (d: Date) => startOfDay(d).toISOString();
-const toISOEnd = (d: Date) => endOfDay(d).toISOString();
 
 /* =================== data fetchers =================== */
 
-// Брони, пересекающие интервал (end >= from AND start <= to)
+// Пересекающие интервал: end >= from AND start <= to
 async function fetchBookingsRange(fromISO: string, toISO: string) {
   const { data, error } = await supabase
     .from("bookings")
@@ -121,26 +137,27 @@ async function fetchBookingsRange(fromISO: string, toISO: string) {
 export default function DashboardPage() {
   const qc = useQueryClient();
 
-  // Диапазон дат: строки в формате 'yyyy-MM-dd' (совместимо с Mantine в твоей сборке)
-  const [range, setRange] = useState<DatesRangeValue<string>>([
-    dfFormat(startOfMonth(new Date()), "yyy MM dd"),
-    dfFormat(new Date(), "y-MM-dd"),
+  // ВАЖНО: DatePicker может отдавать строки → разрешаем и Date, и string
+  type RangeV = [Date | string | null, Date | string | null];
+  const [range, setRange] = useState<RangeV>([
+    startOfMonth(new Date()),
+    endOfDay(new Date()),
   ]);
+  const [fromSel, toSel] = range;
+
+  const fromDate = safeDate(fromSel, startOfMonth(new Date()));
+  const toDate = safeDate(toSel, new Date());
+  const fromISO = safeISOStart(fromSel, startOfMonth(new Date()));
+  const toISO = safeISOEnd(toSel, new Date());
+
   const [carId, setCarId] = useState<string>("all");
   const [status, setStatus] = useState<"all" | NormStatus>("all");
   const [q, setQ] = useState("");
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
-
-  // вкладки (без Strategic)
   const [view, setView] = useState<"operational" | "managerial">("operational");
 
-  // Преобразуем в Date для расчётов/запросов
-  const fromDate = toDateObj(range[0]) ?? startOfMonth(new Date());
-  const toDate = toDateObj(range[1]) ?? new Date();
-  const fromISO = toISOStart(fromDate);
-  const toISO = toISOEnd(toDate);
+  /* -------------------- queries -------------------- */
 
-  // -------- queries --------
   const carsQ = useQuery<CarWithRelations[], Error>({
     queryKey: QK.cars,
     queryFn: () => fetchCars(),
@@ -169,12 +186,15 @@ export default function DashboardPage() {
     placeholderData: (prev) => prev,
   });
 
-  // тренд на 6м
+  // 6 месяцев для тренда
   const sixStart = startOfMonth(subMonths(new Date(), 5));
   const bookings6mQ = useQuery<BookingRow[], Error>({
     queryKey: ["dashboard", "bookings6m"],
     queryFn: () =>
-      fetchBookingsRange(toISOStart(sixStart), toISOEnd(new Date())),
+      fetchBookingsRange(
+        startOfDay(sixStart).toISOString(),
+        endOfDay(new Date()).toISOString()
+      ),
     initialData: qc.getQueryData<BookingRow[]>(["dashboard", "bookings6m"]),
     staleTime: 10 * 60 * 1000,
     gcTime: 7 * 24 * 60 * 60 * 1000,
@@ -187,26 +207,30 @@ export default function DashboardPage() {
   const bookings = bookingsQ.data ?? [];
   const bookings6m = bookings6mQ.data ?? [];
 
-  // -------- derived --------
+  /* -------------------- derived -------------------- */
+
   const carsById = useMemo(() => {
     const m = new Map<string, string>();
     for (const c of cars) {
+      if (!c.id) continue;
       const label =
         `${c.models?.brands?.name ?? ""} ${c.models?.name ?? ""}`.trim() ||
         c.id;
-      m.set(c.id, label); // id теперь строго string
+      m.set(c.id, label);
     }
     return m;
   }, [cars]);
 
   const carOptions = useMemo(
     () =>
-      cars.map((c) => ({
-        id: c.id, // строго string
-        label:
-          `${c.models?.brands?.name ?? ""} ${c.models?.name ?? ""}`.trim() ||
-          c.id,
-      })),
+      cars
+        .filter((c) => !!c.id)
+        .map((c) => ({
+          id: c.id as string,
+          label:
+            `${c.models?.brands?.name ?? ""} ${c.models?.name ?? ""}`.trim() ||
+            (c.id as string),
+        })),
     [cars]
   );
 
@@ -227,7 +251,8 @@ export default function DashboardPage() {
 
   const totalActiveCars = useMemo(
     () =>
-      cars.filter((c) => (c.status ?? "").toLowerCase() !== "archived").length,
+      cars.filter((c) => (c as any).status?.toLowerCase?.() !== "archived")
+        .length,
     [cars]
   );
 
@@ -249,19 +274,19 @@ export default function DashboardPage() {
   const revenueThisMonth = useMemo(() => {
     const key = ym(new Date());
     return bookings
-      .filter((b) => ym(new Date(b.start_at)) === key)
+      .filter((b) => ym(parseDbDate(b.start_at)) === key)
       .reduce((acc, b) => acc + (b.price_total ?? 0), 0);
   }, [bookings]);
 
   const utilizationByCar = useMemo(() => {
     const totalDays = daysBetween(fromDate, toDate);
     const usage: Record<string, number> = {};
-    cars.forEach((c) => (usage[c.id] = 0));
+    cars.forEach((c) => c.id && (usage[c.id] = 0));
     filtered.forEach((b) => {
       const ns = normalizeStatus(b);
       if (ns === "cancelled" || ns === "blocked") return;
-      const s = new Date(b.start_at);
-      const e = new Date(b.end_at);
+      const s = parseDbDate(b.start_at);
+      const e = parseDbDate(b.end_at);
       const start = new Date(Math.max(s.getTime(), fromDate.getTime()));
       const end = new Date(Math.min(e.getTime(), toDate.getTime()));
       if (end < start) return;
@@ -281,7 +306,7 @@ export default function DashboardPage() {
       buckets[ym(d)] = 0;
     }
     bookings6m.forEach((b) => {
-      const key = ym(new Date(b.start_at));
+      const key = ym(parseDbDate(b.start_at));
       if (key in buckets) buckets[key] += b.price_total ?? 0;
     });
     return Object.entries(buckets).map(([month, revenue]) => ({
@@ -315,13 +340,13 @@ export default function DashboardPage() {
       filtered
         .filter(
           (b) =>
-            new Date(b.start_at) > new Date() &&
-            normalizeStatus(b) !== "cancelled" &&
-            normalizeStatus(b) !== "blocked"
+            parseDbDate(b.start_at) > new Date() &&
+            !["cancelled", "blocked"].includes(normalizeStatus(b))
         )
         .sort(
           (a, b) =>
-            new Date(a.start_at).getTime() - new Date(b.start_at).getTime()
+            parseDbDate(a.start_at).getTime() -
+            parseDbDate(b.start_at).getTime()
         )
         .slice(0, 6),
     [filtered]
@@ -332,10 +357,12 @@ export default function DashboardPage() {
       filtered
         .filter(
           (b) =>
-            new Date(b.end_at) < new Date() && normalizeStatus(b) === "active"
+            parseDbDate(b.end_at) < new Date() &&
+            normalizeStatus(b) === "active"
         )
         .sort(
-          (a, b) => new Date(a.end_at).getTime() - new Date(b.end_at).getTime()
+          (a, b) =>
+            parseDbDate(a.end_at).getTime() - parseDbDate(b.end_at).getTime()
         )
         .slice(0, 6),
     [filtered]
@@ -344,10 +371,7 @@ export default function DashboardPage() {
   const loading =
     carsQ.isLoading || bookingsQ.isLoading || bookings6mQ.isLoading;
 
-  // Пресеты — пишем в state строки формата 'yyyy-MM-dd'
-  const setRangeStr = (a: Date, b: Date) =>
-    setRange([dfFormat(a, "yyyy-MM-dd"), dfFormat(b, "yyyy-MM-dd")]);
-
+  // Пресеты — пишем Dates напрямую
   const applyPreset = (
     key:
       | "thisWeek"
@@ -359,25 +383,25 @@ export default function DashboardPage() {
   ) => {
     const now = new Date();
     if (key === "thisWeek") {
-      setRangeStr(
+      setRange([
         startOfWeek(now, { weekStartsOn: 1 }),
-        endOfWeek(now, { weekStartsOn: 1 })
-      );
+        endOfWeek(now, { weekStartsOn: 1 }),
+      ]);
     } else if (key === "prevWeek") {
       const prevW = subWeeks(now, 1);
-      setRangeStr(
+      setRange([
         startOfWeek(prevW, { weekStartsOn: 1 }),
-        endOfWeek(prevW, { weekStartsOn: 1 })
-      );
+        endOfWeek(prevW, { weekStartsOn: 1 }),
+      ]);
     } else if (key === "last7") {
-      setRangeStr(startOfDay(subDays(now, 6)), endOfDay(now));
+      setRange([startOfDay(subDays(now, 6)), endOfDay(now)]);
     } else if (key === "thisMonth") {
-      setRangeStr(startOfMonth(now), endOfMonth(now));
+      setRange([startOfMonth(now), endOfMonth(now)]);
     } else if (key === "prevMonth") {
       const pm = subMonths(now, 1);
-      setRangeStr(startOfMonth(pm), endOfMonth(pm));
+      setRange([startOfMonth(pm), endOfMonth(pm)]);
     } else if (key === "last30") {
-      setRangeStr(startOfDay(subDays(now, 29)), endOfDay(now));
+      setRange([startOfDay(subDays(now, 29)), endOfDay(now)]);
     }
   };
 
@@ -385,8 +409,10 @@ export default function DashboardPage() {
     setQ("");
     setCarId("all");
     setStatus("all");
-    setRangeStr(startOfMonth(new Date()), new Date());
+    setRange([startOfMonth(new Date()), endOfDay(new Date())]);
   };
+
+  /* -------------------- render -------------------- */
 
   return (
     <div className="space-y-6 w-full max-w-screen-2xl">
@@ -412,10 +438,10 @@ export default function DashboardPage() {
           <CalendarDaysIcon className="w-5 h-5 text-zinc-600" />
           <DatePickerInput
             type="range"
-            value={range}
-            onChange={(v) => setRange(v as DatesRangeValue<string>)}
+            value={range as unknown as DatesRangeValue}
+            onChange={(v) => setRange(v as RangeV)}
             placeholder="Выбери период"
-            valueFormat="DD MMM YY"
+            valueFormat="DD MMM YYYY"
             dropdownType="popover"
           />
           <Menu withinPortal>
@@ -453,7 +479,7 @@ export default function DashboardPage() {
         <NativeSelect
           value={carId}
           onChange={(e) => setCarId(e.currentTarget.value)}
-          className=" shrink-0 bg-white shadow-sm rounded-xl px-3 py-2"
+          className="shrink-0 bg-white shadow-sm rounded-xl px-3 py-2"
         >
           <option value="all">Все авто</option>
           {carOptions.map((c) => (
@@ -469,7 +495,7 @@ export default function DashboardPage() {
           onChange={(e) =>
             setStatus(e.currentTarget.value as "all" | NormStatus)
           }
-          className=" shrink-0 bg-white shadow-sm rounded-xl px-3 py-2"
+          className="shrink-0 bg-white shadow-sm rounded-xl px-3 py-2"
         >
           <option value="all">Все статусы</option>
           <option value="reserved">Забронировано</option>
@@ -546,10 +572,10 @@ export default function DashboardPage() {
             <CalendarDaysIcon className="w-5 h-5 text-zinc-600" />
             <DatePickerInput
               type="range"
-              value={range}
-              onChange={(v) => setRange(v as DatesRangeValue<string>)}
+              value={range as unknown as DatesRangeValue}
+              onChange={(v) => setRange(v as RangeV)}
               placeholder="Выбери период"
-              valueFormat="DD MMM YY"
+              valueFormat="DD MMM YYYY"
               className="flex-1"
               dropdownType="modal"
             />
@@ -586,7 +612,7 @@ export default function DashboardPage() {
           <NativeSelect
             value={carId}
             onChange={(e) => setCarId(e.currentTarget.value)}
-            className=" shrink-0 bg-white shadow-sm rounded-xl px-3 py-2"
+            className="shrink-0 bg-white shadow-sm rounded-xl px-3 py-2"
           >
             <option value="all">Все авто</option>
             {carOptions.map((c) => (
@@ -601,7 +627,7 @@ export default function DashboardPage() {
             onChange={(e) =>
               setStatus(e.currentTarget.value as "all" | NormStatus)
             }
-            className=" shrink-0 bg-white shadow-sm rounded-xl px-3 py-2"
+            className="shrink-0 bg-white shadow-sm rounded-xl px-3 py-2"
           >
             <option value="all">Все статусы</option>
             <option value="reserved">Забронировано</option>
@@ -922,8 +948,7 @@ export default function DashboardPage() {
       )}
 
       <p className="text-xs text-zinc-500">
-        Подсказка: период — одно поле DateRange, пресеты — «Presets». Фильтры и
-        моб. шторка — как в Cars.
+        Период — одно поле DateRange, пресеты — «Presets». Парсинг дат iOS-safe.
       </p>
     </div>
   );
@@ -1003,7 +1028,7 @@ function TableCard({
       className="rounded-2xl border bg-white/70 dark:bg-zinc-900 p-4 shadow-sm"
     >
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-medium text-zinc-600">{title}</h3>
+        <h3 className="text-sm font-medium text-зinc-600">{title}</h3>
       </div>
       <div className="overflow-x-auto">{children}</div>
     </motion.div>
