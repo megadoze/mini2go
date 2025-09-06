@@ -271,11 +271,26 @@ export default function DashboardPage() {
 
   const freeNow = Math.max(0, totalActiveCars - activeNow);
 
-  const revenueThisMonth = useMemo(() => {
-    const key = ym(new Date());
-    return bookings
-      .filter((b) => ym(parseDbDate(b.start_at)) === key)
-      .reduce((acc, b) => acc + (b.price_total ?? 0), 0);
+  // рядом с остальными derived
+  const todayStart = startOfDay(new Date());
+  const todayEnd = endOfDay(new Date());
+
+  const startsToday = useMemo(() => {
+    return bookings.filter((b) => {
+      const s = parseDbDate(b.start_at);
+      const ns = normalizeStatus(b);
+      if (ns === "cancelled" || ns === "blocked") return false;
+      return s >= todayStart && s <= todayEnd;
+    }).length;
+  }, [bookings]);
+
+  const endsToday = useMemo(() => {
+    return bookings.filter((b) => {
+      const e = parseDbDate(b.end_at);
+      const ns = normalizeStatus(b);
+      if (ns === "cancelled" || ns === "blocked") return false;
+      return e >= todayStart && e <= todayEnd;
+    }).length;
   }, [bookings]);
 
   const utilizationByCar = useMemo(() => {
@@ -694,22 +709,16 @@ export default function DashboardPage() {
                   sub={`Свободно: ${freeNow}`}
                 />
                 <KpiCard
-                  icon={<CurrencyEuroIcon className="w-6 h-6" />}
-                  title="Выручка (тек. месяц)"
-                  value={`€${revenueThisMonth.toLocaleString()}`}
-                  sub={new Date().toLocaleString("ru-RU", {
-                    month: "long",
-                    year: "numeric",
-                  })}
+                  icon={<CalendarDaysIcon className="w-6 h-6" />}
+                  title="Заезды сегодня"
+                  value={startsToday}
+                  sub={`${fmtDate(todayStart)} `}
                 />
                 <KpiCard
-                  icon={<ArrowTrendingUpIcon className="w-6 h-6" />}
-                  title="Загрузка (ср.)"
-                  value={`${Math.round(
-                    utilizationByCar.reduce((a, b) => a + b.utilization, 0) /
-                      Math.max(1, utilizationByCar.length)
-                  )}%`}
-                  sub={`${fmtDate(fromDate)} — ${fmtDate(toDate)}`}
+                  icon={<CalendarDaysIcon className="w-6 h-6" />}
+                  title="Возвраты сегодня"
+                  value={endsToday}
+                  sub={`${fmtDate(todayStart)} `}
                 />
               </div>
 
@@ -809,7 +818,7 @@ export default function DashboardPage() {
 
           {view === "managerial" && (
             <>
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
                 <KpiCard
                   icon={<CurrencyEuroIcon className="w-6 h-6" />}
                   title="Выручка (период)"
@@ -1028,7 +1037,7 @@ function TableCard({
       className="rounded-2xl border bg-white/70 dark:bg-zinc-900 p-4 shadow-sm"
     >
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-medium text-зinc-600">{title}</h3>
+        <h3 className="text-sm font-medium text-zinc-600">{title}</h3>
       </div>
       <div className="overflow-x-auto">{children}</div>
     </motion.div>
