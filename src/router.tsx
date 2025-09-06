@@ -34,6 +34,7 @@ import CalendarPage from "./app/calendarGant";
 import { bookingsLoader } from "./routes/bookings.loader";
 import { carsLoader } from "./routes/carsLoader";
 import { usersLoader } from "./routes/users.loader";
+import { dashboardLoader } from "./routes/dashboard.loader";
 
 export const router = createBrowserRouter([
   {
@@ -43,7 +44,11 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <Navigate to="/dashboard" replace /> },
       { path: "user", element: <Navigate to="/" replace /> },
-      { path: "dashboard", element: <Dashboard /> },
+      {
+        path: "/dashboard",
+        loader: dashboardLoader,
+        element: <Dashboard />,
+      },
       {
         id: "calendar",
         path: "/calendar",

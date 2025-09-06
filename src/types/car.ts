@@ -1,5 +1,5 @@
 export type Car = {
-  id: string | undefined;
+  id: string;
   vin: string;
   modelId: string;
   year?: number | null;
