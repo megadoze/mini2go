@@ -66,18 +66,67 @@ type BookingRow = {
   price_total?: number | null;
 };
 
-type NormStatus = "reserved" | "active" | "completed" | "cancelled" | "blocked";
+// Сырые статусы из БД
+type RawStatus =
+  | "onapproval"
+  | "confirmed"
+  | "rent"
+  | "finished"
+  | "canceledhost"
+  | "canceledclient"
+  | "blocked";
 
-function normalizeStatus(row: BookingRow): NormStatus {
-  const s = (row.status ?? "").toLowerCase();
-  const m = (row.mark ?? "").toLowerCase();
-  if (m === "block" || s === "block" || s === "blocked") return "blocked";
-  if (s === "rent") return "active";
-  if (s === "finished") return "completed";
-  if (s === "canceledhost" || s === "canceledclient") return "cancelled";
-  if (s === "confirmed" || s === "onapproval") return "reserved";
-  return "reserved";
-}
+// Группы для аналитики/фильтра
+type StatusGroup =
+  | "reserved"
+  | "active"
+  | "completed"
+  | "cancelled"
+  | "blocked";
+
+// Каталог: лейблы/цвета + маппинг в группы
+const STATUS_CATALOG: Record<
+  RawStatus,
+  { label: string; group: StatusGroup; className: string }
+> = {
+  onapproval: {
+    label: "OnApproval",
+    group: "reserved",
+    className: "bg-gradient-to-r from-sky-600/80 to-sky-500/70 text-white",
+  },
+  confirmed: {
+    label: "Confirmed",
+    group: "reserved",
+    className:
+      "bg-gradient-to-r from-orange-600/80 to-orange-500/60 text-white",
+  },
+  rent: {
+    label: "Rent",
+    group: "active",
+    className:
+      "bg-gradient-to-r from-emerald-800/80 to-emerald-600/70 text-white",
+  },
+  finished: {
+    label: "Finished",
+    group: "completed",
+    className: "bg-gradient-to-r from-gray-400 to-gray-400/60 text-white",
+  },
+  canceledhost: {
+    label: "Canceled (host)",
+    group: "cancelled",
+    className: "bg-rose-50 text-rose-700",
+  },
+  canceledclient: {
+    label: "Canceled (client)",
+    group: "cancelled",
+    className: "bg-rose-50 text-rose-700",
+  },
+  blocked: {
+    label: "Blocked",
+    group: "blocked",
+    className: "bg-gradient-to-r from-pink-700/80 to-rose-500/70 text-white",
+  },
+};
 
 // iOS-safe парсер строк из БД ("YYYY-MM-DD HH:mm:ss+00" → ISO)
 const parseDbDate = (s: string) =>
@@ -101,7 +150,7 @@ const safeISOEnd = (d: Date | string | null | undefined, fb: Date) =>
 
 const fmtDate = (x: string | Date, withTime = false) => {
   const d = x instanceof Date ? x : parseDbDate(x);
-  return format(d, withTime ? "dd.MM.yyyy HH:mm" : "dd MMM yy", {});
+  return format(d, withTime ? "dd MMM yy, HH:mm" : "dd MMM yy", {});
 };
 
 const ym = (d: Date) =>
@@ -113,6 +162,28 @@ const nowBetween = (aISO: string, bISO: string) => {
   const n = Date.now();
   return a <= n && n <= b ? 1 : 0;
 };
+
+// Получить сырой статус (как в БД) с нормализацией регистра/вариантов
+function getRawStatus(row: BookingRow): RawStatus {
+  const m = (row.mark ?? "").toLowerCase();
+  const s = (row.status ?? "").toLowerCase();
+
+  if (m === "block" || s === "block" || s === "blocked") return "blocked";
+  if (s === "onapproval") return "onapproval";
+  if (s === "confirmed") return "confirmed";
+  if (s === "rent") return "rent";
+  if (s === "finished") return "finished";
+  if (s === "canceledhost") return "canceledhost";
+  if (s === "canceledclient") return "canceledclient";
+
+  // если реально придёт что-то другое — бросаем ошибку
+  throw new Error(`Unknown booking status: ${s} (mark=${m})`);
+}
+
+// Группа для аналитики
+function getStatusGroup(row: BookingRow): StatusGroup {
+  return STATUS_CATALOG[getRawStatus(row)].group;
+}
 
 /* =================== data fetchers =================== */
 
@@ -147,7 +218,7 @@ export default function DashboardPage() {
   const toISO = safeISOEnd(toSel, new Date());
 
   const [carId, setCarId] = useState<string>("all");
-  const [status, setStatus] = useState<"all" | NormStatus>("all");
+  const [status, setStatus] = useState<"all" | StatusGroup>("all");
   const [q, setQ] = useState("");
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [view, setView] = useState<"operational" | "managerial">("operational");
@@ -186,12 +257,12 @@ export default function DashboardPage() {
   // "Сейчас" — отдельная выборка, чтобы KPI не зависел от диапазона
   const nowRef = useRef<string>(new Date().toISOString());
   const bookingsNowQ = useQuery<BookingRow[], Error>({
-    queryKey: ["dashboard", "bookingsNow"], // ← стабильный ключ
+    queryKey: ["dashboard", "bookingsNow"],
     queryFn: () => fetchBookingsRange(nowRef.current, nowRef.current),
     initialData: qc.getQueryData<BookingRow[]>(["dashboard", "bookingsNow"]),
     staleTime: 60 * 1000,
-    refetchInterval: 60 * 1000, // ← можно убрать, если не нужно автообновление
-    refetchOnWindowFocus: false, // ← чтобы не мигал при фокусе окна
+    refetchInterval: 60 * 1000,
+    refetchOnWindowFocus: false,
     refetchOnMount: false,
     placeholderData: (prev) => prev,
   });
@@ -236,7 +307,6 @@ export default function DashboardPage() {
     const m = new Map<string, string>();
     for (const c of cars) {
       if (!c?.id) continue;
-      // ПОДСТАВЬ точное поле, если знаешь (например c.license_plate)
       const plate = (c as any).licensePlate ?? "";
       if (plate) m.set(c.id, String(plate));
     }
@@ -252,25 +322,11 @@ export default function DashboardPage() {
     [cars]
   );
 
-  const carOptions = useMemo(
-    () =>
-      cars
-        .filter((c) => !!c.id)
-        .map((c) => ({
-          id: c.id as string,
-          label:
-            `${c.models?.brands?.name ?? ""} ${c.models?.name ?? ""}`.trim() ||
-            (c.id as string),
-        })),
-    [cars]
-  );
-
   // Применяем UI-фильтры к выборке периода
   const filtered = useMemo(() => {
     let arr = bookings;
     if (carId !== "all") arr = arr.filter((b) => b.car_id === carId);
-    if (status !== "all")
-      arr = arr.filter((b) => normalizeStatus(b) === status);
+    if (status !== "all") arr = arr.filter((b) => getStatusGroup(b) === status);
     if (q.trim()) {
       const needle = q.trim().toLowerCase();
       arr = arr.filter((b) => {
@@ -285,11 +341,10 @@ export default function DashboardPage() {
 
   const totalActiveCars = activeCarIds.length;
 
-  // НЕ зависит от диапазона — считаем по выборке "на сейчас"
   const activeNow = useMemo(() => {
     return bookingsNow.filter((b) => {
-      const ns = normalizeStatus(b);
-      if (ns === "cancelled" || ns === "blocked") return false;
+      const g = getStatusGroup(b);
+      if (g === "cancelled" || g === "blocked") return false;
       return nowBetween(b.start_at, b.end_at) === 1;
     }).length;
   }, [bookingsNow]);
@@ -300,11 +355,9 @@ export default function DashboardPage() {
   const todayEnd = endOfDay(new Date());
 
   const startsToday = useMemo(() => {
-    // считаем по всей базе выбранного периода? нет — возьмём из полной bookings (на интервале),
-    // но условие — именно сегодня. Для полной независимости можно сделать отдельный todayQ.
     return (bookings ?? []).filter((b) => {
-      const ns = normalizeStatus(b);
-      if (ns === "cancelled" || ns === "blocked") return false;
+      const g = getStatusGroup(b);
+      if (g === "cancelled" || g === "blocked") return false;
       const s = parseDbDate(b.start_at);
       return s >= todayStart && s <= todayEnd;
     }).length;
@@ -312,19 +365,17 @@ export default function DashboardPage() {
 
   const endsToday = useMemo(() => {
     return (bookings ?? []).filter((b) => {
-      const ns = normalizeStatus(b);
-      if (ns === "cancelled" || ns === "blocked") return false;
+      const g = getStatusGroup(b);
+      if (g === "cancelled" || g === "blocked") return false;
       const e = parseDbDate(b.end_at);
       return e >= todayStart && e <= todayEnd;
     }).length;
   }, [bookings]);
 
-  /* ---------- Utilization (часовая) ---------- */
-  // Считаем union-интервалы. "Релевантные авто" = все не-архивные,
-  // либо выбранный в фильтре (carId !== "all").
+  /* ---------- Utilization (почасовая) ---------- */
   const {
     utilizationSeries, // [{car, utilization%}]
-    fleetUtilizationPct, // взвешенная средняя по релевантным авто
+    fleetUtilizationPct, // средняя по релевантным авто
   } = useMemo(() => {
     const rangeStartMs = new Date(fromDate).getTime();
     const rangeEndMs = new Date(toDate).getTime();
@@ -338,11 +389,10 @@ export default function DashboardPage() {
     const intervalsByCar = new Map<string, Array<[number, number]>>();
     relevantCarIds.forEach((id) => intervalsByCar.set(id, []));
 
-    // Берём только брони релевантных авто; исключаем cancelled/blocked
     bookings.forEach((b) => {
       if (!relevantCarIds.includes(b.car_id)) return;
-      const ns = normalizeStatus(b);
-      if (ns === "cancelled" || ns === "blocked") return;
+      const g = getStatusGroup(b);
+      if (g === "cancelled" || g === "blocked") return;
       const s = parseDbDate(b.start_at).getTime();
       const e = parseDbDate(b.end_at).getTime();
       const start = Math.max(s, rangeStartMs);
@@ -382,7 +432,138 @@ export default function DashboardPage() {
     return { utilizationSeries: series, fleetUtilizationPct: fleetPct };
   }, [bookings, fromDate, toDate, activeCarIds, carId, carsById]);
 
-  /* ---------- Остальные расчёты ---------- */
+  /* ---------- Списки для оперативного раздела ---------- */
+
+  // Текущие активные (rent) — "Active now"
+  const activeNowRows = useMemo(() => {
+    let arr = bookingsNow.filter((b) => {
+      const g = getStatusGroup(b);
+      return g === "active" && nowBetween(b.start_at, b.end_at) === 1;
+    });
+
+    if (carId !== "all") arr = arr.filter((b) => b.car_id === carId);
+
+    if (q.trim()) {
+      const needle = q.trim().toLowerCase();
+      arr = arr.filter((b) => {
+        const carName = (carsById.get(b.car_id) ?? "").toLowerCase();
+        return carName.includes(needle) || b.id.toLowerCase().includes(needle);
+      });
+    }
+
+    return arr.sort(
+      (a, b) =>
+        parseDbDate(a.end_at).getTime() - parseDbDate(b.end_at).getTime()
+    );
+  }, [bookingsNow, carId, q, carsById]);
+
+  // "Скоро заканчиваются" — активные, у которых end_at в ближайшие 2 часа
+  const endingSoonRows = useMemo(() => {
+    const now = Date.now();
+    const soonThreshold = now + 3 * 60 * 60 * 1000; // 3 часа
+    return activeNowRows.filter((b) => {
+      const endTs = parseDbDate(b.end_at).getTime();
+      return endTs > now && endTs <= soonThreshold;
+    });
+  }, [activeNowRows]);
+
+  // Будущие
+  const upcoming = useMemo(
+    () =>
+      filtered
+        .filter((b) => {
+          const startsFuture = parseDbDate(b.start_at) > new Date();
+          if (!startsFuture) return false;
+          const g = getStatusGroup(b);
+          if (status === "blocked") return g === "blocked";
+          return g !== "cancelled" && g !== "blocked";
+        })
+        .sort(
+          (a, b) =>
+            parseDbDate(a.start_at).getTime() -
+            parseDbDate(b.start_at).getTime()
+        )
+        .slice(0, 6),
+    [filtered, status]
+  );
+
+  // Просроченные возвраты
+  const overdue = useMemo(
+    () =>
+      filtered
+        .filter(
+          (b) =>
+            parseDbDate(b.end_at) < new Date() && getStatusGroup(b) === "active"
+        )
+        .sort(
+          (a, b) =>
+            parseDbDate(a.end_at).getTime() - parseDbDate(b.end_at).getTime()
+        )
+        .slice(0, 6),
+    [filtered]
+  );
+
+  /* ---------- Разбивка по СЫРЫМ статусам (аналитика) ---------- */
+
+  const statusBreakdown = useMemo(() => {
+    type Key = RawStatus;
+    const order: Key[] = [
+      "onapproval",
+      "confirmed",
+      "rent",
+      "finished",
+      "canceledhost",
+      "canceledclient",
+      "blocked",
+    ];
+
+    const rangeStartMs = new Date(fromDate).getTime();
+    const rangeEndMs = new Date(toDate).getTime();
+
+    const agg: Record<
+      Key,
+      { label: string; count: number; revenue: number; hours: number }
+    > = Object.fromEntries(
+      order.map((k) => [
+        k,
+        { label: STATUS_CATALOG[k].label, count: 0, revenue: 0, hours: 0 },
+      ])
+    ) as any;
+
+    filtered.forEach((b) => {
+      const key = getRawStatus(b);
+
+      agg[key].count += 1;
+      agg[key].revenue += b.price_total ?? 0;
+
+      const s = Math.max(parseDbDate(b.start_at).getTime(), rangeStartMs);
+      const e = Math.min(parseDbDate(b.end_at).getTime(), rangeEndMs);
+      if (e > s) agg[key].hours += (e - s) / 36e5;
+    });
+
+    return order.map((k) => ({
+      statusKey: k,
+      ...agg[k],
+      revenue: Math.round(agg[k].revenue),
+      hours: Math.round(agg[k].hours),
+    }));
+  }, [filtered, fromDate, toDate]);
+
+  const statusCountSeries = useMemo(
+    () => statusBreakdown.map((r) => ({ status: r.label, count: r.count })),
+    [statusBreakdown]
+  );
+
+  const statusRevenueSeries = useMemo(
+    () =>
+      statusBreakdown.map((r) => ({
+        status: r.label,
+        revenue: r.revenue,
+      })),
+    [statusBreakdown]
+  );
+
+  /* ---------- Прочее ---------- */
 
   const revenueTrend = useMemo(() => {
     const buckets: Record<string, number> = {};
@@ -404,8 +585,8 @@ export default function DashboardPage() {
   const topCars = useMemo(() => {
     const cnt: Record<string, number> = {};
     filtered.forEach((b) => {
-      const ns = normalizeStatus(b);
-      if (ns === "cancelled" || ns === "blocked") return;
+      const g = getStatusGroup(b);
+      if (g === "cancelled" || g === "blocked") return;
       cnt[b.car_id] = (cnt[b.car_id] ?? 0) + 1;
     });
     return Object.entries(cnt)
@@ -420,41 +601,6 @@ export default function DashboardPage() {
     const sum = priced.reduce((a, b) => a + (b.price_total ?? 0), 0);
     return Math.round(sum / priced.length);
   }, [filtered]);
-
-  const upcoming = useMemo(
-    () =>
-      filtered
-        .filter((b) => {
-          const startsFuture = parseDbDate(b.start_at) > new Date();
-          if (!startsFuture) return false;
-          const ns = normalizeStatus(b);
-          if (status === "blocked") return ns === "blocked"; // если выбрали "blocked" — показываем блоки
-          return ns !== "cancelled" && ns !== "blocked";
-        })
-        .sort(
-          (a, b) =>
-            parseDbDate(a.start_at).getTime() -
-            parseDbDate(b.start_at).getTime()
-        )
-        .slice(0, 6),
-    [filtered, status]
-  );
-
-  const overdue = useMemo(
-    () =>
-      filtered
-        .filter(
-          (b) =>
-            parseDbDate(b.end_at) < new Date() &&
-            normalizeStatus(b) === "active"
-        )
-        .sort(
-          (a, b) =>
-            parseDbDate(a.end_at).getTime() - parseDbDate(b.end_at).getTime()
-        )
-        .slice(0, 6),
-    [filtered]
-  );
 
   const loading =
     carsQ.isLoading ||
@@ -509,7 +655,6 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6 w-full max-w-screen-2xl">
       {/* Header */}
-
       <h1 className="font-roboto text-xl md:text-2xl font-medium md:font-bold">
         Dashboard
       </h1>
@@ -563,25 +708,26 @@ export default function DashboardPage() {
           className="shrink-0 bg-white shadow-sm rounded-xl px-3 py-2"
         >
           <option value="all">All cars</option>
-          {carOptions.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.label}
-            </option>
-          ))}
+          {carsById &&
+            Array.from(carsById.entries()).map(([id, label]) => (
+              <option key={id} value={id}>
+                {label}
+              </option>
+            ))}
         </NativeSelect>
 
         <NativeSelect
           value={status}
           onChange={(e) =>
-            setStatus(e.currentTarget.value as "all" | NormStatus)
+            setStatus(e.currentTarget.value as "all" | StatusGroup)
           }
           className="shrink-0 bg-white shadow-sm rounded-xl px-3 py-2"
         >
-          <option value="all">All statuses</option>
-          <option value="reserved">Booked</option>
-          <option value="active">Rent</option>
-          <option value="completed">Finished</option>
-          <option value="cancelled">Canceled</option>
+          <option value="all">All groups</option>
+          <option value="reserved">Reserved</option>
+          <option value="active">Active</option>
+          <option value="completed">Completed</option>
+          <option value="cancelled">Cancelled</option>
           <option value="blocked">Blocked</option>
         </NativeSelect>
 
@@ -697,9 +843,9 @@ export default function DashboardPage() {
             className="shrink-0 bg-white shadow-sm rounded-xl px-3 py-2"
           >
             <option value="all">Все авто</option>
-            {carOptions.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.label}
+            {Array.from(carsById.entries()).map(([id, label]) => (
+              <option key={id} value={id}>
+                {label}
               </option>
             ))}
           </NativeSelect>
@@ -707,15 +853,15 @@ export default function DashboardPage() {
           <NativeSelect
             value={status}
             onChange={(e) =>
-              setStatus(e.currentTarget.value as "all" | NormStatus)
+              setStatus(e.currentTarget.value as "all" | StatusGroup)
             }
             className="shrink-0 bg-white shadow-sm rounded-xl px-3 py-2"
           >
-            <option value="all">All statuses</option>
-            <option value="reserved">Booked</option>
-            <option value="active">Rent</option>
-            <option value="completed">Finished</option>
-            <option value="cancelled">Canceled</option>
+            <option value="all">All groups</option>
+            <option value="reserved">Reserved</option>
+            <option value="active">Active</option>
+            <option value="completed">Completed</option>
+            <option value="cancelled">Cancelled</option>
             <option value="blocked">Blocked</option>
           </NativeSelect>
 
@@ -789,7 +935,103 @@ export default function DashboardPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                {/* Active now */}
+                <TableCard title="Active now">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-left text-zinc-600">
+                        <th className="py-2 font-medium">Car</th>
+                        <th className="py-2 font-medium">Plate</th>
+                        <th className="py-2 font-medium px-1">Period</th>
+                        <th className="py-2 font-medium">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {activeNowRows.length === 0 ? (
+                        <tr>
+                          <td
+                            colSpan={5}
+                            className="py-6 text-center text-zinc-500"
+                          >
+                            No active rentals right now
+                          </td>
+                        </tr>
+                      ) : (
+                        activeNowRows.map((b) => (
+                          <tr
+                            key={b.id}
+                            className="border-t border-zinc-200/60"
+                          >
+                            <td className="py-2">
+                              {carsById.get(b.car_id) ?? b.car_id}
+                            </td>
+                            <td className="py-2">
+                              {plateById.get(b.car_id) ?? "—"}
+                            </td>
+                            <td className="py-2 px-1">
+                              {fmtDate(b.start_at, true)} —{" "}
+                              {fmtDate(b.end_at, true)}
+                            </td>
+                            <td className="py-2">
+                              <StatusBadge row={b} />
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </TableCard>
+
+                {/* Ending soon (≤2h) */}
+                <TableCard title="Ending soon (≤3h)">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-left text-zinc-600">
+                        <th className="py-2 font-medium">Car</th>
+                        <th className="py-2 font-medium">Plate</th>
+                        <th className="py-2 font-medium px-1">Period</th>
+                        <th className="py-2 font-medium">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {endingSoonRows.length === 0 ? (
+                        <tr>
+                          <td
+                            colSpan={5}
+                            className="py-6 text-center text-zinc-500"
+                          >
+                            No rentals ending within 2 hours
+                          </td>
+                        </tr>
+                      ) : (
+                        endingSoonRows.map((b) => (
+                          <tr
+                            key={b.id}
+                            className="border-t border-zinc-200/60"
+                          >
+                            <td className="py-2">
+                              {carsById.get(b.car_id) ?? b.car_id}
+                            </td>
+                            <td className="py-2">
+                              {plateById.get(b.car_id) ?? "—"}
+                            </td>
+                            <td className="py-2 px-1">
+                              {fmtDate(b.start_at, true)} —{" "}
+                              {fmtDate(b.end_at, true)}
+                            </td>
+                            <td className="py-2">
+                              <StatusBadge row={b} />
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </TableCard>
+              </div>
+
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
                 <TableCard title="Upcoming bookings">
                   <table className="w-full text-sm">
                     <thead>
@@ -807,7 +1049,7 @@ export default function DashboardPage() {
                           <tr>
                             <td
                               colSpan={4}
-                              className="py-6 text-center text-зinc-500"
+                              className="py-6 text-center text-zinc-500"
                             >
                               No entries
                             </td>
@@ -825,10 +1067,11 @@ export default function DashboardPage() {
                                 {plateById.get(b.car_id) ?? "—"}
                               </td>
                               <td className="py-2 px-1">
-                                {fmtDate(b.start_at)} — {fmtDate(b.end_at)}
+                                {fmtDate(b.start_at, true)} —{" "}
+                                {fmtDate(b.end_at, true)}
                               </td>
                               <td className="py-2">
-                                <StatusBadge status={normalizeStatus(b)} />
+                                <StatusBadge row={b} />
                               </td>
                             </tr>
                           ))
@@ -855,7 +1098,7 @@ export default function DashboardPage() {
                             colSpan={4}
                             className="py-6 text-center text-zinc-500"
                           >
-                            Everything is ok - there are no overdue payments
+                            Everything is ok — there are no overdue returns
                           </td>
                         </tr>
                       ) : (
@@ -868,9 +1111,9 @@ export default function DashboardPage() {
                               {carsById.get(b.car_id) ?? b.car_id}
                             </td>
                             <td className="py-2">
-                              {plateById.get(b.car_id) ?? "—"}{" "}
+                              {plateById.get(b.car_id) ?? "—"}
                             </td>
-                            <td className="py-2">{fmtDate(b.end_at)}</td>
+                            <td className="py-2">{fmtDate(b.end_at, true)}</td>
                             <td className="py-2">
                               <span className="inline-flex items-center gap-1 text-amber-600">
                                 <ExclamationTriangleIcon className="w-4 h-4" />
@@ -912,14 +1155,18 @@ export default function DashboardPage() {
                 />
                 <KpiCard
                   icon={<ClockIcon className="w-6 h-6" />}
-                  title="Loading (av.)"
+                  title="Loading (avg.)"
                   value={`${fleetUtilizationPct}%`}
-                  sub="by vehicle fleet (hourly)"
+                  sub="by fleet (hourly)"
                 />
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                <ChartCard title="Revenue by month (6m)">
+              {/* ---- Разбивка по статусам: графики ---- */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <ChartCard
+                  title="Revenue by month (6m)"
+                  className="lg:col-span-1"
+                >
                   <ResponsiveContainer width="100%" height={260}>
                     <LineChart
                       data={revenueTrend}
@@ -928,13 +1175,18 @@ export default function DashboardPage() {
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="month" />
                       <YAxis />
-                      <Tooltip />
+                      <Tooltip
+                        formatter={(v: any) => [
+                          `€${Number(v).toLocaleString()}`,
+                          "Revenue",
+                        ]}
+                      />
                       <Line type="monotone" dataKey="revenue" />
                     </LineChart>
                   </ResponsiveContainer>
                 </ChartCard>
 
-                <ChartCard className="lg:col-span-2" title="Loading by car (%)">
+                <ChartCard className="lg:col-span-1" title="Loading by car (%)">
                   <ResponsiveContainer width="100%" height={260}>
                     <BarChart
                       data={utilizationSeries}
@@ -950,6 +1202,82 @@ export default function DashboardPage() {
                         formatter={(v: any) => [`${v}%`, "Utilization"]}
                       />
                       <Bar dataKey="utilization" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </ChartCard>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                <TableCard title="Status breakdown (period)">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-left text-zinc-500">
+                        <th className="py-2">Status</th>
+                        <th className="py-2">Count</th>
+                        <th className="py-2">Revenue</th>
+                        <th className="py-2">Hours</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {statusBreakdown.every((r) => r.count === 0) ? (
+                        <tr>
+                          <td
+                            colSpan={4}
+                            className="py-6 text-center text-zinc-500"
+                          >
+                            No data
+                          </td>
+                        </tr>
+                      ) : (
+                        statusBreakdown.map((r) => (
+                          <tr
+                            key={r.statusKey}
+                            className="border-t border-zinc-200/60"
+                          >
+                            <td className="py-2">{r.label}</td>
+                            <td className="py-2 font-medium">{r.count}</td>
+                            <td className="py-2">
+                              €{r.revenue.toLocaleString()}
+                            </td>
+                            <td className="py-2">{r.hours}</td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </TableCard>
+
+                <ChartCard title="Bookings by raw status (count)">
+                  <ResponsiveContainer width="100%" height={260}>
+                    <BarChart
+                      data={statusCountSeries}
+                      margin={{ left: 8, right: 16, top: 8, bottom: 8 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="status" />
+                      <YAxis />
+                      <Tooltip />
+                      <Bar dataKey="count" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </ChartCard>
+
+                <ChartCard title="Revenue by raw status (€)">
+                  <ResponsiveContainer width="100%" height={260}>
+                    <BarChart
+                      data={statusRevenueSeries}
+                      margin={{ left: 8, right: 16, top: 8, bottom: 8 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="status" />
+                      <YAxis />
+                      <Tooltip
+                        formatter={(v: any) => [
+                          `€${Number(v).toLocaleString()}`,
+                          "Revenue",
+                        ]}
+                      />
+                      <Bar dataKey="revenue" />
                     </BarChart>
                   </ResponsiveContainer>
                 </ChartCard>
@@ -1108,24 +1436,12 @@ function TableCard({
   );
 }
 
-function StatusBadge({ status }: { status: NormStatus }) {
-  const map: Record<NormStatus, string> = {
-    reserved: "bg-blue-50 text-blue-700",
-    active: "bg-emerald-50 text-emerald-700",
-    completed: "bg-zinc-100 text-zinc-700",
-    cancelled: "bg-rose-50 text-rose-700",
-    blocked: "bg-amber-50 text-amber-700",
-  };
-  const label: Record<NormStatus, string> = {
-    reserved: "Booked",
-    active: "Rent",
-    completed: "Finished",
-    cancelled: "Canceled",
-    blocked: "Blocked",
-  };
+function StatusBadge({ row }: { row: BookingRow }) {
+  const raw = getRawStatus(row);
+  const meta = STATUS_CATALOG[raw];
   return (
-    <span className={`px-2 py-1 text-xs rounded-lg ${map[status]}`}>
-      {label[status]}
+    <span className={`px-2 py-1 text-xs rounded-lg ${meta.className}`}>
+      {meta.label}
     </span>
   );
 }

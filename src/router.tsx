@@ -24,7 +24,7 @@ import SettingsGlobal from "./app/settings";
 import { carLayoutLoader } from "@/routes/carLayoutLoader";
 import HydrateFallback from "./components/hydrateFallback";
 import CarErrorBoundary from "./components/carErrorBoundary";
-import Finance from "./app/finance";
+// import Finance from "./app/finance";
 import BookingsList from "./app/bookings";
 import BookingEditor from "./app/bookings/bookingEditor";
 import MiniLandingPage from "./app/landingpage";
@@ -69,7 +69,7 @@ export const router = createBrowserRouter([
       },
       { id: "cars", path: "cars", loader: carsLoader, element: <CarsPage /> },
       { path: "cars/add", element: <AddCarPage /> },
-      { path: "finance", element: <Finance /> },
+      // { path: "finance", element: <Finance /> },
       {
         id: "bookings",
         path: "/bookings",

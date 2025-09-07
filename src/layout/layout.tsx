@@ -3,7 +3,7 @@ import { useDisclosure, useMediaQuery } from "@mantine/hooks";
 import { NavLink, Outlet } from "react-router-dom";
 import {
   AdjustmentsHorizontalIcon,
-  BanknotesIcon,
+  // BanknotesIcon,
   CalendarDaysIcon,
   ChartBarSquareIcon,
   RocketLaunchIcon,
@@ -49,12 +49,12 @@ export default function Layout() {
       onClick: toggle,
       // count: mainNews.length,
     },
-    {
-      to: "/finance",
-      icon: <BanknotesIcon className="size-5" />,
-      label: "Finance",
-      onClick: toggle,
-    },
+    // {
+    //   to: "/finance",
+    //   icon: <BanknotesIcon className="size-5" />,
+    //   label: "Finance",
+    //   onClick: toggle,
+    // },
     {
       to: "/users",
       icon: <UserGroupIcon className="size-5" />,
