@@ -10,8 +10,8 @@ import {
   ExclamationTriangleIcon,
   ArrowTrendingUpIcon,
   FunnelIcon,
-  MagnifyingGlassIcon,
-  XMarkIcon,
+  // MagnifyingGlassIcon,
+  // XMarkIcon,
 } from "@heroicons/react/24/outline";
 import {
   LineChart,
@@ -27,7 +27,6 @@ import {
 import {
   Drawer,
   NativeSelect,
-  TextInput,
   Loader,
   Menu,
   Button,
@@ -104,7 +103,7 @@ const STATUS_CATALOG: Record<
     label: "Rent",
     group: "active",
     className:
-      "bg-gradient-to-r from-emerald-800/80 to-emerald-600/70 text-white",
+      "bg-gradient-to-r from-emerald-500 from-30% to-emerald-500/80 text-white",
   },
   finished: {
     label: "Finished",
@@ -473,6 +472,7 @@ export default function DashboardPage() {
       filtered
         .filter((b) => {
           const startsFuture = parseDbDate(b.start_at) > new Date();
+
           if (!startsFuture) return false;
           const g = getStatusGroup(b);
           if (status === "blocked") return g === "blocked";
@@ -655,105 +655,37 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6 w-full max-w-screen-2xl">
       {/* Header */}
-      <h1 className="font-roboto text-xl md:text-2xl font-medium md:font-bold">
-        Dashboard
-      </h1>
-
-      {/* Desktop / tablet filters */}
-      <div className="hidden sm:flex flex-wrap gap-3 items-center w-full">
-        <div className="flex items-center gap-2 bg-white/60 rounded-xl px-3 py-2 shadow-sm">
-          <CalendarDaysIcon className="w-5 h-5 text-zinc-600" />
-          <DatePickerInput
-            type="range"
-            value={range as unknown as DatesRangeValue}
-            onChange={(v) => setRange(v as RangeV)}
-            placeholder="Выбери период"
-            valueFormat="DD MMM YYYY"
-            dropdownType="popover"
-          />
-          <Menu withinPortal>
-            <Menu.Target>
-              <Button variant="default" fw={400}>
-                Presets
-              </Button>
-            </Menu.Target>
-            <Menu.Dropdown>
-              <Menu.Label>Быстрый выбор</Menu.Label>
-              <Menu.Item onClick={() => applyPreset("thisWeek")}>
-                This week
-              </Menu.Item>
-              <Menu.Item onClick={() => applyPreset("prevWeek")}>
-                Last week
-              </Menu.Item>
-              <Menu.Item onClick={() => applyPreset("last7")}>
-                Last 7 days
-              </Menu.Item>
-              <Menu.Divider />
-              <Menu.Item onClick={() => applyPreset("thisMonth")}>
-                This month
-              </Menu.Item>
-              <Menu.Item onClick={() => applyPreset("prevMonth")}>
-                Last month
-              </Menu.Item>
-              <Menu.Item onClick={() => applyPreset("last30")}>
-                Last 30 days
-              </Menu.Item>
-            </Menu.Dropdown>
-          </Menu>
+      <div className=" flex items-center justify-between">
+        <div>
+          <h1 className="font-roboto text-xl md:text-2xl font-medium md:font-bold">
+            Dashboard
+          </h1>
         </div>
-
-        <NativeSelect
-          value={carId}
-          onChange={(e) => setCarId(e.currentTarget.value)}
-          className="shrink-0 bg-white shadow-sm rounded-xl px-3 py-2"
-        >
-          <option value="all">All cars</option>
-          {carsById &&
-            Array.from(carsById.entries()).map(([id, label]) => (
-              <option key={id} value={id}>
-                {label}
-              </option>
-            ))}
-        </NativeSelect>
-
-        <NativeSelect
-          value={status}
-          onChange={(e) =>
-            setStatus(e.currentTarget.value as "all" | StatusGroup)
-          }
-          className="shrink-0 bg-white shadow-sm rounded-xl px-3 py-2"
-        >
-          <option value="all">All groups</option>
-          <option value="reserved">Reserved</option>
-          <option value="active">Active</option>
-          <option value="completed">Completed</option>
-          <option value="cancelled">Cancelled</option>
-          <option value="blocked">Blocked</option>
-        </NativeSelect>
-
-        <div className="relative flex-1">
-          <MagnifyingGlassIcon className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-zinc-500" />
-          <TextInput
-            placeholder="Search (ID, car)"
-            value={q}
-            onChange={(e) => setQ(e.currentTarget.value)}
-            className="w-full rounded-2xl bg-white/60 shadow-sm pl-9 pr-3 py-2 text-sm hover:bg-white/80 focus:ring-2 focus:ring-black/10"
-          />
+        {/* ---- Tabs ---- */}
+        <div className="flex gap-2">
+          {(
+            [
+              { key: "operational", label: "Quick" },
+              { key: "managerial", label: "Managed" },
+            ] as const
+          ).map((t) => (
+            <button
+              key={t.key}
+              onClick={() => setView(t.key)}
+              className={`px-2 py-1 rounded-lg border text-sm ${
+                view === t.key
+                  ? "bg-black text-white border-black"
+                  : "bg-white/60"
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
         </div>
-
-        <button
-          type="button"
-          onClick={resetFilters}
-          className="p-2 rounded hover:bg-gray-100 active:bg-gray-200 transition"
-          aria-label="Сбросить фильтры"
-          title="Сбросить фильтры"
-        >
-          <XMarkIcon className="size-5 text-gray-800 stroke-1" />
-        </button>
       </div>
 
       {/* Mobile search */}
-      <div className="relative w-full sm:hidden">
+      {/* <div className="relative w-full sm:hidden">
         <MagnifyingGlassIcon className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-zinc-500" />
         <TextInput
           placeholder="Search (ID, car)"
@@ -761,10 +693,10 @@ export default function DashboardPage() {
           onChange={(e) => setQ(e.currentTarget.value)}
           className="w-full rounded-xl bg-white/60 shadow-sm pl-9 pr-3 py-2 text-sm hover:bg-white/80 focus:ring-2 focus:ring-black/10"
         />
-      </div>
+      </div> */}
 
       {/* Mobile Filters */}
-      <div className="sm:hidden">
+      <div className="lg:hidden">
         <button
           type="button"
           onClick={() => setMobileFiltersOpen(true)}
@@ -804,12 +736,7 @@ export default function DashboardPage() {
             />
             <Menu withinPortal>
               <Menu.Target>
-                <Button
-                  variant="default"
-                  size="xs"
-                  className="rounded-xl"
-                  fw={400}
-                >
+                <Button variant="default" className="rounded-xl" fw={400}>
                   Presets
                 </Button>
               </Menu.Target>
@@ -877,26 +804,104 @@ export default function DashboardPage() {
         </div>
       </Drawer>
 
-      {/* ---- Tabs ---- */}
-      <div className="flex gap-2">
-        {(
-          [
-            { key: "operational", label: "Quick" },
-            { key: "managerial", label: "Managed" },
-          ] as const
-        ).map((t) => (
-          <button
-            key={t.key}
-            onClick={() => setView(t.key)}
-            className={`px-3 py-1.5 rounded-xl border text-sm ${
-              view === t.key
-                ? "bg-black text-white border-black"
-                : "bg-white/60"
-            }`}
+      <div className="hidden lg:flex items-center justify-between">
+        <div className="flex flex-shrink-0 items-center gap-2">
+          <div className="h-9 flex items-center gap-2 bg-white rounded-lg px-3 border border-zinc-100 shadow-sm">
+            <CalendarDaysIcon className="w-5 h-5 text-zinc-600" />
+            <DatePickerInput
+              type="range"
+              value={range as unknown as DatesRangeValue}
+              onChange={(v) => setRange(v as RangeV)}
+              placeholder="Выбери период"
+              valueFormat="DD MMM YY"
+              dropdownType="popover"
+              variant="unstyled"
+            />
+          </div>
+          <Menu withinPortal>
+            <Menu.Target>
+              <button className="h-9 border border-zinc-100 rounded-lg px-3 bg-white shadow-sm text-sm">
+                Presets
+              </button>
+            </Menu.Target>
+            <Menu.Dropdown>
+              <Menu.Label>Быстрый выбор</Menu.Label>
+              <Menu.Item onClick={() => applyPreset("thisWeek")}>
+                This week
+              </Menu.Item>
+              <Menu.Item onClick={() => applyPreset("prevWeek")}>
+                Last week
+              </Menu.Item>
+              <Menu.Item onClick={() => applyPreset("last7")}>
+                Last 7 days
+              </Menu.Item>
+              <Menu.Divider />
+              <Menu.Item onClick={() => applyPreset("thisMonth")}>
+                This month
+              </Menu.Item>
+              <Menu.Item onClick={() => applyPreset("prevMonth")}>
+                Last month
+              </Menu.Item>
+              <Menu.Item onClick={() => applyPreset("last30")}>
+                Last 30 days
+              </Menu.Item>
+            </Menu.Dropdown>
+          </Menu>
+        </div>
+
+        {/* Desktop / tablet filters */}
+        <div className="flex flex-wrap gap-3 items-center">
+          <NativeSelect
+            variant="unstiled"
+            value={carId}
+            onChange={(e) => setCarId(e.currentTarget.value)}
+            className="shrink-0 bg-white shadow-sm rounded-xl"
           >
-            {t.label}
-          </button>
-        ))}
+            <option value="all">All cars</option>
+            {carsById &&
+              Array.from(carsById.entries()).map(([id, label]) => (
+                <option key={id} value={id}>
+                  {label}
+                </option>
+              ))}
+          </NativeSelect>
+
+          <NativeSelect
+            variant="unstiled"
+            value={status}
+            onChange={(e) =>
+              setStatus(e.currentTarget.value as "all" | StatusGroup)
+            }
+            className="shrink-0 bg-white shadow-sm rounded-xl"
+          >
+            <option value="all">All groups</option>
+            <option value="reserved">Reserved</option>
+            <option value="active">Active</option>
+            <option value="completed">Completed</option>
+            <option value="cancelled">Cancelled</option>
+            <option value="blocked">Blocked</option>
+          </NativeSelect>
+
+          {/* <div className="relative flex-1">
+          <MagnifyingGlassIcon className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-zinc-500" />
+          <TextInput
+            placeholder="Search (ID, car)"
+            value={q}
+            onChange={(e) => setQ(e.currentTarget.value)}
+            className="w-full rounded-2xl bg-white/60 shadow-sm pl-9 pr-3 py-2 text-sm hover:bg-white/80 focus:ring-2 focus:ring-black/10"
+          />
+        </div> */}
+
+          {/* <button
+          type="button"
+          onClick={resetFilters}
+          className="p-2 rounded hover:bg-gray-100 active:bg-gray-200 transition"
+          aria-label="Сбросить фильтры"
+          title="Сбросить фильтры"
+        >
+          <XMarkIcon className="size-5 text-gray-800 stroke-1" />
+        </button> */}
+        </div>
       </div>
 
       {/* ---- Views ---- */}
@@ -1375,7 +1380,7 @@ function KpiCard({
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.25 }}
-      className="rounded-2xl border bg-white/70 p-4 shadow-sm"
+      className="rounded-2xl bg-white p-4 shadow"
     >
       <div className="flex items-center justify-between">
         <div className="p-2 rounded-xl bg-zinc-100">{icon}</div>
@@ -1404,7 +1409,7 @@ function ChartCard({
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.25 }}
-      className={`rounded-2xl border bg-white/70 p-4 shadow-sm ${className}`}
+      className={`rounded-2xl bg-white p-4 shadow ${className}`}
     >
       <div className="flex items-center justify-between mb-2">
         <h3 className="text-sm font-medium text-zinc-600">{title}</h3>
@@ -1426,7 +1431,7 @@ function TableCard({
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.25 }}
-      className="rounded-2xl border bg-white/70 p-4 shadow-sm"
+      className="rounded-2xl bg-white p-4 shadow"
     >
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-sm font-medium text-zinc-600">{title}</h3>

@@ -565,7 +565,7 @@ export default function CalendarPage() {
     return (
       <div
         style={{ ...style, height: ROW_H }}
-        className="relative border-b border-gray-100"
+        className="relative border-b border-gray-100 bg-white"
       >
         {/* фон-сетка */}
         <div
@@ -742,7 +742,7 @@ export default function CalendarPage() {
       <div className="flex flex-wrap items-center justify-between mb-3 mt-5">
         <div className="flex items-center gap-2">
           <button
-            className="px-3 py-1 text-sm border rounded"
+            className="px-3 py-1 text-sm border bg-white rounded"
             onClick={() => goToMonthSmooth(addMonths(month, -1))}
             onMouseEnter={() => prefetchMonth(addMonths(month, -1))}
             disabled={calQ.isFetching}
@@ -750,7 +750,7 @@ export default function CalendarPage() {
             Prev
           </button>
           <button
-            className="px-3 py-1 text-sm border rounded"
+            className="px-3 py-1 text-sm border bg-white rounded"
             onClick={() => goToMonthSmooth(addMonths(month, 1))}
             onMouseEnter={() => prefetchMonth(addMonths(month, 1))}
             disabled={calQ.isFetching}
@@ -758,7 +758,7 @@ export default function CalendarPage() {
             Next
           </button>
           <button
-            className="px-3 py-1 text-sm border rounded"
+            className="px-3 py-1 text-sm border bg-white rounded"
             onClick={handleToday}
             onMouseEnter={() => prefetchMonth(new Date())}
             disabled={calQ.isFetching}
@@ -772,7 +772,7 @@ export default function CalendarPage() {
         <div className="flex">
           {/* LEFT */}
           <div
-            className="flex-none border-r border-gray-200"
+            className="flex-none border-r border-gray-200 bg-white"
             style={{ width: LEFT_W }}
           >
             <div

@@ -266,7 +266,7 @@ export default function UsersPage() {
 
       <div className="w-full rounded-xl overflow-hidden">
         {/* header row */}
-        <div className="grid grid-cols-[2fr,2fr,1.5fr,1fr,24px] px-2 sm:px-3 py-3 text-xs bg-neutral-200/50">
+        <div className="grid grid-cols-[2fr,2fr,1.5fr,1fr,24px] px-2 sm:px-3 py-3 text-xs bg-neutral-200/40">
           <div>
             <SortButton
               label="Name"
@@ -293,12 +293,12 @@ export default function UsersPage() {
         {filteredSorted.length === 0 ? (
           <div className="px-3 py-6 text-sm text-zinc-500">Users not found</div>
         ) : (
-          <ul role="list" className="divide-y divide-neutral-200/60">
+          <ul role="list" className="divide-y divide-neutral-200/40">
             {filteredSorted.map((u) => (
               <li key={u.id}>
                 <Link
                   to={`/users/${u.id}`}
-                  className="grid grid-cols-[2fr,2fr,1.5fr,1fr,24px] items-center px-2 sm:px-3 py-3 hover:bg-neutral-100/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-black/20 rounded-[6px]"
+                  className="grid grid-cols-[2fr,2fr,1.5fr,1fr,24px] items-center px-2 sm:px-3 py-3 bg-white hover:bg-neutral-100/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-black/20 rounded-[6px]"
                 >
                   {/* name + avatar */}
                   <div className="flex items-center gap-3 min-w-0">

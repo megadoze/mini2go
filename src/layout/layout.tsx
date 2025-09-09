@@ -75,16 +75,16 @@ export default function Layout() {
         <NavLink
           to={"/"}
           // className=" ml-1 flex px-3 py-2 items-center font-openSans font-bold text-xl"
-          className="flex flex-col items-center shrink-0 font-roboto uppercase font-bold"
+          className="flex flex-col items-center shrink-0 font-roboto uppercase font-bold pt-2"
         >
-          <img src="/icons/logow.png" className=" w-16 opacity-90" />
-          <p className=" text-white/90 text-xs">MINI2GO</p>
+          <img src="/icons/logo.png" className=" w-16 opacity-90" />
+          <p className=" text-black text-xs">MINI2GO</p>
         </NavLink>
-        <ul className="flex flex-col gap-1 text-left mt-5">
+        <ul className="flex flex-col gap-2 text-left mt-8">
           {menuItems.map(({ to, icon, label, exact, onClick }) => (
             <li
               key={to}
-              className="rounded-md hover:bg-gradient-to-r hover:from-teal-900/40 from-30% hover:to-indigo-900/5 cursor-pointer text-white/90"
+              className="rounded-full hover:bg-zinc-100  cursor-pointer "
             >
               <NavLink
                 to={to}
@@ -92,7 +92,7 @@ export default function Layout() {
                 className={({ isActive }) =>
                   `flex w-full h-full items-center justify-between p-3 ${
                     isActive
-                      ? "bg-gradient-to-r from-teal-900/90 from-30%  to-indigo-900/10 rounded-md"
+                      ? "bg-gradient-to-r from-emerald-600/90 from-30% to-emerald-500/90 rounded-full text-white "
                       : ""
                   }`
                 }
@@ -114,22 +114,23 @@ export default function Layout() {
   return (
     <AppShell
       layout="alt"
-      header={{ height: 60 }}
+      header={{ height: 72 }}
       navbar={{
-        width: 300,
+        width: 250,
         breakpoint: "md",
         collapsed: { mobile: !opened },
       }}
-      bg={"#fcfcfc"}
+      // bg={"#f1f1f1ad"}
       padding={{ base: "md", sm: "lg", md: "xl", lg: "xl" }}
     >
       <AppShell.Header
         className=" flex items-center justify-between lg:justify-end px-4"
         withBorder={false}
-        bg={"#fcfcfc"}
+        // bg={"#fcfcfc"}
       >
         <NavLink
           to={"/"}
+          // className="lg:hidden flex flex-col items-center shrink-0 font-roboto uppercase font-bold"
           className="lg:hidden flex flex-col items-center shrink-0 font-roboto uppercase font-bold"
         >
           <img src="/icons/logo.png" className=" w-14 opacity-90" />
@@ -142,11 +143,10 @@ export default function Layout() {
       </AppShell.Header>
 
       {!isMobile && (
-        <AppShell.Navbar px="" bg={"#ffffffc9"} withBorder={false}>
+        <AppShell.Navbar px="md" bg={"white"} withBorder={false}>
           {/* #102d20cc #073b25  #184230*/}
-          <div className="h-full bg-gradient-to-r from-teal-950 from-5% to-emerald-900 md:to-emerald-800 to-95% p-3 ">
-            {SidebarMenu()}
-          </div>
+          {/* <div className="h-full bg-gradient-to-r from-teal-950 from-5% to-emerald-900 md:to-emerald-800 to-95% p-3 "> */}
+          <div className=" ">{SidebarMenu()}</div>
         </AppShell.Navbar>
       )}
 
@@ -156,13 +156,13 @@ export default function Layout() {
           onClose={toggle}
           size="100%"
           withCloseButton={false}
-          padding="md"
+          padding="lg"
           lockScroll
           trapFocus
           withinPortal
           overlayProps={{ opacity: 0.2 }}
           classNames={{
-            body: "h-full bg-gradient-to-r from-teal-950 from-5% to-emerald-900 md:to-emerald-800 to-95%",
+            body: "h-full ",
           }}
         >
           <div className=" absolute right-1 top-4 mr-3">
@@ -172,18 +172,20 @@ export default function Layout() {
               hiddenFrom="md"
               size="sm"
               // mx={10}
-              color="white"
+              color="black"
             />
           </div>
           <SidebarMenu />
-          <div className="lg:hidden fixed bottom-2 text-white/80 border border-white/80 rounded-xl">
+          <div className="lg:hidden fixed bottom-2 text-black/80 border border-white/80 rounded-xl">
             <UserMenu onClick={toggle} />
           </div>
         </Drawer>
       )}
 
-      <AppShell.Main>
-        <Outlet />
+      <AppShell.Main className=" bg-zinc-50 lg:absolute lg:top-[72px] lg:right-0 lg:left-[280px] lg:rounded-l-2xl">
+        <div className="lg:-ml-[280px] lg:-mt-[72px] lg:pl-6">
+          <Outlet />
+        </div>
       </AppShell.Main>
     </AppShell>
   );
