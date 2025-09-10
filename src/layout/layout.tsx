@@ -84,7 +84,7 @@ export default function Layout() {
           {menuItems.map(({ to, icon, label, exact, onClick }) => (
             <li
               key={to}
-              className="rounded-full hover:bg-zinc-100  cursor-pointer "
+              className="rounded-full hover:bg-zinc-100 cursor-pointer "
             >
               <NavLink
                 to={to}
@@ -116,12 +116,12 @@ export default function Layout() {
       layout="alt"
       header={{ height: 72 }}
       navbar={{
-        width: 250,
+        width: 260,
         breakpoint: "md",
         collapsed: { mobile: !opened },
       }}
       // bg={"#f1f1f1ad"}
-      padding={{ base: "md", sm: "lg", md: "xl", lg: "xl" }}
+      padding={{ base: "md", sm: "lg", md: "xl", lg: "lg" }}
     >
       <AppShell.Header
         className=" flex items-center justify-between lg:justify-end px-4"
