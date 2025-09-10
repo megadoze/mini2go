@@ -121,7 +121,7 @@ export default function Layout() {
         collapsed: { mobile: !opened },
       }}
       // bg={"#f1f1f1ad"}
-      padding={{ base: "md", sm: "lg", md: "xl", lg: "lg" }}
+      padding={{ base: "md", sm: "lg", md: "lg", lg: "lg" }}
     >
       <AppShell.Header
         className=" flex items-center justify-between lg:justify-end px-4"
