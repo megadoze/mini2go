@@ -1,6 +1,6 @@
 import { Outlet } from "react-router-dom";
 
-export default function UserPage() {
+export default function UserCabinet() {
   return (
     <>
       <Outlet />

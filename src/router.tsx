@@ -4,7 +4,8 @@ import Layout from "./layout/layout";
 import Dashboard from "./app/dashboard";
 import CarsPage from "./app/cars";
 import UsersPage from "./app/users";
-import UserPage from "./app/user";
+import UserCabinet from "./app/user";
+import { UserPage } from "./app/users/userPage";
 import UserSettings from "./app/user/userSettings";
 import UserProfile from "./app/user/userProfile";
 import UserMessages from "./app/user/userMessages";
@@ -82,10 +83,14 @@ export const router = createBrowserRouter([
         loader: usersLoader,
         element: <UsersPage />,
       },
+      {
+        path: "/users/:userId",
+        element: <UserPage />,
+      },
       { path: "settings", element: <SettingsGlobal /> },
       {
         path: "user/:id",
-        element: <UserPage />,
+        element: <UserCabinet />,
         children: [
           { index: true, element: <Navigate to="profile" replace /> },
           { path: "profile", element: <UserProfile /> },
