@@ -416,7 +416,7 @@ export default function BookingsList() {
       </div>
 
       {/* Mobile search */}
-      <div className="relative w-full mb-4 sm:hidden">
+      <div className="relative w-full mb-4 lg:hidden">
         <MagnifyingGlassIcon className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-zinc-500" />
         <TextInput
           placeholder="Поиск по марке, модели, номеру, гостю"
@@ -427,7 +427,7 @@ export default function BookingsList() {
       </div>
 
       {/* Mobile floating Filters button */}
-      <div className="sm:hidden">
+      <div className="lg:hidden">
         <button
           type="button"
           onClick={() => setMobileFiltersOpen(true)}
