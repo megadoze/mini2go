@@ -450,76 +450,73 @@ export const UserPage = () => {
             </Link>
           </div>
 
-          {bookingsLoading ? (
-            <Skeleton lines={4} />
-          ) : bookings.length === 0 ? (
-            <EmptyState
-              title="No bookings yet"
-              description="When this user makes a booking, it will appear here."
-            />
-          ) : (
-            <ul className="mt-4 space-y-2">
-              {bookings.slice(0, 5).map((b) => {
-                const brand = b.car?.model?.brand.name ?? "—";
-                const model = b.car?.model?.name ?? "—";
-                const plate = (b.car?.plate_number ||
-                  b.car?.license_plate ||
-                  b.car?.reg_number ||
-                  "—") as string;
-                const short = shortId(b.id);
-                const photo = getCarPhoto(b.car?.photos);
+          <div className="mt-2 max-h-80 sm:max-h-96 overflow-auto pr-1">
+            {bookingsLoading ? (
+              <Skeleton lines={4} />
+            ) : bookings.length === 0 ? (
+              <EmptyState
+                title="No bookings yet"
+                description="When this user makes a booking, it will appear here."
+              />
+            ) : (
+              <ul className="space-y-2">
+                {bookings.slice(0, 20).map((b) => {
+                  const brand = b.car?.model?.brand.name ?? "—";
+                  const model = b.car?.model?.name ?? "—";
+                  const plate = (b.car?.license_plate ??
+                    (b.car as any)?.plate_number ??
+                    (b.car as any)?.reg_number ??
+                    "—") as string;
+                  const short = shortId(b.id);
+                  const photo = getCarPhoto(b.car?.photos);
 
-                return (
-                  <li
-                    key={b.id}
-                    role="button"
-                    onClick={() =>
-                      navigate(`/cars/${b.car_id}/bookings/${b.id}/edit`)
-                    }
-                    className="group flex items-center justify-between gap-3 rounded-xl border border-gray-100 bg-white/60 px-3 py-2 hover:bg-gray-50 cursor-pointer"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      {/* thumb */}
-                      {photo ? (
-                        <img
-                          src={photo}
-                          alt={`${brand} ${model}`}
-                          className="h-10 w-10 rounded-lg object-cover border border-gray-100"
-                        />
-                      ) : (
-                        <div className="h-10 w-10 rounded-lg border border-gray-100 bg-gray-100 grid place-items-center text-xs text-gray-500">
-                          🚗
-                        </div>
-                      )}
-
-                      {/* main text */}
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <p className="text-sm font-medium text-gray-900 truncate">
-                            {brand} {model}
+                  return (
+                    <li
+                      key={b.id}
+                      role="button"
+                      onClick={() =>
+                        navigate(`/cars/${b.car_id}/bookings/${b.id}/edit`)
+                      }
+                      className="group flex items-center justify-between gap-3 rounded-xl border border-gray-100 bg-white/60 px-3 py-2 hover:bg-gray-50 cursor-pointer"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        {photo ? (
+                          <img
+                            src={photo}
+                            alt={`${brand} ${model}`}
+                            className="h-10 w-10 rounded-lg object-cover border border-gray-100"
+                          />
+                        ) : (
+                          <div className="h-10 w-10 rounded-lg border border-gray-100 bg-gray-100 grid place-items-center text-xs text-gray-500">
+                            🚗
+                          </div>
+                        )}
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-medium text-gray-900 truncate">
+                              {brand} {model}
+                            </p>
+                            <span className="text-sm text-gray-500">
+                              #{short}
+                            </span>
+                          </div>
+                          <p className="text-xs rounded border w-fit p-0.5 shadow-sm text-gray-600 truncate">
+                            {plate}
                           </p>
-                          <span className="text-xs text-gray-400">
-                            #{short}
-                          </span>
+                          <p className="text-xs text-gray-500">
+                            {formatDateRange(b.start_at, b.end_at)}
+                          </p>
                         </div>
-                        <p className=" w-fit px-1 py-0.5 border shadow-sm text-xs text-gray-500 truncate">
-                          {plate}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          {formatDateRange(b.start_at, b.end_at)}
-                        </p>
                       </div>
-                    </div>
-
-                    {/* status */}
-                    <div className="shrink-0">
-                      <StatusPill value={b.status || "—"} />
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
+                      <div className="shrink-0">
+                        <StatusPill value={b.status || "—"} />
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
         </SectionCard>
 
         <SectionCard>
