@@ -23,14 +23,9 @@ import {
   ResponsiveContainer,
   BarChart,
   Bar,
+  Area,
 } from "recharts";
-import {
-  Drawer,
-  NativeSelect,
-  Loader,
-  Menu,
-  Button,
-} from "@mantine/core";
+import { Drawer, NativeSelect, Loader, Menu, Button } from "@mantine/core";
 import { DatePickerInput, type DatesRangeValue } from "@mantine/dates";
 import {
   startOfMonth,
@@ -943,193 +938,195 @@ export default function DashboardPage() {
               <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
                 {/* Active now */}
                 <TableCard title="Active now">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="text-left text-zinc-600">
-                        <th className="py-2 font-medium">Car</th>
-                        <th className="py-2 font-medium">Plate</th>
-                        <th className="py-2 font-medium px-1">Period</th>
-                        <th className="py-2 font-medium">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {activeNowRows.length === 0 ? (
-                        <tr>
-                          <td
-                            colSpan={5}
-                            className="py-6 text-center text-zinc-500"
-                          >
-                            No active rentals right now
-                          </td>
-                        </tr>
-                      ) : (
-                        activeNowRows.map((b) => (
-                          <tr
+                  {activeNowRows.length === 0 ? (
+                    <div className="py-6 text-center text-zinc-500 text-sm">
+                      No active rentals right now
+                    </div>
+                  ) : (
+                    <div role="table" className="w-full text-sm">
+                      {/* Header row (md+) */}
+                      <div
+                        role="row"
+                        className="hidden md:grid grid-cols-[2fr,1fr,2fr,1fr] gap-3 items-center border rounded-lg px-3 py-2 bg-zinc-50 text-zinc-600"
+                      >
+                        <div className="font-medium">Car</div>
+                        <div className="font-medium">Plate</div>
+                        <div className="font-medium">Period</div>
+                        <div className="font-medium">Status</div>
+                      </div>
+
+                      {/* Body */}
+                      <div role="rowgroup" className="mt-2 space-y-2">
+                        {activeNowRows.map((b) => (
+                          <div
                             key={b.id}
-                            className="border-t border-zinc-200/60"
+                            role="row"
+                            className="grid grid-cols-1 md:grid-cols-[2fr,1fr,2fr,1fr] gap-3 items-center rounded-xl border border-zinc-200/70 bg-white/80 backdrop-blur px-3 py-2 shadow-sm hover:shadow-md transition"
                           >
-                            <td className="py-2">
+                            <div className="font-medium text-zinc-800">
                               {carsById.get(b.car_id) ?? b.car_id}
-                            </td>
-                            <td className="py-2">
+                            </div>
+                            <div className="text-zinc-600 border rounded w-fit p-0.5 shadow-sm">
                               {plateById.get(b.car_id) ?? "—"}
-                            </td>
-                            <td className="py-2 px-1">
+                            </div>
+                            <div className="text-zinc-600">
                               {fmtDate(b.start_at, true)} —{" "}
                               {fmtDate(b.end_at, true)}
-                            </td>
-                            <td className="py-2">
+                            </div>
+                            <div>
                               <StatusBadge row={b} />
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </TableCard>
 
                 {/* Ending soon (≤2h) */}
                 <TableCard title="Ending soon (≤3h)">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="text-left text-zinc-600">
-                        <th className="py-2 font-medium">Car</th>
-                        <th className="py-2 font-medium">Plate</th>
-                        <th className="py-2 font-medium px-1">Period</th>
-                        <th className="py-2 font-medium">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {endingSoonRows.length === 0 ? (
-                        <tr>
-                          <td
-                            colSpan={5}
-                            className="py-6 text-center text-zinc-500"
-                          >
-                            No rentals ending within 2 hours
-                          </td>
-                        </tr>
-                      ) : (
-                        endingSoonRows.map((b) => (
-                          <tr
+                  {endingSoonRows.length === 0 ? (
+                    <div className="py-6 text-center text-zinc-500 text-sm">
+                      No rentals ending within 2 hours
+                    </div>
+                  ) : (
+                    <div role="table" className="w-full text-sm">
+                      {/* Header row (md+) */}
+                      <div
+                        role="row"
+                        className="hidden md:grid grid-cols-[2fr,1fr,2fr,1fr] gap-3 items-center border rounded-lg px-3 py-2 bg-zinc-50 text-zinc-600"
+                      >
+                        <div className="font-medium">Car</div>
+                        <div className="font-medium">Plate</div>
+                        <div className="font-medium">Period</div>
+                        <div className="font-medium">Status</div>
+                      </div>
+
+                      {/* Body */}
+                      <div role="rowgroup" className="mt-2 space-y-2">
+                        {endingSoonRows.map((b) => (
+                          <div
                             key={b.id}
-                            className="border-t border-zinc-200/60"
+                            role="row"
+                            className="grid grid-cols-1 md:grid-cols-[2fr,1fr,2fr,1fr] gap-3 items-center rounded-xl border border-zinc-200/70 bg-white/80 backdrop-blur px-3 py-2 shadow-sm hover:shadow-md transition"
                           >
-                            <td className="py-2">
+                            <div className="font-medium text-zinc-800">
                               {carsById.get(b.car_id) ?? b.car_id}
-                            </td>
-                            <td className="py-2">
+                            </div>
+                            <div className="text-zinc-600">
                               {plateById.get(b.car_id) ?? "—"}
-                            </td>
-                            <td className="py-2 px-1">
+                            </div>
+                            <div className="text-zinc-600">
                               {fmtDate(b.start_at, true)} —{" "}
                               {fmtDate(b.end_at, true)}
-                            </td>
-                            <td className="py-2">
+                            </div>
+                            <div>
                               <StatusBadge row={b} />
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </TableCard>
               </div>
 
               <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
                 <TableCard title="Upcoming bookings">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="text-left text-zinc-600">
-                        <th className="py-2 font-medium">Car</th>
-                        <th className="py-2 font-medium">Plate</th>
-                        <th className="py-2 font-medium px-1">Period</th>
-                        <th className="py-2 font-medium">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {(() => {
-                        const list = upcoming;
-                        return list.length === 0 ? (
-                          <tr>
-                            <td
-                              colSpan={4}
-                              className="py-6 text-center text-zinc-500"
-                            >
-                              No entries
-                            </td>
-                          </tr>
-                        ) : (
-                          list.map((b) => (
-                            <tr
+                  {(() => {
+                    const list = upcoming;
+                    return list.length === 0 ? (
+                      <div className="py-6 text-center text-zinc-500 text-sm">
+                        No entries
+                      </div>
+                    ) : (
+                      <div role="table" className="w-full text-sm">
+                        {/* Header row (md+) */}
+                        <div
+                          role="row"
+                          className="hidden md:grid grid-cols-[2fr,1fr,2fr,1fr] gap-3 items-center border rounded-lg px-3 py-2 bg-zinc-50 text-zinc-600"
+                        >
+                          <div className="font-medium">Car</div>
+                          <div className="font-medium">Plate</div>
+                          <div className="font-medium">Period</div>
+                          <div className="font-medium">Status</div>
+                        </div>
+
+                        {/* Body */}
+                        <div role="rowgroup" className="mt-2 space-y-2">
+                          {list.map((b) => (
+                            <div
                               key={b.id}
-                              className="border-t border-zinc-200/60"
+                              role="row"
+                              className="grid grid-cols-1 md:grid-cols-[2fr,1fr,2fr,1fr] gap-3 items-center rounded-xl border border-zinc-200/70 bg-white/80 backdrop-blur px-3 py-2 shadow-sm hover:shadow-md transition"
                             >
-                              <td className="py-2">
+                              <div className="font-medium text-zinc-800">
                                 {carsById.get(b.car_id) ?? b.car_id}
-                              </td>
-                              <td className="py-2">
+                              </div>
+                              <div className="text-zinc-600">
                                 {plateById.get(b.car_id) ?? "—"}
-                              </td>
-                              <td className="py-2 px-1">
+                              </div>
+                              <div className="text-zinc-600">
                                 {fmtDate(b.start_at, true)} —{" "}
                                 {fmtDate(b.end_at, true)}
-                              </td>
-                              <td className="py-2">
+                              </div>
+                              <div>
                                 <StatusBadge row={b} />
-                              </td>
-                            </tr>
-                          ))
-                        );
-                      })()}
-                    </tbody>
-                  </table>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </TableCard>
 
                 <TableCard title="Overdue returns">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="text-left text-zinc-600">
-                        <th className="py-2 font-medium">Car</th>
-                        <th className="py-2 font-medium">Plate</th>
-                        <th className="py-2 font-medium">Must return</th>
-                        <th className="py-2 font-medium">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {overdue.length === 0 ? (
-                        <tr>
-                          <td
-                            colSpan={4}
-                            className="py-6 text-center text-zinc-500"
-                          >
-                            Everything is ok — there are no overdue returns
-                          </td>
-                        </tr>
-                      ) : (
-                        overdue.map((b) => (
-                          <tr
+                  {overdue.length === 0 ? (
+                    <div className="py-6 text-center text-zinc-500 text-sm">
+                      Everything is ok — there are no overdue returns
+                    </div>
+                  ) : (
+                    <div role="table" className="w-full text-sm">
+                      {/* Header row (md+) */}
+                      <div
+                        role="row"
+                        className="hidden md:grid grid-cols-[2fr,1fr,2fr,1fr] gap-3 items-center border rounded-lg px-3 py-2 bg-zinc-50 text-zinc-600"
+                      >
+                        <div className="font-medium">Car</div>
+                        <div className="font-medium">Plate</div>
+                        <div className="font-medium">Must return</div>
+                        <div className="font-medium">Status</div>
+                      </div>
+
+                      {/* Body */}
+                      <div role="rowgroup" className="mt-2 space-y-2">
+                        {overdue.map((b) => (
+                          <div
                             key={b.id}
-                            className="border-t border-zinc-200/60"
+                            role="row"
+                            className="grid grid-cols-1 md:grid-cols-[2fr,1fr,2fr,1fr] gap-3 items-center rounded-xl border border-zinc-200/70 bg-white/80 backdrop-blur px-3 py-2 shadow-sm hover:shadow-md transition"
                           >
-                            <td className="py-2">
+                            <div className="font-medium text-zinc-800">
                               {carsById.get(b.car_id) ?? b.car_id}
-                            </td>
-                            <td className="py-2">
+                            </div>
+                            <div className="text-zinc-600">
                               {plateById.get(b.car_id) ?? "—"}
-                            </td>
-                            <td className="py-2">{fmtDate(b.end_at, true)}</td>
-                            <td className="py-2">
+                            </div>
+                            <div className="text-zinc-600">
+                              {fmtDate(b.end_at, true)}
+                            </div>
+                            <div>
                               <span className="inline-flex items-center gap-1 text-amber-600">
                                 <ExclamationTriangleIcon className="w-4 h-4" />
                                 Overdue
                               </span>
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </TableCard>
               </div>
             </>
@@ -1177,16 +1174,60 @@ export default function DashboardPage() {
                       data={revenueTrend}
                       margin={{ left: 8, right: 16, top: 8, bottom: 8 }}
                     >
+                      <defs>
+                        <linearGradient
+                          id="revLineGrad"
+                          x1="0"
+                          y1="0"
+                          x2="1"
+                          y2="0"
+                        >
+                          <stop offset="0%" stopColor="#4f46e5" />
+                          <stop offset="100%" stopColor="#7c3aed" />
+                        </linearGradient>
+                        <linearGradient
+                          id="revAreaGrad"
+                          x1="0"
+                          y1="0"
+                          x2="0"
+                          y2="1"
+                        >
+                          <stop
+                            offset="0%"
+                            stopColor="#4f46e5"
+                            stopOpacity={0.22}
+                          />
+                          <stop
+                            offset="100%"
+                            stopColor="#7c3aed"
+                            stopOpacity={0}
+                          />
+                        </linearGradient>
+                      </defs>
+
                       <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="month" />
-                      <YAxis />
+                      <XAxis dataKey="month" tickMargin={6} />
+                      <YAxis tickMargin={8} />
                       <Tooltip
                         formatter={(v: any) => [
                           `€${Number(v).toLocaleString()}`,
                           "Revenue",
                         ]}
                       />
-                      <Line type="monotone" dataKey="revenue" />
+
+                      <Area
+                        type="monotone"
+                        dataKey="revenue"
+                        fill="url(#revAreaGrad)"
+                        stroke="transparent"
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="revenue"
+                        stroke="url(#revLineGrad)"
+                        strokeWidth={2.5}
+                        dot={false}
+                      />
                     </LineChart>
                   </ResponsiveContainer>
                 </ChartCard>
@@ -1197,6 +1238,18 @@ export default function DashboardPage() {
                       data={utilizationSeries}
                       margin={{ left: 8, right: 16, top: 8, bottom: 8 }}
                     >
+                      <defs>
+                        <linearGradient
+                          id="utilGrad"
+                          x1="0"
+                          y1="0"
+                          x2="0"
+                          y2="1"
+                        >
+                          <stop offset="0%" stopColor="#4f46e5" />
+                          <stop offset="100%" stopColor="#7c3aed" />
+                        </linearGradient>
+                      </defs>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="car" />
                       <YAxis
@@ -1206,7 +1259,11 @@ export default function DashboardPage() {
                       <Tooltip
                         formatter={(v: any) => [`${v}%`, "Utilization"]}
                       />
-                      <Bar dataKey="utilization" />
+                      <Bar
+                        dataKey="utilization"
+                        fill="url(#utilGrad)"
+                        radius={[8, 8, 8, 8]}
+                      />
                     </BarChart>
                   </ResponsiveContainer>
                 </ChartCard>
@@ -1214,42 +1271,61 @@ export default function DashboardPage() {
 
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                 <TableCard title="Status breakdown (period)">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="text-left text-zinc-500">
-                        <th className="py-2">Status</th>
-                        <th className="py-2">Count</th>
-                        <th className="py-2">Revenue</th>
-                        <th className="py-2">Hours</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {statusBreakdown.every((r) => r.count === 0) ? (
-                        <tr>
-                          <td
-                            colSpan={4}
-                            className="py-6 text-center text-zinc-500"
-                          >
-                            No data
-                          </td>
-                        </tr>
-                      ) : (
-                        statusBreakdown.map((r) => (
-                          <tr
+                  {statusBreakdown.every((r) => r.count === 0) ? (
+                    <div className="py-6 text-center text-zinc-500 text-sm">
+                      No data
+                    </div>
+                  ) : (
+                    // Единая 4-колоночная таблица на всех брейкпоинтах (без скролла, ужали размеры на мобиле)
+                    <div className="w-full text-[12px] sm:text-sm">
+                      {/* Header */}
+                      <div
+                        role="row"
+                        className="grid grid-cols-[1.6fr,1fr,1.2fr,0.8fr] items-center gap-2 sm:gap-3 border rounded-lg px-2 py-2 sm:px-3 sm:py-2.5 bg-zinc-50 text-zinc-600"
+                      >
+                        <div className="font-medium">Status</div>
+                        <div className="font-medium text-right">Count</div>
+                        <div className="font-medium text-right">Revenue</div>
+                        <div className="font-medium text-right">Hours</div>
+                      </div>
+
+                      {/* Rows */}
+                      <div
+                        role="rowgroup"
+                        className="mt-2 space-y-1.5 sm:space-y-2"
+                      >
+                        {statusBreakdown.map((r) => (
+                          <div
                             key={r.statusKey}
-                            className="border-t border-zinc-200/60"
+                            role="row"
+                            className="grid grid-cols-[1.6fr,1fr,1.2fr,0.8fr] items-center gap-2 sm:gap-3 rounded-xl border border-zinc-200/70 bg-white/80 backdrop-blur px-2 py-2 sm:px-3 sm:py-2.5 shadow-sm hover:shadow-md transition"
                           >
-                            <td className="py-2">{r.label}</td>
-                            <td className="py-2 font-medium">{r.count}</td>
-                            <td className="py-2">
+                            <div className="flex items-center gap-2">
+                              <StatusBadge
+                                row={{
+                                  id: "",
+                                  start_at: "",
+                                  end_at: "",
+                                  status: r.statusKey as any,
+                                  mark: null,
+                                  car_id: "",
+                                }}
+                              />
+                            </div>
+                            <div className="text-zinc-900 font-semibold text-right">
+                              {r.count}
+                            </div>
+                            <div className="text-zinc-900 font-semibold text-right">
                               €{r.revenue.toLocaleString()}
-                            </td>
-                            <td className="py-2">{r.hours}</td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
+                            </div>
+                            <div className="text-zinc-900 font-semibold text-right">
+                              {r.hours}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </TableCard>
 
                 <ChartCard title="Bookings by raw status (count)">
@@ -1258,11 +1334,27 @@ export default function DashboardPage() {
                       data={statusCountSeries}
                       margin={{ left: 8, right: 16, top: 8, bottom: 8 }}
                     >
+                      <defs>
+                        <linearGradient
+                          id="countGrad"
+                          x1="0"
+                          y1="0"
+                          x2="0"
+                          y2="1"
+                        >
+                          <stop offset="0%" stopColor="#4f46e5" />
+                          <stop offset="100%" stopColor="#7c3aed" />
+                        </linearGradient>
+                      </defs>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="status" />
                       <YAxis />
                       <Tooltip />
-                      <Bar dataKey="count" />
+                      <Bar
+                        dataKey="count"
+                        fill="url(#countGrad)"
+                        radius={[8, 8, 8, 8]}
+                      />
                     </BarChart>
                   </ResponsiveContainer>
                 </ChartCard>
@@ -1273,6 +1365,18 @@ export default function DashboardPage() {
                       data={statusRevenueSeries}
                       margin={{ left: 8, right: 16, top: 8, bottom: 8 }}
                     >
+                      <defs>
+                        <linearGradient
+                          id="revStatusGrad"
+                          x1="0"
+                          y1="0"
+                          x2="0"
+                          y2="1"
+                        >
+                          <stop offset="0%" stopColor="#4f46e5" />
+                          <stop offset="100%" stopColor="#7c3aed" />
+                        </linearGradient>
+                      </defs>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="status" />
                       <YAxis />
@@ -1282,7 +1386,11 @@ export default function DashboardPage() {
                           "Revenue",
                         ]}
                       />
-                      <Bar dataKey="revenue" />
+                      <Bar
+                        dataKey="revenue"
+                        fill="url(#revStatusGrad)"
+                        radius={[8, 8, 8, 8]}
+                      />
                     </BarChart>
                   </ResponsiveContainer>
                 </ChartCard>
@@ -1290,36 +1398,40 @@ export default function DashboardPage() {
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <TableCard title="TOP cars (by number of bookings)">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="text-left text-zinc-500">
-                        <th className="py-2">Car</th>
-                        <th className="py-2">Bookings</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {topCars.length === 0 ? (
-                        <tr>
-                          <td
-                            colSpan={2}
-                            className="py-6 text-center text-zinc-500"
-                          >
-                            No data
-                          </td>
-                        </tr>
-                      ) : (
-                        topCars.map((r) => (
-                          <tr
+                  {topCars.length === 0 ? (
+                    <div className="py-6 text-center text-zinc-500 text-sm">
+                      No data
+                    </div>
+                  ) : (
+                    <div role="table" className="w-full text-sm">
+                      {/* Header row (md+) */}
+                      <div
+                        role="row"
+                        className="hidden md:grid grid-cols-[3fr,1fr] gap-3 items-center border rounded-lg px-3 py-2 bg-zinc-50 text-zinc-600"
+                      >
+                        <div className="font-medium">Car</div>
+                        <div className="font-medium">Bookings</div>
+                      </div>
+
+                      {/* Body */}
+                      <div role="rowgroup" className="mt-2 space-y-2">
+                        {topCars.map((r) => (
+                          <div
                             key={r.car}
-                            className="border-t border-zinc-200/60"
+                            role="row"
+                            className="grid grid-cols-1 md:grid-cols-[3fr,1fr] gap-3 items-center rounded-xl border border-zinc-200/70 bg-white/80 backdrop-blur px-3 py-2 shadow-sm hover:shadow-md transition"
                           >
-                            <td className="py-2">{r.car}</td>
-                            <td className="py-2 font-medium">{r.count}</td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
+                            <div className="font-medium text-zinc-800">
+                              {r.car}
+                            </div>
+                            <div className="font-semibold text-zinc-900">
+                              {r.count}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </TableCard>
 
                 <TableCard title="Clients: New vs. Repeat (Assessment)">
@@ -1337,14 +1449,37 @@ export default function DashboardPage() {
                     const repeatPct = Math.round((repeatCount / total) * 100);
 
                     return (
-                      <div className="text-sm">
-                        <div className="mb-2">
-                          New: <span className="font-medium">{newPct}%</span>
-                        </div>
+                      <div className="space-y-3 text-sm">
                         <div>
-                          Repeated:{" "}
-                          <span className="font-medium">{repeatPct}%</span>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-zinc-600">New</span>
+                            <span className="font-medium text-zinc-900">
+                              {newPct}%
+                            </span>
+                          </div>
+                          <div className="h-2 w-full rounded-full bg-zinc-100 overflow-hidden">
+                            <div
+                              className="h-full bg-emerald-500 rounded-full"
+                              style={{ width: `${newPct}%` }}
+                            />
+                          </div>
                         </div>
+
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-zinc-600">Repeated</span>
+                            <span className="font-medium text-zinc-900">
+                              {repeatPct}%
+                            </span>
+                          </div>
+                          <div className="h-2 w-full rounded-full bg-zinc-100 overflow-hidden">
+                            <div
+                              className="h-full bg-indigo-500 rounded-full"
+                              style={{ width: `${repeatPct}%` }}
+                            />
+                          </div>
+                        </div>
+
                         <p className="text-xs text-zinc-500 mt-2">
                           * Score based on user_id repeatability in filtered
                           bookings.
@@ -1379,17 +1514,29 @@ function KpiCard({
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.25 }}
-      className="rounded-2xl bg-white p-4 shadow"
+      transition={{ duration: 0.2 }}
+      className="rounded-2xl bg-white/85 backdrop-blur border border-zinc-200/70 shadow-[0_8px_24px_rgba(24,24,27,0.06)] hover:shadow-[0_14px_34px_rgba(24,24,27,0.10)] p-5"
     >
+      {/* Title row: icon + title on one line, bold & larger */}
       <div className="flex items-center justify-between">
-        <div className="p-2 rounded-xl bg-zinc-100">{icon}</div>
-        <FunnelIcon className="w-5 h-5 opacity-0" />
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-xl bg-gradient-to-br from-emerald-50 to-green-50 text-emerald-500/90 ring-1 ring-emerald-100">
+            <div className="w-6 h-6">{icon}</div>
+          </div>
+          <h3 className=" font-medium tracking-[-0.01em] text-zinc-900">
+            {title}
+          </h3>
+        </div>
       </div>
+
+      {/* Big metric */}
       <div className="mt-3">
-        <div className="text-sm text-zinc-500">{title}</div>
-        <div className="text-2xl font-semibold mt-1">{value}</div>
-        {sub ? <div className="text-xs text-zinc-500 mt-1">{sub}</div> : null}
+        <div className="text-3xl md:text-4xl font-bold leading-none tracking-tight text-zinc-900">
+          {value}
+        </div>
+        {sub ? (
+          <div className="text-xs md:text-sm text-zinc-500 mt-3">{sub}</div>
+        ) : null}
       </div>
     </motion.div>
   );
@@ -1434,7 +1581,7 @@ function TableCard({
       className="rounded-2xl bg-white p-4 shadow"
     >
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-medium text-zinc-600">{title}</h3>
+        <h3 className="text-base font-medium text-zinc-900">{title}</h3>
       </div>
       <div className="overflow-x-auto">{children}</div>
     </motion.div>
