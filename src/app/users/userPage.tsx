@@ -767,13 +767,9 @@ function formatDateRange(startISO: string, endISO: string) {
 
 function formatDate(value?: string | null) {
   if (!value) return "—";
-  const d = new Date(value);
-  if (isNaN(d.getTime())) return String(value); // если это не валидная дата — покажем как есть
-  return d.toLocaleDateString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
+  const d = parseISO(value);
+  if (isNaN(d.getTime())) return String(value);
+  return format(d, "d MMM yy"); // напр., 5 Sep 2025
 }
 
 function shortId(id: string) {
