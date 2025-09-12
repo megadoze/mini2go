@@ -84,6 +84,7 @@ export async function updateUserStatus(
 
 // 👉 Последние бронирования пользователя (по твоей схеме таблицы)
 export type BookingItem = {
+  car: any;
   id: string;
   user_id: string;
   car_id: string;
@@ -98,7 +99,15 @@ export async function fetchUserBookings(
 ): Promise<BookingItem[]> {
   const { data, error } = await supabase
     .from("bookings")
-    .select("id, user_id, car_id, start_at, end_at, status, mark")
+    .select(
+      `id, user_id, car_id, start_at, end_at, status, mark,  car:cars (
+    id, year, photos, license_plate, model_id, deposit,
+    model:models (
+      id, name, brand_id,
+      brand:brands ( id, name )
+    )
+  )`
+    )
     .eq("user_id", userId)
     .order("start_at", { ascending: false })
     .limit(20);
@@ -169,4 +178,11 @@ export async function createUserNote(payload: {
     .single();
   if (error) throw error;
   return data as UserNoteItem;
+}
+
+// удаление заметки юзера
+export async function deleteUserNote(id: string) {
+  const { error } = await supabase.from("user_notes").delete().eq("id", id);
+  if (error) throw error;
+  return { id };
 }

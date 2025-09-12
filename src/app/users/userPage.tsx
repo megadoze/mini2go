@@ -14,6 +14,7 @@ import {
   LockOpenIcon,
   LockClosedIcon,
   ArrowPathIcon,
+  TrashIcon,
 } from "@heroicons/react/24/outline";
 import {
   getUserById,
@@ -21,9 +22,11 @@ import {
   fetchUserBookings,
   fetchUserNotes,
   createUserNote,
+  deleteUserNote,
   type BookingItem,
   type UserNoteItem,
 } from "@/services/user.service";
+import { format, isSameDay, parseISO } from "date-fns";
 
 // Types
 export type AppUser = {
@@ -57,6 +60,7 @@ export const UserPage = () => {
   const [noteText, setNoteText] = useState("");
   const [notesLoading, setNotesLoading] = useState(false);
   const [savingNote, setSavingNote] = useState(false);
+  const [deletingNoteId, setDeletingNoteId] = useState<string | null>(null);
 
   const [toggling, setToggling] = useState(false);
 
@@ -201,6 +205,25 @@ export const UserPage = () => {
       alert("Не удалось сохранить заметку");
     } finally {
       setSavingNote(false);
+    }
+  };
+
+  const handleDeleteNote = async (id: string) => {
+    if (!id) return;
+    if (!window.confirm("Удалить заметку?")) return;
+
+    setDeletingNoteId(id);
+    const prev = notes; // сохраним для отката
+    setNotes(prev.filter((n) => n.id !== id)); // оптимистично убираем
+
+    try {
+      await deleteUserNote(id);
+    } catch (e) {
+      console.error(e);
+      alert("Не удалось удалить заметку");
+      setNotes(prev); // откат
+    } finally {
+      setDeletingNoteId(null);
     }
   };
 
@@ -361,15 +384,14 @@ export const UserPage = () => {
           />
           <div className="mt-2 flex justify-between items-center">
             <span className="text-xs text-gray-400">Visible only to hosts</span>
-            <Button
+            <button
               onClick={handleAddNote}
-              variant="primary"
               disabled={savingNote || !noteText.trim()}
               aria-busy={savingNote}
-              title="Save note"
+              className=" border py-1 px-2 text-sm rounded-md text-white bg-black"
             >
               {savingNote ? "Saving…" : "Save note"}
-            </Button>
+            </button>
           </div>
 
           <div className="mt-4 space-y-3 max-h-64 overflow-auto">
@@ -384,8 +406,24 @@ export const UserPage = () => {
               notes.map((n) => (
                 <div key={n.id} className="border p-3 rounded-xl text-sm">
                   <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
-                    <span>{n.author || "Host"}</span>
-                    <span>{new Date(n.created_at).toLocaleString()}</span>
+                    <div>
+                      <span>{n.author || "Host"}</span>
+                      {", "}
+                      <span>{formatDate(n.created_at)}</span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        className="inline-flex items-center rounded-md border border-gray-200 p-1 hover:bg-gray-50 disabled:opacity-50"
+                        onClick={() => handleDeleteNote(n.id)}
+                        disabled={deletingNoteId === n.id}
+                        title="Delete note"
+                        aria-label="Delete note"
+                      >
+                        <TrashIcon className="size-3" />
+                      </button>
+                    </div>
                   </div>
                   <div className="text-gray-900 whitespace-pre-wrap">
                     {n.text}
@@ -420,21 +458,66 @@ export const UserPage = () => {
               description="When this user makes a booking, it will appear here."
             />
           ) : (
-            <ul className="mt-4 divide-y divide-gray-100">
-              {bookings.slice(0, 5).map((b) => (
-                <li
-                  key={b.id}
-                  className="py-3 flex items-center justify-between"
-                >
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">
-                      {formatDateRange(b.start_at, b.end_at)}
-                    </p>
-                    <p className="text-xs text-gray-500">Car: {b.car_id}</p>
-                  </div>
-                  <StatusPill value={b.status || "—"} />
-                </li>
-              ))}
+            <ul className="mt-4 space-y-2">
+              {bookings.slice(0, 5).map((b) => {
+                const brand = b.car?.model?.brand.name ?? "—";
+                const model = b.car?.model?.name ?? "—";
+                const plate = (b.car?.plate_number ||
+                  b.car?.license_plate ||
+                  b.car?.reg_number ||
+                  "—") as string;
+                const short = shortId(b.id);
+                const photo = getCarPhoto(b.car?.photos);
+
+                return (
+                  <li
+                    key={b.id}
+                    role="button"
+                    onClick={() =>
+                      navigate(`/cars/${b.car_id}/bookings/${b.id}/edit`)
+                    }
+                    className="group flex items-center justify-between gap-3 rounded-xl border border-gray-100 bg-white/60 px-3 py-2 hover:bg-gray-50 cursor-pointer"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      {/* thumb */}
+                      {photo ? (
+                        <img
+                          src={photo}
+                          alt={`${brand} ${model}`}
+                          className="h-10 w-10 rounded-lg object-cover border border-gray-100"
+                        />
+                      ) : (
+                        <div className="h-10 w-10 rounded-lg border border-gray-100 bg-gray-100 grid place-items-center text-xs text-gray-500">
+                          🚗
+                        </div>
+                      )}
+
+                      {/* main text */}
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-medium text-gray-900 truncate">
+                            {brand} {model}
+                          </p>
+                          <span className="text-xs text-gray-400">
+                            #{short}
+                          </span>
+                        </div>
+                        <p className=" w-fit px-1 py-0.5 border shadow-sm text-xs text-gray-500 truncate">
+                          {plate}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {formatDateRange(b.start_at, b.end_at)}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* status */}
+                    <div className="shrink-0">
+                      <StatusPill value={b.status || "—"} />
+                    </div>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </SectionCard>
@@ -661,22 +744,6 @@ function EmptyState({
   );
 }
 
-// function NoteItem({ note }: { note: UserNoteItem }) {
-//   return (
-//     <div className="rounded-xl border border-gray-100 bg-white/60 p-3">
-//       <div className="flex items-center justify-between">
-//         <span className="text-xs text-gray-500">
-//           {new Date(note.created_at).toLocaleString()}
-//         </span>
-//         <span className="text-xs text-gray-400">{note.author || "Host"}</span>
-//       </div>
-//       <p className="text-sm text-gray-900 mt-1 whitespace-pre-wrap">
-//         {note.text}
-//       </p>
-//     </div>
-//   );
-// }
-
 function getInitials(name?: string | null) {
   if (!name) return "U";
   const parts = name.trim().split(/\s+/).slice(0, 2);
@@ -687,25 +754,18 @@ function isNil(v: any): v is null | undefined {
   return v === null || v === undefined;
 }
 
-function formatDateRange(a: string, b: string) {
-  try {
-    const s = new Date(a);
-    const e = new Date(b);
-    const sameDay = s.toDateString() === e.toDateString();
-    return sameDay
-      ? `${s.toLocaleDateString()} • ${s.toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-        })}–${e.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
-      : `${s.toLocaleString()} — ${e.toLocaleString()}`;
-  } catch {
-    return `${a} — ${b}`;
-  }
-}
-
 function openChat(userId: string) {
   // адаптируй под свой маршрут/модалку с перепиской
   window.location.href = `/messages?userId=${userId}`;
+}
+
+function formatDateRange(startISO: string, endISO: string) {
+  const s = parseISO(startISO);
+  const e = parseISO(endISO);
+
+  return isSameDay(s, e)
+    ? `${format(s, "d MMM yy")} • ${format(s, "HH:mm")}–${format(e, "HH:mm")}`
+    : `${format(s, "d MMM yy HH:mm")} — ${format(e, "d MMM yy HH:mm")}`;
 }
 
 function formatDate(value?: string | null) {
@@ -714,7 +774,18 @@ function formatDate(value?: string | null) {
   if (isNaN(d.getTime())) return String(value); // если это не валидная дата — покажем как есть
   return d.toLocaleDateString(undefined, {
     year: "numeric",
-    month: "long",
+    month: "short",
     day: "numeric",
   });
+}
+
+function shortId(id: string) {
+  // "732981a0-2233-4429-b0cd-16ac22e47244" -> "732981a0"
+  return (id || "").split("-")[0] || id;
+}
+
+function getCarPhoto(photos?: string[] | null) {
+  if (!photos || photos.length === 0) return null;
+  // если хранишь объекты {url}, поправь на photos[0].url
+  return photos[0];
 }
