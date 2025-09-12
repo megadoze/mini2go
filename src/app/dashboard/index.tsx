@@ -46,6 +46,7 @@ import { supabase } from "@/lib/supabase";
 import { fetchCars } from "@/services/car.service";
 import type { CarWithRelations } from "@/types/carWithRelations";
 import { QK } from "@/queryKeys";
+import { Link } from "react-router";
 
 /* =================== types & helpers =================== */
 
@@ -958,7 +959,9 @@ export default function DashboardPage() {
                       {/* Body */}
                       <div role="rowgroup" className="mt-2 space-y-2">
                         {activeNowRows.map((b) => (
-                          <div
+                          <Link
+                            to={`/cars/${b.car_id}/bookings/${b.id}/edit`}
+                            state={b}
                             key={b.id}
                             role="row"
                             className="grid grid-cols-1 md:grid-cols-[2fr,1fr,2fr,1fr] gap-3 items-center rounded-xl border border-zinc-200/70 bg-white/80 backdrop-blur px-3 py-2 shadow-sm hover:shadow-md transition"
@@ -976,7 +979,7 @@ export default function DashboardPage() {
                             <div>
                               <StatusBadge row={b} />
                             </div>
-                          </div>
+                          </Link>
                         ))}
                       </div>
                     </div>
@@ -1005,7 +1008,9 @@ export default function DashboardPage() {
                       {/* Body */}
                       <div role="rowgroup" className="mt-2 space-y-2">
                         {endingSoonRows.map((b) => (
-                          <div
+                          <Link
+                            to={`/cars/${b.car_id}/bookings/${b.id}/edit`}
+                            state={b}
                             key={b.id}
                             role="row"
                             className="grid grid-cols-1 md:grid-cols-[2fr,1fr,2fr,1fr] gap-3 items-center rounded-xl border border-zinc-200/70 bg-white/80 backdrop-blur px-3 py-2 shadow-sm hover:shadow-md transition"
@@ -1023,7 +1028,7 @@ export default function DashboardPage() {
                             <div>
                               <StatusBadge row={b} />
                             </div>
-                          </div>
+                          </Link>
                         ))}
                       </div>
                     </div>
@@ -1055,7 +1060,9 @@ export default function DashboardPage() {
                         {/* Body */}
                         <div role="rowgroup" className="mt-2 space-y-2">
                           {list.map((b) => (
-                            <div
+                            <Link
+                              to={`/cars/${b.car_id}/bookings/${b.id}/edit`}
+                              state={b}
                               key={b.id}
                               role="row"
                               className="grid grid-cols-1 md:grid-cols-[2fr,1fr,2fr,1fr] gap-3 items-center rounded-xl border border-zinc-200/70 bg-white/80 backdrop-blur px-3 py-2 shadow-sm hover:shadow-md transition"
@@ -1073,7 +1080,7 @@ export default function DashboardPage() {
                               <div>
                                 <StatusBadge row={b} />
                               </div>
-                            </div>
+                            </Link>
                           ))}
                         </div>
                       </div>
@@ -1102,7 +1109,9 @@ export default function DashboardPage() {
                       {/* Body */}
                       <div role="rowgroup" className="mt-2 space-y-2">
                         {overdue.map((b) => (
-                          <div
+                          <Link
+                            to={`/cars/${b.car_id}/bookings/${b.id}/edit`}
+                            state={b}
                             key={b.id}
                             role="row"
                             className="grid grid-cols-1 md:grid-cols-[2fr,1fr,2fr,1fr] gap-3 items-center rounded-xl border border-zinc-200/70 bg-white/80 backdrop-blur px-3 py-2 shadow-sm hover:shadow-md transition"
@@ -1122,7 +1131,7 @@ export default function DashboardPage() {
                                 Overdue
                               </span>
                             </div>
-                          </div>
+                          </Link>
                         ))}
                       </div>
                     </div>
@@ -1139,7 +1148,7 @@ export default function DashboardPage() {
                   icon={<CurrencyEuroIcon className="w-6 h-6" />}
                   title="Revenue (period)"
                   value={`€${filtered
-                    .reduce((a, b) => a + (b.price_total ?? 0), 0)
+                    .reduce((a, b) => Math.round(a + (b.price_total ?? 0)), 0)
                     .toLocaleString()}`}
                   sub={`${fmtDate(fromDate)} — ${fmtDate(toDate)}`}
                 />
@@ -1520,7 +1529,7 @@ function KpiCard({
       {/* Title row: icon + title on one line, bold & larger */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="p-2 rounded-xl bg-gradient-to-br from-emerald-50 to-green-50 text-emerald-500/90 ring-1 ring-emerald-100">
+          <div className="p-2 rounded-xl bg-zinc-100/60  text-emerald-400 ">
             <div className="w-6 h-6">{icon}</div>
           </div>
           <h3 className=" font-medium tracking-[-0.01em] text-zinc-900">
@@ -1531,7 +1540,7 @@ function KpiCard({
 
       {/* Big metric */}
       <div className="mt-3">
-        <div className="text-3xl md:text-4xl font-bold leading-none tracking-tight text-zinc-900">
+        <div className="text-3xl md:text-3xl font-bold leading-none tracking-tight text-zinc-900">
           {value}
         </div>
         {sub ? (
