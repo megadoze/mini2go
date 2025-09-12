@@ -8,28 +8,47 @@ type BookingRow = {
   id: string;
   start_at: string;
   end_at: string;
-  // mark: string;
   status: string | null;
   car_id: string;
-  // user_id: string | null;
+  user_id: string | null;
   price_total: number | null;
   currency: string | null;
   created_at: string;
+  user?: { id: string; full_name: string | null; email?: string | null } | null;
+};
+
+type RawBookingRow = Omit<BookingRow, "user"> & {
+  user?:
+    | { id: string; full_name: string | null; email?: string | null }[]
+    | null;
 };
 
 async function fetchBookingsByCarIds(carIds: string[]) {
   if (carIds.length === 0) return [] as BookingRow[];
+
   const { data, error } = await supabase
     .from("bookings")
     .select(
-      "id, start_at, end_at, status, car_id, price_total, currency, created_at"
+      `
+      id, user_id, start_at, end_at, status, car_id, price_total, currency, created_at,
+      user:profiles ( id, full_name, email )
+    `
     )
     .in("car_id", carIds)
     .neq("mark", "block")
     .neq("status", "blocked")
     .order("start_at", { ascending: false });
+
   if (error) throw error;
-  return (data ?? []) as BookingRow[];
+
+  const rows = (data ?? []) as unknown as RawBookingRow[];
+
+  const normalized: BookingRow[] = rows.map(({ user, ...rest }) => ({
+    ...rest,
+    user: Array.isArray(user) ? user[0] ?? null : user ?? null,
+  }));
+
+  return normalized;
 }
 
 export const bookingsLoader: LoaderFunction = async ({ request }) => {

@@ -20,7 +20,6 @@ import {
   fetchBookingsByCarId,
 } from "@/app/car/calendar/calendar.service";
 import { fetchBookingExtras } from "@/services/booking-extras.service";
-import { getUserById } from "@/services/user.service";
 import {
   fetchCountries,
   fetchLocationsByCountry,
@@ -57,6 +56,9 @@ type BookingRow = {
   price_total: number | null;
   currency: string | null;
   created_at: string;
+  // ВАЖНО: лоадер должен селектить user:profiles(...),
+  // чтобы тут было имя гостя без доп. запросов
+  user?: { id: string; full_name: string | null; email?: string | null } | null;
 };
 
 type LoaderData = { ownerId: string };
@@ -73,7 +75,7 @@ function toCard(row: BookingRow, carsById: Map<string, any>): BookingCard {
     status: row.status ?? null,
     mark,
     carId: row.car_id,
-    userId: row.user_id,
+    userId: row.user_id ? String(row.user_id) : null,
     priceTotal: row.price_total,
     currency: row.currency,
     createdAt: row.created_at,
@@ -97,9 +99,20 @@ function toCard(row: BookingRow, carsById: Map<string, any>): BookingCard {
 
 export default function BookingsList() {
   const { ownerId } = useLoaderData() as LoaderData;
+
   const qc = useQueryClient();
   const navigate = useNavigate();
   const location = useLocation();
+
+  const rawUserId = useMemo(() => {
+    const sp = new URLSearchParams(location.search);
+    return sp.get("userId");
+  }, [location.search]);
+
+  const userIdFilter = useMemo(
+    () => (rawUserId ? normalize(rawUserId) : ""),
+    [rawUserId]
+  );
 
   /* -------------------- queries: bookings + cars -------------------- */
   const bookingsKey = ["bookingsIndex", ownerId];
@@ -107,13 +120,12 @@ export default function BookingsList() {
 
   const { data: bookingRows = [] } = useQuery({
     queryKey: bookingsKey,
-    // Никаких сетевых вызовов — читаем текущее содержимое кэша.
     queryFn: async () => initialRows ?? [],
     initialData: initialRows,
-    enabled: true, // всегда «подписаны» на кэш
-    refetchOnMount: false, // т.к. мы оффлайн от кэша
+    enabled: true,
+    refetchOnMount: false,
     refetchOnWindowFocus: false,
-    staleTime: Infinity, // чтобы ничего не триггерило фетч
+    staleTime: Infinity,
     gcTime: 7 * 24 * 60 * 60 * 1000,
     placeholderData: (prev) => prev,
   });
@@ -141,6 +153,17 @@ export default function BookingsList() {
     () => bookingRows.map((r) => toCard(r, carsById)),
     [bookingRows, carsById]
   );
+
+  // userId -> full_name (берём прямо из bookingRows.user)
+  const usersById = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const r of bookingRows) {
+      const name =
+        r?.user?.full_name ?? (r as any)?.profiles?.full_name ?? null;
+      if (name && r.user_id) m.set(String(r.user_id), String(name));
+    }
+    return m;
+  }, [bookingRows]);
 
   /* -------------------- filters state -------------------- */
   const [countryId, setCountryId] = useState<string | null>(null);
@@ -184,18 +207,22 @@ export default function BookingsList() {
 
   /* -------------------- apply filters, then sort -------------------- */
   const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
+    const q = normalize(search);
 
-    const byText = items.filter((b) => {
-      const t = `${b.car?.brand ?? ""} ${b.car?.model ?? ""} ${
-        b.car?.licensePlate ?? ""
-      }`.toLowerCase();
-      return q === "" || t.includes(q);
-    });
+    // 1) единый текстовый поиск по бренду/модели/номеру/ИМЕНИ
+    const byText = items.filter(
+      (b) => q === "" || haystack(b, usersById).includes(q)
+    );
 
-    const byCountry = countryId
-      ? byText.filter((b) => (b.car as any)?.countryId === countryId)
+    // 2) скрытый фильтр из URL (?userId=...), сравниваем строго по id
+    const byUserParam = userIdFilter
+      ? byText.filter((b) => normalize(b.userId) === userIdFilter)
       : byText;
+
+    // 3) остальные фильтры — как были
+    const byCountry = countryId
+      ? byUserParam.filter((b) => (b.car as any)?.countryId === countryId)
+      : byUserParam;
 
     const byStatus = statusFilter
       ? byCountry.filter(
@@ -204,15 +231,20 @@ export default function BookingsList() {
       : byCountry;
 
     const byLocation = byStatus.filter((b) => {
-      const loc = ((b.car as any)?.locationName ?? "").toLowerCase();
-      return (
-        locationFilter === "" ||
-        loc.includes(locationFilter.trim().toLowerCase())
-      );
+      const loc = normalize((b.car as any)?.locationName ?? "");
+      return locationFilter === "" || loc.includes(normalize(locationFilter));
     });
 
     return byLocation.sort((a, b) => (a.startAt < b.startAt ? 1 : -1));
-  }, [items, search, countryId, statusFilter, locationFilter]);
+  }, [
+    items,
+    usersById,
+    search,
+    countryId,
+    statusFilter,
+    locationFilter,
+    userIdFilter,
+  ]);
 
   /* -------------------- open editor helpers -------------------- */
   const [openingId, setOpeningId] = useState<string | null>(null);
@@ -260,6 +292,9 @@ export default function BookingsList() {
 
     setOpeningId(null);
   };
+
+  const clearUserFilter = () =>
+    navigate({ pathname: location.pathname }, { replace: true });
 
   async function prefetchBundle(
     qc: QueryClient,
@@ -316,7 +351,13 @@ export default function BookingsList() {
       uId
         ? qc.prefetchQuery({
             queryKey: QK.user(uId),
-            queryFn: () => getUserById(uId),
+            // важно: это только для редактора; на список не влияет
+            queryFn: () =>
+              Promise.resolve(
+                usersById.get(uId)
+                  ? { id: uId, full_name: usersById.get(uId) }
+                  : null
+              ),
             staleTime: 5 * 60_000,
           })
         : Promise.resolve(),
@@ -333,7 +374,7 @@ export default function BookingsList() {
       </header>
 
       {/* Desktop filters row */}
-      <div className="hidden sm:flex sm:flex-nowrap items-center gap-3 w-full mb-4 overflow-x-auto">
+      <div className="hidden lg:flex lg:flex-wrap items-center gap-3 w-full mb-4 overflow-x-auto">
         <BookingFilters
           countries={countries}
           locations={locations}
@@ -349,7 +390,7 @@ export default function BookingsList() {
         <div className="relative flex-1 min-w-[220px]">
           <MagnifyingGlassIcon className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-zinc-500" />
           <TextInput
-            placeholder="Поиск по марке, модели или номеру"
+            placeholder="Поиск по марке, модели, номеру, гостю"
             value={search}
             onChange={(e) => setSearch(e.currentTarget.value)}
             className="w-full rounded-xl bg-white/60 shadow-sm pl-9 pr-3 py-2 text-sm hover:bg-white/80 focus:ring-2 focus:ring-black/10"
@@ -364,6 +405,7 @@ export default function BookingsList() {
             setCountryId(null);
             setLocationFilter("");
             setStatusFilter("");
+            clearUserFilter();
           }}
           className="p-2 rounded hover:bg-gray-100 active:bg-gray-200 transition"
           aria-label="Reset filters"
@@ -377,7 +419,7 @@ export default function BookingsList() {
       <div className="relative w-full mb-4 sm:hidden">
         <MagnifyingGlassIcon className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-zinc-500" />
         <TextInput
-          placeholder="Поиск по марке, модели или номеру"
+          placeholder="Поиск по марке, модели, номеру, гостю"
           value={search}
           onChange={(e) => setSearch(e.currentTarget.value)}
           className="w-full rounded-xl bg-white/60 shadow-sm pl-9 pr-3 py-2 text-sm hover:bg-white/80 focus:ring-2 focus:ring-black/10"
@@ -432,6 +474,7 @@ export default function BookingsList() {
               setCountryId(null);
               setLocationFilter("");
               setStatusFilter("");
+              clearUserFilter();
             }}
             className="text-sm text-zinc-500 underline underline-offset-4"
           >
@@ -448,85 +491,100 @@ export default function BookingsList() {
           </div>
         ) : (
           <div className="flex flex-col">
-            {filtered.map((b) => (
-              <Link
-                key={b.id}
-                to={`/cars/${b.carId}/bookings/${b.id}/edit`}
-                className={`flex items-center bg-white hover:bg-zinc-100/60 transition ease-in-out duration-300 p-2 w-full rounded-2xl my-1 cursor-pointer shadow-sm ${
-                  openingId === b.id
-                    ? "hover:bg-green-200/20 pointer-events-none"
-                    : ""
-                }`}
-                onClick={(e) => {
-                  if (e.metaKey || e.ctrlKey) return;
-                  e.preventDefault();
-                  openEditor(b);
-                }}
-                onMouseEnter={() => {
-                  void prefetchBundle(qc, b.carId, b.id, b.userId ?? undefined);
-                }}
-                aria-busy={openingId === b.id}
-              >
-                <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                  {b.car?.photo ? (
-                    <img
-                      src={b.car.photo as string}
-                      alt=""
-                      className="w-24 h-16 sm:w-28 sm:h-[70px] object-cover rounded-xl"
-                    />
-                  ) : (
-                    <div className="w-24 h-16 sm:w-28 sm:h-[70px] rounded-xl bg-gray-100" />
-                  )}
-                </div>
-
-                <div className="flex-1 min-w-0 pl-4 pr-2">
-                  {/* brand + model with highlight */}
-                  <p className="font-medium font-roboto text-sm md:text-base truncate">
-                    {highlightMatch(
-                      `${b.car?.brand ?? ""} ${b.car?.model ?? ""}`,
-                      search
+            {filtered.map((b) => {
+              const fullName = b.userId ? usersById.get(b.userId) ?? "" : "";
+              return (
+                <Link
+                  key={b.id}
+                  to={`/cars/${b.carId}/bookings/${b.id}/edit`}
+                  className={`flex items-center bg-white hover:bg-zinc-100/60 transition ease-in-out duration-300 p-2 w-full rounded-2xl my-1 cursor-pointer shadow-sm ${
+                    openingId === b.id
+                      ? "hover:bg-green-200/20 pointer-events-none"
+                      : ""
+                  }`}
+                  onClick={(e) => {
+                    if (e.metaKey || e.ctrlKey) return;
+                    e.preventDefault();
+                    openEditor(b);
+                  }}
+                  onMouseEnter={() => {
+                    void prefetchBundle(
+                      qc,
+                      b.carId,
+                      b.id,
+                      b.userId ?? undefined
+                    );
+                  }}
+                  aria-busy={openingId === b.id}
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                    {b.car?.photo ? (
+                      <img
+                        src={b.car.photo as string}
+                        alt=""
+                        className="w-24 h-16 sm:w-28 sm:h-[70px] object-cover rounded-xl"
+                      />
+                    ) : (
+                      <div className="w-24 h-16 sm:w-28 sm:h-[70px] rounded-xl bg-gray-100" />
                     )}
-                  </p>
-
-                  {/* license plate with highlight */}
-                  {b.car?.licensePlate && (
-                    <p className="text-sm text-gray-800 border border-gray-500 rounded-sm w-fit px-1">
-                      {highlightMatch(b.car.licensePlate, search)}
-                    </p>
-                  )}
-
-                  <div className="mt-1 text-sm sm:hidden">
-                    <span>{format(parseISO(b.startAt), "d MMM")}</span>
-                    {" → "}
-                    <span>{format(parseISO(b.endAt), "d MMM")}</span>
-                  </div>
-                </div>
-
-                <div className=" sm:flex flex-col w-36 hidden">
-                  <div className="flex flex-1 gap-1">
-                    <span>{format(parseISO(b.startAt), "d MMM")}</span>
-                    {" → "}
-                    <span>{format(parseISO(b.endAt), "d MMM")}</span>
                   </div>
 
-                  {b.createdAt ? (
-                    <p className="text-sm font-light text-zinc-600">
-                      <span>Booked</span>{" "}
-                      {format(parseISO(b.createdAt), "d MMM y")}
+                  <div className="flex-1 min-w-0 pl-4 pr-2">
+                    {/* brand + model with highlight */}
+                    <p className="font-medium font-roboto text-sm md:text-base truncate">
+                      {highlightMatch(
+                        `${b.car?.brand ?? ""} ${b.car?.model ?? ""}`,
+                        search
+                      )}
                     </p>
-                  ) : (
-                    "Booked —"
-                  )}
-                </div>
+                    <div className="flex items-center gap-1">
+                      {/* license plate with highlight */}
+                      {b.car?.licensePlate && (
+                        <p className="text-sm text-gray-800 border border-gray-500 rounded-sm w-fit px-1">
+                          {highlightMatch(b.car.licensePlate, search)}
+                        </p>
+                      )}
+                      {/* user full name with highlight */}
+                      {fullName && (
+                        <p className="text-sm text-gray-900 truncate">
+                          {highlightMatch(fullName, search)}
+                        </p>
+                      )}
+                    </div>
 
-                <div className=" items-end flex flex-col flex-1 justify-between sm:ml-auto mt-2 sm:mt-0  md:mr-auto md:text-base lg:flex-col lg:items-end gap-1">
-                  <p className=" sm:block text-sm md:text-base mr-2 text-gray-900">
-                    {b.priceTotal} {b.currency}
-                  </p>
-                  <StatusPill status={b.status} />
-                </div>
-              </Link>
-            ))}
+                    <div className="mt-1 text-sm sm:hidden">
+                      <span>{format(parseISO(b.startAt), "d MMM")}</span>
+                      {" → "}
+                      <span>{format(parseISO(b.endAt), "d MMM")}</span>
+                    </div>
+                  </div>
+
+                  <div className=" sm:flex flex-col w-36 hidden">
+                    <div className="flex flex-1 gap-1">
+                      <span>{format(parseISO(b.startAt), "d MMM")}</span>
+                      {" → "}
+                      <span>{format(parseISO(b.endAt), "d MMM")}</span>
+                    </div>
+
+                    {b.createdAt ? (
+                      <p className="text-sm font-light text-zinc-600">
+                        <span>Booked</span>{" "}
+                        {format(parseISO(b.createdAt), "d MMM y")}
+                      </p>
+                    ) : (
+                      "Booked —"
+                    )}
+                  </div>
+
+                  <div className=" items-end flex flex-col flex-1 justify-between sm:ml-auto mt-2 sm:mt-0  md:mr-auto md:text-base lg:flex-col lg:items-end gap-1">
+                    <p className=" sm:block text-sm md:text-base mr-2 text-gray-900">
+                      {b.priceTotal} {b.currency}
+                    </p>
+                    <StatusPill status={b.status} />
+                  </div>
+                </Link>
+              );
+            })}
           </div>
         )}
       </section>
@@ -557,4 +615,20 @@ function StatusPill({ status }: { status: BookingCard["status"] }) {
       {label}
     </Badge>
   );
+}
+
+function normalize(v?: string | null) {
+  return (v ?? "").toString().trim().toLowerCase();
+}
+
+function haystack(b: BookingCard, usersById: Map<string, string>) {
+  const name = b.userId ? usersById.get(b.userId) ?? "" : "";
+  return [
+    b.car?.brand ?? "",
+    b.car?.model ?? "",
+    b.car?.licensePlate ?? "",
+    name, // full_name юзера
+  ]
+    .join(" ")
+    .toLowerCase();
 }
