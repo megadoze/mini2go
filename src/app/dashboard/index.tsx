@@ -4,12 +4,12 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import {
   CalendarDaysIcon,
-  CurrencyEuroIcon,
   CheckCircleIcon,
   ClockIcon,
   ExclamationTriangleIcon,
   ArrowTrendingUpIcon,
   FunnelIcon,
+  BanknotesIcon,
   // MagnifyingGlassIcon,
   // XMarkIcon,
 } from "@heroicons/react/24/outline";
@@ -591,13 +591,6 @@ export default function DashboardPage() {
       .slice(0, 5);
   }, [filtered, carsById]);
 
-  const avgCheck = useMemo(() => {
-    const priced = filtered.filter((b) => (b.price_total ?? 0) > 0);
-    if (!priced.length) return 0;
-    const sum = priced.reduce((a, b) => a + (b.price_total ?? 0), 0);
-    return Math.round(sum / priced.length);
-  }, [filtered]);
-
   const loading =
     carsQ.isLoading ||
     bookingsQ.isLoading ||
@@ -1145,25 +1138,49 @@ export default function DashboardPage() {
             <>
               <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
                 <KpiCard
-                  icon={<CurrencyEuroIcon className="w-6 h-6" />}
+                  icon={<ArrowTrendingUpIcon className="w-6 h-6" />}
                   title="Revenue (period)"
                   value={`€${filtered
-                    .reduce((a, b) => Math.round(a + (b.price_total ?? 0)), 0)
+                    .filter((b) => getStatusGroup(b) !== "cancelled") // исключаем отменённые
+                    .reduce((a, b) => a + (b.price_total ?? 0), 0)
                     .toLocaleString()}`}
                   sub={`${fmtDate(fromDate)} — ${fmtDate(toDate)}`}
                 />
+
                 <KpiCard
-                  icon={<ArrowTrendingUpIcon className="w-6 h-6" />}
+                  icon={<BanknotesIcon className="w-6 h-6" />}
                   title="Average check"
-                  value={`€${avgCheck}`}
-                  sub="for booking"
+                  value={`€${Math.round(
+                    filtered
+                      .filter(
+                        (b) =>
+                          getStatusGroup(b) !== "cancelled" &&
+                          getStatusGroup(b) !== "blocked"
+                      )
+                      .reduce((a, b) => a + (b.price_total ?? 0), 0) /
+                      Math.max(
+                        1,
+                        filtered.filter(
+                          (b) =>
+                            getStatusGroup(b) !== "cancelled" &&
+                            getStatusGroup(b) !== "blocked"
+                        ).length
+                      )
+                  ).toLocaleString()}`}
                 />
+
                 <KpiCard
-                  icon={<CheckCircleIcon className="w-6 h-6" />}
-                  title="Bookings"
-                  value={filtered.length}
-                  sub="in the selected period"
+                  icon={<CalendarDaysIcon className="w-6 h-6" />}
+                  title="Bookings (period)"
+                  value={
+                    filtered.filter(
+                      (b) =>
+                        getStatusGroup(b) !== "cancelled" &&
+                        getStatusGroup(b) !== "blocked"
+                    ).length
+                  }
                 />
+
                 <KpiCard
                   icon={<ClockIcon className="w-6 h-6" />}
                   title="Loading (avg.)"

@@ -299,7 +299,7 @@ export default function UsersPage() {
                 <Link
                   to={`/users/${u.id}`}
                   state={u}
-                  className="grid grid-cols-[2fr,2fr,1.5fr,1fr,24px] items-center px-2 sm:px-3 py-3 bg-white hover:bg-zinc-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-black/20 rounded-[6px]"
+                  className="grid grid-cols-[2fr,2fr,1.5fr,1fr,24px] items-center px-2 sm:px-3 py-3 bg-white hover:bg-emerald-50/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-black/20 rounded-[6px]"
                 >
                   {/* name + avatar */}
                   <div className="flex items-center gap-3 min-w-0">

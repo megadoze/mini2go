@@ -497,7 +497,7 @@ export default function BookingsList() {
                 <Link
                   key={b.id}
                   to={`/cars/${b.carId}/bookings/${b.id}/edit`}
-                  className={`flex items-center bg-white hover:bg-zinc-100/60 transition ease-in-out duration-300 p-2 w-full rounded-2xl my-1 cursor-pointer shadow-sm ${
+                  className={`flex items-center bg-white hover:bg-emerald-50/40  transition ease-in-out duration-300 p-2 w-full rounded-2xl my-1 cursor-pointer border border-zinc-100 ${
                     openingId === b.id
                       ? "hover:bg-green-200/20 pointer-events-none"
                       : ""

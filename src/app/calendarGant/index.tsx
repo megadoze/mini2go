@@ -647,7 +647,7 @@ export default function CalendarPage() {
             // ringClass = "focus-visible:ring-red-400";
           } else if (booking.status === "rent") {
             colorClass =
-              "bg-gradient-to-r from-emerald-800/80 to-emerald-600/70";
+              "bg-gradient-to-r from-emerald-600/90  to-emerald-500/90";
             // ringClass = "focus-visible:ring-emerald-500";
           } else if (booking.status === "finished") {
             colorClass = "bg-gradient-to-r from-gray-400 to-gray-400/60";
