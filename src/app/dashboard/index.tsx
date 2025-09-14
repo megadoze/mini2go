@@ -387,7 +387,7 @@ export default function DashboardPage() {
     bookings.forEach((b) => {
       if (!relevantCarIds.includes(b.car_id)) return;
       const g = getStatusGroup(b);
-      if (g === "cancelled" || g === "blocked") return;
+      if (g !== "active" && g !== "completed") return; // учитываем только фактическую аренду
       const s = parseDbDate(b.start_at).getTime();
       const e = parseDbDate(b.end_at).getTime();
       const start = Math.max(s, rangeStartMs);
@@ -518,31 +518,37 @@ export default function DashboardPage() {
 
     const agg: Record<
       Key,
-      { label: string; count: number; revenue: number; hours: number }
+      { label: string; count: number; revenue: number; ms: number }
     > = Object.fromEntries(
       order.map((k) => [
         k,
-        { label: STATUS_CATALOG[k].label, count: 0, revenue: 0, hours: 0 },
+        { label: STATUS_CATALOG[k].label, count: 0, revenue: 0, ms: 0 },
       ])
     ) as any;
 
     filtered.forEach((b) => {
       const key = getRawStatus(b);
-
       agg[key].count += 1;
       agg[key].revenue += b.price_total ?? 0;
 
       const s = Math.max(parseDbDate(b.start_at).getTime(), rangeStartMs);
       const e = Math.min(parseDbDate(b.end_at).getTime(), rangeEndMs);
-      if (e > s) agg[key].hours += (e - s) / 36e5;
+      if (e > s) agg[key].ms += e - s;
     });
 
-    return order.map((k) => ({
-      statusKey: k,
-      ...agg[k],
-      revenue: Math.round(agg[k].revenue),
-      hours: Math.round(agg[k].hours),
-    }));
+    return order.map((k) => {
+      const totalMs = agg[k].ms;
+      const days = Math.floor(totalMs / 86_400_000);
+      const hours = Math.floor((totalMs % 86_400_000) / 3_600_000);
+      return {
+        statusKey: k,
+        label: agg[k].label,
+        count: agg[k].count,
+        revenue: Math.round(agg[k].revenue),
+        days,
+        hours,
+      };
+    });
   }, [filtered, fromDate, toDate]);
 
   const statusCountSeries = useMemo(
@@ -562,21 +568,32 @@ export default function DashboardPage() {
   /* ---------- Прочее ---------- */
 
   const revenueTrend = useMemo(() => {
+    // корзины последних 6 месяцев
     const buckets: Record<string, number> = {};
     const base = new Date();
     for (let i = 5; i >= 0; i--) {
       const d = startOfMonth(subMonths(base, i));
       buckets[ym(d)] = 0;
     }
-    bookings6m.forEach((b) => {
+
+    // применяем фильтры: исключаем cancelled/blocked и уважаем выбранный авто
+    const rows = bookings6m.filter((b) => {
+      if (carId !== "all" && b.car_id !== carId) return false;
+      const g = getStatusGroup(b);
+      return g === "completed" || g === "active" || g === "reserved";
+    });
+
+    // копим revenue по месяцу старта (можно сменить на end_at, если нужно «по факту завершения»)
+    rows.forEach((b) => {
       const key = ym(parseDbDate(b.start_at));
       if (key in buckets) buckets[key] += b.price_total ?? 0;
     });
+
     return Object.entries(buckets).map(([month, revenue]) => ({
       month,
       revenue,
     }));
-  }, [bookings6m]);
+  }, [bookings6m, carId]);
 
   const topCars = useMemo(() => {
     const cnt: Record<string, number> = {};
@@ -1141,7 +1158,10 @@ export default function DashboardPage() {
                   icon={<ArrowTrendingUpIcon className="w-6 h-6" />}
                   title="Revenue (period)"
                   value={`€${filtered
-                    .filter((b) => getStatusGroup(b) !== "cancelled") // исключаем отменённые
+                    .filter((b) => {
+                      const g = getStatusGroup(b);
+                      return g === "active" || g === "completed";
+                    })
                     .reduce((a, b) => a + (b.price_total ?? 0), 0)
                     .toLocaleString()}`}
                   sub={`${fmtDate(fromDate)} — ${fmtDate(toDate)}`}
@@ -1173,11 +1193,10 @@ export default function DashboardPage() {
                   icon={<CalendarDaysIcon className="w-6 h-6" />}
                   title="Bookings (period)"
                   value={
-                    filtered.filter(
-                      (b) =>
-                        getStatusGroup(b) !== "cancelled" &&
-                        getStatusGroup(b) !== "blocked"
-                    ).length
+                    filtered.filter((b) => {
+                      const g = getStatusGroup(b);
+                      return g === "completed" || g === "active"; // только завершенные и текущие (rent)
+                    }).length
                   }
                 />
 
@@ -1195,7 +1214,11 @@ export default function DashboardPage() {
                   title="Revenue by month (6m)"
                   className="lg:col-span-1"
                 >
-                  <ResponsiveContainer width="100%" height={260}>
+                  <ResponsiveContainer
+                    width="100%"
+                    height={260}
+                    className="text-sm"
+                  >
                     <LineChart
                       data={revenueTrend}
                       margin={{ left: 8, right: 16, top: 8, bottom: 8 }}
@@ -1259,7 +1282,11 @@ export default function DashboardPage() {
                 </ChartCard>
 
                 <ChartCard className="lg:col-span-1" title="Loading by car (%)">
-                  <ResponsiveContainer width="100%" height={260}>
+                  <ResponsiveContainer
+                    width="100%"
+                    height={260}
+                    className="text-sm"
+                  >
                     <BarChart
                       data={utilizationSeries}
                       margin={{ left: 8, right: 16, top: 8, bottom: 8 }}
@@ -1302,17 +1329,18 @@ export default function DashboardPage() {
                       No data
                     </div>
                   ) : (
-                    // Единая 4-колоночная таблица на всех брейкпоинтах (без скролла, ужали размеры на мобиле)
                     <div className="w-full text-[12px] sm:text-sm">
                       {/* Header */}
                       <div
                         role="row"
-                        className="grid grid-cols-[1.6fr,1fr,1.2fr,0.8fr] items-center gap-2 sm:gap-3 border rounded-lg px-2 py-2 sm:px-3 sm:py-2.5 bg-zinc-50 text-zinc-600"
+                        className="grid grid-cols-[1.6fr,1fr,1.2fr,1.2fr] items-center gap-2 sm:gap-3 border rounded-lg px-2 py-2 sm:px-3 sm:py-2.5 bg-zinc-50 text-zinc-600"
                       >
                         <div className="font-medium">Status</div>
                         <div className="font-medium text-right">Count</div>
                         <div className="font-medium text-right">Revenue</div>
-                        <div className="font-medium text-right">Hours</div>
+                        <div className="font-medium text-right">
+                          Days / Hours
+                        </div>
                       </div>
 
                       {/* Rows */}
@@ -1324,7 +1352,7 @@ export default function DashboardPage() {
                           <div
                             key={r.statusKey}
                             role="row"
-                            className="grid grid-cols-[1.6fr,1fr,1.2fr,0.8fr] items-center gap-2 sm:gap-3 rounded-xl border border-zinc-200/70 bg-white/80 backdrop-blur px-2 py-2 sm:px-3 sm:py-2.5 shadow-sm hover:shadow-md transition"
+                            className="grid grid-cols-[1.6fr,1fr,1.2fr,1.2fr] items-center gap-2 sm:gap-3 rounded-xl border border-zinc-200/70 bg-white/80 backdrop-blur px-2 py-2 sm:px-3 sm:py-2.5 shadow-sm hover:shadow-md transition"
                           >
                             <div className="flex items-center gap-2">
                               <StatusBadge
@@ -1338,14 +1366,14 @@ export default function DashboardPage() {
                                 }}
                               />
                             </div>
-                            <div className="text-zinc-900 font-semibold text-right">
+                            <div className="text-zinc-900 text-right">
                               {r.count}
                             </div>
-                            <div className="text-zinc-900 font-semibold text-right">
+                            <div className="text-zinc-900 text-right">
                               €{r.revenue.toLocaleString()}
                             </div>
-                            <div className="text-zinc-900 font-semibold text-right">
-                              {r.hours}
+                            <div className="text-zinc-900 text-right">
+                              {r.days}d {r.hours}h
                             </div>
                           </div>
                         ))}
@@ -1355,7 +1383,11 @@ export default function DashboardPage() {
                 </TableCard>
 
                 <ChartCard title="Bookings by raw status (count)">
-                  <ResponsiveContainer width="100%" height={260}>
+                  <ResponsiveContainer
+                    width="100%"
+                    height={260}
+                    className="text-sm"
+                  >
                     <BarChart
                       data={statusCountSeries}
                       margin={{ left: 8, right: 16, top: 8, bottom: 8 }}
@@ -1386,7 +1418,11 @@ export default function DashboardPage() {
                 </ChartCard>
 
                 <ChartCard title="Revenue by raw status (€)">
-                  <ResponsiveContainer width="100%" height={260}>
+                  <ResponsiveContainer
+                    width="100%"
+                    height={260}
+                    className="text-sm"
+                  >
                     <BarChart
                       data={statusRevenueSeries}
                       margin={{ left: 8, right: 16, top: 8, bottom: 8 }}
@@ -1557,7 +1593,7 @@ function KpiCard({
 
       {/* Big metric */}
       <div className="mt-3">
-        <div className="text-3xl md:text-3xl font-bold leading-none tracking-tight text-zinc-900">
+        <div className="text-2xl md:text-3xl font-bold leading-none tracking-tight text-zinc-900">
           {value}
         </div>
         {sub ? (
