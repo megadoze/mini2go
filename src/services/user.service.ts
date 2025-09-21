@@ -1,6 +1,30 @@
 // services/user.service.ts
 import { supabase } from "@/lib/supabase";
 
+export type UserListRow = {
+  id: string;
+  full_name: string;
+  email?: string | null;
+  phone?: string | null;
+  status?: string | null;
+  avatar_url?: string | null;
+};
+
+type UsersPageParams = {
+  limit: number;
+  offset: number;
+
+  /** опционально — серверный поиск по имени/почте/телефону */
+  q?: string;
+
+  /** опционально — фильтр по статусу */
+  status?: string;
+
+  /** опционально — сортировка */
+  sort?: "full_name" | "email" | "created_at";
+  dir?: "asc" | "desc";
+};
+
 // Поиск по имени/почте/телефону
 export async function searchUsers(q: string) {
   if (!q) return [];
@@ -185,4 +209,46 @@ export async function deleteUserNote(id: string) {
   const { error } = await supabase.from("user_notes").delete().eq("id", id);
   if (error) throw error;
   return { id };
+}
+
+export async function fetchUsersPage(
+  params: UsersPageParams
+): Promise<{ items: UserListRow[]; count: number }> {
+  const { limit, offset, q, status, sort = "full_name", dir = "asc" } = params;
+
+  // базовый select с подсчётом общего количества
+  let query = supabase
+    .from("profiles")
+    .select("id, full_name, email, phone, status, avatar_url", {
+      count: "exact",
+    });
+
+  // поиск по имени/почте/телефону (ilike, регистронезависимо)
+  if (q && q.trim() !== "") {
+    // чуть экранируем спецсимволы для like
+    const safe = q.replace(/%/g, "\\%").replace(/_/g, "\\_");
+    query = query.or(
+      `full_name.ilike.%${safe}%,email.ilike.%${safe}%,phone.ilike.%${safe}%`
+    );
+  }
+
+  // фильтр по статусу
+  if (status && status.trim() !== "") {
+    query = query.eq("status", status);
+  }
+
+  // сортировка
+  query = query.order(sort, { ascending: dir === "asc", nullsFirst: true });
+
+  // пагинация
+  const from = offset;
+  const to = offset + limit - 1;
+  const { data, error, count } = await query.range(from, to);
+
+  if (error) throw error;
+
+  return {
+    items: (data ?? []) as UserListRow[],
+    count: count ?? data?.length ?? 0,
+  };
 }

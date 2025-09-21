@@ -1,6 +1,10 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useInfiniteQuery,
+  useQueryClient,
+  type InfiniteData,
+} from "@tanstack/react-query";
 import {
   Badge,
   Loader,
@@ -19,7 +23,7 @@ import {
   XMarkIcon,
   EyeIcon,
 } from "@heroicons/react/24/outline";
-import { fetchUsers } from "@/services/user.service";
+import { fetchUsersPage } from "@/services/user.service"; // ⬅️ постранично
 import { highlightMatch } from "@/utils/highlightMatch";
 
 type UserRow = {
@@ -32,6 +36,9 @@ type UserRow = {
 };
 
 type SortKey = "name" | "email";
+
+const PAGE_SIZE = 10;
+type Page = { items: UserRow[]; count: number };
 
 function statusColor(s?: string | null) {
   const v = (s ?? "").toLowerCase();
@@ -63,24 +70,55 @@ export default function UsersPage() {
   const [reversed, setReversed] = useState(false);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
-  const usersQ = useQuery<UserRow[]>({
-    queryKey: ["users", "all"],
-    queryFn: fetchUsers,
-    initialData: qc.getQueryData<UserRow[]>(["users", "all"]),
+  // INFINITE: грузим по 10
+  const usersQ = useInfiniteQuery<{ items: UserRow[]; count: number }, Error>({
+    queryKey: ["users", "infinite", PAGE_SIZE],
+    queryFn: async ({ pageParam }) => {
+      const pageIndex = typeof pageParam === "number" ? pageParam : 0;
+      const offset = pageIndex * PAGE_SIZE;
+      return fetchUsersPage({ limit: PAGE_SIZE, offset });
+    },
+    getNextPageParam: (lastPage, allPages) => {
+      const loaded = allPages.reduce((acc, p) => acc + p.items.length, 0);
+      const total = lastPage.count ?? loaded;
+      return loaded < total ? allPages.length : undefined;
+    },
+    initialPageParam: 0,
     staleTime: 5 * 60_000,
+    gcTime: 7 * 24 * 60 * 60 * 1000,
     refetchOnMount: false,
     refetchOnWindowFocus: false,
-    placeholderData: (prev) => prev,
+    retry: 1,
   });
 
-  const users = usersQ.data ?? [];
+  // ✂️ обрезаем кэш до первой страницы (без сети)
+  const trimToFirstPage = () => {
+    const key = ["users", "infinite", PAGE_SIZE];
+    qc.setQueryData<InfiniteData<Page>>(key, (old) => {
+      if (!old?.pages?.length) return old;
+      return { pages: [old.pages[0]], pageParams: [0] };
+    });
+  };
 
+  // при выходе со страницы — возвращаем к первым 10
+  useEffect(() => {
+    return () => {
+      trimToFirstPage();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // плоский массив уже загруженных юзеров
+  const users: UserRow[] = usersQ.data?.pages.flatMap((p) => p.items) ?? [];
+
+  // уникальные статусы из уже загруженного (для селекта)
   const statuses = useMemo(() => {
     const s = new Set<string>();
     for (const u of users) if (u.status) s.add(String(u.status));
     return Array.from(s).sort((a, b) => a.localeCompare(b));
   }, [users]);
 
+  // фильтрация+сортировка по клиенту (по загруженному)
   const filteredSorted = useMemo(() => {
     const q = search.trim().toLowerCase();
 
@@ -149,10 +187,18 @@ export default function UsersPage() {
     </UnstyledButton>
   );
 
+  // reset: поля + обрезка к первой странице (без сети)
   const resetFilters = () => {
     setSearch("");
     setStatusFilter("");
+    trimToFirstPage();
   };
+
+  // const loadingInitial = usersQ.isLoading && !usersQ.data;
+  const isFetchingNext = usersQ.isFetchingNextPage;
+  const totalLoaded = users.length;
+  const totalAvailable = usersQ.data?.pages[0]?.count ?? totalLoaded;
+  const canLoadMore = totalLoaded < totalAvailable;
 
   // общие поля фильтров (статус)
   const FilterFields = (
@@ -182,7 +228,7 @@ export default function UsersPage() {
         <h1 className="font-roboto text-xl md:text-2xl font-medium md:font-bold">
           Users
         </h1>
-        {users.length > 0 && <Badge color="black">{users.length}</Badge>}
+        {totalLoaded > 0 && <Badge color="black">{totalLoaded}</Badge>}
         {usersQ.isFetching && <Loader size="xs" color="gray" />}
       </div>
 
@@ -293,68 +339,89 @@ export default function UsersPage() {
         {filteredSorted.length === 0 ? (
           <div className="px-3 py-6 text-sm text-zinc-500">Users not found</div>
         ) : (
-          <ul role="list" className="divide-y divide-neutral-200/40">
-            {filteredSorted.map((u) => (
-              <li key={u.id}>
-                <Link
-                  to={`/users/${u.id}`}
-                  state={u}
-                  className="grid grid-cols-[2fr,2fr,1.5fr,1fr,24px] items-center px-2 sm:px-3 py-3 bg-white hover:bg-emerald-50/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-black/20 rounded-[6px]"
-                >
-                  {/* name + avatar */}
-                  <div className="flex items-center gap-3 min-w-0">
-                    {u.avatar_url ? (
-                      <img
-                        src={u.avatar_url}
-                        alt={u.full_name ?? "User"}
-                        className=" w-9 h-9 rounded-full object-cover"
-                      />
-                    ) : (
-                      <div className="hidden w-9 h-9 rounded-full bg-gray-200 text-gray-700 text-xs md:flex items-center justify-center">
-                        {initials(u.full_name)}
-                      </div>
-                    )}
-                    <div className="truncate">
-                      <div className="text-sm font-medium text-gray-900 truncate">
-                        {u.full_name
-                          ? highlightMatch(u.full_name, search)
-                          : "—"}
+          <>
+            <ul role="list" className="divide-y divide-neutral-200/40">
+              {filteredSorted.map((u) => (
+                <li key={u.id}>
+                  <Link
+                    to={`/users/${u.id}`}
+                    state={u}
+                    className="grid grid-cols-[2fr,2fr,1.5fr,1fr,24px] items-center px-2 sm:px-3 py-3 bg-white hover:bg-emerald-50/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-black/20 rounded-[6px]"
+                  >
+                    {/* name + avatar */}
+                    <div className="flex items-center gap-3 min-w-0">
+                      {u.avatar_url ? (
+                        <img
+                          src={u.avatar_url}
+                          alt={u.full_name ?? "User"}
+                          className=" w-9 h-9 rounded-full object-cover"
+                        />
+                      ) : (
+                        <div className="hidden w-9 h-9 rounded-full bg-gray-200 text-gray-700 text-xs md:flex items-center justify-center">
+                          {initials(u.full_name)}
+                        </div>
+                      )}
+                      <div className="truncate">
+                        <div className="text-sm font-medium text-gray-900 truncate">
+                          {u.full_name
+                            ? highlightMatch(u.full_name, search)
+                            : "—"}
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  {/* email */}
-                  <div className=" col-start-2 col-span-2 md:col-auto text-sm text-gray-800 truncate">
-                    {u.email ? highlightMatch(u.email, search) : "—"}
-                  </div>
+                    {/* email */}
+                    <div className=" col-start-2 col-span-2 md:col-auto text-sm text-gray-800 truncate">
+                      {u.email ? highlightMatch(u.email, search) : "—"}
+                    </div>
 
-                  {/* phone */}
-                  <div className="hidden md:block text-sm text-gray-800 truncate">
-                    {u.phone ? highlightMatch(u.phone, search) : "—"}
-                  </div>
+                    {/* phone */}
+                    <div className="hidden md:block text-sm text-gray-800 truncate">
+                      {u.phone ? highlightMatch(u.phone, search) : "—"}
+                    </div>
 
-                  {/* status */}
-                  <div className=" col-start-4 col-span-2 mx-auto md:col-auto">
-                    <Badge
-                      variant="dot"
-                      color={statusColor(u.status)}
-                      radius="lg"
-                      fw={400}
-                      className=" mx-auto"
-                      size="sm"
-                    >
-                      {u.status ?? "unknown"}
-                    </Badge>
-                  </div>
+                    {/* status */}
+                    <div className=" col-start-4 col-span-2 mx-auto md:col-auto">
+                      <Badge
+                        variant="dot"
+                        color={statusColor(u.status)}
+                        radius="lg"
+                        fw={400}
+                        className=" mx-auto"
+                        size="sm"
+                      >
+                        {u.status ?? "unknown"}
+                      </Badge>
+                    </div>
 
-                  {/* декоративный chevron (вся строка — ссылка) */}
-                  <div className="hidden md:flex justify-end opacity-60">
-                    <ChevronRightIcon className="size-5 stroke-1 text-gray-700" />
-                  </div>
-                </Link>
-              </li>
-            ))}
-          </ul>
+                    {/* декоративный chevron (вся строка — ссылка) */}
+                    <div className="hidden md:flex justify-end opacity-60">
+                      <ChevronRightIcon className="size-5 stroke-1 text-gray-700" />
+                    </div>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+
+            {/* Load more */}
+            <div className="w-full flex justify-center mt-6 mb-2">
+              {canLoadMore ? (
+                <button
+                  type="button"
+                  onClick={() => usersQ.fetchNextPage()}
+                  disabled={isFetchingNext}
+                  aria-busy={isFetchingNext}
+                  className="rounded-2xl bg-black text-white px-4 py-2 text-sm hover:opacity-85 disabled:opacity-60"
+                >
+                  {isFetchingNext ? "Loading..." : "Показать ещё"}
+                </button>
+              ) : (
+                <div className="text-xs text-zinc-400">
+                  Больше пользователей нет
+                </div>
+              )}
+            </div>
+          </>
         )}
       </div>
     </div>

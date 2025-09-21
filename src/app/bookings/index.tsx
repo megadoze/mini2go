@@ -1,18 +1,23 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Link,
   useLoaderData,
   useNavigate,
   useLocation,
 } from "react-router-dom";
-import { QueryClient, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  QueryClient,
+  useQuery,
+  useQueryClient,
+  useInfiniteQuery,
+  type InfiniteData,
+} from "@tanstack/react-query";
 import { Badge, Drawer, TextInput } from "@mantine/core";
 import { useMediaQuery } from "@mantine/hooks";
 import { format, parseISO } from "date-fns";
 import {
   fetchCarById,
   fetchCarExtras,
-  fetchCarsByHost,
   fetchExtras,
 } from "@/services/car.service";
 import {
@@ -44,58 +49,17 @@ import { highlightMatch } from "@/utils/highlightMatch";
 import type { BookingStatus } from "@/components/bookingFilters";
 import BookingFilters from "@/components/bookingFilters";
 
-/* -------------------- types from loader -------------------- */
-type BookingRow = {
-  id: string;
-  start_at: string;
-  end_at: string;
-  mark: string;
-  status: string | null;
-  car_id: string;
-  user_id: string | null;
-  price_total: number | null;
-  currency: string | null;
-  created_at: string;
-  // ВАЖНО: лоадер должен селектить user:profiles(...),
-  // чтобы тут было имя гостя без доп. запросов
-  user?: { id: string; full_name: string | null; email?: string | null } | null;
-};
+// постраничная загрузка
+import {
+  fetchBookingsIndexPage,
+  mapRowToBookingCard,
+  type BookingJoinedRow,
+} from "@/services/bookings.service";
 
 type LoaderData = { ownerId: string };
 
-/* -------------------- row -> card -------------------- */
-function toCard(row: BookingRow, carsById: Map<string, any>): BookingCard {
-  const carBrief = carsById.get(row.car_id) || {};
-  const mark: BookingCard["mark"] = row.mark === "block" ? "block" : "booking";
-
-  return {
-    id: row.id,
-    startAt: row.start_at,
-    endAt: row.end_at,
-    status: row.status ?? null,
-    mark,
-    carId: row.car_id,
-    userId: row.user_id ? String(row.user_id) : null,
-    priceTotal: row.price_total,
-    currency: row.currency,
-    createdAt: row.created_at,
-    car: {
-      id: row.car_id,
-      brand: carBrief?.models?.brands?.name ?? null,
-      model: carBrief?.models?.name ?? null,
-      year: carBrief?.year ?? null,
-      photo: carBrief?.photos?.[0] ?? null,
-      licensePlate: carBrief?.licensePlate ?? null,
-      deposit: carBrief?.deposit ?? null,
-      locationName: carBrief?.locations?.name ?? null,
-      countryId:
-        carBrief?.locations?.countries?.id != null
-          ? String(carBrief.locations.countries.id)
-          : null,
-      countryName: carBrief?.locations?.countries?.name ?? null,
-    } as any,
-  };
-}
+const PAGE_SIZE = 10;
+type Page = { items: BookingJoinedRow[]; count: number };
 
 export default function BookingsList() {
   const { ownerId } = useLoaderData() as LoaderData;
@@ -114,52 +78,62 @@ export default function BookingsList() {
     [rawUserId]
   );
 
-  /* -------------------- queries: bookings + cars -------------------- */
-  const bookingsKey = ["bookingsIndex", ownerId];
-  const initialRows = qc.getQueryData<BookingRow[]>(bookingsKey);
-
-  const { data: bookingRows = [] } = useQuery({
-    queryKey: bookingsKey,
-    queryFn: async () => initialRows ?? [],
-    initialData: initialRows,
-    enabled: true,
-    refetchOnMount: false,
-    refetchOnWindowFocus: false,
-    staleTime: Infinity,
+  /* -------------------- bookings: infinite query -------------------- */
+  const bookingsQ = useInfiniteQuery<
+    { items: BookingJoinedRow[]; count: number },
+    Error
+  >({
+    queryKey: QK.bookingsIndexInfinite(ownerId, PAGE_SIZE),
+    queryFn: async ({ pageParam }) => {
+      const pageIndex = typeof pageParam === "number" ? pageParam : 0;
+      const offset = pageIndex * PAGE_SIZE;
+      return fetchBookingsIndexPage({ ownerId, limit: PAGE_SIZE, offset });
+    },
+    getNextPageParam: (lastPage, allPages) => {
+      const loaded = allPages.reduce((acc, p) => acc + p.items.length, 0);
+      const total = lastPage.count ?? loaded;
+      return loaded < total ? allPages.length : undefined;
+    },
+    initialPageParam: 0,
+    staleTime: 60_000,
     gcTime: 7 * 24 * 60 * 60 * 1000,
-    placeholderData: (prev) => prev,
-  });
-
-  const carsKey = ["carsByHost", ownerId];
-  const initialCars = qc.getQueryData<any[]>(carsKey);
-
-  const { data: cars = [] } = useQuery({
-    queryKey: carsKey,
-    queryFn: () => fetchCarsByHost(ownerId),
-    initialData: initialCars,
-    enabled: !initialCars,
     refetchOnMount: false,
     refetchOnWindowFocus: false,
-    staleTime: 5 * 60_000,
+    refetchOnReconnect: false,
+    retry: 1,
   });
 
-  const carsById = useMemo(() => {
-    const m = new Map<string, any>();
-    for (const c of cars) m.set(String(c.id), c);
-    return m;
-  }, [cars]);
+  // ✂️ хелпер — обрезать кэш до первой страницы (без сети)
+  const trimToFirstPage = () => {
+    const key = QK.bookingsIndexInfinite(ownerId, PAGE_SIZE);
+    qc.setQueryData<InfiniteData<Page>>(key, (old) => {
+      if (!old?.pages?.length) return old;
+      return { pages: [old.pages[0]], pageParams: [0] };
+    });
+  };
+
+  // при уходе со страницы — всегда возвращаем к первым 10
+  useEffect(() => {
+    return () => {
+      trimToFirstPage();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ownerId]); // привязан к конкретному владельцу
+
+  // плоские строки и карточки
+  const bookingRows: BookingJoinedRow[] =
+    bookingsQ.data?.pages.flatMap((p) => p.items) ?? [];
 
   const items: BookingCard[] = useMemo(
-    () => bookingRows.map((r) => toCard(r, carsById)),
-    [bookingRows, carsById]
+    () => bookingRows.map((r) => mapRowToBookingCard(r) as BookingCard),
+    [bookingRows]
   );
 
-  // userId -> full_name (берём прямо из bookingRows.user)
+  // userId -> full_name (из user в строке)
   const usersById = useMemo(() => {
     const m = new Map<string, string>();
     for (const r of bookingRows) {
-      const name =
-        r?.user?.full_name ?? (r as any)?.profiles?.full_name ?? null;
+      const name = r?.user?.full_name ?? null;
       if (name && r.user_id) m.set(String(r.user_id), String(name));
     }
     return m;
@@ -172,7 +146,7 @@ export default function BookingsList() {
   const [search, setSearch] = useState("");
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
-  /* -------------------- geo queries (как в CarsPage) -------------------- */
+  /* -------------------- geo queries -------------------- */
   const countriesQ = useQuery<Country[], Error>({
     queryKey: ["countries"],
     queryFn: fetchCountries,
@@ -209,17 +183,14 @@ export default function BookingsList() {
   const filtered = useMemo(() => {
     const q = normalize(search);
 
-    // 1) единый текстовый поиск по бренду/модели/номеру/ИМЕНИ
     const byText = items.filter(
       (b) => q === "" || haystack(b, usersById).includes(q)
     );
 
-    // 2) скрытый фильтр из URL (?userId=...), сравниваем строго по id
     const byUserParam = userIdFilter
       ? byText.filter((b) => normalize(b.userId) === userIdFilter)
       : byText;
 
-    // 3) остальные фильтры — как были
     const byCountry = countryId
       ? byUserParam.filter((b) => (b.car as any)?.countryId === countryId)
       : byUserParam;
@@ -351,7 +322,6 @@ export default function BookingsList() {
       uId
         ? qc.prefetchQuery({
             queryKey: QK.user(uId),
-            // важно: это только для редактора; на список не влияет
             queryFn: () =>
               Promise.resolve(
                 usersById.get(uId)
@@ -363,6 +333,13 @@ export default function BookingsList() {
         : Promise.resolve(),
     ]);
   }
+
+  /* -------------------- pagination helpers -------------------- */
+  const loadingInitial = bookingsQ.isLoading && !bookingsQ.data;
+  const isFetchingNext = bookingsQ.isFetchingNextPage;
+  const totalLoaded = items.length;
+  const totalAvailable = bookingsQ.data?.pages[0]?.count ?? totalLoaded;
+  const canLoadMore = totalLoaded < totalAvailable;
 
   /* -------------------- render -------------------- */
   return (
@@ -406,6 +383,7 @@ export default function BookingsList() {
             setLocationFilter("");
             setStatusFilter("");
             clearUserFilter();
+            trimToFirstPage(); // ⬅️ сброс локально к первым 10
           }}
           className="p-2 rounded hover:bg-gray-100 active:bg-gray-200 transition"
           aria-label="Reset filters"
@@ -475,6 +453,7 @@ export default function BookingsList() {
               setLocationFilter("");
               setStatusFilter("");
               clearUserFilter();
+              trimToFirstPage(); // ⬅️ и здесь тоже
             }}
             className="text-sm text-zinc-500 underline underline-offset-4"
           >
@@ -485,107 +464,127 @@ export default function BookingsList() {
 
       {/* Content */}
       <section id="bookings" className="mt-4 mb-10">
-        {filtered.length === 0 ? (
+        {loadingInitial ? (
+          <div className="p-6 rounded-2xl border text-gray-600 text-sm">
+            Загрузка…
+          </div>
+        ) : filtered.length === 0 ? (
           <div className="p-6 rounded-2xl border text-gray-600 text-sm">
             Броней пока нет.
           </div>
         ) : (
-          <div className="flex flex-col">
-            {filtered.map((b) => {
-              const fullName = b.userId ? usersById.get(b.userId) ?? "" : "";
-              return (
-                <Link
-                  key={b.id}
-                  to={`/cars/${b.carId}/bookings/${b.id}/edit`}
-                  className={`flex items-center bg-white hover:bg-emerald-50/40  transition ease-in-out duration-300 p-2 w-full rounded-2xl my-1 cursor-pointer border border-zinc-100 ${
-                    openingId === b.id
-                      ? "hover:bg-green-200/20 pointer-events-none"
-                      : ""
-                  }`}
-                  onClick={(e) => {
-                    if (e.metaKey || e.ctrlKey) return;
-                    e.preventDefault();
-                    openEditor(b);
-                  }}
-                  onMouseEnter={() => {
-                    void prefetchBundle(
-                      qc,
-                      b.carId,
-                      b.id,
-                      b.userId ?? undefined
-                    );
-                  }}
-                  aria-busy={openingId === b.id}
-                >
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                    {b.car?.photo ? (
-                      <img
-                        src={b.car.photo as string}
-                        alt=""
-                        className="w-24 h-16 sm:w-28 sm:h-[70px] object-cover rounded-xl"
-                      />
-                    ) : (
-                      <div className="w-24 h-16 sm:w-28 sm:h-[70px] rounded-xl bg-gray-100" />
-                    )}
-                  </div>
-
-                  <div className="flex-1 min-w-0 pl-4 pr-2">
-                    {/* brand + model with highlight */}
-                    <p className="font-medium font-roboto text-sm md:text-base truncate">
-                      {highlightMatch(
-                        `${b.car?.brand ?? ""} ${b.car?.model ?? ""}`,
-                        search
-                      )}
-                    </p>
-                    <div className="flex items-center gap-1">
-                      {/* license plate with highlight */}
-                      {b.car?.licensePlate && (
-                        <p className="text-sm text-gray-800 border border-gray-500 rounded-sm w-fit px-1">
-                          {highlightMatch(b.car.licensePlate, search)}
-                        </p>
-                      )}
-                      {/* user full name with highlight */}
-                      {fullName && (
-                        <p className="text-sm text-gray-900 truncate">
-                          {highlightMatch(fullName, search)}
-                        </p>
+          <>
+            <div className="flex flex-col">
+              {filtered.map((b) => {
+                const fullName = b.userId ? usersById.get(b.userId) ?? "" : "";
+                return (
+                  <Link
+                    key={b.id}
+                    to={`/cars/${b.carId}/bookings/${b.id}/edit`}
+                    className={`flex items-center bg-white hover:bg-emerald-50/40 transition ease-in-out duration-300 p-2 w-full rounded-2xl my-1 cursor-pointer border border-zinc-100 ${
+                      openingId === b.id
+                        ? "hover:bg-green-200/20 pointer-events-none"
+                        : ""
+                    }`}
+                    onClick={(e) => {
+                      if (e.metaKey || e.ctrlKey) return;
+                      e.preventDefault();
+                      openEditor(b);
+                    }}
+                    onMouseEnter={() => {
+                      void prefetchBundle(
+                        qc,
+                        b.carId,
+                        b.id,
+                        b.userId ?? undefined
+                      );
+                    }}
+                    aria-busy={openingId === b.id}
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                      {b.car?.photo ? (
+                        <img
+                          src={b.car.photo as string}
+                          alt=""
+                          className="w-24 h-16 sm:w-28 sm:h-[70px] object-cover rounded-xl"
+                        />
+                      ) : (
+                        <div className="w-24 h-16 sm:w-28 sm:h-[70px] rounded-xl bg-gray-100" />
                       )}
                     </div>
 
-                    <div className="mt-1 text-sm sm:hidden">
-                      <span>{format(parseISO(b.startAt), "d MMM")}</span>
-                      {" → "}
-                      <span>{format(parseISO(b.endAt), "d MMM")}</span>
-                    </div>
-                  </div>
-
-                  <div className=" sm:flex flex-col w-36 hidden">
-                    <div className="flex flex-1 gap-1">
-                      <span>{format(parseISO(b.startAt), "d MMM")}</span>
-                      {" → "}
-                      <span>{format(parseISO(b.endAt), "d MMM")}</span>
-                    </div>
-
-                    {b.createdAt ? (
-                      <p className="text-sm font-light text-zinc-600">
-                        <span>Booked</span>{" "}
-                        {format(parseISO(b.createdAt), "d MMM y")}
+                    <div className="flex-1 min-w-0 pl-4 pr-2">
+                      <p className="font-medium font-roboto text-sm md:text-base truncate">
+                        {highlightMatch(
+                          `${b.car?.brand ?? ""} ${b.car?.model ?? ""}`,
+                          search
+                        )}
                       </p>
-                    ) : (
-                      "Booked —"
-                    )}
-                  </div>
+                      <div className="flex items-center gap-1">
+                        {b.car?.licensePlate && (
+                          <p className="text-sm text-gray-800 border border-gray-500 rounded-sm w-fit px-1">
+                            {highlightMatch(b.car.licensePlate, search)}
+                          </p>
+                        )}
+                        {fullName && (
+                          <p className="text-sm text-gray-900 truncate">
+                            {highlightMatch(fullName, search)}
+                          </p>
+                        )}
+                      </div>
 
-                  <div className=" items-end flex flex-col flex-1 justify-between sm:ml-auto mt-2 sm:mt-0  md:mr-auto md:text-base lg:flex-col lg:items-end gap-1">
-                    <p className=" sm:block text-sm md:text-base mr-2 text-gray-900">
-                      {b.priceTotal} {b.currency}
-                    </p>
-                    <StatusPill status={b.status} />
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
+                      <div className="mt-1 text-sm sm:hidden">
+                        <span>{format(parseISO(b.startAt), "d MMM")}</span>
+                        {" → "}
+                        <span>{format(parseISO(b.endAt), "d MMM")}</span>
+                      </div>
+                    </div>
+
+                    <div className="sm:flex flex-col w-36 hidden">
+                      <div className="flex flex-1 gap-1">
+                        <span>{format(parseISO(b.startAt), "d MMM")}</span>
+                        {" → "}
+                        <span>{format(parseISO(b.endAt), "d MMM")}</span>
+                      </div>
+
+                      {b.createdAt ? (
+                        <p className="text-sm font-light text-zinc-600">
+                          <span>Booked</span>{" "}
+                          {format(parseISO(b.createdAt), "d MMM y")}
+                        </p>
+                      ) : (
+                        "Booked —"
+                      )}
+                    </div>
+
+                    <div className="items-end flex flex-col flex-1 justify-between sm:ml-auto mt-2 sm:mt-0 md:mr-auto md:text-base lg:flex-col lg:items-end gap-1">
+                      <p className="sm:block text-sm md:text-base mr-2 text-gray-900">
+                        {b.priceTotal} {b.currency}
+                      </p>
+                      <StatusPill status={b.status} />
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+
+            {/* Load more */}
+            <div className="w-full flex justify-center mt-6">
+              {canLoadMore ? (
+                <button
+                  type="button"
+                  onClick={() => bookingsQ.fetchNextPage()}
+                  disabled={isFetchingNext}
+                  aria-busy={isFetchingNext}
+                  className="rounded-2xl bg-black text-white px-4 py-2 text-sm hover:opacity-85 disabled:opacity-60"
+                >
+                  {isFetchingNext ? "Loading..." : "Показать ещё"}
+                </button>
+              ) : (
+                <div className="text-xs text-zinc-400">Больше броней нет</div>
+              )}
+            </div>
+          </>
         )}
       </section>
     </main>
@@ -627,7 +626,7 @@ function haystack(b: BookingCard, usersById: Map<string, string>) {
     b.car?.brand ?? "",
     b.car?.model ?? "",
     b.car?.licensePlate ?? "",
-    name, // full_name юзера
+    name,
   ]
     .join(" ")
     .toLowerCase();

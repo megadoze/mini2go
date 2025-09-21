@@ -224,6 +224,29 @@ export async function fetchCars(): Promise<CarWithRelations[]> {
   return data.map(mapCarRow);
 }
 
+// Получение авто постранично
+export async function fetchCarsPage(opts: {
+  limit: number;
+  offset: number;
+}): Promise<{
+  items: CarWithRelations[];
+  count: number;
+}> {
+  const { limit, offset } = opts;
+
+  const { data, error, count } = await supabase
+    .from("cars")
+    .select(CARS_BASE_SELECT, { count: "exact", head: false })
+    .order("created_at", { ascending: false })
+    // В supabase .range — включительно по обоим концам
+    .range(offset, offset + limit - 1);
+
+  if (error) throw error;
+
+  const items = (data ?? []).map(mapCarRow);
+  return { items, count: count ?? items.length };
+}
+
 // Получение авто хоста
 export async function fetchCarsByHost(
   ownerId: string

@@ -7,6 +7,7 @@ import type { Booking } from "./calendar-window.service";
 
 // Тип под конкретный select-ответ
 export type BookingJoinedRow = {
+  user: any;
   id: string;
   start_at: string;
   end_at: string;
@@ -35,6 +36,7 @@ export type BookingJoinedRow = {
 // Единый SELECT для карточки
 export const SELECT_BOOKING_CARD = `
   id, start_at, end_at, status, mark, car_id, user_id, created_at, price_total,
+  user:profiles ( id, full_name, email ),
   car:cars (
     id, year, photos, license_plate, model_id, deposit,
     model:models (
@@ -206,4 +208,35 @@ export async function fetchBookingById(id: string) {
 
   if (error) throw error; // реальные ошибки
   return data as Booking | null; // когда записи нет — null без 406
+}
+
+export async function fetchBookingsIndexPage(params: {
+  ownerId: string;
+  limit: number;
+  offset: number;
+}): Promise<{ items: BookingJoinedRow[]; count: number }> {
+  const { ownerId, limit, offset } = params;
+
+  const { data, error, count } = await supabase
+    .from("bookings")
+    .select(
+      `
+      ${SELECT_BOOKING_CARD},
+      cars!inner(owner_id)
+    `,
+      { count: "exact" }
+    )
+    .eq("cars.owner_id", ownerId)
+    .order("start_at", { ascending: false })
+    .range(offset, offset + limit - 1);
+
+  if (error) throw error;
+
+  const items = (data ?? []).map((r: any) => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { cars, ...rest } = r;
+    return rest as BookingJoinedRow;
+  });
+
+  return { items, count: count ?? items.length };
 }
