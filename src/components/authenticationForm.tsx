@@ -135,7 +135,7 @@ export function AuthenticationForm(props: PaperProps) {
   return (
     <Paper radius="md" p="lg" withBorder {...props}>
       <Text size="lg" fw={500}>
-        Welcome to Mantine, {type} with email
+        Welcome to MINI2GO, {type} with email
       </Text>
 
       <Divider label="Continue with email" labelPosition="center" my="lg" />
