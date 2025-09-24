@@ -52,14 +52,15 @@ import BookingFilters from "@/components/bookingFilters";
 // постраничная загрузка
 import {
   fetchBookingsIndexPage,
-  mapRowToBookingCard,
-  type BookingJoinedRow,
+  mapIndexRowToBookingCard,
+  // type BookingJoinedRow,
+  type BookingsIndexRow,
 } from "@/services/bookings.service";
 
 type LoaderData = { ownerId: string };
 
 const PAGE_SIZE = 10;
-type Page = { items: BookingJoinedRow[]; count: number };
+// type Page = { items: BookingJoinedRow[]; count: number };
 
 export default function BookingsList() {
   const { ownerId } = useLoaderData() as LoaderData;
@@ -78,34 +79,75 @@ export default function BookingsList() {
     [rawUserId]
   );
 
+  /* -------------------- filters state -------------------- */
+  const [countryId, setCountryId] = useState<string | null>(null);
+  const [locationFilter, setLocationFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState<BookingStatus>("");
+  const [search, setSearch] = useState("");
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+
+  function uniqById<T extends { id?: string }>(arr: T[]) {
+    const seen = new Set<string>();
+    return arr.filter((x) => {
+      const id = String(x.id ?? "");
+      if (!id) return true;
+      if (seen.has(id)) return false;
+      seen.add(id);
+      return true;
+    });
+  }
+
   /* -------------------- bookings: infinite query -------------------- */
+
+  const filterKey = useMemo(
+    () => ({
+      status: statusFilter || null,
+      countryId: countryId || null,
+      q: normalize(search) || null,
+      location: normalize(locationFilter) || null,
+      userId: userIdFilter || null,
+    }),
+    [statusFilter, countryId, search, locationFilter, userIdFilter]
+  );
+
+  type Page = { items: BookingsIndexRow[]; count: number };
+
   const bookingsQ = useInfiniteQuery<
-    { items: BookingJoinedRow[]; count: number },
-    Error
+    Page,
+    Error,
+    InfiniteData<Page, number>,
+    any,
+    number
   >({
-    queryKey: QK.bookingsIndexInfinite(ownerId, PAGE_SIZE),
-    queryFn: async ({ pageParam }) => {
-      const pageIndex = typeof pageParam === "number" ? pageParam : 0;
+    queryKey: [...QK.bookingsIndexInfinite(ownerId, PAGE_SIZE), filterKey],
+    initialPageParam: 0, // обязательно, иначе pageParam останется unknown
+    queryFn: ({ pageParam }) => {
+      const pageIndex = pageParam; // pageParam: number
       const offset = pageIndex * PAGE_SIZE;
-      return fetchBookingsIndexPage({ ownerId, limit: PAGE_SIZE, offset });
+      return fetchBookingsIndexPage({
+        ownerId,
+        limit: PAGE_SIZE,
+        offset,
+        status: statusFilter || undefined,
+        countryId: countryId || undefined,
+        location: normalize(locationFilter) || undefined,
+        userId: userIdFilter || undefined,
+        q: normalize(search) || undefined,
+      });
     },
     getNextPageParam: (lastPage, allPages) => {
       const loaded = allPages.reduce((acc, p) => acc + p.items.length, 0);
       const total = lastPage.count ?? loaded;
-      return loaded < total ? allPages.length : undefined;
+      return loaded < total ? allPages.length : undefined; // вернём индекс следующей страницы (number)
     },
-    initialPageParam: 0,
-    staleTime: 60_000,
-    gcTime: 7 * 24 * 60 * 60 * 1000,
-    refetchOnMount: false,
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
-    retry: 1,
   });
 
   // ✂️ хелпер — обрезать кэш до первой страницы (без сети)
   const trimToFirstPage = () => {
-    const key = QK.bookingsIndexInfinite(ownerId, PAGE_SIZE);
+    const key = [
+      ...QK.bookingsIndexInfinite(ownerId, PAGE_SIZE),
+      filterKey,
+    ] as const;
     qc.setQueryData<InfiniteData<Page>>(key, (old) => {
       if (!old?.pages?.length) return old;
       return { pages: [old.pages[0]], pageParams: [0] };
@@ -120,31 +162,31 @@ export default function BookingsList() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ownerId]); // привязан к конкретному владельцу
 
-  // плоские строки и карточки
-  const bookingRows: BookingJoinedRow[] =
-    bookingsQ.data?.pages.flatMap((p) => p.items) ?? [];
+  const EMPTY_PAGES: ReadonlyArray<Page> = [];
 
-  const items: BookingCard[] = useMemo(
-    () => bookingRows.map((r) => mapRowToBookingCard(r) as BookingCard),
-    [bookingRows]
+  const pages = useMemo(
+    () => bookingsQ.data?.pages ?? EMPTY_PAGES,
+    [bookingsQ.data]
   );
 
-  // userId -> full_name (из user в строке)
+  const bookingRows = useMemo<BookingsIndexRow[]>(
+    () => pages.flatMap((p) => p.items),
+    [pages]
+  );
+
+  const items: BookingCard[] = useMemo(() => {
+    const cards = bookingRows.map(mapIndexRowToBookingCard);
+    return uniqById(cards);
+  }, [bookingRows]);
+
   const usersById = useMemo(() => {
     const m = new Map<string, string>();
     for (const r of bookingRows) {
-      const name = r?.user?.full_name ?? null;
+      const name = r.user_full_name ?? null;
       if (name && r.user_id) m.set(String(r.user_id), String(name));
     }
     return m;
   }, [bookingRows]);
-
-  /* -------------------- filters state -------------------- */
-  const [countryId, setCountryId] = useState<string | null>(null);
-  const [locationFilter, setLocationFilter] = useState("");
-  const [statusFilter, setStatusFilter] = useState<BookingStatus>("");
-  const [search, setSearch] = useState("");
-  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
   /* -------------------- geo queries -------------------- */
   const countriesQ = useQuery<Country[], Error>({
@@ -181,11 +223,7 @@ export default function BookingsList() {
 
   /* -------------------- apply filters, then sort -------------------- */
   const filtered = useMemo(() => {
-    const q = normalize(search);
-
-    const byText = items.filter(
-      (b) => q === "" || haystack(b, usersById).includes(q)
-    );
+    const byText = items;
 
     const byUserParam = userIdFilter
       ? byText.filter((b) => normalize(b.userId) === userIdFilter)
@@ -264,8 +302,9 @@ export default function BookingsList() {
     setOpeningId(null);
   };
 
-  const clearUserFilter = () =>
+  const clearUserFilter = () => {
     navigate({ pathname: location.pathname }, { replace: true });
+  };
 
   async function prefetchBundle(
     qc: QueryClient,
@@ -618,16 +657,4 @@ function StatusPill({ status }: { status: BookingCard["status"] }) {
 
 function normalize(v?: string | null) {
   return (v ?? "").toString().trim().toLowerCase();
-}
-
-function haystack(b: BookingCard, usersById: Map<string, string>) {
-  const name = b.userId ? usersById.get(b.userId) ?? "" : "";
-  return [
-    b.car?.brand ?? "",
-    b.car?.model ?? "",
-    b.car?.licensePlate ?? "",
-    name,
-  ]
-    .join(" ")
-    .toLowerCase();
 }

@@ -1,13 +1,22 @@
 import { supabase } from "@/lib/supabase";
 import type { PostgrestSingleResponse } from "@supabase/supabase-js";
 import type { Booking as DbBooking } from "@/types/booking";
-import type { BookingCard as BookingCardType } from "@/types/bookingCard";
+import type {
+  BookingCard,
+  BookingCard as BookingCardType,
+} from "@/types/bookingCard";
 import { eachDayOfInterval, parseISO } from "date-fns";
-import type { Booking } from "./calendar-window.service";
 
-// Тип под конкретный select-ответ
+type OneOrMany<T> = T | T[] | null;
+const first = <T>(x: OneOrMany<T>): T | null =>
+  Array.isArray(x) ? x[0] ?? null : x ?? null;
+
 export type BookingJoinedRow = {
-  user: any;
+  user: OneOrMany<{
+    id: string;
+    full_name: string | null;
+    email: string | null;
+  }>;
   id: string;
   start_at: string;
   end_at: string;
@@ -17,43 +26,56 @@ export type BookingJoinedRow = {
   user_id: string | null;
   created_at: string | null;
   price_total: number | null;
-  car: {
+  car: OneOrMany<{
     id: string;
     year: number | null;
     photos: string[] | null;
     license_plate: string | null;
     deposit: number | null;
     model_id: string | null;
-    model: {
+    model: OneOrMany<{
       id: string;
       name: string | null;
       brand_id: string | null;
-      brand: { id: string; name: string | null } | null;
-    } | null;
-  } | null;
+      brand: OneOrMany<{ id: string; name: string | null }>;
+    }>;
+    location: OneOrMany<{
+      id: string;
+      name: string | null;
+      country_id: string | null;
+    }>;
+  }>;
 };
+
+export type BookingStatusDB =
+  | "confirmed"
+  | "rent"
+  | "onapproval"
+  | "finished"
+  | "canceledhost"
+  | "canceledguest"
+  | "canceledtime";
 
 // Единый SELECT для карточки
 export const SELECT_BOOKING_CARD = `
   id, start_at, end_at, status, mark, car_id, user_id, created_at, price_total,
-  user:profiles ( id, full_name, email ),
-  car:cars (
-    id, year, photos, license_plate, model_id, deposit,
-    model:models (
+  user:profiles!left(id, full_name, email),
+  car:cars!inner(
+    id, year, photos, license_plate, model_id, deposit, owner_id,
+    model:models(
       id, name, brand_id,
-      brand:brands ( id, name )
-    )
+      brand:brands( id, name )
+    ),
+    location:locations!inner( id, name, country_id )
   )
 ` as const;
-
-// Нормализация: если вдруг вложенная связь вернулась массивом — берём первый элемент
-const first = <T>(x: T | T[] | null | undefined): T | null =>
-  Array.isArray(x) ? x[0] ?? null : x ?? null;
 
 export function mapRowToBookingCard(row: BookingJoinedRow): BookingCardType {
   const car = first(row.car);
   const model = first(car?.model);
   const brand = first(model?.brand);
+  const loc = first(car?.location);
+
   return {
     id: row.id,
     startAt: row.start_at,
@@ -72,10 +94,11 @@ export function mapRowToBookingCard(row: BookingJoinedRow): BookingCardType {
           licensePlate: car.license_plate ?? null,
           deposit: car.deposit ?? null,
           photo: Array.isArray(car.photos) ? car.photos[0] ?? null : null,
+          // ↓ важное: чтобы фронтовый фильтр по стране/локации работал
+          locationName: loc?.name ?? null,
+          countryId: loc?.country_id ?? null,
         }
       : null,
-    // если поле есть в твоём типе — оно попадёт; иначе можно обращаться как (booking as any).priceTotal в UI
-
     priceTotal: row.price_total ?? null,
   } as BookingCardType;
 }
@@ -198,45 +221,107 @@ export async function cancelAndUnlock(
   return updated;
 }
 
-// calendar.service.ts (или где у тебя это)
-export async function fetchBookingById(id: string) {
-  const { data, error } = await supabase
-    .from("bookings")
-    .select("*")
-    .eq("id", id)
-    .maybeSingle(); // << вместо .single()
+// service
+export type FetchBookingsIndexParams = {
+  ownerId: string;
+  limit: number;
+  offset: number;
+  status?: string;
+  userId?: string;
+  countryId?: string;
+  location?: string;
+  q?: string;
+};
 
-  if (error) throw error; // реальные ошибки
-  return data as Booking | null; // когда записи нет — null без 406
-}
+export type BookingsIndexRow = {
+  id: string;
+  start_at: string;
+  end_at: string;
+  status: string | null;
+  mark: "booking" | "block";
+  car_id: string;
+  user_id: string | null;
+  created_at: string | null;
+  price_total: number | null;
+
+  owner_id: string;
+  photos: string[] | null;
+  license_plate: string | null;
+  year: number | null;
+  deposit: number | null;
+
+  brand_name: string | null;
+  model_name: string | null;
+
+  location_name: string | null;
+  country_id: string | null;
+
+  user_full_name: string | null;
+};
 
 export async function fetchBookingsIndexPage(params: {
   ownerId: string;
   limit: number;
   offset: number;
-}): Promise<{ items: BookingJoinedRow[]; count: number }> {
-  const { ownerId, limit, offset } = params;
+  status?: string;
+  userId?: string;
+  countryId?: string;
+  location?: string;
+  q?: string;
+}): Promise<{ items: BookingsIndexRow[]; count: number }> {
+  const { ownerId, limit, offset, status, userId, countryId, location, q } =
+    params;
 
-  const { data, error, count } = await supabase
-    .from("bookings")
-    .select(
-      `
-      ${SELECT_BOOKING_CARD},
-      cars!inner(owner_id)
-    `,
-      { count: "exact" }
-    )
-    .eq("cars.owner_id", ownerId)
+  let qy = supabase
+    .from("bookings_index")
+    .select("*", { count: "exact" })
+    .eq("owner_id", ownerId)
     .order("start_at", { ascending: false })
     .range(offset, offset + limit - 1);
 
+  if (status) qy = qy.eq("status", status.toLowerCase());
+  if (userId) qy = qy.eq("user_id", userId);
+  if (countryId) qy = qy.eq("country_id", countryId);
+  if (location) qy = qy.ilike("location_name", `%${location}%`);
+  if (q) {
+    const s = q.replace(/[%_]/g, (m) => `\\${m}`);
+    qy = qy.or(
+      [
+        `license_plate.ilike.%${s}%`,
+        `brand_name.ilike.%${s}%`,
+        `model_name.ilike.%${s}%`,
+        `user_full_name.ilike.%${s}%`,
+      ].join(",")
+    );
+  }
+
+  const { data, error, count } = await qy;
   if (error) throw error;
+  return { items: (data ?? []) as BookingsIndexRow[], count: count ?? 0 };
+}
 
-  const items = (data ?? []).map((r: any) => {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { cars, ...rest } = r;
-    return rest as BookingJoinedRow;
-  });
-
-  return { items, count: count ?? items.length };
+// mapper
+export function mapIndexRowToBookingCard(r: BookingsIndexRow): BookingCard {
+  return {
+    id: r.id,
+    startAt: r.start_at,
+    endAt: r.end_at,
+    status: r.status,
+    mark: r.mark,
+    carId: r.car_id,
+    userId: r.user_id,
+    createdAt: r.created_at,
+    priceTotal: r.price_total ?? null,
+    car: {
+      id: r.car_id,
+      brand: r.brand_name ?? null, // ← БРЕНД
+      model: r.model_name ?? null, // ← МОДЕЛЬ
+      year: r.year ?? null,
+      licensePlate: r.license_plate ?? null, // ← ГОСНОМЕР
+      deposit: r.deposit ?? null,
+      photo: Array.isArray(r.photos) ? r.photos[0] ?? null : null,
+      locationName: r.location_name ?? null,
+      countryId: r.country_id ?? null,
+    },
+  } as BookingCard;
 }
