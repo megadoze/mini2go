@@ -231,9 +231,19 @@ export default function BookingsList() {
   /* -------------------- open editor helpers -------------------- */
   const [openingId, setOpeningId] = useState<string | null>(null);
 
-  const openEditor = (b: BookingCard) => {
+  const openEditor = async (b: BookingCard) => {
     if (openingId) return;
     setOpeningId(b.id);
+
+    const uId = b.userId ?? null; // ← сузили тип
+
+    if (uId) {
+      await qc.ensureQueryData({
+        queryKey: QK.user(uId), // ← тот же ключ что и в префетче
+        queryFn: () => getUserById(uId), // ← сюда идёт строго string
+        staleTime: 5 * 60_000,
+      });
+    }
 
     const cachedBooking = qc.getQueryData<any>(QK.booking(b.id));
     const cachedExtras = qc.getQueryData<any[]>(QK.bookingExtras(b.id));
