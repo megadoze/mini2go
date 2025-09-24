@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+// src/components/UserMenu.tsx
+import { useEffect, useState } from "react";
 import { Group, Menu, UnstyledButton } from "@mantine/core";
 import {
   ArrowLeftEndOnRectangleIcon,
@@ -6,59 +7,66 @@ import {
   Cog8ToothIcon,
   UserCircleIcon,
 } from "@heroicons/react/24/outline";
-// import { useAuth } from "../context/authProvider";
 import multiavatar from "@multiavatar/multiavatar/esm";
-import { useNavigate } from "react-router";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "@/lib/supabase";
+import type { User } from "@supabase/supabase-js";
 
 type Props = {
   onClick: () => void;
 };
 
 function UserMenu({ onClick }: Props) {
-  // const { user, LogOut } = useAuth();
-
-  const user = useMemo(
-    () => ({
-      displayName: "Parmegano",
-      email: "parmegano@gmail.com",
-      photoURL: "",
-      uid: "dskjfs410nb4",
-    }),
-    []
-  );
-
   const navigate = useNavigate();
-  const [avatar, setAvatar] = useState<string | null>(null);
 
-  const cutBeforeSpace = (str: string) => {
-    const index = str.indexOf("@");
-    return index !== -1 ? str.slice(0, index) : str;
-  };
+  const [user, setUser] = useState<User | null>(null);
 
-  const toSlug = (str: string) =>
-    str
-      .trim()
-      // .toLowerCase()
-      .replace(/\s+/g, "-");
-  // .replace(/[^a-z0-9-_]/g, "");
-
-  const rawName = cutBeforeSpace(user.email);
-
-  const userName = user.displayName || toSlug(rawName);
-
-  // 🔥 Следим за изменением `user` и обновляем `avatar`
+  // 1) Получаем пользователя при монтировании
   useEffect(() => {
-    setAvatar(user.uid);
-  }, [user]);
+    let unsub = () => {};
 
+    supabase.auth.getUser().then(({ data }) => {
+      setUser(data.user ?? null);
+    });
+
+    // 2) Подписка на изменения сессии (логин/логаут)
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    unsub = () => sub.subscription.unsubscribe();
+    return unsub;
+  }, []);
+
+  // 3) Утилиты
+  const cutBeforeAt = (str: string) => {
+    const idx = str.indexOf("@");
+    return idx !== -1 ? str.slice(0, idx) : str;
+  };
+  const toSlug = (str: string) => str.trim().replace(/\s+/g, "-");
+
+  // 4) Имя/емейл/аватар из Supabase
+  const email = user?.email ?? "user@example.com";
+  const userName =
+    (user?.user_metadata?.name as string | undefined) ||
+    toSlug(cutBeforeAt(email));
+
+  const avatarSeed = user?.id ?? email;
+
+  // 5) Переходы по пунктам меню
   const handleMenuClick = (e: React.MouseEvent<HTMLButtonElement>) => {
-    const id = e.currentTarget.id;
+    const id = e.currentTarget.id; // profile | settings | messages
     navigate(`/user/${userName}${id ? `/${id}` : ""}`);
     onClick();
   };
 
-  const handleLogout = () => {
-    // LogOut(); // 🔥 `navigate("/")` уже внутри LogOut()
+  // 6) Logout + редирект на /auth с возвратом
+  const handleLogout = async () => {
+    // 1) Сначала уходим на публичный роут
+    navigate("/auth", { replace: true });
+
+    // 2) Потом разлогиниваемся — состояние обновится уже на /auth
+    await supabase.auth.signOut();
   };
 
   return (
@@ -68,55 +76,53 @@ function UserMenu({ onClick }: Props) {
       offset={4}
     >
       <Menu.Target>
-        <UnstyledButton className=" p-3">
+        <UnstyledButton className="p-3" aria-label="User menu">
           <Group
             gap={10}
-            className="inline-flex items-center rounded-xl lg:bg-white/60 ring-1 ring-black/5 shadow-sm px-2.5 py-1.5 transition hover:bg-white-800/80 "
+            className="inline-flex items-center rounded-xl lg:bg-white/60 ring-1 ring-black/5 shadow-sm px-2.5 py-1.5 transition hover:bg-white-800/80"
           >
             <div
               className="size-6"
-              dangerouslySetInnerHTML={{ __html: multiavatar(avatar ?? "") }}
+              // multiavatar — svg строка
+              dangerouslySetInnerHTML={{ __html: multiavatar(avatarSeed) }}
             />
             <div>
-              <p className=" ">
-                {userName}
-              </p>
-              {/* <Text c="white" size="sm">
-                {user?.email}
-              </Text> */}
+              <p>{userName}</p>
+              {/* Можно показать email ниже, если нужно */}
+              {/* <span className="text-xs opacity-70">{email}</span> */}
             </div>
           </Group>
         </UnstyledButton>
       </Menu.Target>
+
       <Menu.Dropdown>
-        {/* <Menu.Label>Application</Menu.Label> */}
         <Menu.Item
           id="profile"
-          leftSection={<UserCircleIcon className=" size-4" />}
+          leftSection={<UserCircleIcon className="size-4" />}
           onClick={handleMenuClick}
         >
           Profile
         </Menu.Item>
         <Menu.Item
           id="settings"
-          leftSection={<Cog8ToothIcon className=" size-4" />}
+          leftSection={<Cog8ToothIcon className="size-4" />}
           onClick={handleMenuClick}
         >
           Settings
         </Menu.Item>
         <Menu.Item
           id="messages"
-          leftSection={<ChatBubbleOvalLeftIcon className=" size-4" />}
+          leftSection={<ChatBubbleOvalLeftIcon className="size-4" />}
           onClick={handleMenuClick}
         >
           Messages
         </Menu.Item>
+
         <Menu.Divider />
-        {/* <Menu.Label>Danger zone</Menu.Label> */}
-        {/* <Menu.Item leftSection={"-"}>Transfer my data</Menu.Item> */}
+
         <Menu.Item
           color="red"
-          leftSection={<ArrowLeftEndOnRectangleIcon className=" size-4" />}
+          leftSection={<ArrowLeftEndOnRectangleIcon className="size-4" />}
           onClick={handleLogout}
         >
           Log out

@@ -36,11 +36,18 @@ import { bookingsLoader } from "./routes/bookings.loader";
 import { carsLoader } from "./routes/carsLoader";
 import { usersLoader } from "./routes/users.loader";
 import { dashboardLoader } from "./routes/dashboard.loader";
+import AuthenticationPage from "./app/auth/authenticationPage";
+import Protected from "./components/auth/protected";
 
 export const router = createBrowserRouter([
+  { path: "/auth", element: <AuthenticationPage /> },
   {
     path: "/",
-    element: <Layout />,
+    element: (
+      <Protected>
+        <Layout />
+      </Protected>
+    ),
     HydrateFallback: HydrateFallback,
     children: [
       { index: true, element: <Navigate to="/dashboard" replace /> },
