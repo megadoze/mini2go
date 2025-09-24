@@ -1,230 +1,152 @@
-// src/components/AuthenticationForm.tsx
 import { useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-
-import {
-  Anchor,
-  Button,
-  Checkbox,
-  Divider,
-  Group,
-  Paper,
-  type PaperProps,
-  PasswordInput,
-  Stack,
-  Text,
-  TextInput,
-  Alert,
-} from "@mantine/core";
-import { useForm } from "@mantine/form";
-import { upperFirst, useToggle } from "@mantine/hooks";
 import { supabase } from "@/lib/supabase";
 
-type AuthFormValues = {
-  email: string;
-  name: string;
-  password: string;
-  terms: boolean;
-};
-
-export function AuthenticationForm(props: PaperProps) {
+export function AuthenticationForm() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const [type, toggle] = useToggle(["login", "register"]); // 'login' | 'register'
+  const [type, setType] = useState<"login" | "register">("login");
   const [submitting, setSubmitting] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
-  const [authSuccess, setAuthSuccess] = useState<string | null>(null);
-
-  const form = useForm<AuthFormValues>({
-    initialValues: {
-      email: "",
-      name: "",
-      password: "",
-      terms: true,
-    },
-    validate: {
-      email: (val) => (/^\S+@\S+$/.test(val) ? null : "Invalid email"),
-      password: (val) =>
-        val.length < 6 ? "Password should include at least 6 characters" : null,
-      // terms проверяем только когда type === 'register' (в сабмите ниже)
-    },
-  });
 
   function safeRedirect(path?: string | null) {
-    // защита от внешних URL: разрешаем только внутренние пути
     if (!path || !path.startsWith("/")) return "/dashboard";
     return path;
   }
 
   const redirectTarget = useMemo(() => {
-    // 1) приоритет: query ?redirect=...
     const params = new URLSearchParams(location.search);
     const fromQuery = params.get("redirect");
-
-    // 2) fallback: location.state.from (если не было перезагрузки /auth)
     const state = location.state as { from?: Location } | null;
     const fromState = state?.from
       ? state.from.pathname +
         (state.from.search ?? "") +
         (state.from.hash ?? "")
       : null;
-
     return safeRedirect(fromQuery || fromState);
   }, [location]);
 
-  async function handleSubmit(values: AuthFormValues) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
     setAuthError(null);
-    setAuthSuccess(null);
-
-    // базовая проверка формы
-    const { hasErrors } = form.validate();
-    if (hasErrors) return;
-
-    // простая проверка terms только для регистрации
-    if (type === "register" && !values.terms) {
-      form.setFieldError("terms", "You must accept terms");
-      return;
-    }
-
     setSubmitting(true);
+
+    const formData = new FormData(e.currentTarget);
+    const email = formData.get("email") as string;
+    const password = formData.get("password") as string;
+    const name = formData.get("name") as string;
+
     try {
       if (type === "login") {
         const { error } = await supabase.auth.signInWithPassword({
-          email: values.email,
-          password: values.password,
+          email,
+          password,
         });
         if (error) throw error;
-
-        setAuthSuccess("Logged in successfully!");
         navigate(redirectTarget, { replace: true });
       } else {
         const { data, error } = await supabase.auth.signUp({
-          email: values.email,
-          password: values.password,
-          options: { data: { name: values.name } },
+          email,
+          password,
+          options: { data: { name } },
         });
         if (error) throw error;
-
-        if (!data.session) {
-          setAuthSuccess(
-            "Registration successful. Check your email to confirm your account."
-          );
-        } else {
-          setAuthSuccess("Registered and signed in!");
+        if (data.session) {
           navigate(redirectTarget, { replace: true });
         }
       }
-
-      form.setFieldValue("password", "");
     } catch (err: any) {
-      const msg =
-        err?.message ||
-        (type === "login"
-          ? "Failed to login. Check your credentials."
-          : "Failed to register.");
-      setAuthError(msg);
-
-      if (/password/i.test(msg)) form.setFieldError("password", msg);
-      if (/email/i.test(msg)) form.setFieldError("email", msg);
+      setAuthError(err.message || "Auth failed");
     } finally {
       setSubmitting(false);
     }
   }
 
   return (
-    <div className=" flex justify-center items-center h-screen">
-      <Paper radius="md" p="lg" withBorder w="100%" maw={420} {...props}>
-        <Text size="lg" fw={500}>
-          Welcome to MINI2GO, {type} with email
-        </Text>
+    <div className="fixed inset-0 flex items-center justify-center bg-gray-50">
+      <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-lg">
+        <h1 className="mb-4 text-center text-xl font-bold">
+          {type === "login" ? "Login" : "Register"}
+        </h1>
 
-        <Divider label="Continue with email" labelPosition="center" my="lg" />
+        {authError && (
+          <div className="mb-4 rounded bg-red-100 p-2 text-sm text-red-600">
+            {authError}
+          </div>
+        )}
 
-        <form onSubmit={form.onSubmit(handleSubmit)}>
-          <Stack>
-            {type === "register" && (
-              <TextInput
-                label="Name"
-                placeholder="Your name"
-                value={form.values.name}
-                onChange={(e) =>
-                  form.setFieldValue("name", e.currentTarget.value)
-                }
-                radius="md"
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {type === "register" && (
+            <div>
+              <label className="mb-1 block text-sm font-medium">Name</label>
+              <input
+                type="text"
+                name="name"
+                className="w-full rounded border px-3 py-2 text-sm focus:outline-none focus:ring focus:ring-blue-300"
               />
-            )}
+            </div>
+          )}
 
-            <TextInput
-              required
-              label="Email"
-              placeholder="you@example.com"
-              value={form.values.email}
-              onChange={(e) =>
-                form.setFieldValue("email", e.currentTarget.value)
-              }
-              error={form.errors.email}
-              radius="md"
+          <div>
+            <label className="mb-1 block text-sm font-medium">Email</label>
+            <input
               type="email"
-              autoComplete="email"
-            />
-
-            <PasswordInput
+              name="email"
               required
-              label="Password"
-              placeholder="Your password"
-              value={form.values.password}
-              onChange={(e) =>
-                form.setFieldValue("password", e.currentTarget.value)
-              }
-              error={form.errors.password}
-              radius="md"
-              autoComplete={
-                type === "login" ? "current-password" : "new-password"
-              }
+              className="w-full rounded border px-3 py-2 text-sm focus:outline-none focus:ring focus:ring-blue-300"
             />
+          </div>
 
-            {type === "register" && (
-              <Checkbox
-                label="I accept terms and conditions"
-                checked={form.values.terms}
-                onChange={(e) =>
-                  form.setFieldValue("terms", e.currentTarget.checked)
-                }
-                error={form.errors.terms}
-              />
-            )}
+          <div>
+            <label className="mb-1 block text-sm font-medium">Password</label>
+            <input
+              type="password"
+              name="password"
+              required
+              className="w-full rounded border px-3 py-2 text-sm focus:outline-none focus:ring focus:ring-blue-300"
+            />
+          </div>
 
-            {authError && (
-              <Alert color="red" variant="light">
-                {authError}
-              </Alert>
-            )}
-            {authSuccess && (
-              <Alert color="green" variant="light">
-                {authSuccess}
-              </Alert>
-            )}
-          </Stack>
-
-          <Group justify="space-between" mt="xl" gap="sm" wrap="wrap">
-            <Anchor
-              component="button"
-              type="button"
-              c="dimmed"
-              onClick={() => toggle()}
-              size="sm"
-            >
-              {type === "register"
-                ? "Already have an account? Login"
-                : "Don't have an account? Register"}
-            </Anchor>
-            <Button type="submit" radius="xl" loading={submitting} fullWidth>
-              {upperFirst(type)}
-            </Button>
-          </Group>
+          <button
+            type="submit"
+            disabled={submitting}
+            className="w-full rounded bg-blue-600 py-2 text-white hover:bg-blue-700 disabled:opacity-50"
+          >
+            {submitting
+              ? "Loading..."
+              : type === "login"
+              ? "Login"
+              : "Register"}
+          </button>
         </form>
-      </Paper>
+
+        <p className="mt-4 text-center text-sm text-gray-600">
+          {type === "login" ? (
+            <>
+              Don&apos;t have an account?{" "}
+              <button
+                type="button"
+                onClick={() => setType("register")}
+                className="text-blue-600 hover:underline"
+              >
+                Register
+              </button>
+            </>
+          ) : (
+            <>
+              Already have an account?{" "}
+              <button
+                type="button"
+                onClick={() => setType("login")}
+                className="text-blue-600 hover:underline"
+              >
+                Login
+              </button>
+            </>
+          )}
+        </p>
+      </div>
     </div>
   );
 }
