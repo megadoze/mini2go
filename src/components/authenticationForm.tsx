@@ -133,94 +133,104 @@ export function AuthenticationForm(props: PaperProps) {
   }
 
   return (
-    <Paper radius="md" p="lg" withBorder {...props}>
-      <Text size="lg" fw={500}>
-        Welcome to MINI2GO, {type} with email
-      </Text>
+    <div
+      style={{
+        display: "grid",
+        placeItems: "center",
+        padding: 16,
+      }}
+    >
+      <Paper radius="md" p="lg" withBorder w="100%" maw={420} {...props}>
+        <Text size="lg" fw={500}>
+          Welcome to MINI2GO, {type} with email
+        </Text>
 
-      <Divider label="Continue with email" labelPosition="center" my="lg" />
+        <Divider label="Continue with email" labelPosition="center" my="lg" />
 
-      <form onSubmit={form.onSubmit(handleSubmit)}>
-        <Stack>
-          {type === "register" && (
+        <form onSubmit={form.onSubmit(handleSubmit)}>
+          <Stack>
+            {type === "register" && (
+              <TextInput
+                label="Name"
+                placeholder="Your name"
+                value={form.values.name}
+                onChange={(e) =>
+                  form.setFieldValue("name", e.currentTarget.value)
+                }
+                radius="md"
+              />
+            )}
+
             <TextInput
-              label="Name"
-              placeholder="Your name"
-              value={form.values.name}
+              required
+              label="Email"
+              placeholder="you@example.com"
+              value={form.values.email}
               onChange={(e) =>
-                form.setFieldValue("name", e.currentTarget.value)
+                form.setFieldValue("email", e.currentTarget.value)
               }
+              error={form.errors.email}
               radius="md"
+              type="email"
+              autoComplete="email"
             />
-          )}
 
-          <TextInput
-            required
-            label="Email"
-            placeholder="you@example.com"
-            value={form.values.email}
-            onChange={(e) => form.setFieldValue("email", e.currentTarget.value)}
-            error={form.errors.email}
-            radius="md"
-            type="email"
-            autoComplete="email"
-          />
-
-          <PasswordInput
-            required
-            label="Password"
-            placeholder="Your password"
-            value={form.values.password}
-            onChange={(e) =>
-              form.setFieldValue("password", e.currentTarget.value)
-            }
-            error={form.errors.password}
-            radius="md"
-            autoComplete={
-              type === "login" ? "current-password" : "new-password"
-            }
-          />
-
-          {type === "register" && (
-            <Checkbox
-              label="I accept terms and conditions"
-              checked={form.values.terms}
+            <PasswordInput
+              required
+              label="Password"
+              placeholder="Your password"
+              value={form.values.password}
               onChange={(e) =>
-                form.setFieldValue("terms", e.currentTarget.checked)
+                form.setFieldValue("password", e.currentTarget.value)
               }
-              error={form.errors.terms}
+              error={form.errors.password}
+              radius="md"
+              autoComplete={
+                type === "login" ? "current-password" : "new-password"
+              }
             />
-          )}
 
-          {authError && (
-            <Alert color="red" variant="light">
-              {authError}
-            </Alert>
-          )}
-          {authSuccess && (
-            <Alert color="green" variant="light">
-              {authSuccess}
-            </Alert>
-          )}
-        </Stack>
+            {type === "register" && (
+              <Checkbox
+                label="I accept terms and conditions"
+                checked={form.values.terms}
+                onChange={(e) =>
+                  form.setFieldValue("terms", e.currentTarget.checked)
+                }
+                error={form.errors.terms}
+              />
+            )}
 
-        <Group justify="space-between" mt="xl">
-          <Anchor
-            component="button"
-            type="button"
-            c="dimmed"
-            onClick={() => toggle()}
-            size="xs"
-          >
-            {type === "register"
-              ? "Already have an account? Login"
-              : "Don't have an account? Register"}
-          </Anchor>
-          <Button type="submit" radius="xl" loading={submitting}>
-            {upperFirst(type)}
-          </Button>
-        </Group>
-      </form>
-    </Paper>
+            {authError && (
+              <Alert color="red" variant="light">
+                {authError}
+              </Alert>
+            )}
+            {authSuccess && (
+              <Alert color="green" variant="light">
+                {authSuccess}
+              </Alert>
+            )}
+          </Stack>
+
+          <Group justify="space-between" mt="xl" gap="sm" wrap="wrap">
+            <Anchor
+              component="button"
+              type="button"
+              c="dimmed"
+              onClick={() => toggle()}
+              size="sm"
+            >
+              {type === "register"
+                ? "Already have an account? Login"
+                : "Don't have an account? Register"}
+            </Anchor>
+            <Button type="submit" radius="xl" loading={submitting} fullWidth>
+              {upperFirst(type)}
+            </Button>
+          </Group>
+        </form>
+      </Paper>
+    </div>
   );
 }
