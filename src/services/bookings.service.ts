@@ -94,7 +94,6 @@ export function mapRowToBookingCard(row: BookingJoinedRow): BookingCardType {
           licensePlate: car.license_plate ?? null,
           deposit: car.deposit ?? null,
           photo: Array.isArray(car.photos) ? car.photos[0] ?? null : null,
-          // ↓ важное: чтобы фронтовый фильтр по стране/локации работал
           locationName: loc?.name ?? null,
           countryId: loc?.country_id ?? null,
         }
@@ -257,6 +256,8 @@ export type BookingsIndexRow = {
   country_id: string | null;
 
   user_full_name: string | null;
+  user_email: string | null;
+  user_phone: string | null;
 };
 
 export async function fetchBookingsIndexPage(params: {
@@ -312,6 +313,8 @@ export function mapIndexRowToBookingCard(r: BookingsIndexRow): BookingCard {
     userId: r.user_id,
     createdAt: r.created_at,
     priceTotal: r.price_total ?? null,
+    userEmail: r.user_email ?? null,
+    userPhone: r.user_phone ?? null,
     car: {
       id: r.car_id,
       brand: r.brand_name ?? null, // ← БРЕНД

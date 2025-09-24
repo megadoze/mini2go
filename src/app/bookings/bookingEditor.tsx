@@ -519,7 +519,9 @@ export default function BookingEditor() {
           );
           setDeliveryCountry(a?.country || "");
           setDeliveryCity(a?.city || "");
-        } catch {}
+        } catch {
+          /* empty */
+        }
       })();
     }
   }, [bookingQ.data, hasMatchingSnapshot]);

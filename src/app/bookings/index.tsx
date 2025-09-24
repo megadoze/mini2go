@@ -56,6 +56,7 @@ import {
   // type BookingJoinedRow,
   type BookingsIndexRow,
 } from "@/services/bookings.service";
+import { getUserById } from "@/services/user.service";
 
 type LoaderData = { ownerId: string };
 
@@ -148,7 +149,7 @@ export default function BookingsList() {
       ...QK.bookingsIndexInfinite(ownerId, PAGE_SIZE),
       filterKey,
     ] as const;
-    qc.setQueryData<InfiniteData<Page>>(key, (old) => {
+    qc.setQueryData<InfiniteData<Page, number>>(key, (old) => {
       if (!old?.pages?.length) return old;
       return { pages: [old.pages[0]], pageParams: [0] };
     });
@@ -222,38 +223,10 @@ export default function BookingsList() {
   const locations = locationsQ.data ?? [];
 
   /* -------------------- apply filters, then sort -------------------- */
-  const filtered = useMemo(() => {
-    const byText = items;
-
-    const byUserParam = userIdFilter
-      ? byText.filter((b) => normalize(b.userId) === userIdFilter)
-      : byText;
-
-    const byCountry = countryId
-      ? byUserParam.filter((b) => (b.car as any)?.countryId === countryId)
-      : byUserParam;
-
-    const byStatus = statusFilter
-      ? byCountry.filter(
-          (b) => (b.status ?? "").toLowerCase() === statusFilter.toLowerCase()
-        )
-      : byCountry;
-
-    const byLocation = byStatus.filter((b) => {
-      const loc = normalize((b.car as any)?.locationName ?? "");
-      return locationFilter === "" || loc.includes(normalize(locationFilter));
-    });
-
-    return byLocation.sort((a, b) => (a.startAt < b.startAt ? 1 : -1));
-  }, [
-    items,
-    usersById,
-    search,
-    countryId,
-    statusFilter,
-    locationFilter,
-    userIdFilter,
-  ]);
+  const filtered = useMemo(
+    () => [...items].sort((a, b) => (a.startAt < b.startAt ? 1 : -1)),
+    [items]
+  );
 
   /* -------------------- open editor helpers -------------------- */
   const [openingId, setOpeningId] = useState<string | null>(null);
@@ -360,13 +333,8 @@ export default function BookingsList() {
       }),
       uId
         ? qc.prefetchQuery({
-            queryKey: QK.user(uId),
-            queryFn: () =>
-              Promise.resolve(
-                usersById.get(uId)
-                  ? { id: uId, full_name: usersById.get(uId) }
-                  : null
-              ),
+            queryKey: QK.user(uId), // ← используем ОДИН и тот же ключ везде
+            queryFn: () => getUserById(uId), // ← тянем email/phone из profiles
             staleTime: 5 * 60_000,
           })
         : Promise.resolve(),
