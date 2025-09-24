@@ -133,13 +133,7 @@ export function AuthenticationForm(props: PaperProps) {
   }
 
   return (
-    <div
-      style={{
-        display: "grid",
-        placeItems: "center",
-        padding: 16,
-      }}
-    >
+    <div className=" flex justify-center items-center h-screen">
       <Paper radius="md" p="lg" withBorder w="100%" maw={420} {...props}>
         <Text size="lg" fw={500}>
           Welcome to MINI2GO, {type} with email
