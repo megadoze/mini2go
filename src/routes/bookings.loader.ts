@@ -1,6 +1,6 @@
 // routes/bookings.loader.ts
 import type { LoaderFunction } from "react-router";
-import { queryClient } from "@/lib/queryClient"; // один и тот же инстанс
+import { queryClient } from "@/lib/queryClient";
 import { supabase } from "@/lib/supabase";
 import { fetchCarsByHost } from "@/services/car.service";
 
@@ -42,32 +42,38 @@ async function fetchBookingsByCarIds(carIds: string[]) {
   if (error) throw error;
 
   const rows = (data ?? []) as unknown as RawBookingRow[];
-
-  const normalized: BookingRow[] = rows.map(({ user, ...rest }) => ({
+  return rows.map(({ user, ...rest }) => ({
     ...rest,
     user: Array.isArray(user) ? user[0] ?? null : user ?? null,
   }));
-
-  return normalized;
 }
 
 export const bookingsLoader: LoaderFunction = async ({ request }) => {
   const url = new URL(request.url);
 
-  const ownerId =
-    url.searchParams.get("owner") || "a96e557e-5298-4018-bcd9-1f4e5423c2a0";
+  // 1) берем owner из query или текущего пользователя
+  const { data: { session } } = await supabase.auth.getSession();
+  const meId = session?.user?.id ?? null;
+  const ownerId = url.searchParams.get("owner") ?? meId;
 
-  // 1) ensure машин — сразу кладём в кэш с ключом ["carsByHost", ownerId]
+  // Если id неизвестен (гость) — не префетчим; компонент сам разрулит
+  if (!ownerId) {
+    return { ownerId: null };
+  }
+
+  // 2) ensure список машин хозяина
   const cars = await queryClient.ensureQueryData({
     queryKey: ["carsByHost", ownerId],
     queryFn: () => fetchCarsByHost(ownerId),
+    staleTime: 5 * 60_000,
   });
 
-  // 2) ensure броней — ключ ["bookingsIndex", ownerId]
+  // 3) ensure брони по этим машинам
   await queryClient.ensureQueryData({
     queryKey: ["bookingsIndex", ownerId],
-    queryFn: () => fetchBookingsByCarIds(cars.map((c: any) => c.id)),
+    queryFn: () => fetchBookingsByCarIds((cars as any[]).map((c) => c.id)),
+    staleTime: 60 * 1000,
   });
 
-  return { ownerId }; // сами данные не таскаем через loader
+  return { ownerId };
 };

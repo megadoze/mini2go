@@ -23,8 +23,9 @@ import {
   XMarkIcon,
   EyeIcon,
 } from "@heroicons/react/24/outline";
-import { fetchUsersPage } from "@/services/user.service"; // ⬅️ постранично
 import { highlightMatch } from "@/utils/highlightMatch";
+import { supabase } from "@/lib/supabase";
+import { fetchHostUsersPage } from "@/services/user.service";
 
 type UserRow = {
   id: string;
@@ -69,19 +70,48 @@ export default function UsersPage() {
   const [sortBy, setSortBy] = useState<SortKey>("name");
   const [reversed, setReversed] = useState(false);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  const [meId, setMeId] = useState<string | null | undefined>(undefined);
+
+  useEffect(() => {
+    // моментально берём из текущей сессии
+    supabase.auth.getSession().then(({ data }) => {
+      setMeId((prev) => prev ?? data.session?.user?.id ?? null);
+    });
+    // и держим подписку
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
+      setMeId(s?.user?.id ?? null);
+    });
+    return () => sub.subscription.unsubscribe();
+  }, []);
+
+  // ✂️ helper, чтобы обрезать кэш до первой страницы без сети (как у тебя в cars/users)
+  const trimToFirstPage = () => {
+    const key = ["users", "host", PAGE_SIZE, meId ?? "guest"];
+    qc.setQueryData<InfiniteData<Page>>(key, (old) => {
+      if (!old?.pages?.length) return old;
+      return { pages: [old.pages[0]], pageParams: [0] };
+    });
+  };
 
   // INFINITE: грузим по 10
+  // пагинация: ТОЛЬКО клиенты этого хоста (RPC), + исключаем самого хоста
   const usersQ = useInfiniteQuery<{ items: UserRow[]; count: number }, Error>({
-    queryKey: ["users", "infinite", PAGE_SIZE],
+    queryKey: ["users", "host", PAGE_SIZE, meId ?? "guest"],
+    enabled: meId !== undefined && !!meId, // пока не знаем meId — не дёргаем сеть
     queryFn: async ({ pageParam }) => {
       const pageIndex = typeof pageParam === "number" ? pageParam : 0;
       const offset = pageIndex * PAGE_SIZE;
-      return fetchUsersPage({ limit: PAGE_SIZE, offset });
+      return fetchHostUsersPage({
+        ownerId: meId as string,
+        limit: PAGE_SIZE,
+        offset,
+        excludeUserId: meId ?? undefined,
+      });
     },
-    getNextPageParam: (lastPage, allPages) => {
-      const loaded = allPages.reduce((acc, p) => acc + p.items.length, 0);
-      const total = lastPage.count ?? loaded;
-      return loaded < total ? allPages.length : undefined;
+    getNextPageParam: (last, all) => {
+      const loaded = all.reduce((acc, p) => acc + p.items.length, 0);
+      const total = last.count ?? loaded;
+      return loaded < total ? all.length : undefined;
     },
     initialPageParam: 0,
     staleTime: 5 * 60_000,
@@ -89,24 +119,8 @@ export default function UsersPage() {
     refetchOnMount: false,
     refetchOnWindowFocus: false,
     retry: 1,
+    placeholderData: (prev) => prev,
   });
-
-  // ✂️ обрезаем кэш до первой страницы (без сети)
-  const trimToFirstPage = () => {
-    const key = ["users", "infinite", PAGE_SIZE];
-    qc.setQueryData<InfiniteData<Page>>(key, (old) => {
-      if (!old?.pages?.length) return old;
-      return { pages: [old.pages[0]], pageParams: [0] };
-    });
-  };
-
-  // при выходе со страницы — возвращаем к первым 10
-  useEffect(() => {
-    return () => {
-      trimToFirstPage();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   // плоский массив уже загруженных юзеров
   const users: UserRow[] = usersQ.data?.pages.flatMap((p) => p.items) ?? [];
@@ -121,8 +135,6 @@ export default function UsersPage() {
   // фильтрация+сортировка по клиенту (по загруженному)
   const filteredSorted = useMemo(() => {
     const q = search.trim().toLowerCase();
-
-    // 1) text
     let arr = q
       ? users.filter((u) => {
           const hay = `${u.full_name ?? ""} ${u.email ?? ""} ${
@@ -132,12 +144,10 @@ export default function UsersPage() {
         })
       : users;
 
-    // 2) status
     if (statusFilter) {
       arr = arr.filter((u) => (u.status ?? "") === statusFilter);
     }
 
-    // 3) sort
     arr = [...arr].sort((a, b) => {
       if (sortBy === "name") return cmp(a.full_name, b.full_name, reversed);
       if (sortBy === "email")
@@ -224,12 +234,21 @@ export default function UsersPage() {
   return (
     <div className="w-full max-w-screen-2xl">
       {/* header */}
-      <div className="flex items-center gap-2 mb-4">
-        <h1 className="font-roboto text-xl md:text-2xl font-medium md:font-bold">
-          Users
-        </h1>
-        {totalLoaded > 0 && <Badge color="black">{totalLoaded}</Badge>}
-        {usersQ.isFetching && <Loader size="xs" color="gray" />}
+      <div className="flex justify-between items-center mb-4">
+        <div className="flex items-center gap-2">
+          <h1 className="font-roboto text-xl md:text-2xl font-medium md:font-bold">
+            Users
+          </h1>
+          {totalLoaded > 0 && <Badge color="black">{totalLoaded}</Badge>}
+          {usersQ.isFetching && <Loader size="xs" color="gray" />}
+        </div>
+
+        <Link
+          to="new"
+          className="inline-flex items-center rounded-xl px-3 py-2 text-sm border"
+        >
+          + New user
+        </Link>
       </div>
 
       {/* Desktop controls row (status + search + reset) */}
@@ -313,7 +332,7 @@ export default function UsersPage() {
       <div className="w-full rounded-xl overflow-hidden">
         {/* header row */}
         <div className="grid grid-cols-[2fr,2fr,1.5fr,1fr,24px] px-2 sm:px-3 py-4 text-xs bg-white border-b border-zinc-100">
-          <div>
+          <div className="col-start-1 col-span-3 md:col-auto">
             <SortButton
               label="Name"
               active={sortBy === "name"}
@@ -321,7 +340,7 @@ export default function UsersPage() {
               onClick={() => setSorting("name")}
             />
           </div>
-          <div className=" col-start-2 col-span-2 md:col-auto">
+          <div className="hidden md:block">
             <SortButton
               label="Email"
               active={sortBy === "email"}
@@ -349,15 +368,15 @@ export default function UsersPage() {
                     className="grid grid-cols-[2fr,2fr,1.5fr,1fr,24px] items-center px-2 sm:px-3 py-3 bg-white hover:bg-emerald-50/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-black/20 rounded-[6px]"
                   >
                     {/* name + avatar */}
-                    <div className="flex items-center gap-3 min-w-0">
+                    <div className="col-start-1 col-span-3 md:col-auto flex items-center gap-3 min-w-0">
                       {u.avatar_url ? (
                         <img
                           src={u.avatar_url}
                           alt={u.full_name ?? "User"}
-                          className=" w-9 h-9 rounded-full object-cover"
+                          className=" size-9 rounded-full object-cover flex-shrink-0"
                         />
                       ) : (
-                        <div className="hidden w-9 h-9 rounded-full bg-gray-200 text-gray-700 text-xs md:flex items-center justify-center">
+                        <div className=" w-9 h-9 rounded-full bg-gray-200 text-gray-700 text-xs flex items-center justify-center">
                           {initials(u.full_name)}
                         </div>
                       )}
@@ -371,7 +390,7 @@ export default function UsersPage() {
                     </div>
 
                     {/* email */}
-                    <div className=" col-start-2 col-span-2 md:col-auto text-sm text-gray-800 truncate">
+                    <div className="hidden md:block col-start-2 col-span-2 md:col-auto text-sm text-gray-800 truncate">
                       {u.email ? highlightMatch(u.email, search) : "—"}
                     </div>
 

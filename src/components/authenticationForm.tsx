@@ -138,7 +138,7 @@ export function AuthenticationForm() {
               Don&apos;t have an account?{" "}
               <button
                 type="button"
-                // onClick={() => setType("register")}
+                onClick={() => setType("register")}
                 className="text-emerald-600 hover:underline"
               >
                 Register

@@ -25,8 +25,10 @@ import {
   deleteUserNote,
   type BookingItem,
   type UserNoteItem,
+  sendPasswordReset,
 } from "@/services/user.service";
 import { format, isSameDay, parseISO } from "date-fns";
+import { CreateUserCard } from "./createUserCard";
 
 // Types
 export type AppUser = {
@@ -42,26 +44,23 @@ export type AppUser = {
 
 export const UserPage = () => {
   const { userId } = useParams();
+
+  const isCreate = userId === "new";
+
   const { state } = useLocation() as { state?: Partial<AppUser> };
   const navigate = useNavigate();
 
-  const HOST_NAME = import.meta.env.VITE_HOST_NAME ?? "Hosticus";
-
   // ——— Local state
   const [user, setUser] = useState<AppUser | null>(null);
-
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
   const [bookings, setBookings] = useState<BookingItem[]>([]);
   const [bookingsLoading, setBookingsLoading] = useState(false);
-
   const [notes, setNotes] = useState<UserNoteItem[]>([]);
   const [noteText, setNoteText] = useState("");
   const [notesLoading, setNotesLoading] = useState(false);
   const [savingNote, setSavingNote] = useState(false);
   const [deletingNoteId, setDeletingNoteId] = useState<string | null>(null);
-
   const [toggling, setToggling] = useState(false);
 
   // ——— Prime user from route state immediately (для мгновенного рендера)
@@ -91,6 +90,8 @@ export const UserPage = () => {
 
   // ——— Fetch user
   useEffect(() => {
+    if (isCreate) return;
+
     let mounted = true;
     (async () => {
       if (!primed?.id) return;
@@ -121,10 +122,12 @@ export const UserPage = () => {
     return () => {
       mounted = false;
     };
-  }, [primed?.id]);
+  }, [isCreate, primed?.id]);
 
   // ——— Fetch bookings
   useEffect(() => {
+    if (isCreate) return;
+
     let mounted = true;
     (async () => {
       if (!primed?.id) return;
@@ -142,10 +145,11 @@ export const UserPage = () => {
     return () => {
       mounted = false;
     };
-  }, [primed?.id]);
+  }, [isCreate, primed?.id]);
 
   // ——— Fetch notes
   useEffect(() => {
+    if (isCreate) return;
     let mounted = true;
     (async () => {
       if (!primed?.id) return;
@@ -163,7 +167,7 @@ export const UserPage = () => {
     return () => {
       mounted = false;
     };
-  }, [primed?.id]);
+  }, [isCreate, primed?.id]);
 
   // ——— Actions
   const handleToggleStatus = async () => {
@@ -189,15 +193,11 @@ export const UserPage = () => {
     setSavingNote(true);
 
     try {
-      //   const created = await createUserNote({
-      //     userId: user.id,
-      //     text: noteText.trim(),
-      //   });
       const created = await createUserNote({
         userId: user.id,
         text: noteText.trim(),
-        author: HOST_NAME, // <— вот он автор без auth
       });
+
       setNotes([created, ...notes]);
       setNoteText("");
     } catch (e) {
@@ -226,6 +226,30 @@ export const UserPage = () => {
       setDeletingNoteId(null);
     }
   };
+
+  if (isCreate) {
+    return (
+      <div className="">
+        <div className="flex items-center gap-2 ">
+          <button
+            onClick={() => navigate(-1)}
+            className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900"
+          >
+            <>
+              <ArrowLeftIcon className="w-4 h-4" />
+              <span className=" sm:inline">Back</span>
+            </>
+          </button>
+          <span className="text-xs text-gray-400">/</span>
+          <h1 className="font-roboto text-xl md:text-2xl font-medium md:font-bold">
+            Create User
+          </h1>
+        </div>
+
+        <CreateUserCard />
+      </div>
+    );
+  }
 
   if (!primed) {
     return (
@@ -294,6 +318,23 @@ export const UserPage = () => {
                 </>
               )}
             </Button>
+            {user?.email && (
+              <Button
+                variant="ghost"
+                onClick={async () => {
+                  try {
+                    await sendPasswordReset(user.email!);
+                    alert("Reset email sent");
+                  } catch (e: any) {
+                    alert(e.message || "Failed to send reset email");
+                  }
+                }}
+                title="Send password reset email"
+              >
+                <ArrowPathIcon className="size-4 sm:mr-1" />
+                <span className="hidden sm:inline">Reset password</span>
+              </Button>
+            )}
           </div>
         )}
       </div>

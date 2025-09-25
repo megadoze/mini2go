@@ -6,6 +6,7 @@ import {
   useLocation,
 } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { fetchCalendarWindowByMonthForOwner } from "@/services/calendar-window.service";
 import {
   addMonths,
   eachDayOfInterval,
@@ -30,7 +31,6 @@ import { fetchBookingExtras } from "@/services/booking-extras.service";
 // ключи кэша
 import { QK } from "@/queryKeys";
 // загрузчик окна календаря (месяц ±1)
-import { fetchCalendarWindowByMonth } from "@/services/calendar-window.service";
 import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 
@@ -80,11 +80,20 @@ export default function CalendarPage() {
   const location = useLocation();
   const qc = useQueryClient();
 
+  const [meId, setMeId] = useState<string | null | undefined>(undefined);
+
   // управляемый месяц (от лоадера или now)
   const [month, setMonth] = useState<Date>(
     startOfMonth(new Date(monthFromLoader ?? new Date().toISOString()))
   );
   const monthKeyISO = useMemo(() => startOfMonth(month).toISOString(), [month]);
+
+  useEffect(() => {
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
+      setMeId(s?.user?.id ?? null);
+    });
+    return () => sub.subscription.unsubscribe();
+  }, []);
 
   type CalendarWindow = {
     monthISO: string;
@@ -95,19 +104,18 @@ export default function CalendarPage() {
 
   // читаем окно календаря из кэша/сети (месяц ±1)
   const calQ = useQuery<CalendarWindow, Error>({
-    queryKey: QK.calendarWindow(monthKeyISO),
-    queryFn: () => fetchCalendarWindowByMonth(monthKeyISO),
+    queryKey: QK.calendarWindow(`${monthKeyISO}-${meId ?? "guest"}`),
+    enabled: meId !== undefined && !!meId,
+    queryFn: () =>
+      fetchCalendarWindowByMonthForOwner(meId as string, monthKeyISO),
 
-    // initialData — значением с дженериком
     initialData: qc.getQueryData<CalendarWindow>(
-      QK.calendarWindow(monthKeyISO)
+      QK.calendarWindow(`${monthKeyISO}-${meId ?? "guest"}`)
     ),
 
     staleTime: 60_000,
     refetchOnMount: false,
     refetchOnWindowFocus: false,
-
-    // замена keepPreviousData
     placeholderData: (prev) => prev,
   });
 
@@ -163,9 +171,10 @@ export default function CalendarPage() {
 
   const prefetchMonth = (m: Date) => {
     const iso = startOfMonth(m).toISOString();
+    if (!meId) return;
     void qc.prefetchQuery({
-      queryKey: QK.calendarWindow(iso),
-      queryFn: () => fetchCalendarWindowByMonth(iso),
+      queryKey: QK.calendarWindow(`${iso}-${meId}`),
+      queryFn: () => fetchCalendarWindowByMonthForOwner(meId, iso),
       staleTime: 60_000,
     });
   };
@@ -480,6 +489,17 @@ export default function CalendarPage() {
     closePopover();
     closeCreatePopover();
   };
+
+    // пока не знаем meId — скелет
+  // if (meId === undefined) {
+  //   return (
+  //     <div className="p-6 text-sm text-gray-500">Loading…</div>
+  //   );
+  // }
+  // не авторизован
+  if (meId === null) {
+    return <div className="p-6 text-sm text-gray-500">Sign in to see your calendar</div>;
+  }
 
   /* ---------- bars & rows ---------- */
 

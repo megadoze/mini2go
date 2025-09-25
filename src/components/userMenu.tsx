@@ -16,10 +16,13 @@ type Props = {
   onClick: () => void;
 };
 
+type ProfileRow = { full_name: string | null; avatar_url: string | null };
+
 function UserMenu({ onClick }: Props) {
   const navigate = useNavigate();
 
   const [user, setUser] = useState<User | null>(null);
+  const [profile, setProfile] = useState<ProfileRow | null>(null);
 
   // 1) Получаем пользователя при монтировании
   useEffect(() => {
@@ -38,6 +41,28 @@ function UserMenu({ onClick }: Props) {
     return unsub;
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!user) {
+        setProfile(null);
+        return;
+      }
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("full_name, avatar_url")
+        .eq("id", user.id)
+        .single();
+      if (!cancelled) {
+        if (!error) setProfile(data as ProfileRow);
+        else setProfile(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
+
   // 3) Утилиты
   const cutBeforeAt = (str: string) => {
     const idx = str.indexOf("@");
@@ -48,6 +73,7 @@ function UserMenu({ onClick }: Props) {
   // 4) Имя/емейл/аватар из Supabase
   const email = user?.email ?? "user@example.com";
   const userName =
+    profile?.full_name?.trim() ||
     (user?.user_metadata?.name as string | undefined) ||
     toSlug(cutBeforeAt(email));
 
@@ -81,11 +107,19 @@ function UserMenu({ onClick }: Props) {
             gap={10}
             className="inline-flex items-center rounded-xl lg:bg-white/60 ring-1 ring-black/5 shadow-sm px-2.5 py-1.5 transition hover:bg-white-800/80"
           >
-            <div
-              className="size-6"
-              // multiavatar — svg строка
-              dangerouslySetInnerHTML={{ __html: multiavatar(avatarSeed) }}
-            />
+            {profile?.avatar_url ? (
+              <img
+                src={profile.avatar_url}
+                alt={userName}
+                className="size-6 rounded-full object-cover border border-gray-200"
+              />
+            ) : (
+              <div
+                className="size-6"
+                dangerouslySetInnerHTML={{ __html: multiavatar(avatarSeed) }}
+              />
+            )}
+
             <div>
               <p>{userName}</p>
               {/* Можно показать email ниже, если нужно */}

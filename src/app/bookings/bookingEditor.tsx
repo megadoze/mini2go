@@ -1771,15 +1771,9 @@ export default function BookingEditor() {
                             full_name: newUser.full_name,
                             email: newUser.email,
                             phone: newUser.phone,
-                            age:
-                              newUser.age === ""
-                                ? undefined
-                                : Number(newUser.age),
-                            driver_license_issue:
-                              newUser.driver_license_issue || undefined,
                           });
-                          setUserId(created.id);
-                          setSelectedUser(created);
+                          setUserId(created.profile.id);
+                          setSelectedUser(created.profile);
                           setCreatingUser(false);
                           setUserSearch("");
                           setUserResults([]);

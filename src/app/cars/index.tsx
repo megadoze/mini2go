@@ -15,18 +15,19 @@ import {
 
 import CarTable from "./сarTable";
 
+import { supabase } from "@/lib/supabase";
+import { fetchCarsPageByHost } from "@/services/car.service";
+
 import type { CarWithRelations } from "@/types/carWithRelations";
 import type { Country } from "@/types/country";
 import type { Location } from "@/types/location";
 
-import { fetchCarsPage } from "@/services/car.service";
 import {
   fetchCountries,
   fetchLocationsByCountry,
 } from "@/services/geo.service";
 import type { CarStatus } from "@/components/carFilters";
 import CarFilters from "@/components/carFilters";
-import { QK } from "@/queryKeys";
 
 const PAGE_SIZE = 10;
 type Page = { items: CarWithRelations[]; count: number };
@@ -41,6 +42,15 @@ export default function CarsPage() {
   const [statusFilter, setStatusFilter] = useState<CarStatus>("");
   const [search, setSearch] = useState("");
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  const [meId, setMeId] = useState<string | null | undefined>(undefined);
+
+  useEffect(() => {
+    // хватит подписки — она даст id сразу и при смене
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
+      setMeId(s?.user?.id ?? null);
+    });
+    return () => sub.subscription.unsubscribe();
+  }, []);
 
   /* -------------------- queries -------------------- */
 
@@ -77,11 +87,16 @@ export default function CarsPage() {
     { items: CarWithRelations[]; count: number },
     Error
   >({
-    queryKey: QK.carsInfinite(PAGE_SIZE),
+    queryKey: ["carsByHost", "infinite", PAGE_SIZE, meId ?? "guest"],
+    enabled: meId !== undefined && !!meId, // ждём, пока узнаем меня, и чтобы не для гостя
     queryFn: async ({ pageParam }) => {
       const pageIndex = typeof pageParam === "number" ? pageParam : 0;
       const offset = pageIndex * PAGE_SIZE;
-      return fetchCarsPage({ limit: PAGE_SIZE, offset });
+      return fetchCarsPageByHost({
+        ownerId: meId as string,
+        limit: PAGE_SIZE,
+        offset,
+      });
     },
     getNextPageParam: (lastPage, allPages) => {
       const loaded = allPages.reduce((acc, p) => acc + p.items.length, 0);
@@ -99,7 +114,7 @@ export default function CarsPage() {
 
   // ✂️ хелпер — обрезать кэш до первой страницы (без сети)
   const trimToFirstPage = () => {
-    const key = QK.carsInfinite(PAGE_SIZE);
+    const key = ["carsByHost", "infinite", PAGE_SIZE, meId ?? "guest"];
     qc.setQueryData<InfiniteData<Page>>(key, (old) => {
       if (!old?.pages?.length) return old;
       return { pages: [old.pages[0]], pageParams: [0] };
@@ -168,6 +183,20 @@ export default function CarsPage() {
   };
 
   /* -------------------- render -------------------- */
+
+  // if (meId === undefined) {
+  //   return (
+  //     <div className="flex justify-center items-center gap-2 text-center text-zinc-500 mt-10">
+  //       <Loader size="sm" /> Loading...
+  //     </div>
+  //   );
+  // }
+
+  if (meId === null) {
+    return (
+      <p className="text-zinc-500 text-sm mt-10">Sign in to see your cars</p>
+    );
+  }
 
   return (
     <>

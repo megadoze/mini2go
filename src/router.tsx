@@ -34,7 +34,6 @@ import Calendar from "./app/car/calendar";
 import CalendarPage from "./app/calendarGant";
 import { bookingsLoader } from "./routes/bookings.loader";
 import { carsLoader } from "./routes/carsLoader";
-import { usersLoader } from "./routes/users.loader";
 import { dashboardLoader } from "./routes/dashboard.loader";
 import AuthenticationPage from "./app/auth/authenticationPage";
 import Protected from "./components/auth/protected";
@@ -87,7 +86,6 @@ export const router = createBrowserRouter([
       { path: "bookings/new", element: <BookingEditor /> },
       {
         path: "/users",
-        loader: usersLoader,
         element: <UsersPage />,
       },
       {

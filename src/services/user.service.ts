@@ -23,6 +23,7 @@ type UsersPageParams = {
   /** опционально — сортировка */
   sort?: "full_name" | "email" | "created_at";
   dir?: "asc" | "desc";
+  excludeUserId?: string;
 };
 
 // Поиск по имени/почте/телефону
@@ -37,27 +38,45 @@ export async function searchUsers(q: string) {
   return data ?? [];
 }
 
+// Создать пользователя админом (через Edge Function)
+// ВАЖНО: этот метод можно вызывать только из админского UI
 export async function createUserProfile(payload: {
   full_name: string;
-  email?: string | null;
+  email: string;
   phone?: string | null;
-  age?: number | null;
-  driver_license_issue?: string | null;
+  password?: string; // если не передан — сгенерируем временный
 }) {
-  const { data, error } = await supabase
-    .from("profiles")
-    .insert({
+  const fnUrl = "https://keurknzlnafihotpbruj.functions.supabase.co/create-customer";
+
+  const tempPassword =
+    payload.password && payload.password.trim().length >= 6
+      ? payload.password
+      : Math.random().toString(36).slice(-8) + "A1"; // простой временный пароль
+
+  const res = await fetch(fnUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      // anon key безопасно использовать во фронте
+      Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+    },
+    body: JSON.stringify({
+      email: payload.email,
+      password: tempPassword,
       full_name: payload.full_name,
-      email: payload.email ?? null,
-      phone: payload.phone ?? null,
-      age: payload.age ?? null,
-      driver_license_issue: payload.driver_license_issue ?? null,
-    })
-    .select("id, full_name, email, phone, age, driver_license_issue")
-    .single();
-  if (error) throw error;
-  return data;
+      phone: payload.phone ?? "",
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err?.error || `Edge function error (${res.status})`);
+  }
+
+  const { user, profile } = await res.json();
+  return { user, profile, password: tempPassword };
 }
+
 
 export async function getUserById(id: string) {
   const { data, error } = await supabase
@@ -158,51 +177,25 @@ export async function fetchUserNotes(userId: string): Promise<UserNoteItem[]> {
   return (data ?? []) as UserNoteItem[];
 }
 
-// Вариант А (удобный): сервис сам берёт текущего хоста из auth
-// export async function createUserNote(payload: {
-//   userId: string;
-//   text: string;
-// }) {
-//   const { data: authData } = await supabase.auth.getUser();
-//   const host = authData?.user;
-
-//   const author = (host?.user_metadata as any)?.full_name || host?.email || null;
-
-//   const { data, error } = await supabase
-//     .from("user_notes")
-//     .insert({
-//       user_id: payload.userId,
-//       text: payload.text,
-//       created_by: host?.id ?? null,
-//       author,
-//     })
-//     .select("id, user_id, text, created_at, created_by, author")
-//     .single();
-
-//   if (error) throw error;
-//   return data as UserNoteItem;
-// }
-
 // ⚠️ без авторизации: автор приходит из UI
 export async function createUserNote(payload: {
   userId: string;
   text: string;
-  author?: string | null; // имя/почта хоста
-  hostId?: string | null; // на будущее: id хоста
 }) {
   const { data, error } = await supabase
     .from("user_notes")
     .insert({
       user_id: payload.userId,
       text: payload.text,
-      author: payload.author ?? null,
-      created_by: payload.hostId ?? null, // пока null
+      // author и created_by НЕ передаём — их заполнит триггер
     })
     .select("id, user_id, text, created_at, created_by, author")
     .single();
+
   if (error) throw error;
   return data as UserNoteItem;
 }
+
 
 // удаление заметки юзера
 export async function deleteUserNote(id: string) {
@@ -214,41 +207,71 @@ export async function deleteUserNote(id: string) {
 export async function fetchUsersPage(
   params: UsersPageParams
 ): Promise<{ items: UserListRow[]; count: number }> {
-  const { limit, offset, q, status, sort = "full_name", dir = "asc" } = params;
+  const { limit, offset, q, status, sort = "full_name", dir = "asc", excludeUserId } = params;
 
-  // базовый select с подсчётом общего количества
   let query = supabase
     .from("profiles")
-    .select("id, full_name, email, phone, status, avatar_url", {
-      count: "exact",
-    });
+    .select("id, full_name, email, phone, status, avatar_url", { count: "exact" });
 
-  // поиск по имени/почте/телефону (ilike, регистронезависимо)
   if (q && q.trim() !== "") {
-    // чуть экранируем спецсимволы для like
     const safe = q.replace(/%/g, "\\%").replace(/_/g, "\\_");
     query = query.or(
       `full_name.ilike.%${safe}%,email.ilike.%${safe}%,phone.ilike.%${safe}%`
     );
   }
 
-  // фильтр по статусу
   if (status && status.trim() !== "") {
     query = query.eq("status", status);
   }
 
-  // сортировка
+  // +++ исключаем текущего пользователя, если передан
+  if (excludeUserId) {
+    query = query.neq("id", excludeUserId);
+  }
+
   query = query.order(sort, { ascending: dir === "asc", nullsFirst: true });
 
-  // пагинация
   const from = offset;
   const to = offset + limit - 1;
   const { data, error, count } = await query.range(from, to);
+  if (error) throw error;
+
+  return { items: (data ?? []) as UserListRow[], count: count ?? data?.length ?? 0 };
+}
+
+export async function fetchHostUsersPage(opts: {
+  ownerId: string;
+  limit: number;
+  offset: number;
+  excludeUserId?: string;
+}) {
+  const { ownerId, limit, offset, excludeUserId } = opts;
+
+  const { data, error } = await supabase.rpc("host_customers", {
+    _owner: ownerId,
+    _limit: limit,
+    _offset: offset,
+    _exclude: excludeUserId ?? null,
+  });
 
   if (error) throw error;
 
-  return {
-    items: (data ?? []) as UserListRow[],
-    count: count ?? data?.length ?? 0,
-  };
+  const items =
+    (data ?? []).map((r: any) => {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { total_count, ...u } = r;
+      return u;
+    }) ?? [];
+
+  const count = (data?.[0]?.total_count as number | undefined) ?? items.length;
+
+  return { items, count } as { items: any[]; count: number };
+}
+
+
+export async function sendPasswordReset(email: string) {
+  // укажи redirect URL на свою страницу смены пароля
+  const redirectTo = `${window.location.origin}/auth/reset`;
+  const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
+  if (error) throw error;
 }
