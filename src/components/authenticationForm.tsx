@@ -9,6 +9,7 @@ export function AuthenticationForm() {
   const [type, setType] = useState<"login" | "register">("login");
   const [submitting, setSubmitting] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
 
   function safeRedirect(path?: string | null) {
     if (!path || !path.startsWith("/")) return "/dashboard";
@@ -65,7 +66,8 @@ export function AuthenticationForm() {
 
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-gray-50">
-      <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-lg">
+      {/* контейнер: на мобиле без рамки, на md+ рамка/тень */}
+      <div className="w-full max-w-sm p-6 md:rounded-xl md:bg-white md:shadow-lg">
         <h1 className="mb-4 text-center text-xl font-bold">
           {type === "login" ? "Login" : "Register"}
         </h1>
@@ -83,7 +85,7 @@ export function AuthenticationForm() {
               <input
                 type="text"
                 name="name"
-                className="w-full rounded border px-3 py-2 text-sm focus:outline-none focus:ring focus:ring-blue-300"
+                className="w-full rounded border px-3 py-2 text-sm focus:outline-none focus:ring focus:ring-green-100"
               />
             </div>
           )}
@@ -94,24 +96,33 @@ export function AuthenticationForm() {
               type="email"
               name="email"
               required
-              className="w-full rounded border px-3 py-2 text-sm focus:outline-none focus:ring focus:ring-blue-300"
+              className="w-full rounded border px-3 py-2 text-sm focus:outline-none focus:ring focus:ring-green-100"
             />
           </div>
 
           <div>
             <label className="mb-1 block text-sm font-medium">Password</label>
-            <input
-              type="password"
-              name="password"
-              required
-              className="w-full rounded border px-3 py-2 text-sm focus:outline-none focus:ring focus:ring-blue-300"
-            />
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                name="password"
+                required
+                className="w-full rounded border px-3 py-2 pr-10 text-sm focus:outline-none focus:ring focus:ring-green-100"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500"
+              >
+                {showPassword ? "🙈" : "👁️"}
+              </button>
+            </div>
           </div>
 
           <button
             type="submit"
             disabled={submitting}
-            className="w-full rounded bg-blue-600 py-2 text-white hover:bg-blue-700 disabled:opacity-50"
+            className="w-full rounded bg-emerald-600 py-2 text-white hover:bg-emerald-600/90 disabled:opacity-50"
           >
             {submitting
               ? "Loading..."
@@ -128,7 +139,7 @@ export function AuthenticationForm() {
               <button
                 type="button"
                 onClick={() => setType("register")}
-                className="text-blue-600 hover:underline"
+                className="text-emerald-600 hover:underline"
               >
                 Register
               </button>
@@ -139,7 +150,7 @@ export function AuthenticationForm() {
               <button
                 type="button"
                 onClick={() => setType("login")}
-                className="text-blue-600 hover:underline"
+                className="text-emerald-600 hover:underline"
               >
                 Login
               </button>
