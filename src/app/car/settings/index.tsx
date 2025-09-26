@@ -47,7 +47,6 @@ const spring = { type: "spring", stiffness: 700, damping: 30 } as const;
 
 export default function BookingSettingsSection() {
   const { car, setCar, globalSettings } = useCarContext();
-  // if (!car) return null;
 
   const carId = car.id;
 
@@ -132,6 +131,14 @@ export default function BookingSettingsSection() {
   const hintPets = globalSettings?.isPets;
   const hintAbroad = globalSettings?.isAbroad;
 
+  // === ЭФФЕКТИВНЫЕ БУЛЕВЫЕ ЗНАЧЕНИЯ (что реально действует)
+  const effIB = Boolean(
+    car.isInstantBooking ?? globalSettings?.isInstantBooking ?? false
+  );
+  const effSmoke = Boolean(car.isSmoking ?? globalSettings?.isSmoking ?? false);
+  const effPets = Boolean(car.isPets ?? globalSettings?.isPets ?? false);
+  const effAbroad = Boolean(car.isAbroad ?? globalSettings?.isAbroad ?? false);
+
   // === useGlobalToggleWithDraft для всех полей формы
   const { toggle: toggleCurrency } = useGlobalToggleWithDraft(
     form,
@@ -190,7 +197,7 @@ export default function BookingSettingsSection() {
     hintLicense != null ? String(hintLicense) : null
   );
 
-  // === Локальные переключатели (булевы) — без драфтов, значения простые
+  // === Локальные переключатели (редактируемые значения)
   const [instantBooking, setInstantBooking] = useState<boolean>(
     Boolean(car.isInstantBooking ?? false)
   );
@@ -205,10 +212,10 @@ export default function BookingSettingsSection() {
   );
 
   const [baseToggles, setBaseToggles] = useState({
-    instantBooking,
-    allowSmoking,
-    allowPets,
-    allowAbroad,
+    instantBooking: effIB,
+    allowSmoking: effSmoke,
+    allowPets: effPets,
+    allowAbroad: effAbroad,
   });
 
   // === База для dirty
@@ -231,7 +238,7 @@ export default function BookingSettingsSection() {
 
   // === Синхронизация при смене car/globalSettings
   useEffect(() => {
-    // Собираем "следующие" значения формы из car + globalSettings
+    // Формируем следующее состояние формы из car + globalSettings
     const next = {
       currency: car.currency ?? globalSettings?.currency ?? "EUR",
       openTimeMin: String(car.openTime ?? globalSettings?.openTime ?? 540),
@@ -249,7 +256,6 @@ export default function BookingSettingsSection() {
       ),
     };
 
-    // Если фактически ничего не изменилось — не трогаем форму (иначе ловим цикл)
     const key = JSON.stringify(next);
     if (lastSnapshotRef.current === key) return;
     lastSnapshotRef.current = key;
@@ -257,7 +263,7 @@ export default function BookingSettingsSection() {
     form.setValues(next);
     form.resetDirty(next);
 
-    // флаги useGlobal пересчитываем один раз из car.*
+    // флаги useGlobal из car.*
     setUseGlobalCurrency(car.currency == null);
     setUseGlobalOpenTime(car.openTime == null);
     setUseGlobalCloseTime(car.closeTime == null);
@@ -271,7 +277,25 @@ export default function BookingSettingsSection() {
     setUseGlobalPets(car.isPets == null);
     setUseGlobalAbroad(car.isAbroad == null);
 
-    // базовые снапшоты для dirty
+    // локальные редактируемые из car.*
+    setInstantBooking(Boolean(car.isInstantBooking ?? false));
+    setAllowSmoking(Boolean(car.isSmoking ?? false));
+    setAllowPets(Boolean(car.isPets ?? false));
+    setAllowAbroad(Boolean(car.isAbroad ?? false));
+
+    // база для dirty — ЭФФЕКТИВНЫЕ значения (car ?? global)
+    setBaseToggles({
+      instantBooking: Boolean(
+        car.isInstantBooking ?? globalSettings?.isInstantBooking ?? false
+      ),
+      allowSmoking: Boolean(
+        car.isSmoking ?? globalSettings?.isSmoking ?? false
+      ),
+      allowPets: Boolean(car.isPets ?? globalSettings?.isPets ?? false),
+      allowAbroad: Boolean(car.isAbroad ?? globalSettings?.isAbroad ?? false),
+    });
+
+    // база флагов useGlobal
     setBaseUseGlobal({
       currency: car.currency == null,
       openTime: car.openTime == null,
@@ -286,28 +310,14 @@ export default function BookingSettingsSection() {
       pets: car.isPets == null,
       abroad: car.isAbroad == null,
     });
+  }, [car, globalSettings]); // eslint-disable-line
 
-    const ib = Boolean(car.isInstantBooking ?? false);
-    const sm = Boolean(car.isSmoking ?? false);
-    const pt = Boolean(car.isPets ?? false);
-    const ab = Boolean(car.isAbroad ?? false);
-    setInstantBooking(ib);
-    setAllowSmoking(sm);
-    setAllowPets(pt);
-    setAllowAbroad(ab);
-    setBaseToggles({
-      instantBooking: ib,
-      allowSmoking: sm,
-      allowPets: pt,
-      allowAbroad: ab,
-    });
-  }, [car, globalSettings]);
-
+  // === Dirty для тумблеров — сравниваем с ЭФФЕКТИВНЫМИ
   const togglesChanged =
-    instantBooking !== baseToggles.instantBooking ||
-    allowSmoking !== baseToggles.allowSmoking ||
-    allowPets !== baseToggles.allowPets ||
-    allowAbroad !== baseToggles.allowAbroad;
+    (useGlobalIB ? effIB : instantBooking) !== baseToggles.instantBooking ||
+    (useGlobalSmoking ? effSmoke : allowSmoking) !== baseToggles.allowSmoking ||
+    (useGlobalPets ? effPets : allowPets) !== baseToggles.allowPets ||
+    (useGlobalAbroad ? effAbroad : allowAbroad) !== baseToggles.allowAbroad;
 
   const globalsChanged =
     useGlobalCurrency !== baseUseGlobal.currency ||
@@ -363,7 +373,7 @@ export default function BookingSettingsSection() {
     try {
       await updateCar(carId, payload);
 
-      // оптимистичное обновление
+      // оптимистичное обновление — храним NULL там, где useGlobal=true
       setCar((prev) => {
         if (!prev) return prev;
         return {
@@ -395,7 +405,13 @@ export default function BookingSettingsSection() {
         minLicenseYears: String(minLicenseYears),
       });
 
-      setBaseToggles({ instantBooking, allowSmoking, allowPets, allowAbroad });
+      // базовые «эффективные» значения после сохранения
+      setBaseToggles({
+        instantBooking: useGlobalIB ? effIB : instantBooking,
+        allowSmoking: useGlobalSmoking ? effSmoke : allowSmoking,
+        allowPets: useGlobalPets ? effPets : allowPets,
+        allowAbroad: useGlobalAbroad ? effAbroad : allowAbroad,
+      });
       setBaseUseGlobal({
         currency: useGlobalCurrency,
         openTime: useGlobalOpenTime,
@@ -695,7 +711,7 @@ export default function BookingSettingsSection() {
       <ToggleWithGlobal
         label="Instant Booking"
         description="Allow renters to book your car without waiting for approval."
-        checked={instantBooking}
+        checked={useGlobalIB ? effIB : instantBooking}
         useGlobal={useGlobalIB}
         onChangeChecked={setInstantBooking}
         onChangeUseGlobal={setUseGlobalIB}
@@ -707,7 +723,7 @@ export default function BookingSettingsSection() {
       <ToggleWithGlobal
         label="Smoking"
         description="You can allow or disallow smoking in the car."
-        checked={allowSmoking}
+        checked={useGlobalSmoking ? effSmoke : allowSmoking}
         useGlobal={useGlobalSmoking}
         onChangeChecked={setAllowSmoking}
         onChangeUseGlobal={setUseGlobalSmoking}
@@ -723,7 +739,7 @@ export default function BookingSettingsSection() {
       <ToggleWithGlobal
         label="Pets"
         description="Let renters know if you allow pets."
-        checked={allowPets}
+        checked={useGlobalPets ? effPets : allowPets}
         useGlobal={useGlobalPets}
         onChangeChecked={setAllowPets}
         onChangeUseGlobal={setUseGlobalPets}
@@ -739,7 +755,7 @@ export default function BookingSettingsSection() {
       <ToggleWithGlobal
         label="Driving abroad"
         description="Allow driving abroad in permitted countries."
-        checked={allowAbroad}
+        checked={useGlobalAbroad ? effAbroad : allowAbroad}
         useGlobal={useGlobalAbroad}
         onChangeChecked={setAllowAbroad}
         onChangeUseGlobal={setUseGlobalAbroad}

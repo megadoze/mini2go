@@ -1,72 +1,67 @@
 import { supabase } from "@/lib/supabase";
-import type { AppSettingsUpdatePayload } from "@/types/appSettingsUpdatePayload";
 import type { AppSettings } from "@/types/setting";
+import type { AppSettingsUpdatePayload } from "@/types/appSettingsUpdatePayload";
 
-const SETTINGS_SCOPE = "global";
+function toCamel(row: any): AppSettings {
+  if (!row) return row;
+  return {
+    // числа/строки
+    currency: row.currency ?? null,
+    openTime: row.open_time ?? null,
+    closeTime: row.close_time ?? null,
+    minRentPeriod: row.min_rent_period ?? null,
+    maxRentPeriod: row.max_rent_period ?? null,
+    intervalBetweenBookings: row.interval_between_bookings ?? null,
+    ageRenters: row.age_renters ?? null,
+    minDriverLicense: row.min_driver_license ?? null,
+    // булевы
+    isInstantBooking: row.is_instant_booking ?? false,
+    isSmoking: row.is_smoking ?? false,
+    isPets: row.is_pets ?? false,
+    isAbroad: row.is_abroad ?? false,
+    // если в типе есть служебные — добавь при необходимости
+  } as AppSettings;
+}
 
-// Получение настроек бронирования
-export async function getGlobalSettings(): Promise<AppSettings | null> {
+export async function getGlobalSettings(ownerId: string) {
   const { data, error } = await supabase
     .from("app_settings")
     .select("*")
-    .eq("scope", SETTINGS_SCOPE)
-    .order("updated_at", { ascending: false })
-    .limit(1)
+    .eq("owner_id", ownerId)
+    .eq("scope", "global")
     .maybeSingle();
 
   if (error) throw error;
-  return data ? settingsSnakeToCamel(data) : null;
+  return data ? toCamel(data) : null;
 }
 
-function settingsSnakeToCamel(input: any): AppSettings {
-  return {
-    id: input.id,
-    currency: input.currency,
-    scope: input.scope,
-    openTime: input.open_time,
-    closeTime: input.close_time,
-    minRentPeriod: input.min_rent_period,
-    maxRentPeriod: input.max_rent_period,
-    intervalBetweenBookings: input.interval_between_bookings,
-    ageRenters: input.age_renters,
-    minDriverLicense: input.min_driver_license,
-    isInstantBooking: input.is_instant_booking,
-    isSmoking: input.is_smoking,
-    isPets: input.is_pets,
-    isAbroad: input.is_abroad,
-    updatedAt: input.updated_at,
+export async function upsertGlobalSettings(
+  ownerId: string,
+  payload: AppSettingsUpdatePayload
+) {
+  const row = {
+    owner_id: ownerId,
+    scope: "global",
+    currency: payload.currency,
+    open_time: payload.openTime,
+    close_time: payload.closeTime,
+    min_rent_period: payload.minRentPeriod,
+    max_rent_period: payload.maxRentPeriod,
+    interval_between_bookings: payload.intervalBetweenBookings,
+    age_renters: payload.ageRenters,
+    min_driver_license: payload.minDriverLicense,
+    is_instant_booking: payload.isInstantBooking,
+    is_smoking: payload.isSmoking,
+    is_pets: payload.isPets,
+    is_abroad: payload.isAbroad,
   };
-}
-
-function settingsCamelToSnake(input: AppSettingsUpdatePayload) {
-  return {
-    currency: input.currency,
-    open_time: input.openTime,
-    close_time: input.closeTime,
-    min_rent_period: input.minRentPeriod,
-    max_rent_period: input.maxRentPeriod,
-    interval_between_bookings: input.intervalBetweenBookings,
-    age_renters: input.ageRenters,
-    min_driver_license: input.minDriverLicense,
-    is_instant_booking: input.isInstantBooking,
-    is_smoking: input.isSmoking,
-    is_pets: input.isPets,
-    is_abroad: input.isAbroad,
-  };
-}
-
-// Обновление глобальных настроек
-export async function upsertGlobalSettings(payload: AppSettingsUpdatePayload) {
-  const snake = settingsCamelToSnake(payload);
 
   const { data, error } = await supabase
     .from("app_settings")
-    .upsert([{ scope: SETTINGS_SCOPE, ...snake }], {
-      onConflict: "scope",
-    })
+    .upsert(row, { onConflict: "owner_id,scope" })
     .select()
-    .maybeSingle();
+    .single();
 
   if (error) throw error;
-  return data ? settingsSnakeToCamel(data) : null;
+  return toCamel(data);
 }

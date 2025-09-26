@@ -1,4 +1,5 @@
 export type AppSettings = {
+  ownerId: string;
   id: string;
   currency: string;
   scope: string; // 'global'

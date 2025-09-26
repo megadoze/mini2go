@@ -1,3 +1,4 @@
+// src/app/car/CarPageLayout.tsx
 import { useEffect, useMemo, useRef, useState } from "react";
 import { NavLink, Outlet, useParams, useLoaderData } from "react-router-dom";
 import { AppShell, Burger, Drawer } from "@mantine/core";
@@ -35,10 +36,11 @@ import { useCarsRealtime } from "@/hooks/useCarsRealtime";
 import { useCarFeaturesRealtimeRQ } from "@/hooks/useCarFeaturesRealtime";
 import { useCarExtrasRealtime } from "@/hooks/useCarExtrasRealtime";
 import { QK } from "@/queryKeys";
+import { supabase } from "@/lib/supabase";
 
 type LoaderData = {
   car: CarWithModelRelations;
-  globalSettings: AppSettings;
+  globalSettings: AppSettings | null; // может быть null для гостя
   extras: CarExtraWithMeta[];
   pricingRules: PricingRule[];
   seasonalRates: SeasonalRate[];
@@ -47,11 +49,8 @@ type LoaderData = {
 export default function CarPageLayout() {
   const [opened, { toggle }] = useDisclosure();
   const { carId: routeCarId } = useParams();
-
   const isMobile = useMediaQuery("(max-width: 48em)");
-
   const qc = useQueryClient();
-
   const userCache = useRef(new Map<string, any>());
 
   // ----- loader -----
@@ -63,9 +62,7 @@ export default function CarPageLayout() {
     seasonalRates: loaderSR,
   } = useLoaderData() as LoaderData;
 
-  // сразу после useParams:
-
-  // Один стабильный id для экрана (route → loader/ctx не меняют сам id)
+  // Один стабильный id для экрана
   const currentCarId = String(routeCarId ?? loaderCar?.id ?? "");
 
   // ----- локальные стейты -----
@@ -104,12 +101,36 @@ export default function CarPageLayout() {
   const [loadingCar, setLoadingCar] = useState(false);
   const [loadingGlobal, setLoadingGlobal] = useState(false);
 
+  const [ownerId, setOwnerId] = useState<string | null>(null);
+
+  useEffect(() => {
+    supabase.auth
+      .getUser()
+      .then(({ data }) => setOwnerId(data.user?.id ?? null));
+  }, []);
+
   // справочник экстр
   const extrasQ = useQuery({
     queryKey: QK.extras,
     queryFn: fetchExtras,
     staleTime: 5 * 60_000,
   });
+
+  const gsQ = useQuery({
+    queryKey: QK.appSettingsByOwner(ownerId!),
+    queryFn: () => getGlobalSettings(ownerId!), // твоя версия с обязательным ownerId
+    enabled: !!ownerId,
+    // хотим свежие данные при возврате на вкладку / заходе на страницу
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
+    staleTime: 0,
+  });
+
+  useEffect(() => {
+    if (gsQ.data !== undefined) {
+      setGlobalSettings(gsQ.data ?? null);
+    }
+  }, [gsQ.data]);
 
   // экстры конкретной машины + бэкап-пуллинг
   const carExtrasQ = useQuery({
@@ -227,7 +248,13 @@ export default function CarPageLayout() {
   const refreshGlobal = async () => {
     setLoadingGlobal(true);
     try {
-      const gs = await getGlobalSettings();
+      const { data } = await supabase.auth.getUser();
+      const ownerId = data.user?.id;
+      if (!ownerId) {
+        setGlobalSettings(null);
+        return;
+      }
+      const gs = await getGlobalSettings(ownerId); // обязательно с ownerId
       setGlobalSettings(gs);
     } finally {
       setLoadingGlobal(false);
@@ -459,7 +486,7 @@ export default function CarPageLayout() {
           size="100%"
           withCloseButton={true}
           padding="md"
-          lockScroll // дефолт true, но оставлю явно
+          lockScroll
           trapFocus
           withinPortal
           overlayProps={{ opacity: 0.2 }}
@@ -499,7 +526,7 @@ export default function CarPageLayout() {
             loadingCar,
             loadingGlobal,
             refreshCar,
-            refreshGlobal,
+            refreshGlobal, // ← теперь функция существует
             hasGlobalSettings: Boolean(globalSettings),
             getCachedUser: (id) => userCache.current.get(id),
             setCachedUser: (id, u) => userCache.current.set(id, u),

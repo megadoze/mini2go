@@ -1,5 +1,5 @@
 // src/components/UserMenu.tsx
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Group, Menu, UnstyledButton } from "@mantine/core";
 import {
   ArrowLeftEndOnRectangleIcon,
@@ -12,86 +12,171 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import type { User } from "@supabase/supabase-js";
 
-type Props = {
-  onClick: () => void;
-};
-
+type Props = { onClick: () => void };
 type ProfileRow = { full_name: string | null; avatar_url: string | null };
+
+type MeCache = {
+  id: string | null;
+  full_name: string | null;
+  avatar_url: string | null;
+  email: string | null;
+};
+const ME_CACHE_KEY = "ui.me.v1";
+
+function readMeCache(): MeCache | null {
+  try {
+    const raw = localStorage.getItem(ME_CACHE_KEY);
+    return raw ? (JSON.parse(raw) as MeCache) : null;
+  } catch {
+    return null;
+  }
+}
+function writeMeCache(v: MeCache) {
+  try {
+    localStorage.setItem(ME_CACHE_KEY, JSON.stringify(v));
+  } catch {}
+}
+function clearMeCache() {
+  try {
+    localStorage.removeItem(ME_CACHE_KEY);
+  } catch {}
+}
+function slugFromEmail(email?: string | null) {
+  if (!email) return "";
+  const name = email.split("@")[0] ?? "";
+  return name.trim().replace(/\s+/g, "-");
+}
 
 function UserMenu({ onClick }: Props) {
   const navigate = useNavigate();
 
+  // user нужен только для logout и для user.id → чтобы знать, чей профиль грузить.
   const [user, setUser] = useState<User | null>(null);
+
+  // профиль — ЕДИНСТВЕННЫЙ источник правды для аватарки и имени
   const [profile, setProfile] = useState<ProfileRow | null>(null);
+  const [displayName, setDisplayName] = useState<string>("");
+  const [initializing, setInitializing] = useState(true);
 
-  // 1) Получаем пользователя при монтировании
+  // 0) гидратация из кэша — синхронно
   useEffect(() => {
-    let unsub = () => {};
-
-    supabase.auth.getUser().then(({ data }) => {
-      setUser(data.user ?? null);
-    });
-
-    // 2) Подписка на изменения сессии (логин/логаут)
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-    });
-
-    unsub = () => sub.subscription.unsubscribe();
-    return unsub;
+    const cache = readMeCache();
+    if (cache) {
+      const p: ProfileRow = {
+        full_name: cache.full_name,
+        avatar_url: cache.avatar_url,
+      };
+      setProfile(p);
+      const best = cache.full_name?.trim() || slugFromEmail(cache.email) || "";
+      setDisplayName(best);
+    }
+    setInitializing(false);
   }, []);
 
+  // 1) сессия (не используем для UI)
+  useEffect(() => {
+    const setFromSession = async () => {
+      const { data } = await supabase.auth.getSession();
+      setUser(data.session?.user ?? null);
+    };
+    setFromSession();
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
+      setUser(session?.user ?? null);
+      if (!session) {
+        clearMeCache();
+        setProfile(null);
+        setDisplayName("");
+      }
+    });
+    return () => sub.subscription.unsubscribe();
+  }, []);
+
+  // 2) грузим профиль по user.id, обновляем кэш и только ПОСЛЕ этого решаем, что показывать
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      if (!user) {
-        setProfile(null);
-        return;
-      }
+      if (!user?.id) return;
       const { data, error } = await supabase
         .from("profiles")
         .select("full_name, avatar_url")
         .eq("id", user.id)
         .single();
-      if (!cancelled) {
-        if (!error) setProfile(data as ProfileRow);
-        else setProfile(null);
+
+      if (cancelled) return;
+
+      const row: ProfileRow | null = error
+        ? null
+        : (data as ProfileRow) ?? null;
+      if (row) {
+        setProfile(row);
+        const best =
+          row.full_name?.trim() ||
+          (user.user_metadata?.name as string | undefined)?.trim() ||
+          slugFromEmail(user.email) ||
+          "";
+        if (best && best !== displayName) setDisplayName(best);
+
+        writeMeCache({
+          id: user.id,
+          full_name:
+            row.full_name ?? (user.user_metadata?.name as string) ?? null,
+          avatar_url: row.avatar_url ?? null,
+          email: user.email ?? null,
+        });
+      } else {
+        // профиля нет → кэш хотя бы с именем из user, но аватар_url null
+        writeMeCache({
+          id: user.id,
+          full_name: (user.user_metadata?.name as string | undefined) ?? null,
+          avatar_url: null,
+          email: user.email ?? null,
+        });
+        const best =
+          (user.user_metadata?.name as string | undefined)?.trim() ||
+          slugFromEmail(user.email) ||
+          "";
+        if (best && best !== displayName) setDisplayName(best);
+        setProfile(
+          (prev) => prev ?? { full_name: best || null, avatar_url: null }
+        );
       }
     })();
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
-  // 3) Утилиты
-  const cutBeforeAt = (str: string) => {
-    const idx = str.indexOf("@");
-    return idx !== -1 ? str.slice(0, idx) : str;
-  };
-  const toSlug = (str: string) => str.trim().replace(/\s+/g, "-");
+  // === АВАТАР ===
+  // Показываем multiavatar ТОЛЬКО если точно знаем, что avatar_url нет (т.е. profile есть и avatar_url пуст)
+  const shouldShowMulti = !!profile && !profile.avatar_url;
 
-  // 4) Имя/емейл/аватар из Supabase
-  const email = user?.email ?? "user@example.com";
-  const userName =
-    profile?.full_name?.trim() ||
-    (user?.user_metadata?.name as string | undefined) ||
-    toSlug(cutBeforeAt(email));
+  // seed — только от профиля, НИКАКОГО user, чтобы избежать раннего мигания
+  const multiSeed = useMemo(() => {
+    const name = profile?.full_name?.trim() ?? "";
+    return name.replace(/[<>]/g, ""); // микро-санитайз
+  }, [profile?.full_name]);
 
-  const avatarSeed = user?.id ?? email;
+  // один раз генерим svg для текущего seed
+  const svgAvatar = useMemo(() => {
+    if (!shouldShowMulti || !multiSeed) return "";
+    return multiavatar(multiSeed);
+  }, [shouldShowMulti, multiSeed]);
 
-  // 5) Переходы по пунктам меню
+  // если картинка не загрузилась — fallback на multiavatar
+  const [imgBroken, setImgBroken] = useState(false);
+  const showImg = !!profile?.avatar_url && !imgBroken;
+
   const handleMenuClick = (e: React.MouseEvent<HTMLButtonElement>) => {
     const id = e.currentTarget.id; // profile | settings | messages
-    navigate(`/user/${userName}${id ? `/${id}` : ""}`);
+    const slug = displayName || "me";
+    navigate(`/user/${slug}${id ? `/${id}` : ""}`);
     onClick();
   };
 
-  // 6) Logout + редирект на /auth с возвратом
   const handleLogout = async () => {
-    // 1) Сначала уходим на публичный роут
     navigate("/auth", { replace: true });
-
-    // 2) Потом разлогиниваемся — состояние обновится уже на /auth
+    clearMeCache();
     await supabase.auth.signOut();
   };
 
@@ -107,23 +192,30 @@ function UserMenu({ onClick }: Props) {
             gap={10}
             className="inline-flex items-center rounded-xl lg:bg-white/60 ring-1 ring-black/5 shadow-sm px-2.5 py-1.5 transition hover:bg-white-800/80"
           >
-            {profile?.avatar_url ? (
+            {showImg ? (
               <img
-                src={profile.avatar_url}
-                alt={userName}
+                src={profile!.avatar_url!}
+                alt={displayName || "me"}
                 className="size-6 rounded-full object-cover border border-gray-200"
+                loading="lazy"
+                onError={() => setImgBroken(true)}
               />
-            ) : (
+            ) : shouldShowMulti && svgAvatar ? (
               <div
                 className="size-6"
-                dangerouslySetInnerHTML={{ __html: multiavatar(avatarSeed) }}
+                dangerouslySetInnerHTML={{ __html: svgAvatar }}
               />
+            ) : (
+              // Пока не знаем профиль или нет seed — стабильный плейсхолдер
+              <div className="size-6 rounded-full bg-gray-200 border border-gray-200" />
             )}
 
-            <div>
-              <p>{userName}</p>
-              {/* Можно показать email ниже, если нужно */}
-              {/* <span className="text-xs opacity-70">{email}</span> */}
+            <div className="min-w-[40px]">
+              {!displayName && initializing ? (
+                <div className="h-3 w-16 bg-gray-200 rounded animate-pulse" />
+              ) : (
+                <p className="truncate max-w-[120px]">{displayName}</p>
+              )}
             </div>
           </Group>
         </UnstyledButton>

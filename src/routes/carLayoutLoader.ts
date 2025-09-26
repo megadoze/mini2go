@@ -2,6 +2,7 @@
 import type { LoaderFunctionArgs } from "react-router";
 import { queryClient } from "@/lib/queryClient";
 import { QK } from "@/queryKeys";
+import { supabase } from "@/lib/supabase";           // ← добавили
 import { getGlobalSettings } from "@/services/settings.service";
 import {
   fetchCarById,
@@ -34,6 +35,18 @@ export async function carLayoutLoader({ params }: LoaderFunctionArgs) {
   const carId = String(params.carId);
   if (!carId) throw new Response("Missing carId", { status: 400 });
 
+  // ← берём userId один раз
+  const { data } = await supabase.auth.getUser();
+  const ownerId = data.user?.id ?? null;
+
+  // если юзер не залогинен — настроек нет
+  const appSettingsPromise = ownerId
+    ? queryClient.ensureQueryData({
+        queryKey: QK.appSettingsByOwner(ownerId),        // ключ привязан к юзеру
+        queryFn: () => getGlobalSettings(ownerId),    // ← ПЕРЕДАЁМ ownerId
+      })
+    : Promise.resolve(null);
+
   const [
     car,
     appSettings,
@@ -47,10 +60,7 @@ export async function carLayoutLoader({ params }: LoaderFunctionArgs) {
       queryKey: QK.car(carId),
       queryFn: () => fetchCarById(carId),
     }),
-    queryClient.ensureQueryData({
-      queryKey: QK.appSettings,
-      queryFn: getGlobalSettings,
-    }),
+    appSettingsPromise, // ← тут промис из блока выше
     queryClient.ensureQueryData({ queryKey: QK.extras, queryFn: fetchExtras }),
     queryClient.ensureQueryData({
       queryKey: QK.carExtras(carId),

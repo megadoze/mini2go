@@ -297,8 +297,8 @@ export default function BookingsList() {
   ) {
     await Promise.all([
       qc.prefetchQuery({
-        queryKey: QK.appSettings,
-        queryFn: getGlobalSettings,
+        queryKey: QK.appSettingsByOwner(ownerId),
+        queryFn: () => getGlobalSettings(ownerId),
         staleTime: 5 * 60_000,
       }),
       qc.prefetchQuery({

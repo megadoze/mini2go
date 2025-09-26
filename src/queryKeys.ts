@@ -1,7 +1,10 @@
 // src/queryKeys.ts
 export const QK = {
   extras: ["extras"] as const,
-  appSettings: ["appSettings"] as const,
+  appSettingsBase: ["appSettings"] as const,
+    appSettingsByOwner(ownerId: string) {
+    return ["appSettings", ownerId] as const;
+  },
   car: (id: string) => ["car", id] as const,
   cars: ["cars"] as const,
   carsInfinite: (limit: number) => ["carsInfinite", { limit }] as const,

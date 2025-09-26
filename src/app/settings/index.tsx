@@ -9,6 +9,9 @@ import {
 } from "@/services/settings.service";
 import { toast } from "sonner";
 import type { AppSettingsUpdatePayload } from "@/types/appSettingsUpdatePayload";
+import { supabase } from "@/lib/supabase";
+import { useQueryClient } from "@tanstack/react-query";
+import { QK } from "@/queryKeys";
 
 // ===== Helpers =====
 const minutesToLabel = (m: number) => {
@@ -50,6 +53,8 @@ const CURRENCY_OPTIONS = ["EUR", "USD", "GBP"] as const;
 const spring = { type: "spring", stiffness: 700, damping: 30 } as const;
 
 export default function SettingsGlobal() {
+  const qc = useQueryClient();
+
   const [loading, setLoading] = useState(true);
   const [settings, setSettings] = useState<AppSettings | null>(null);
 
@@ -98,12 +103,19 @@ export default function SettingsGlobal() {
 
   const [saved, setSaved] = useState(false);
 
-  // загрузка текущих глобальных настроек
   useEffect(() => {
     (async () => {
       setLoading(true);
-      const gs = await getGlobalSettings();
+      const { data } = await supabase.auth.getUser();
+      const ownerId = data.user?.id;
+      if (!ownerId) {
+        setSettings(null);
+        setLoading(false);
+        return;
+      }
+      const gs = await getGlobalSettings(ownerId);
       setSettings(gs);
+      qc.setQueryData(QK.appSettingsByOwner(ownerId), gs);
       setLoading(false);
     })();
   }, []);
@@ -169,8 +181,15 @@ export default function SettingsGlobal() {
     };
 
     try {
-      const saved = await upsertGlobalSettings(payload);
+      const { data } = await supabase.auth.getUser();
+      const ownerId = data.user?.id;
+      if (!ownerId) return;
+
+      const saved = await upsertGlobalSettings(ownerId, payload);
       setSettings(saved);
+
+      qc.setQueryData(QK.appSettingsByOwner(ownerId), saved);
+      qc.invalidateQueries({ queryKey: QK.appSettingsByOwner(ownerId) });
 
       // сброс dirty
       form.resetDirty({

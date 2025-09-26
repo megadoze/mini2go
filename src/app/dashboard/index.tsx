@@ -42,11 +42,13 @@ import {
   format,
 } from "date-fns";
 
-import { supabase } from "@/lib/supabase";
-import { fetchCars } from "@/services/car.service";
+import { fetchCarsByHost } from "@/services/car.service";
 import type { CarWithRelations } from "@/types/carWithRelations";
-import { QK } from "@/queryKeys";
-import { Link } from "react-router";
+import { Link, useLoaderData } from "react-router";
+import {
+  fetchBookingsIntersectingRange,
+  fetchBookingsSince,
+} from "@/services/booking-lite.service";
 
 /* =================== types & helpers =================== */
 
@@ -180,25 +182,14 @@ function getStatusGroup(row: BookingRow): StatusGroup {
   return STATUS_CATALOG[getRawStatus(row)].group;
 }
 
-/* =================== data fetchers =================== */
-
-// Пересекающие интервал: end >= from AND start <= to
-// ВАЖНО: НЕ исключаем блоки в SQL — иначе фильтр "blocked" никогда не сработает
-async function fetchBookingsRange(fromISO: string, toISO: string) {
-  const { data, error } = await supabase
-    .from("bookings")
-    .select("id, start_at, end_at, status, mark, car_id, user_id, price_total")
-    .gte("end_at", fromISO)
-    .lte("start_at", toISO)
-    .order("start_at", { ascending: true });
-  if (error) throw error;
-  return (data ?? []) as BookingRow[];
-}
-
 /* =================== main component =================== */
 
 export default function DashboardPage() {
   const qc = useQueryClient();
+
+  const { ownerId: ownerIdFromLoader } =
+    (useLoaderData() as { ownerId: string }) ?? {};
+  const ownerId = ownerIdFromLoader; // единственный источник
 
   type RangeV = [Date | string | null, Date | string | null];
   const [range, setRange] = useState<RangeV>([
@@ -221,9 +212,10 @@ export default function DashboardPage() {
   /* -------------------- queries -------------------- */
 
   const carsQ = useQuery<CarWithRelations[], Error>({
-    queryKey: QK.cars,
-    queryFn: () => fetchCars(),
-    initialData: qc.getQueryData<CarWithRelations[]>(QK.cars),
+    queryKey: ["carsByHost", ownerId],
+    queryFn: () => fetchCarsByHost(ownerId),
+    initialData: qc.getQueryData<CarWithRelations[]>(["carsByHost", ownerId]),
+    enabled: !!ownerId,
     staleTime: 24 * 60 * 60 * 1000,
     gcTime: 7 * 24 * 60 * 60 * 1000,
     refetchOnMount: false,
@@ -233,15 +225,21 @@ export default function DashboardPage() {
     placeholderData: (prev) => prev,
   });
 
+  const cars = carsQ.data ?? [];
+  const carIds = useMemo(() => cars.map((c) => c.id!).filter(Boolean), [cars]);
+
   // Выбранный период — для таблиц/аналитики
   const bookingsQ = useQuery<BookingRow[], Error>({
-    queryKey: ["dashboard", "bookings", { fromISO, toISO }],
-    queryFn: () => fetchBookingsRange(fromISO, toISO),
+    queryKey: ["dashboardBookings", ownerId, "range", fromISO, toISO],
+    queryFn: () => fetchBookingsIntersectingRange(carIds, fromISO, toISO),
     initialData: qc.getQueryData<BookingRow[]>([
-      "dashboard",
-      "bookings",
-      { fromISO, toISO },
+      "dashboardBookings",
+      ownerId,
+      "range",
+      fromISO,
+      toISO,
     ]),
+    enabled: carIds.length > 0,
     staleTime: 5 * 60 * 1000,
     gcTime: 7 * 24 * 60 * 60 * 1000,
     refetchOnMount: false,
@@ -252,9 +250,15 @@ export default function DashboardPage() {
   // "Сейчас" — отдельная выборка, чтобы KPI не зависел от диапазона
   const nowRef = useRef<string>(new Date().toISOString());
   const bookingsNowQ = useQuery<BookingRow[], Error>({
-    queryKey: ["dashboard", "bookingsNow"],
-    queryFn: () => fetchBookingsRange(nowRef.current, nowRef.current),
-    initialData: qc.getQueryData<BookingRow[]>(["dashboard", "bookingsNow"]),
+    queryKey: ["dashboardBookings", ownerId, "now"],
+    queryFn: () =>
+      fetchBookingsIntersectingRange(carIds, nowRef.current, nowRef.current),
+    initialData: qc.getQueryData<BookingRow[]>([
+      "dashboardBookings",
+      ownerId,
+      "now",
+    ]),
+    enabled: carIds.length > 0,
     staleTime: 60 * 1000,
     refetchInterval: 60 * 1000,
     refetchOnWindowFocus: false,
@@ -265,13 +269,15 @@ export default function DashboardPage() {
   // 6 месяцев — для тренда выручки
   const sixStart = startOfMonth(subMonths(new Date(), 5));
   const bookings6mQ = useQuery<BookingRow[], Error>({
-    queryKey: ["dashboard", "bookings6m"],
+    queryKey: ["dashboardBookings", ownerId, "last6m"],
     queryFn: () =>
-      fetchBookingsRange(
-        startOfDay(sixStart).toISOString(),
-        endOfDay(new Date()).toISOString()
-      ),
-    initialData: qc.getQueryData<BookingRow[]>(["dashboard", "bookings6m"]),
+      fetchBookingsSince(carIds, startOfDay(sixStart).toISOString()),
+    initialData: qc.getQueryData<BookingRow[]>([
+      "dashboardBookings",
+      ownerId,
+      "last6m",
+    ]),
+    enabled: carIds.length > 0,
     staleTime: 10 * 60 * 1000,
     gcTime: 7 * 24 * 60 * 60 * 1000,
     refetchOnMount: false,
@@ -279,7 +285,7 @@ export default function DashboardPage() {
     placeholderData: (prev) => prev,
   });
 
-  const cars = carsQ.data ?? [];
+  // const cars = carsQ.data ?? [];
   const bookings = bookingsQ.data ?? [];
   const bookings6m = bookings6mQ.data ?? [];
   const bookingsNow = bookingsNowQ.data ?? [];
