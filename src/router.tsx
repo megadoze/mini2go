@@ -1,10 +1,9 @@
 // src/router.tsx
 import { createBrowserRouter, Navigate } from "react-router-dom";
-import Layout from "./layout/layout";
+import Layout from "./layout/hostLayout";
 import Dashboard from "./app/dashboard";
 import CarsPage from "./app/cars";
 import UsersPage from "./app/users";
-import UserCabinet from "./app/user";
 import { UserPage } from "./app/users/userPage";
 import UserSettings from "./app/user/userSettings";
 import UserProfile from "./app/user/userProfile";
@@ -37,6 +36,9 @@ import { carsLoader } from "./routes/carsLoader";
 import { dashboardLoader } from "./routes/dashboard.loader";
 import AuthenticationPage from "./app/auth/authenticationPage";
 import Protected from "./components/auth/protected";
+import UserLayout from "./layout/userLayout";
+import UserBookings from "./app/user/userBookings";
+import UserDashboard from "./app/user/userDashboard";
 
 export const router = createBrowserRouter([
   { path: "/auth", element: <AuthenticationPage /> },
@@ -93,16 +95,19 @@ export const router = createBrowserRouter([
         element: <UserPage />,
       },
       { path: "settings", element: <SettingsGlobal /> },
-      {
-        path: "user/:id",
-        element: <UserCabinet />,
-        children: [
-          { index: true, element: <Navigate to="profile" replace /> },
-          { path: "profile", element: <UserProfile /> },
-          { path: "settings", element: <UserSettings /> },
-          { path: "messages", element: <UserMessages /> },
-        ],
-      },
+    ],
+  },
+  {
+    path: "user/:id",
+    // element: <UserCabinet />,
+    element: <UserLayout />,
+    children: [
+      { index: true, element: <Navigate to="profile" replace /> },
+      { path: "profile", element: <UserProfile /> },
+      { path: "dashboard", element: <UserDashboard /> },
+      { path: "bookings", element: <UserBookings /> },
+      { path: "settings", element: <UserSettings /> },
+      { path: "messages", element: <UserMessages /> },
     ],
   },
   {

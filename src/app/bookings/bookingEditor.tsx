@@ -1,5 +1,6 @@
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
+  Link,
   useLocation,
   useNavigate,
   useParams,
@@ -2360,15 +2361,18 @@ export default function BookingEditor() {
           {userId && selectedUser && mode !== "create" && (
             <section className=" mt-6 text-gray-700  ">
               <p className="md:text-lg font-semibold">Guest</p>
-              <div className=" flex flex-col items-start gap-2 border rounded-md  border-gray-400 p-3 mt-2">
+              <Link
+                to={`/users/${userId}`}
+                className=" flex flex-col items-start gap-1 border rounded-md  border-gray-400 p-3 mt-2"
+              >
                 <div className="font-medium">
                   {selectedUser.full_name ?? "—"}
                 </div>
                 <div className="text-xs text-gray-600">
-                  {selectedUser.email ?? "—"}{" "}
-                  {selectedUser.phone ? ` • ${selectedUser.phone}` : ""}
+                  {selectedUser.email ?? "—"}{", "}
+                  {selectedUser.phone ? `  ${selectedUser.phone}` : ""}
                 </div>
-              </div>
+              </Link>
             </section>
           )}
         </aside>
@@ -2473,7 +2477,7 @@ export default function BookingEditor() {
       {/* Календарь */}
       {pickerOpen && (
         <div
-          className="fixed inset-0 z-[60] bg-black/40 flex items-center justify-center"
+          className="fixed inset-0 bg-black/40 flex items-center justify-center z-[999]"
           onClick={() => setPickerOpen(false)}
           role="dialog"
           aria-modal="true"

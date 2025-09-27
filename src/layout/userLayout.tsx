@@ -3,17 +3,16 @@ import { useDisclosure, useMediaQuery } from "@mantine/hooks";
 import { NavLink, Outlet } from "react-router-dom";
 import {
   AdjustmentsHorizontalIcon,
-  // BanknotesIcon,
-  CalendarDaysIcon,
+//   CalendarDaysIcon,
   ChartBarSquareIcon,
-  RocketLaunchIcon,
+//   RocketLaunchIcon,
   TicketIcon,
-  UserGroupIcon,
+//   UserGroupIcon,
 } from "@heroicons/react/24/outline";
 import UserMenu from "@/components/userMenu";
 import { useCarsRealtime } from "@/hooks/useCarsRealtime";
 
-export default function Layout() {
+export default function UserLayout() {
   useCarsRealtime();
 
   const [opened, { toggle }] = useDisclosure();
@@ -22,47 +21,47 @@ export default function Layout() {
 
   const menuItems = [
     {
-      to: "/dashboard",
+      to: "dashboard",
       icon: <ChartBarSquareIcon className="size-5" />,
       label: "Dashboard",
       exact: true,
       onClick: toggle,
     },
+    // {
+    //   to: "/calendar",
+    //   icon: <CalendarDaysIcon className="size-5" />,
+    //   label: "Calendar",
+    //   onClick: toggle,
+    //   // count: unviewedCounts.draft,
+    // },
     {
-      to: "/calendar",
-      icon: <CalendarDaysIcon className="size-5" />,
-      label: "Calendar",
-      onClick: toggle,
-      // count: unviewedCounts.draft,
-    },
-    {
-      to: "/bookings",
+      to: "bookings",
       icon: <TicketIcon className="size-5" />,
       label: "Bookings",
       onClick: toggle,
       // count: unviewedCounts.draft,
     },
-    {
-      to: "/cars",
-      icon: <RocketLaunchIcon className="size-5" />,
-      label: "Cars",
-      onClick: toggle,
-      // count: mainNews.length,
-    },
+    // {
+    //   to: "/cars",
+    //   icon: <RocketLaunchIcon className="size-5" />,
+    //   label: "Cars",
+    //   onClick: toggle,
+    //   // count: mainNews.length,
+    // },
     // {
     //   to: "/finance",
     //   icon: <BanknotesIcon className="size-5" />,
     //   label: "Finance",
     //   onClick: toggle,
     // },
+    // {
+    //   to: "/users",
+    //   icon: <UserGroupIcon className="size-5" />,
+    //   label: "Users",
+    //   onClick: toggle,
+    // },
     {
-      to: "/users",
-      icon: <UserGroupIcon className="size-5" />,
-      label: "Users",
-      onClick: toggle,
-    },
-    {
-      to: "/settings",
+      to: "settings",
       icon: <AdjustmentsHorizontalIcon className="size-5" />,
       label: "Settings",
       onClick: toggle,

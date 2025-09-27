@@ -596,7 +596,7 @@ export default function CalendarPage() {
             const weekend = isWeekend(d);
             const isEndOfMonth = addDays(d, 1).getDate() === 1;
             const monthSep = isEndOfMonth ? "border-r border-gray-300" : "";
-            const todayBg = isSameDay(d, today) ? "bg-amber-200/20" : "";
+            const todayBg = isSameDay(d, today) ? "bg-amber-200/30" : "";
             const weekendBg = weekend ? "bg-slate-50" : "";
             return (
               <div
@@ -837,7 +837,7 @@ export default function CalendarPage() {
                       ? "border-r border-gray-300"
                       : "";
                     const todayBg = isSameDay(d, today)
-                      ? "bg-amber-200/20"
+                      ? "bg-amber-200/30"
                       : "";
                     const weekendBg = weekend ? "bg-slate-50" : "";
                     return (

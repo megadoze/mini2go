@@ -149,7 +149,7 @@ export default function UserProfile() {
 
   if (loading) {
     return (
-      <div className="max-w-xl w-full mx-auto">
+      <div className="max-w-xl w-full">
         <div className="animate-pulse space-y-3">
           <div className="h-6 bg-gray-100 rounded" />
           <div className="h-10 bg-gray-100 rounded" />
@@ -163,7 +163,7 @@ export default function UserProfile() {
   }
 
   return (
-    <div className="max-w-xl w-full mx-auto">
+    <div className="max-w-xl w-full ">
       <h1 className="text-xl md:text-2xl font-semibold">Edit profile</h1>
 
       {/* превью аватара */}

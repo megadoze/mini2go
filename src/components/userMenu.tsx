@@ -47,6 +47,18 @@ function slugFromEmail(email?: string | null) {
   return name.trim().replace(/\s+/g, "-");
 }
 
+// где-то рядом с slugFromEmail
+function slugify(input?: string | null) {
+  if (!input) return "";
+  return input
+    .trim()
+    .normalize("NFKD") // убрать диакритику
+    .replace(/[\u0300-\u036f]/g, "") // доп. очистка диакритики
+    .replace(/[^\p{L}\p{N}]+/gu, "-") // всё, что не буква/цифра -> "-"
+    .replace(/^-+|-+$/g, "") // обрезать дефисы по краям
+    .toLowerCase();
+}
+
 function UserMenu({ onClick }: Props) {
   const navigate = useNavigate();
 
@@ -169,8 +181,12 @@ function UserMenu({ onClick }: Props) {
 
   const handleMenuClick = (e: React.MouseEvent<HTMLButtonElement>) => {
     const id = e.currentTarget.id; // profile | settings | messages
-    const slug = displayName || "me";
-    navigate(`/user/${slug}${id ? `/${id}` : ""}`);
+    console.log(id);
+
+    const slug = slugify(displayName) || "me";
+    if (id === "host") {
+      navigate(`/dashboard`);
+    } else navigate(`/user/${slug}${id ? `/${id}` : ""}`);
     onClick();
   };
 
@@ -230,11 +246,11 @@ function UserMenu({ onClick }: Props) {
           Profile
         </Menu.Item>
         <Menu.Item
-          id="settings"
+          id="host"
           leftSection={<Cog8ToothIcon className="size-4" />}
           onClick={handleMenuClick}
         >
-          Settings
+          Host
         </Menu.Item>
         <Menu.Item
           id="messages"
