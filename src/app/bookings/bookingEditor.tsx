@@ -42,7 +42,7 @@ import {
 } from "@heroicons/react/24/outline";
 import { subscribeBooking } from "@/services/bookings.service";
 import { QK } from "@/queryKeys";
-import RentalDateTimePicker from "@/components/RentalDateTimePicker";
+import RentalDateTimePicker from "@/components/rentalDateTimePicker";
 // +++ для блока адреса доставки
 import "mapbox-gl/dist/mapbox-gl.css";
 import {

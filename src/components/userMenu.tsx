@@ -4,7 +4,7 @@ import { Group, Menu, UnstyledButton } from "@mantine/core";
 import {
   ArrowLeftEndOnRectangleIcon,
   ChatBubbleOvalLeftIcon,
-  Cog8ToothIcon,
+  RocketLaunchIcon,
   UserCircleIcon,
 } from "@heroicons/react/24/outline";
 import multiavatar from "@multiavatar/multiavatar/esm";
@@ -247,7 +247,7 @@ function UserMenu({ onClick }: Props) {
         </Menu.Item>
         <Menu.Item
           id="host"
-          leftSection={<Cog8ToothIcon className="size-4" />}
+          leftSection={<RocketLaunchIcon className="size-4" />}
           onClick={handleMenuClick}
         >
           Host
