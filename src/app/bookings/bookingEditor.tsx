@@ -338,13 +338,13 @@ export default function BookingEditor() {
     full_name: string;
     email: string;
     phone: string;
-    age?: number | "";
+    age: number | null;
     driver_license_issue?: string | "";
   }>({
     full_name: "",
     email: "",
     phone: "",
-    age: "",
+    age: null,
     driver_license_issue: "",
   });
 
@@ -975,7 +975,6 @@ export default function BookingEditor() {
 
   async function handleSave() {
     setError(null);
-    setSaving(true);
 
     if (!carId) {
       setError("Car ID is missing");
@@ -1055,7 +1054,6 @@ export default function BookingEditor() {
       }
     }
 
-    // +++ проверка адреса для доставки
     if (delivery === "by_address") {
       if (
         !deliveryAddress?.trim() ||
@@ -1067,6 +1065,7 @@ export default function BookingEditor() {
       }
     }
 
+    // проверку конфликтов тоже делаем ДО включения лоадера
     try {
       await assertNoConflicts(
         String(carId),
@@ -1079,49 +1078,47 @@ export default function BookingEditor() {
       return;
     }
 
-    const basePayload: Omit<Booking, "id"> & { deposit?: number | null } = {
-      car_id: carId,
-      user_id: mark === "booking" ? userId : null,
-      start_at: new Date(startDateInp).toISOString(),
-      end_at: new Date(endDateInp).toISOString(),
-      mark,
-      price_per_day: mark === "booking" ? baseDailyPrice : null,
-      price_total: mark === "booking" ? price_total : null,
-      deposit: mark === "booking" ? deposit : null,
-      delivery_type: delivery,
-      delivery_fee: deliveryFee,
-      currency: effectiveCurrency,
-      delivery_address: delivery === "by_address" ? deliveryAddress : null,
-      delivery_lat: delivery === "by_address" ? deliveryLat : null,
-      delivery_long: delivery === "by_address" ? deliveryLong : null,
-    };
-
-    const payload =
-      mode === "create"
-        ? {
-            ...basePayload,
-            status: mark === "booking" ? "onApproval" : "block",
-          }
-        : basePayload;
-
+    // ---- НИЖЕ только реальный сетевой сейв, тут уже включаем лоадер
+    setSaving(true);
     try {
+      const basePayload: Omit<Booking, "id"> & { deposit?: number | null } = {
+        car_id: carId,
+        user_id: mark === "booking" ? userId : null,
+        start_at: new Date(startDateInp).toISOString(),
+        end_at: new Date(endDateInp).toISOString(),
+        mark,
+        price_per_day: mark === "booking" ? baseDailyPrice : null,
+        price_total: mark === "booking" ? price_total : null,
+        deposit: mark === "booking" ? deposit : null,
+        delivery_type: delivery,
+        delivery_fee: deliveryFee,
+        currency: effectiveCurrency,
+        delivery_address: delivery === "by_address" ? deliveryAddress : null,
+        delivery_lat: delivery === "by_address" ? deliveryLat : null,
+        delivery_long: delivery === "by_address" ? deliveryLong : null,
+      };
+
+      const payload =
+        mode === "create"
+          ? {
+              ...basePayload,
+              status: mark === "booking" ? "onApproval" : "block",
+            }
+          : basePayload;
+
       let saved: Booking;
       if (mode === "create") {
-        // оптимистическое создание
         saved = await createBookingOptimistic(
           qc,
           payload as Omit<Booking, "id">
         );
       } else {
-        // оптимистическое обновление
         saved = await updateBookingOptimistic(
           qc,
           bookingId!,
           payload as Partial<Booking>
         );
       }
-
-      // Сохраняем экстра-услуги
 
       if (mark === "booking") {
         const fresh = pickedExtras.map((id) => {
@@ -1135,7 +1132,6 @@ export default function BookingEditor() {
             price_type: ex?.price_type ?? "per_trip",
           };
         });
-
         await upsertBookingExtras(saved.id, fresh);
         qc.setQueryData(QK.bookingExtras(saved.id), fresh);
       }
@@ -1147,7 +1143,6 @@ export default function BookingEditor() {
       setSaved(true);
       setTimeout(() => setSaved(false), 1500);
 
-      // Обновим контекстные брони и возвращаемся на календарь (или назад)
       if ((carFromCtx as any)?.id === saved.car_id) {
         setCar?.((prev: any) => prev);
         setTimeout(
@@ -1745,7 +1740,9 @@ export default function BookingEditor() {
                         setNewUser({
                           ...newUser,
                           age:
-                            e.target.value === "" ? "" : Number(e.target.value),
+                            e.target.value === ""
+                              ? null
+                              : Number(e.target.value),
                         })
                       }
                     />
@@ -1772,7 +1769,11 @@ export default function BookingEditor() {
                             full_name: newUser.full_name,
                             email: newUser.email,
                             phone: newUser.phone,
+                            age: newUser.age,
+                            driver_license_issue: newUser.driver_license_issue,
                           });
+                          console.log(created);
+
                           setUserId(created.profile.id);
                           setSelectedUser(created.profile);
                           setCreatingUser(false);
@@ -2510,7 +2511,6 @@ export default function BookingEditor() {
           aria-hidden="true"
         >
           <div className="absolute inset-0 flex items-center justify-center">
-            {/* Если не хочешь зависеть от Mantine — оставь простой CSS-спиннер ниже */}
             <div className="h-8 w-8 rounded-full border-2 border-gray-300 border-t-gray-800 animate-spin" />
           </div>
         </div>

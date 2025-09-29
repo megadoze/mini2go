@@ -92,8 +92,17 @@ export default function AddCarWizard() {
   });
 
   const [loading, setLoading] = useState(false);
-
   const [photos, setPhotos] = useState<PhotoItem[]>([]);
+
+  const [meId, setMeId] = useState<string | null | undefined>(undefined);
+
+  useEffect(() => {
+    // хватит подписки — она даст id сразу и при смене
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
+      setMeId(s?.user?.id ?? null);
+    });
+    return () => sub.subscription.unsubscribe();
+  }, []);
 
   const nextStep = () => setStep((s) => Math.min(s + 1, steps.length));
   const prevStep = () => setStep((s) => Math.max(s - 1, 1));
@@ -171,6 +180,7 @@ export default function AddCarWizard() {
         photos: [],
         status: "available",
         owner: form.owner,
+        owner_id: meId,
       };
 
       const result = await addCar(payload);

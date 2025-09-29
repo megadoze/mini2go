@@ -21,7 +21,7 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json().catch(() => ({}));
-    const { email, password, full_name, phone } = body ?? {};
+    const { email, password, full_name, phone, age, driver_license_issue } = body ?? {};
 
     if (!email || !password) {
       return new Response(
@@ -62,9 +62,23 @@ Deno.serve(async (req) => {
       });
     }
 
+    const normalizedAge =
+      age == null || Number.isNaN(Number(age)) ? null : Math.trunc(Number(age));
+
     // 2) Профиль создаст триггер. Ждём и читаем.
     const { data: profile, error: profErr } = await admin
       .from("profiles")
+      .upsert(
+        {
+          id: user.id,
+          email,
+          full_name,
+          phone: phone ?? null,
+          age: normalizedAge,
+          driver_license_issue,
+        },
+        { onConflict: "id" } 
+      )
       .select("*")
       .eq("id", user.id)
       .single();
