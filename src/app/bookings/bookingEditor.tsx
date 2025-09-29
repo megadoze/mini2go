@@ -42,7 +42,7 @@ import {
 } from "@heroicons/react/24/outline";
 import { subscribeBooking } from "@/services/bookings.service";
 import { QK } from "@/queryKeys";
-import RentalDateTimePicker from "@/components/rentalDateTimePicker";
+import RentalDateTimePicker from "@/components/RentalDateTimePicker";
 // +++ для блока адреса доставки
 import "mapbox-gl/dist/mapbox-gl.css";
 import {
@@ -2369,7 +2369,8 @@ export default function BookingEditor() {
                   {selectedUser.full_name ?? "—"}
                 </div>
                 <div className="text-xs text-gray-600">
-                  {selectedUser.email ?? "—"}{", "}
+                  {selectedUser.email ?? "—"}
+                  {", "}
                   {selectedUser.phone ? `  ${selectedUser.phone}` : ""}
                 </div>
               </Link>
