@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { addCar, uploadCarPhotos } from "@/services/car.service";
 import { supabase } from "@/lib/supabase";
 import { optionsOwnerCar } from "@/constants/carOptions";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import {
   Map,
   Marker,
@@ -34,6 +34,7 @@ import { Dropzone, IMAGE_MIME_TYPE } from "@mantine/dropzone";
 import Step3 from "./step3";
 import { useQueryClient } from "@tanstack/react-query";
 import { QK } from "@/queryKeys";
+import { XMarkIcon } from "@heroicons/react/24/outline";
 
 type MapboxFeature = {
   place_type?: string[];
@@ -68,6 +69,9 @@ export default function AddCarWizard() {
   const [step, setStep] = useState(1);
   const navigate = useNavigate();
 
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+
   const qc = useQueryClient();
 
   const [form, setForm] = useState({
@@ -94,15 +98,39 @@ export default function AddCarWizard() {
   const [loading, setLoading] = useState(false);
   const [photos, setPhotos] = useState<PhotoItem[]>([]);
 
-  const [meId, setMeId] = useState<string | null | undefined>(undefined);
+  // читаем возможный return из query или из state
+  const returnToParam = searchParams.get("return");
+  const returnFromState = (location.state as any)?.from as string | undefined;
 
-  useEffect(() => {
-    // хватит подписки — она даст id сразу и при смене
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
-      setMeId(s?.user?.id ?? null);
+  const handleCancel = async () => {
+    // 1) явный return в URL или state
+    const directReturn = returnToParam || returnFromState;
+    if (directReturn) {
+      navigate(directReturn, { replace: true });
+      return;
+    }
+    // 2) если есть откуда вернуться — шагаем назад
+    if (window.history.length > 1) {
+      navigate(-1);
+      return;
+    }
+    // 3) умный фоллбэк по статусу хоста
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      navigate("/auth", { replace: true });
+      return;
+    }
+    const { count } = await supabase
+      .from("cars")
+      .select("id", { count: "exact", head: true })
+      .eq("owner_id", user.id);
+    const isHost = (count ?? 0) > 0;
+    navigate(isHost ? "/dashboard" : `/user/${user.id}/dashboard`, {
+      replace: true,
     });
-    return () => sub.subscription.unsubscribe();
-  }, []);
+  };
 
   const nextStep = () => setStep((s) => Math.min(s + 1, steps.length));
   const prevStep = () => setStep((s) => Math.max(s - 1, 1));
@@ -165,6 +193,15 @@ export default function AddCarWizard() {
         return;
       }
 
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        toast.error("Not signed in");
+        return;
+      }
+
       const payload = {
         vin: form.vin,
         model_id: form.modelId,
@@ -178,17 +215,17 @@ export default function AddCarWizard() {
         long: form.long,
         price: form.price ? Number(form.price) : 0,
         photos: [],
-        status: "available",
+        status: "unavailable",
         owner: form.owner,
-        owner_id: meId,
+        owner_id: user.id,
       };
 
-      const result = await addCar(payload);
-      if (!result || !result[0]?.id) {
+      const inserted = await addCar(payload);
+      const carId = inserted.id;
+      // const result = await addCar(payload);
+      if (!inserted || !carId) {
         throw new Error("Ошибка добавления авто");
       }
-
-      const carId = result[0].id;
 
       let uploadedUrls: string[] = [];
       if (photos.length) {
@@ -301,8 +338,18 @@ export default function AddCarWizard() {
   }
 
   return (
-    <div className="max-w-xl mx-auto p-0">
-      <h1 className="font-roboto text-2xl font-bold">List your car</h1>
+    <div className="mx-auto max-w-xl min-h-[100dvh] flex flex-col justify-center p-4 overflow-y-auto">
+      <div className="flex items-center justify-between">
+        <h1 className="font-roboto text-2xl font-bold">List your car</h1>
+        <button
+          type="button"
+          onClick={handleCancel}
+          className=" rounded-full p-2 text-gray-600 hover:bg-gray-100"
+        >
+          <XMarkIcon className="h-4 w-4" />
+        </button>
+      </div>
+
       <div className="bg-slate-100 h-2 rounded shadow-inner overflow-hidden mt-10">
         <div
           className="h-full bg-fuchsia-600 transition-all duration-300"
@@ -619,8 +666,9 @@ export default function AddCarWizard() {
                         href="https://mini2go.rent"
                         target="_blank"
                         inherit
+                        c={"green"}
                       >
-                        terms and conditions
+                        terms and conditions{" "}
                       </Anchor>
                       on MINI2go.
                     </>
@@ -638,7 +686,7 @@ export default function AddCarWizard() {
         </motion.div>
       </AnimatePresence>
 
-      <div className="flex justify-between mt-6">
+      <div className="flex items-center justify-between mt-6">
         {step > 1 ? (
           <button
             onClick={prevStep}

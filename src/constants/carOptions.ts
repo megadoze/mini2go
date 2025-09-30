@@ -7,7 +7,7 @@ export const bodyTypes = [
   "Station wagon",
   "SUV",
   "Coupe",
-  "Convertible",
+  "Cabrio",
   "Minivan",
   "Pickup",
 ] as const;

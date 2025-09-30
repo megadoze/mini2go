@@ -171,19 +171,6 @@ export default function CarDetails() {
     }
   }, [featuresIdsQ.data]);
 
-  // useEffect(() => {
-  //   const loadCarFeatures = async (id: string) => {
-  //     if (!carId) return;
-  //     const featureIds = await fetchCarFeatures(id);
-  //     setSelectedFeatureIds(featureIds);
-  //     if (initialFeatureIdsRef.current === null) {
-  //       initialFeatureIdsRef.current = featureIds;
-  //     }
-  //   };
-
-  //   if (carId) loadCarFeatures(carId);
-  // }, [carId]);
-
   const isChanged = useMemo(() => {
     if (!car) return false;
 
@@ -232,23 +219,25 @@ export default function CarDetails() {
     }));
   };
 
-  // const validateForm = () => {
-  //   console.log(form);
+  const validateForm = () => {
+    if (
+      !form.licensePlate ||
+      !form.bodyType ||
+      !form.transmission ||
+      !form.modelId ||
+      !form.driveType ||
+      !form.fuelType ||
+      !form.engineCapacity ||
+      !form.seats ||
+      !form.color ||
+      !form.doors
+    )
+      return false;
+    else return true;
+  };
 
-  //   if (
-  // !form.licensePlate ||
-  //   !form.bodyType ||
-  //   !form.transmission ||
-  //   !form.modelId ||
-  //   !form.driveType ||
-  //   !form.fuelType ||
-  //   !form.engineCapacity ||
-  //   !form.seats ||
-  //   !form.color ||
-  //   !form.doors
-  //   )
-  //     return;
-  // };
+  console.log(validateForm());
+  
 
   const handleSubmit = async () => {
     if (!isChanged) return;
@@ -338,7 +327,9 @@ export default function CarDetails() {
 
   return (
     <div className="mb-4 w-full xl:max-w-2xl">
-      <h1 className="font-roboto text-xl md:text-2xl font-medium">Car details</h1>
+      <h1 className="font-roboto text-xl md:text-2xl font-medium">
+        Car details
+      </h1>
       <div className="border-b border-gray-100 mt-5 shadow-sm"></div>
       <div className="flex justify-between items-center mt-5">
         <p className="text-lg font-medium text-gray-800">Your car</p>
@@ -471,7 +462,7 @@ export default function CarDetails() {
           value={form.doors}
           onChange={(e) => handleChange("doors", e.target.value)}
           data={[
-            { value: "", label: "Select num of seats" }, // пустое значение
+            { value: "", label: "Select num of doors" }, // пустое значение
             ...doorOptions.map((d) => ({ value: d, label: d })),
           ]}
           withAsterisk
@@ -509,13 +500,19 @@ export default function CarDetails() {
         onChange={(e: string | number) => handleChange("content", e)}
       />
 
-      <div className="mt-5 w-fit">
+      <div className="mt-5 w-fit flex items-end gap-5">
         <NativeSelect
           label="Availability"
           value={form.status}
           onChange={(e) => handleChange("status", e.target.value)}
           data={statuses}
+          disabled={!validateForm()}
         />
+        {form.status === "unavailable" && validateForm() && (
+          <p className=" rounded-md p-2 text-sm w-52 bg-green-50/80 text-green-700/70">
+            Don't forget choose Available status to offer your car
+          </p>
+        )}
       </div>
 
       <div className="mt-5 flex items-center justify-between text-right w-full">

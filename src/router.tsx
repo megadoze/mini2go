@@ -1,6 +1,5 @@
 // src/router.tsx
 import { createBrowserRouter, Navigate } from "react-router-dom";
-import Layout from "./layout/hostLayout";
 import Dashboard from "./app/dashboard";
 import CarsPage from "./app/cars";
 import UsersPage from "./app/users";
@@ -9,7 +8,6 @@ import UserSettings from "./app/user/userSettings";
 import UserProfile from "./app/user/userProfile";
 import UserMessages from "./app/user/userMessages";
 import AddCarPage from "./app/cars/addCar";
-import CarPageLayout from "./layout/carPageLayout";
 import CarDetails from "./app/car/cardetails";
 import Pricing from "./app/car/pricing";
 import Distance from "./app/car/distance";
@@ -24,7 +22,6 @@ import SettingsGlobal from "./app/settings";
 import { carLayoutLoader } from "@/routes/carLayoutLoader";
 import HydrateFallback from "./components/hydrateFallback";
 import CarErrorBoundary from "./components/carErrorBoundary";
-// import Finance from "./app/finance";
 import BookingsList from "./app/bookings";
 import BookingEditor from "./app/bookings/bookingEditor";
 import MiniLandingPage from "./app/landingpage";
@@ -39,6 +36,9 @@ import Protected from "./components/auth/protected";
 import UserLayout from "./layout/userLayout";
 import UserBookings from "./app/user/userBookings";
 import UserDashboard from "./app/user/userDashboard";
+import HomeRedirect from "./components/homeRedirect";
+import HostGate from "./components/auth/hostGate";
+import CarPageLayout from "./layout/carPageLayout";
 
 export const router = createBrowserRouter([
   { path: "/auth", element: <AuthenticationPage /> },
@@ -46,60 +46,43 @@ export const router = createBrowserRouter([
     path: "/",
     element: (
       <Protected>
-        <Layout />
+        <HostGate />
       </Protected>
     ),
     HydrateFallback: HydrateFallback,
     children: [
-      { index: true, element: <Navigate to="/dashboard" replace /> },
-      { path: "user", element: <Navigate to="/" replace /> },
-      {
-        path: "/dashboard",
-        loader: dashboardLoader,
-        element: <Dashboard />,
-      },
+      { index: true, element: <HomeRedirect /> },
+      { path: "dashboard", loader: dashboardLoader, element: <Dashboard /> },
       {
         id: "calendar",
-        path: "/calendar",
+        path: "calendar",
         loader: calendarLoader,
-        // ВАЖНО: не перезапускаем loader, если изменился только ?month
-        shouldRevalidate: ({ currentUrl, nextUrl }) => {
-          if (currentUrl.pathname !== nextUrl.pathname) return true;
-
-          const a = new URL(currentUrl);
-          const b = new URL(nextUrl);
-          a.searchParams.delete("month");
-          b.searchParams.delete("month");
-
-          // ревалидируем только если изменилось что-то ещё, кроме month
-          return a.search !== b.search;
-        },
         element: <CalendarPage />,
       },
       { id: "cars", path: "cars", loader: carsLoader, element: <CarsPage /> },
-      { path: "cars/add", element: <AddCarPage /> },
-      // { path: "finance", element: <Finance /> },
+      // { path: "cars/add", element: <AddCarPage /> },
       {
         id: "bookings",
-        path: "/bookings",
+        path: "bookings",
         loader: bookingsLoader,
         element: <BookingsList />,
       },
       { path: "bookings/new", element: <BookingEditor /> },
-      {
-        path: "/users",
-        element: <UsersPage />,
-      },
-      {
-        path: "/users/:userId",
-        element: <UserPage />,
-      },
+      { path: "users", element: <UsersPage /> },
+      { path: "users/:userId", element: <UserPage /> },
       { path: "settings", element: <SettingsGlobal /> },
     ],
   },
   {
+    path: "/cars/add",
+    element: (
+      <Protected>
+        <AddCarPage />
+      </Protected>
+    ),
+  },
+  {
     path: "user/:id",
-    // element: <UserCabinet />,
     element: <UserLayout />,
     children: [
       { index: true, element: <Navigate to="profile" replace /> },
@@ -112,25 +95,18 @@ export const router = createBrowserRouter([
   },
   {
     path: "cars/:carId",
-    element: <CarPageLayout />,
-    loader: carLayoutLoader, // <-- предзагрузка всех данных
-    HydrateFallback: HydrateFallback,
+    element: <CarPageLayout />, // ← здесь твой CarContext.Provider
+    loader: carLayoutLoader,
+    HydrateFallback,
     errorElement: <CarErrorBoundary />,
-    shouldRevalidate: ({ currentParams, nextParams }) => {
-      // Перегружать только если поменялся сам carId
-      return currentParams?.carId !== nextParams?.carId;
-    },
-
-    // shouldRevalidate: () => false,
+    shouldRevalidate: ({ currentParams, nextParams }) =>
+      currentParams?.carId !== nextParams?.carId,
     children: [
       { index: true, element: <Navigate to="cardetails" replace /> },
       { path: "cardetails", element: <CarDetails /> },
       { path: "calendar", element: <Calendar /> },
       { path: "bookings/new", element: <BookingEditor /> },
-      {
-        path: "bookings/:bookingId/edit",
-        element: <BookingEditor />,
-      },
+      { path: "bookings/:bookingId/edit", element: <BookingEditor /> },
       { path: "pricing", element: <Pricing /> },
       { path: "distance", element: <Distance /> },
       { path: "photos", element: <Photos /> },

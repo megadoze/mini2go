@@ -14,6 +14,7 @@ export default function Step3({ form, handleChange }: any) {
   const [showManualFields, setShowManualFields] = useState(false);
   const [brands, setBrands] = useState<Brand[]>([]);
   const [models, setModels] = useState<Model[]>([]);
+
   const [lastDecodedVin, setLastDecodedVin] = useState<string | null>(null);
 
   const resetDecodedVinFields = () => {

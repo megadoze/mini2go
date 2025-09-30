@@ -3,10 +3,8 @@ import type { Brand } from "@/types/brand";
 import type { Car } from "@/types/car";
 import type { CarExtraWithMeta } from "@/types/carExtra";
 import type { CarWithRelations } from "@/types/carWithRelations";
-import type { CreatedCar } from "@/types/createdCar";
 import type { Extra } from "@/types/extra";
 import type { Feature } from "@/types/feature";
-import type { RawCar } from "@/types/rawCar";
 import type { CarUpdatePayload } from "@/types/сarUpdatePayload";
 
 const carCache = new Map<string, any>();
@@ -290,62 +288,87 @@ export type NewCar = Omit<
 >;
 
 // Добавление нового авто
-export async function addCar(car: Partial<NewCar>): Promise<CreatedCar[]> {
-  const { data, error } = await supabase.from("cars").insert(car).select(`
-      id,
-      vin,
-      year,
-      created_at,
-      model_id,
-      status,
-      license_plate,
-      location_id,
-      owner,
-      owner_id,
-      models(name, brands(name)),
-      locations(name, countries(id, name))
-    `);
+export async function addCar(car: Partial<NewCar>): Promise<{ id: string }> {
+  const { data, error } = await supabase
+    .from("cars")
+    .insert(car)
+    .select("id")        // минимально
+    .single();           // ожидаем 1 строку
 
   if (error) throw error;
-  if (!data) return [];
-
-  return (data as unknown as RawCar[]).map((car): CreatedCar => {
-    const model = Array.isArray(car.models) ? car.models[0] : car.models;
-    const brand = Array.isArray(model?.brands)
-      ? model.brands[0]
-      : model?.brands;
-
-    const location = Array.isArray(car.locations)
-      ? car.locations[0]
-      : car.locations;
-    const country = Array.isArray(location?.countries)
-      ? location.countries[0]
-      : location?.countries;
-
-    return {
-      id: car.id,
-      vin: car.vin,
-      year: Number(car.year),
-      modelId: car.model_id,
-      locationId: car.location_id ?? null,
-      owner: (car as any).owner ?? null,
-      ownerId: (car as any).owner_id ?? null,
-
-      models: {
-        name: model?.name || "—",
-        brands: {
-          name: brand?.name || "—",
-        },
-      },
-      locations: {
-        name: location?.name || "—",
-        countries: {
-          name: country?.name || "—",
-        },
-      },
-    };
-  });
+  return data!;
 }
+
+export async function getCarWithLookups(id: string) {
+  const { data, error } = await supabase
+    .from("cars")
+    .select(`
+      id, vin, year, created_at, model_id, status, license_plate, location_id, owner, owner_id,
+      models(name, brands(name)),
+      locations(name, countries(id, name))
+    `)
+    .eq("id", id)
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+// export async function addCar(car: Partial<NewCar>): Promise<CreatedCar[]> {
+//   const { data, error } = await supabase.from("cars").insert(car).select(`
+//       id,
+//       vin,
+//       year,
+//       created_at,
+//       model_id,
+//       status,
+//       license_plate,
+//       location_id,
+//       owner,
+//       owner_id,
+//       models(name, brands(name)),
+//       locations(name, countries(id, name))
+//     `);
+
+//   if (error) throw error;
+//   if (!data) return [];
+
+//   return (data as unknown as RawCar[]).map((car): CreatedCar => {
+//     const model = Array.isArray(car.models) ? car.models[0] : car.models;
+//     const brand = Array.isArray(model?.brands)
+//       ? model.brands[0]
+//       : model?.brands;
+
+//     const location = Array.isArray(car.locations)
+//       ? car.locations[0]
+//       : car.locations;
+//     const country = Array.isArray(location?.countries)
+//       ? location.countries[0]
+//       : location?.countries;
+
+//     return {
+//       id: car.id,
+//       vin: car.vin,
+//       year: Number(car.year),
+//       modelId: car.model_id,
+//       locationId: car.location_id ?? null,
+//       owner: (car as any).owner ?? null,
+//       ownerId: (car as any).owner_id ?? null,
+
+//       models: {
+//         name: model?.name || "—",
+//         brands: {
+//           name: brand?.name || "—",
+//         },
+//       },
+//       locations: {
+//         name: location?.name || "—",
+//         countries: {
+//           name: country?.name || "—",
+//         },
+//       },
+//     };
+//   });
+// }
 
 export async function fetchCarById(id: string) {
   if (carCache.has(id)) return carCache.get(id);

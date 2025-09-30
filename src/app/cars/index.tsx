@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   useInfiniteQuery,
   useQuery,
@@ -35,6 +35,8 @@ type Page = { items: CarWithRelations[]; count: number };
 export default function CarsPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
+
+  const loc = useLocation();
 
   // UI state
   const [countryId, setCountryId] = useState<string | null>(null);
@@ -171,7 +173,13 @@ export default function CarsPage() {
     });
   }, [cars, search, countryId, locationFilter, statusFilter]);
 
-  const addNewCar = useCallback(() => navigate("/cars/add"), [navigate]);
+  const addNewCar = useCallback(
+    () =>
+      navigate("/cars/add", {
+        state: { from: loc.pathname + loc.search + loc.hash },
+      }),
+    [navigate]
+  );
 
   const resetFilters = () => {
     setSearch("");

@@ -48,12 +48,6 @@ export default function HostLayout() {
       onClick: toggle,
       // count: mainNews.length,
     },
-    // {
-    //   to: "/finance",
-    //   icon: <BanknotesIcon className="size-5" />,
-    //   label: "Finance",
-    //   onClick: toggle,
-    // },
     {
       to: "/users",
       icon: <UserGroupIcon className="size-5" />,
@@ -73,7 +67,6 @@ export default function HostLayout() {
       <>
         <NavLink
           to={"/"}
-          // className=" ml-1 flex px-3 py-2 items-center font-openSans font-bold text-xl"
           className="flex flex-col items-center shrink-0 font-roboto uppercase font-bold pt-2"
         >
           <img src="/icons/logo.png" className=" w-16 opacity-90" />

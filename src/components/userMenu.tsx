@@ -8,9 +8,10 @@ import {
   UserCircleIcon,
 } from "@heroicons/react/24/outline";
 import multiavatar from "@multiavatar/multiavatar/esm";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import type { User } from "@supabase/supabase-js";
+import { useIsHost } from "@/hooks/useIsHost";
 
 type Props = { onClick: () => void };
 type ProfileRow = { full_name: string | null; avatar_url: string | null };
@@ -62,7 +63,9 @@ function slugify(input?: string | null) {
 function UserMenu({ onClick }: Props) {
   const navigate = useNavigate();
 
-  // user нужен только для logout и для user.id → чтобы знать, чей профиль грузить.
+  const loc = useLocation();
+
+  const { isHost, loading: hostLoading } = useIsHost();
   const [user, setUser] = useState<User | null>(null);
 
   // профиль — ЕДИНСТВЕННЫЙ источник правды для аватарки и имени
@@ -180,13 +183,22 @@ function UserMenu({ onClick }: Props) {
   const showImg = !!profile?.avatar_url && !imgBroken;
 
   const handleMenuClick = (e: React.MouseEvent<HTMLButtonElement>) => {
-    const id = e.currentTarget.id; // profile | settings | messages
-    console.log(id);
+    const id = e.currentTarget.id;
+
+    if (id === "host") {
+      // если ещё грузится — можно временно дизейблить пункт меню или ничего не делать
+      if (hostLoading) return;
+
+      // ✅ главное: роутим по факту
+      navigate(isHost ? "/dashboard" : "/cars/add", {
+        state: { from: loc.pathname + loc.search + loc.hash },
+      });
+      onClick();
+      return;
+    }
 
     const slug = slugify(displayName) || "me";
-    if (id === "host") {
-      navigate(`/dashboard`);
-    } else navigate(`/user/${slug}${id ? `/${id}` : ""}`);
+    navigate(`/user/${slug}${id ? `/${id}` : ""}`);
     onClick();
   };
 
@@ -249,8 +261,9 @@ function UserMenu({ onClick }: Props) {
           id="host"
           leftSection={<RocketLaunchIcon className="size-4" />}
           onClick={handleMenuClick}
+          disabled={hostLoading} // пока считаем — лучше отключить
         >
-          Host
+          {hostLoading ? "…" : isHost ? "Host" : "Become a host"}
         </Menu.Item>
         <Menu.Item
           id="messages"
