@@ -1,4 +1,3 @@
-// src/router.tsx
 import { createBrowserRouter, Navigate } from "react-router-dom";
 import Dashboard from "./app/dashboard";
 import CarsPage from "./app/cars";
@@ -60,7 +59,6 @@ export const router = createBrowserRouter([
         element: <CalendarPage />,
       },
       { id: "cars", path: "cars", loader: carsLoader, element: <CarsPage /> },
-      // { path: "cars/add", element: <AddCarPage /> },
       {
         id: "bookings",
         path: "bookings",

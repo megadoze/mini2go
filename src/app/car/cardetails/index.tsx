@@ -236,9 +236,6 @@ export default function CarDetails() {
     else return true;
   };
 
-  console.log(validateForm());
-  
-
   const handleSubmit = async () => {
     if (!isChanged) return;
     if (

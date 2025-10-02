@@ -12,7 +12,7 @@ import {
   useInfiniteQuery,
   type InfiniteData,
 } from "@tanstack/react-query";
-import { Badge, Drawer, TextInput } from "@mantine/core";
+import { Badge, Drawer, Loader, TextInput } from "@mantine/core";
 import { useMediaQuery } from "@mantine/hooks";
 import { format, parseISO } from "date-fns";
 import {
@@ -482,8 +482,8 @@ export default function BookingsList() {
       {/* Content */}
       <section id="bookings" className="mt-4 mb-10">
         {loadingInitial ? (
-          <div className="p-6 rounded-2xl border text-gray-600 text-sm">
-            Загрузка…
+          <div className="flex justify-center items-center gap-2 text-center text-zinc-500 mt-10">
+            <Loader size="sm" /> Loading...
           </div>
         ) : filtered.length === 0 ? (
           <div className="p-6 rounded-2xl border text-gray-600 text-sm">

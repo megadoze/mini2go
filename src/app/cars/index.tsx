@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo, useCallback } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, useLoaderData } from "react-router-dom";
 import {
   useInfiniteQuery,
   useQuery,
@@ -13,19 +13,16 @@ import {
   FunnelIcon,
 } from "@heroicons/react/24/outline";
 
-import CarTable from "./сarTable";
-
-import { supabase } from "@/lib/supabase";
+import CarTable from "./сarTable"; // проверь, что тут не кириллическая `с`
 import { fetchCarsPageByHost } from "@/services/car.service";
-
-import type { CarWithRelations } from "@/types/carWithRelations";
-import type { Country } from "@/types/country";
-import type { Location } from "@/types/location";
-
 import {
   fetchCountries,
   fetchLocationsByCountry,
 } from "@/services/geo.service";
+
+import type { CarWithRelations } from "@/types/carWithRelations";
+import type { Country } from "@/types/country";
+import type { Location } from "@/types/location";
 import type { CarStatus } from "@/components/carFilters";
 import CarFilters from "@/components/carFilters";
 
@@ -33,29 +30,23 @@ const PAGE_SIZE = 10;
 type Page = { items: CarWithRelations[]; count: number };
 
 export default function CarsPage() {
+  // ⭐️ ownerId приходит из loader (как в бронях)
+  const { ownerId } = (useLoaderData() as { ownerId: string | null }) ?? {
+    ownerId: null,
+  };
+
   const navigate = useNavigate();
   const qc = useQueryClient();
-
   const loc = useLocation();
 
-  // UI state
+  // UI
   const [countryId, setCountryId] = useState<string | null>(null);
   const [locationFilter, setLocationFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState<CarStatus>("");
   const [search, setSearch] = useState("");
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
-  const [meId, setMeId] = useState<string | null | undefined>(undefined);
 
-  useEffect(() => {
-    // хватит подписки — она даст id сразу и при смене
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
-      setMeId(s?.user?.id ?? null);
-    });
-    return () => sub.subscription.unsubscribe();
-  }, []);
-
-  /* -------------------- queries -------------------- */
-
+  /* -------- geo queries -------- */
   const countriesQ = useQuery<Country[], Error>({
     queryKey: ["countries"],
     queryFn: fetchCountries,
@@ -85,17 +76,20 @@ export default function CarsPage() {
     placeholderData: (prev) => prev ?? [],
   });
 
+  /* -------- cars infinite query -------- */
+  const currentKey = ["carsByHost", PAGE_SIZE, ownerId] as const;
+
   const carsQ = useInfiniteQuery<
     { items: CarWithRelations[]; count: number },
     Error
   >({
-    queryKey: ["carsByHost", "infinite", PAGE_SIZE, meId ?? "guest"],
-    enabled: meId !== undefined && !!meId, // ждём, пока узнаем меня, и чтобы не для гостя
+    queryKey: currentKey,
+    enabled: !!ownerId, // ключ известен сразу, thanks to loader
     queryFn: async ({ pageParam }) => {
       const pageIndex = typeof pageParam === "number" ? pageParam : 0;
       const offset = pageIndex * PAGE_SIZE;
       return fetchCarsPageByHost({
-        ownerId: meId as string,
+        ownerId: ownerId as string,
         limit: PAGE_SIZE,
         offset,
       });
@@ -112,40 +106,42 @@ export default function CarsPage() {
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
     retry: 1,
+    // забираем прогретый в loader кэш как initial
+    initialData: ownerId
+      ? () => qc.getQueryData<InfiniteData<Page>>(currentKey)
+      : undefined,
+    // и держим старые страницы на экране при перефетче
+    placeholderData: (prev) => prev,
   });
 
-  // ✂️ хелпер — обрезать кэш до первой страницы (без сети)
+  // ✂️ обрезка кэша до первой страницы при уходе со страницы
   const trimToFirstPage = () => {
-    const key = ["carsByHost", "infinite", PAGE_SIZE, meId ?? "guest"];
-    qc.setQueryData<InfiniteData<Page>>(key, (old) => {
+    qc.setQueryData<InfiniteData<Page>>(currentKey, (old) => {
       if (!old?.pages?.length) return old;
       return { pages: [old.pages[0]], pageParams: [0] };
     });
   };
-
-  // при уходе со страницы — всегда возвращаем к первым 10
   useEffect(() => {
     return () => {
       trimToFirstPage();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [ownerId]);
 
   const countries = countriesQ.data ?? [];
   const locations = locationsQ.data ?? [];
 
-  // уже загруженные машины
+  // данные для отображения (берём то, что уже в кэше/initialData)
+  const displayData = carsQ.data;
   const cars: CarWithRelations[] =
-    carsQ.data?.pages.flatMap((p) => p.items) ?? [];
+    displayData?.pages.flatMap((p) => p.items) ?? [];
 
-  const loadingInitial = carsQ.isLoading && !carsQ.data;
   const isFetchingNext = carsQ.isFetchingNextPage;
   const totalLoaded = cars.length;
-  const totalAvailable = carsQ.data?.pages[0]?.count ?? totalLoaded;
+  const totalAvailable = displayData?.pages?.[0]?.count ?? totalLoaded;
   const canLoadMore = totalLoaded < totalAvailable;
 
-  /* -------------------- derived -------------------- */
-
+  /* -------- derived filters -------- */
   const filteredCars = useMemo(() => {
     const text = search.trim().toLowerCase();
 
@@ -173,12 +169,20 @@ export default function CarsPage() {
     });
   }, [cars, search, countryId, locationFilter, statusFilter]);
 
+  /* -------- flags -------- */
+  const contentLoading =
+    !!ownerId &&
+    !displayData &&
+    (carsQ.fetchStatus === "fetching" || carsQ.status === "pending");
+  const showEmpty = carsQ.status === "success" && filteredCars.length === 0;
+
+  /* -------- actions -------- */
   const addNewCar = useCallback(
     () =>
       navigate("/cars/add", {
         state: { from: loc.pathname + loc.search + loc.hash },
       }),
-    [navigate]
+    [navigate, loc.pathname, loc.search, loc.hash]
   );
 
   const resetFilters = () => {
@@ -186,35 +190,24 @@ export default function CarsPage() {
     setCountryId(null);
     setLocationFilter("");
     setStatusFilter("");
-    // ⬅️ без сети: обрезаем кэш до первой страницы
     trimToFirstPage();
   };
 
-  /* -------------------- render -------------------- */
-
-  // if (meId === undefined) {
-  //   return (
-  //     <div className="flex justify-center items-center gap-2 text-center text-zinc-500 mt-10">
-  //       <Loader size="sm" /> Loading...
-  //     </div>
-  //   );
-  // }
-
-  if (meId === null) {
+  /* -------- guests -------- */
+  if (ownerId === null) {
     return (
       <p className="text-zinc-500 text-sm mt-10">Sign in to see your cars</p>
     );
   }
 
+  /* -------- render -------- */
   return (
     <>
-      {/* Header */}
       <div className="flex justify-between items-center mb-4">
         <div className="flex items-center gap-2">
           <h1 className="font-roboto text-xl md:text-2xl font-medium md:font-bold">
             Cars
           </h1>
-          {/* можно показывать totalAvailable, если хочешь общее число */}
           {totalLoaded > 0 && <Badge color="black">{totalLoaded}</Badge>}
         </div>
         <button
@@ -226,7 +219,7 @@ export default function CarsPage() {
         </button>
       </div>
 
-      {/* Desktop / tablet filters (>= sm) — inline, immediate apply */}
+      {/* Filters (как было) */}
       <div className="hidden sm:flex flex-wrap gap-3 items-center w-full mb-6">
         <CarFilters
           countries={countries}
@@ -238,8 +231,6 @@ export default function CarsPage() {
           onChangeLocation={setLocationFilter}
           onChangeStatus={setStatusFilter}
         />
-
-        {/* Search inline */}
         <div className="relative flex-1 min-w-[300px]">
           <MagnifyingGlassIcon className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-zinc-500" />
           <TextInput
@@ -249,8 +240,6 @@ export default function CarsPage() {
             className="w-full rounded-xl bg-white/60 shadow-sm pl-9 pr-3 py-2 text-sm hover:bg-white/80 focus:ring-2 focus:ring-black/10"
           />
         </div>
-
-        {/* Reset */}
         <button
           type="button"
           onClick={resetFilters}
@@ -262,7 +251,7 @@ export default function CarsPage() {
         </button>
       </div>
 
-      {/* Mobile search (separate, always visible above the list) */}
+      {/* Mobile search + drawer — без изменений */}
       <div className="relative w-full mb-4 sm:hidden">
         <MagnifyingGlassIcon className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-zinc-500" />
         <TextInput
@@ -273,7 +262,6 @@ export default function CarsPage() {
         />
       </div>
 
-      {/* Mobile floating Filters button (< sm) */}
       <div className="sm:hidden">
         <button
           type="button"
@@ -286,7 +274,6 @@ export default function CarsPage() {
         </button>
       </div>
 
-      {/* Bottom sheet drawer for mobile — 1/3 screen height, immediate apply */}
       <Drawer
         opened={mobileFiltersOpen}
         onClose={() => setMobileFiltersOpen(false)}
@@ -313,7 +300,6 @@ export default function CarsPage() {
             onChangeStatus={setStatusFilter}
           />
         </div>
-
         <div className="mt-3 text-right">
           <button
             type="button"
@@ -326,15 +312,15 @@ export default function CarsPage() {
       </Drawer>
 
       {/* Content */}
-      {loadingInitial ? (
+      {contentLoading ? (
         <div className="flex justify-center items-center gap-2 text-center text-zinc-500 mt-10">
           <Loader size="sm" /> Loading...
         </div>
-      ) : filteredCars.length > 0 ? (
+      ) : showEmpty ? (
+        <p className="text-zinc-500 text-sm mt-10">Cars not found</p>
+      ) : (
         <>
           <CarTable cars={filteredCars} search={search} />
-
-          {/* Кнопка «Показать ещё» по центру снизу */}
           <div className="w-full flex justify-center mt-6 mb-2">
             {canLoadMore ? (
               <button
@@ -351,8 +337,6 @@ export default function CarsPage() {
             )}
           </div>
         </>
-      ) : (
-        <p className="text-zinc-500 text-sm mt-10">Cars not found</p>
       )}
     </>
   );

@@ -3,11 +3,8 @@ import { useDisclosure, useMediaQuery } from "@mantine/hooks";
 import { NavLink, Outlet } from "react-router-dom";
 import {
   AdjustmentsHorizontalIcon,
-//   CalendarDaysIcon,
   ChartBarSquareIcon,
-//   RocketLaunchIcon,
   TicketIcon,
-//   UserGroupIcon,
 } from "@heroicons/react/24/outline";
 import UserMenu from "@/components/userMenu";
 import { useCarsRealtime } from "@/hooks/useCarsRealtime";
@@ -27,39 +24,12 @@ export default function UserLayout() {
       exact: true,
       onClick: toggle,
     },
-    // {
-    //   to: "/calendar",
-    //   icon: <CalendarDaysIcon className="size-5" />,
-    //   label: "Calendar",
-    //   onClick: toggle,
-    //   // count: unviewedCounts.draft,
-    // },
     {
       to: "bookings",
       icon: <TicketIcon className="size-5" />,
       label: "Bookings",
       onClick: toggle,
-      // count: unviewedCounts.draft,
     },
-    // {
-    //   to: "/cars",
-    //   icon: <RocketLaunchIcon className="size-5" />,
-    //   label: "Cars",
-    //   onClick: toggle,
-    //   // count: mainNews.length,
-    // },
-    // {
-    //   to: "/finance",
-    //   icon: <BanknotesIcon className="size-5" />,
-    //   label: "Finance",
-    //   onClick: toggle,
-    // },
-    // {
-    //   to: "/users",
-    //   icon: <UserGroupIcon className="size-5" />,
-    //   label: "Users",
-    //   onClick: toggle,
-    // },
     {
       to: "settings",
       icon: <AdjustmentsHorizontalIcon className="size-5" />,
@@ -72,11 +42,10 @@ export default function UserLayout() {
     return (
       <>
         <NavLink
-          to={"/"}
-          // className=" ml-1 flex px-3 py-2 items-center font-openSans font-bold text-xl"
+          to={`dashboard`}
           className="flex flex-col items-center shrink-0 font-roboto uppercase font-bold pt-2"
         >
-          <img src="/icons/logo.png" className=" w-16 opacity-90" />
+          <img src="/icons/logo.png" className=" w-16 h-9 opacity-90" />
           <p className=" text-black text-xs">MINI2GO</p>
         </NavLink>
         <ul className="flex flex-col gap-2 text-left mt-8">
@@ -129,7 +98,6 @@ export default function UserLayout() {
       >
         <NavLink
           to={"/"}
-          // className="lg:hidden flex flex-col items-center shrink-0 font-roboto uppercase font-bold"
           className="lg:hidden flex flex-col items-center shrink-0 font-roboto uppercase font-bold"
         >
           <img src="/icons/logo.png" className=" w-14 opacity-90" />
@@ -143,8 +111,6 @@ export default function UserLayout() {
 
       {!isMobile && (
         <AppShell.Navbar px="md" bg={"white"} withBorder={false}>
-          {/* #102d20cc #073b25  #184230*/}
-          {/* <div className="h-full bg-gradient-to-r from-teal-950 from-5% to-emerald-900 md:to-emerald-800 to-95% p-3 "> */}
           <div className=" ">{SidebarMenu()}</div>
         </AppShell.Navbar>
       )}

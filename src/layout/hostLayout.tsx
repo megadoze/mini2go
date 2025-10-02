@@ -66,10 +66,10 @@ export default function HostLayout() {
     return (
       <>
         <NavLink
-          to={"/"}
+          to={"dashboard"}
           className="flex flex-col items-center shrink-0 font-roboto uppercase font-bold pt-2"
         >
-          <img src="/icons/logo.png" className=" w-16 opacity-90" />
+          <img src="/icons/logo.png" className=" w-16 h-9 opacity-90" />
           <p className=" text-black text-xs">MINI2GO</p>
         </NavLink>
         <ul className="flex flex-col gap-2 text-left mt-8">
@@ -118,11 +118,9 @@ export default function HostLayout() {
       <AppShell.Header
         className=" flex items-center justify-between lg:justify-end px-4"
         withBorder={false}
-        // bg={"#fcfcfc"}
       >
         <NavLink
           to={"/"}
-          // className="lg:hidden flex flex-col items-center shrink-0 font-roboto uppercase font-bold"
           className="lg:hidden flex flex-col items-center shrink-0 font-roboto uppercase font-bold"
         >
           <img src="/icons/logo.png" className=" w-14 opacity-90" />
@@ -136,8 +134,6 @@ export default function HostLayout() {
 
       {!isMobile && (
         <AppShell.Navbar px="md" bg={"white"} withBorder={false}>
-          {/* #102d20cc #073b25  #184230*/}
-          {/* <div className="h-full bg-gradient-to-r from-teal-950 from-5% to-emerald-900 md:to-emerald-800 to-95% p-3 "> */}
           <div className=" ">{SidebarMenu()}</div>
         </AppShell.Navbar>
       )}

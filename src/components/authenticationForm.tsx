@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
+import { EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline";
 
 export function AuthenticationForm() {
   const navigate = useNavigate();
@@ -114,7 +115,7 @@ export function AuthenticationForm() {
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500"
               >
-                {showPassword ? "🙈" : "👁️"}
+                {showPassword ? <EyeSlashIcon className="size-4"/> : <EyeIcon className="size-4"/>}
               </button>
             </div>
           </div>

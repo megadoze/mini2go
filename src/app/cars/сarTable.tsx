@@ -40,9 +40,7 @@ export default function CarListView({ cars, search }: Props) {
               // Soft shadow + interactive elevation
               "shadow-[0_2px_10px_rgba(0,0,0,0.06)] hover:shadow-[0_12px_30px_rgba(0,0,0,0.10)]",
               // Animation
-              "transition-all duration-300",
-              // Focus ring for a11y (still borderless visually)
-              "focus:outline-none focus-visible:ring-2 focus-visible:ring-black/10"
+              "transition-all duration-300"
             )}
             aria-label={`${brand} ${model} ${plate}`}
           >

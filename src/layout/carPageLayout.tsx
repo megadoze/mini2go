@@ -371,7 +371,7 @@ export default function CarPageLayout() {
           <p className="font-medium leading-4">
             {car?.model?.brands?.name} {car?.model?.name}
           </p>
-          <p className="mt-1 px-1 rounded-sm border border-zinc/80 shadow shadow-sm w-fit text-sm">
+          <p className="mt-1 px-1 rounded-sm border border-zinc/80 shadow-sm w-fit text-sm">
             {car.licensePlate}
           </p>
           <p
@@ -452,7 +452,7 @@ export default function CarPageLayout() {
     >
       <AppShell.Header className="flex items-center justify-between">
         <NavLink
-          to={"/"}
+          to={"/dashboard"}
           className="ml-3 flex items-center shrink-0 uppercase  gap-1"
         >
           <img src="/icons/logo.png" className=" w-11 opacity-90" />

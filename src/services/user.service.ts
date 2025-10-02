@@ -39,49 +39,6 @@ export async function searchUsers(q: string) {
   return data ?? [];
 }
 
-// Создать пользователя админом (через Edge Function)
-// ВАЖНО: этот метод можно вызывать только из админского UI
-// export async function createUserProfile(payload: {
-//   full_name: string;
-//   email: string;
-//   phone?: string | null;
-//   age?: number | null; 
-//   password?: string; // если не передан — сгенерируем временный
-// }) {
-//   const fnUrl = "https://keurknzlnafihotpbruj.functions.supabase.co/create-customer";
-
-//   const tempPassword =
-//     payload.password && payload.password.trim().length >= 6
-//       ? payload.password
-//       : Math.random().toString(36).slice(-8) + "A1"; // простой временный пароль
-
-//   const res = await fetch(fnUrl, {
-//     method: "POST",
-//     headers: {
-//       "Content-Type": "application/json",
-//       // anon key безопасно использовать во фронте
-//       Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-//     },
-//     body: JSON.stringify({
-//       email: payload.email,
-//       password: tempPassword,
-//       full_name: payload.full_name,
-//       phone: payload.phone ?? "",
-//       age: payload.age,
-//     }),
-//   });
-
-//   if (!res.ok) {
-//     const err = await res.json().catch(() => ({}));
-//     throw new Error(err?.error || `Edge function error (${res.status})`);
-//   }
-
-//   const { user, profile, age } = await res.json();
-//   console.log(user, age);
-  
-//   return { user, profile, age, password: tempPassword };
-// }
-
 export async function createUserProfile(payload: {
   full_name: string;
   email: string;

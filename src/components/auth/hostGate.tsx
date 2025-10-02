@@ -84,6 +84,6 @@ export default function HostGate() {
     return <Navigate to="/auth" replace />;
   }
 
-  // хост — показываем весь твой "хостовый" shell
+  // хост — показываем весь "хостовый" shell
   return <HostLayout />;
 }
