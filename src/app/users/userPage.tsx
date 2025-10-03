@@ -1,4 +1,10 @@
-import { useLocation, useParams, Link, useNavigate } from "react-router-dom";
+import {
+  useLocation,
+  useParams,
+  Link,
+  useNavigate,
+  useRouteLoaderData,
+} from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeftIcon,
@@ -43,6 +49,11 @@ export type AppUser = {
 
 export const UserPage = () => {
   const { userId } = useParams();
+
+  const rootData = useRouteLoaderData("rootAuth") as
+    | { ownerId: string }
+    | undefined;
+  const ownerId = rootData?.ownerId ?? null;
 
   const isCreate = userId === "new";
 
@@ -130,21 +141,20 @@ export const UserPage = () => {
     let mounted = true;
     (async () => {
       if (!primed?.id) return;
+
       setBookingsLoading(true);
       try {
-        const data = await fetchUserBookings(primed.id);
-        if (!mounted) return;
-        setBookings(data);
-      } catch {
-        // можно показать InlineError в секции, если захочешь
+        const data = await fetchUserBookings(primed.id, ownerId ?? undefined);
+        if (mounted) setBookings(data);
       } finally {
         if (mounted) setBookingsLoading(false);
       }
     })();
+
     return () => {
       mounted = false;
     };
-  }, [isCreate, primed?.id]);
+  }, [isCreate, primed?.id, ownerId]);
 
   // ——— Fetch notes
   useEffect(() => {
@@ -509,7 +519,12 @@ export const UserPage = () => {
                       key={b.id}
                       role="button"
                       onClick={() =>
-                        navigate(`/cars/${b.car_id}/bookings/${b.id}/edit`)
+                        navigate(`/bookings/${b.id}`, {
+                          state: {
+                            carId: b.car?.id || b.car_id,
+                            from: location.pathname,
+                          },
+                        })
                       }
                       className="group flex items-center justify-between gap-3 rounded-xl border border-gray-100 bg-white/60 px-3 py-2 hover:bg-gray-50 cursor-pointer"
                     >

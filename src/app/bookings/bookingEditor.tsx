@@ -57,7 +57,7 @@ import { AddressAutofill } from "@mapbox/search-js-react";
 import Pin from "@/components/pin";
 import { fetchAddressFromCoords } from "@/services/geo.service";
 import type { MapRef, ViewState } from "react-map-gl/mapbox";
-import { fetchCarById } from "@/services/car.service";
+import { fetchCarById, fetchCarExtras } from "@/services/car.service";
 
 // ========== Types ===========
 type MapboxFeature = {
@@ -139,10 +139,12 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
   const carCtx = useContext(CarContext);
 
   const carFromCtx = carCtx?.car as any | undefined;
+  const ctxCarId = (carFromCtx as any)?.id ?? null;
+
   const setCar = carCtx?.setCar;
   const pricingRules = carCtx?.pricingRules ?? [];
   const seasonalRates = carCtx?.seasonalRates ?? [];
-  const extras = carCtx?.extras ?? [];
+  // const extras = carCtx?.extras ?? [];
 
   const effectiveCurrency = (carCtx as any)?.effectiveCurrency ?? "EUR";
 
@@ -184,12 +186,16 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
   const [carId, setCarId] = useState<string | null>(
     () =>
       overrideIds?.carId ??
-      (carFromCtx as any)?.id ??
-      carIdParam ??
-      sp.get("carId") ??
-      snapshot?.booking?.car_id ??
+      (location.state?.carId as string | undefined) ?? // ← ВАЖНО
+      ((carFromCtx as any)?.id as string | undefined) ??
+      (carIdParam as string | undefined) ??
+      (sp.get("carId") as string | null) ??
+      (snapshot?.booking?.car_id as string | undefined) ??
       null
   );
+
+  const isSameCtxCar =
+    !!carId && !!ctxCarId && String(ctxCarId) === String(carId);
 
   const from = (location.state as any)?.from;
 
@@ -235,8 +241,19 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
   const carQ = useQuery({
     queryKey: carId ? QK.car(String(carId)) : ["car", null],
     queryFn: () => fetchCarById(String(carId)),
-    enabled: !!carId && !carFromCtx,
-    initialData: carFromCtx,
+    enabled: !!carId, // грузим всегда для актуальной машины
+    initialData: isSameCtxCar ? carFromCtx : undefined, // только если та же машина
+    staleTime: 5 * 60_000,
+    refetchOnMount: false,
+  });
+
+  const extrasFromCtx = isSameCtxCar ? carCtx?.extras ?? [] : [];
+
+  const carExtrasQ = useQuery({
+    queryKey: carId ? QK.carExtras(String(carId)) : ["carExtras", null],
+    queryFn: () => fetchCarExtras(String(carId!)),
+    enabled: !!carId, // всегда подтягиваем под нужный carId
+    initialData: extrasFromCtx.length ? extrasFromCtx : undefined,
     staleTime: 5 * 60_000,
     refetchOnMount: false,
   });
@@ -691,6 +708,8 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
   const durationHours = Math.floor((totalMinutes % (24 * 60)) / 60);
   const durationMinutes = totalMinutes % 60;
 
+  const effectiveExtras = carExtrasQ.data ?? extrasFromCtx;
+
   // map экстра
   const extrasMap = useMemo(() => {
     // Утилита доставания значений с несколькими вариантами ключей
@@ -703,7 +722,7 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
     };
 
     // 1) Активные экстра из контекста
-    const activeList = (extras ?? [])
+    const activeList = (effectiveExtras ?? [])
       .filter((ex: any) => {
         const avail =
           pick(ex, "is_available", "meta.is_available") ??
@@ -768,7 +787,7 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
     });
 
     return { list, byId };
-  }, [extras, bookedExtras]);
+  }, [effectiveExtras, bookedExtras]);
 
   // дни для экстр «per_day»
   const billableDaysForExtras = useMemo(() => {

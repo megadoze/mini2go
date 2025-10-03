@@ -149,25 +149,36 @@ export type BookingItem = {
 };
 
 export async function fetchUserBookings(
-  userId: string
+  userId: string,
+  ownerId?: string
 ): Promise<BookingItem[]> {
-  const { data, error } = await supabase
+  let query = supabase
     .from("bookings")
-    .select(
-      `id, user_id, car_id, start_at, end_at, status, mark,  car:cars (
-    id, year, photos, license_plate, model_id, deposit,
-    model:models (
-      id, name, brand_id,
-      brand:brands ( id, name )
-    )
-  )`
-    )
+    .select(`
+      id, user_id, car_id, start_at, end_at, status, mark,
+      car:cars!inner (
+        id, year, photos, license_plate, model_id, deposit, owner_id,
+        model:models (
+          id, name, brand_id,
+          brand:brands ( id, name )
+        )
+      )
+    `)
     .eq("user_id", userId)
     .order("start_at", { ascending: false })
     .limit(20);
+
+  if (ownerId) {
+    // фильтруем по владельцу машины
+    query = query.eq("car.owner_id", ownerId);
+  }
+
+  const { data, error } = await query;
   if (error) throw error;
   return (data ?? []) as BookingItem[];
 }
+
+
 
 // 👉 Заметки хоста о пользователе
 export type UserNoteItem = {

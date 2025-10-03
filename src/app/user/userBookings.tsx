@@ -76,44 +76,6 @@ export default function UserBookings() {
   const [search, setSearch] = useState("");
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
-  // const [searchParams, setSearchParams] = useSearchParams();
-  // const editId = searchParams.get("edit"); // bookingId
-  // const editCar = searchParams.get("car");
-
-  // const openEditor = async (b: BookingCard) => {
-  //   if (openingId) return;
-  //   setOpeningId(b.id);
-
-  //   const uId = b.userId ?? null;
-  //   if (uId) {
-  //     await qc.ensureQueryData({
-  //       queryKey: QK.user(uId),
-  //       queryFn: () => getUserById(uId),
-  //       staleTime: 5 * 60_000,
-  //     });
-  //   }
-
-  //   // как и было: прогреть всё
-  //   void prefetchBundle(qc, b.carId, b.id, b.userId ?? undefined);
-
-  //   // вместо navigate — просто ставим query-параметры
-  //   setSearchParams((sp) => {
-  //     sp.set("edit", b.id);
-  //     sp.set("car", b.carId);
-  //     return sp;
-  //   });
-
-  //   setOpeningId(null);
-  // };
-
-  // const closeEditor = () => {
-  //   setSearchParams((sp) => {
-  //     sp.delete("edit");
-  //     sp.delete("car");
-  //     return sp;
-  //   });
-  // };
-
   function uniqById<T extends { id?: string }>(arr: T[]) {
     const seen = new Set<string>();
     return arr.filter((x) => {
@@ -293,7 +255,6 @@ export default function UserBookings() {
     }
     void prefetchBundle(qc, b.carId, b.id, b.userId ?? undefined);
 
-    // ⬇️ главное — перейти на /user/:id/bookings/:bookingId?carId=...
     navigate(`${b.id}?carId=${b.carId}`, {
       state: {
         from: location.pathname + location.search,

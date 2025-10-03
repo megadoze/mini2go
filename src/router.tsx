@@ -39,16 +39,25 @@ import HomeRedirect from "./components/homeRedirect";
 import HostGate from "./components/auth/hostGate";
 import CarPageLayout from "./layout/carPageLayout";
 import { userBookingsLoader } from "./routes/userBookings.loader";
+import { authLoader } from "./routes/auth.loader";
+import SimpleRouteError from "./routes/simpleRouteError";
+import ScrollToTop from "./components/scrollToTop";
 
 export const router = createBrowserRouter([
   { path: "/auth", element: <AuthenticationPage /> },
   {
+    id: "rootAuth",
     path: "/",
+    loader: authLoader,
     element: (
       <Protected>
-        <HostGate />
+        <>
+          <ScrollToTop />
+          <HostGate />
+        </>
       </Protected>
     ),
+    errorElement: <SimpleRouteError />,
     HydrateFallback: HydrateFallback,
     children: [
       { index: true, element: <HomeRedirect /> },
