@@ -58,7 +58,7 @@ export function useCarExtrasRealtime(
       );
 
       channel.subscribe(async (status) => {
-        console.log("[RT car_extras]", status, { carId });
+        // console.log("[RT car_extras]", status, { carId });
 
         if (status === "SUBSCRIBED") {
           attempt = 0;

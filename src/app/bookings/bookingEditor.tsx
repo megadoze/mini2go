@@ -57,6 +57,7 @@ import { AddressAutofill } from "@mapbox/search-js-react";
 import Pin from "@/components/pin";
 import { fetchAddressFromCoords } from "@/services/geo.service";
 import type { MapRef, ViewState } from "react-map-gl/mapbox";
+import { fetchCarById } from "@/services/car.service";
 
 // ========== Types ===========
 type MapboxFeature = {
@@ -76,6 +77,11 @@ type AddressAutofillWrapperProps = {
   onRetrieve?: (event: { features: MapboxFeature[]; query: string }) => void;
   browserAutofillEnabled?: boolean;
   children?: React.ReactNode;
+};
+
+type BookingEditorProps = {
+  overrideIds?: { bookingId?: string; carId?: string };
+  onRequestClose?: () => void; // чем закрывать редактор в кабинете
 };
 
 const AddressAutofillWrapper =
@@ -115,12 +121,14 @@ function mmToHHMM(m: number) {
 
 /* ===================== КОМПОНЕНТ ===================== */
 
-export default function BookingEditor() {
+export default function BookingEditor(props: BookingEditorProps = {}) {
+  const { overrideIds, onRequestClose } = props;
+
   const location = useLocation() as any;
 
   const snapshot = location.state?.snapshot as any;
 
-  const { id: carIdFromCarsRoute, bookingId } = useParams();
+  const { carId: carIdParam, bookingId } = useParams();
 
   const qc = useQueryClient();
 
@@ -135,6 +143,7 @@ export default function BookingEditor() {
   const pricingRules = carCtx?.pricingRules ?? [];
   const seasonalRates = carCtx?.seasonalRates ?? [];
   const extras = carCtx?.extras ?? [];
+
   const effectiveCurrency = (carCtx as any)?.effectiveCurrency ?? "EUR";
 
   // Эффективные политики
@@ -172,8 +181,24 @@ export default function BookingEditor() {
   const [sp] = useSearchParams();
   const navigate = useNavigate();
 
-  const carId =
-    (carFromCtx as any)?.id ?? carIdFromCarsRoute ?? sp.get("carId") ?? null;
+  const [carId, setCarId] = useState<string | null>(
+    () =>
+      overrideIds?.carId ??
+      (carFromCtx as any)?.id ??
+      carIdParam ??
+      sp.get("carId") ??
+      snapshot?.booking?.car_id ??
+      null
+  );
+
+  const from = (location.state as any)?.from;
+
+  // helper
+  const goBack = () => {
+    if (typeof onRequestClose === "function") onRequestClose();
+    else if (from) navigate(from);
+    else navigate(-1);
+  };
 
   // режим
   const isUUID = (s?: string) =>
@@ -207,14 +232,33 @@ export default function BookingEditor() {
     return bookingId ? qc.getQueryData(["booking", bookingId]) : undefined;
   }, [hasMatchingSnapshot, snapshot?.booking, bookingId, carFromCtx, qc]);
 
+  const carQ = useQuery({
+    queryKey: carId ? QK.car(String(carId)) : ["car", null],
+    queryFn: () => fetchCarById(String(carId)),
+    enabled: !!carId && !carFromCtx,
+    initialData: carFromCtx,
+    staleTime: 5 * 60_000,
+    refetchOnMount: false,
+  });
+
+  // Единая точка правды про машину
+  const car = (carQ.data as any) ?? carFromCtx;
+
   const bookingQ = useQuery({
-    queryKey: QK.booking(bookingId!),
+    queryKey: bookingId ? QK.booking(bookingId) : ["booking", "noop"],
     queryFn: () => fetchBookingById(bookingId!),
     enabled: mode === "edit" && !!bookingId && !initialBooking,
     initialData: initialBooking,
     staleTime: 60_000,
     refetchOnMount: false,
   });
+
+  useEffect(() => {
+    const bid = bookingQ.data as any;
+    if (!carId && bid?.car_id) {
+      setCarId(String(bid.car_id));
+    }
+  }, [bookingQ.data, carId]);
 
   const initialExtras = useMemo(() => {
     const fromSnap =
@@ -316,7 +360,7 @@ export default function BookingEditor() {
   const [deposit, setDeposit] = useState<number>(
     typeof snapshot?.booking?.deposit === "number"
       ? Number(snapshot!.booking.deposit)
-      : Number((carFromCtx as any)?.deposit ?? 0)
+      : Number((car as any)?.deposit ?? 0)
   );
 
   const [saved, setSaved] = useState(false);
@@ -352,7 +396,7 @@ export default function BookingEditor() {
 
   // Delivery
   type DeliveryOption = "car_address" | "by_address";
-  const deliveryEnabled = Boolean((carFromCtx as any)?.isDelivery);
+  const deliveryEnabled = Boolean((car as any)?.isDelivery);
 
   const [delivery, setDelivery] = useState<DeliveryOption>(
     (snapshot?.booking?.delivery_type as any) ?? "car_address"
@@ -362,7 +406,7 @@ export default function BookingEditor() {
     if (typeof snapshot?.booking?.delivery_fee === "number") {
       return Number(snapshot!.booking.delivery_fee);
     }
-    const def = Number((carFromCtx as any)?.deliveryFee ?? 0);
+    const def = Number((car as any)?.deliveryFee ?? 0);
     const isByAddr =
       ((snapshot?.booking?.delivery_type as any) ?? "car_address") ===
       "by_address";
@@ -391,8 +435,8 @@ export default function BookingEditor() {
   const toNum = (v: unknown, fallback: number) =>
     Number.isFinite(Number(v)) ? Number(v) : fallback;
 
-  const initialLat = toNum(deliveryLat ?? carFromCtx?.lat, 50.45);
-  const initialLng = toNum(deliveryLong ?? carFromCtx?.long, 30.52);
+  const initialLat = toNum(deliveryLat ?? car?.lat, 50.45);
+  const initialLng = toNum(deliveryLong ?? car?.long, 30.52);
 
   // карта: управляемый viewState + ref
   const [mapView, setMapView] = useState<ViewState>({
@@ -412,11 +456,12 @@ export default function BookingEditor() {
 
   // disabledIntervals для занятых/заблокированных периодов (кроме текущей записи и отменённых)
   const disabledIntervals = useMemo(() => {
+    if (!carId) return [];
     const cached =
       (carFromCtx?.bookings as Booking[] | undefined) ??
       qc.getQueryData<Booking[]>(QK.bookingsByCarId(String(carId))) ??
       [];
-    return (cached || [])
+    return cached
       .filter(
         (b) =>
           b.id !== bookingId && !String(b.status ?? "").startsWith("canceled")
@@ -487,6 +532,27 @@ export default function BookingEditor() {
       });
     }
   }, [mode, bookingId, location, isLoading, navigate]);
+
+  useEffect(() => {
+    if (!car) return;
+    if (
+      delivery === "by_address" &&
+      !deliveryAddress &&
+      car.lat != null &&
+      car.long != null
+    ) {
+      const lat = Number(car.lat);
+      const lng = Number(car.long);
+      setDeliveryLat(lat);
+      setDeliveryLong(lng);
+      setMapView((prev) => ({
+        ...prev,
+        latitude: lat,
+        longitude: lng,
+        zoom: Math.max(prev.zoom, 13),
+      }));
+    }
+  }, [car, delivery, deliveryAddress]);
 
   useEffect(() => {
     const b = bookingQ.data as any;
@@ -602,7 +668,7 @@ export default function BookingEditor() {
     };
   }, [userSearch, allowUserPick]);
 
-  const baseDailyPrice = Number((carFromCtx as any)?.price ?? 0);
+  const baseDailyPrice = Number((car as any)?.price ?? 0);
 
   const { total: baseTotal } = useMemo(
     () =>
@@ -1405,19 +1471,17 @@ export default function BookingEditor() {
   const showMobileActionBar =
     status && (status === "confirmed" || status === "onApproval");
 
-  const containerPad = showMobileActionBar ? "pb-24 lg:pb-0" : "";
-
-  // если backOnly === true — принудительно показываем бар
   const showBar = showMobileActionBar || backOnly;
+
+  // любой из баров => добавляем паддинг
+  const containerPad = showBar ? "pb-24 lg:pb-0" : "";
 
   const deliveryOptions = useMemo(() => {
     const opts = [
       {
         value: "car_address",
         label: `Pickup at car address${
-          (carFromCtx as any)?.address
-            ? ` (${(carFromCtx as any).address})`
-            : ""
+          (car as any)?.address ? ` (${(car as any).address})` : ""
         }`,
       },
     ];
@@ -1428,7 +1492,7 @@ export default function BookingEditor() {
       });
     }
     return opts;
-  }, [deliveryEnabled, delivery, carFromCtx]);
+  }, [deliveryEnabled, delivery, car]);
 
   if (isLoading) return <div className="p-4">Loading…</div>;
 
@@ -1463,9 +1527,9 @@ export default function BookingEditor() {
                     if (navigator.share && shareUrl) {
                       await navigator.share({
                         title: `Booking #${displayId}`,
-                        text: `Booking for ${
-                          carFromCtx?.model?.brands?.name ?? ""
-                        } ${carFromCtx?.model?.name ?? ""}`,
+                        text: `Booking for ${car?.model?.brands?.name ?? ""} ${
+                          car?.model?.name ?? ""
+                        }`,
                         url: shareUrl,
                       });
                     } else {
@@ -1526,10 +1590,10 @@ export default function BookingEditor() {
           {/* Фото */}
           <section className=" lg:hidden flex gap-3 mb-5">
             <div id="photo" className={`${!status ? "opacity-40" : ""} flex-1`}>
-              {carFromCtx?.photos?.[0] ? (
+              {car?.photos?.[0] ? (
                 <div className="aspect-[3/2] w-full overflow-hidden rounded-2xl">
                   <img
-                    src={carFromCtx.photos[0]}
+                    src={car.photos[0]}
                     className={`${
                       isFinished && "opacity-50"
                     } h-full w-full object-cover`}
@@ -1546,12 +1610,11 @@ export default function BookingEditor() {
             {/* Name */}
             <div id="name" className={`${!status ? "opacity-60" : ""} flex-1`}>
               <p className="font-semibold text-lg text-gray-800">
-                {carFromCtx?.model?.brands?.name} {carFromCtx?.model?.name}{" "}
-                {carFromCtx?.year}
+                {car?.model?.brands?.name} {car?.model?.name} {car?.year}
               </p>
-              {carFromCtx?.licensePlate ? (
+              {car?.licensePlate ? (
                 <p className="w-fit border border-gray-200 shadow-sm rounded-sm p-1 text-gray-700 text-sm">
-                  {carFromCtx.licensePlate}
+                  {car.licensePlate}
                 </p>
               ) : null}
             </div>
@@ -1840,37 +1903,30 @@ export default function BookingEditor() {
                   }
 
                   // next === "by_address"
-                  if (
-                    !deliveryFeeValue &&
-                    (carFromCtx as any)?.deliveryFee != null
-                  ) {
-                    setDeliveryFeeValue(
-                      Number((carFromCtx as any).deliveryFee)
-                    );
+                  if (!deliveryFeeValue && (car as any)?.deliveryFee != null) {
+                    setDeliveryFeeValue(Number((car as any).deliveryFee));
                   }
 
                   // если адрес ещё пуст — подставляем "текущий" (как в AddCar):
                   if (
                     !deliveryAddress &&
-                    carFromCtx?.lat != null &&
-                    carFromCtx?.long != null
+                    car?.lat != null &&
+                    car?.long != null
                   ) {
                     // 1) координаты берем из машины
-                    const lat = Number(carFromCtx.lat);
-                    const lng = Number(carFromCtx.long);
+                    const lat = Number(car.lat);
+                    const lng = Number(car.long);
                     setDeliveryLat(lat);
                     setDeliveryLong(lng);
 
                     try {
                       // 2) обратное геокодирование адреса
                       const addr = await fetchAddressFromCoords(lat, lng);
-                      setDeliveryAddress(
-                        addr?.address || carFromCtx?.address || ""
-                      );
+                      setDeliveryAddress(addr?.address || car?.address || "");
                       setDeliveryCountry(addr?.country || "");
                       setDeliveryCity(addr?.city || "");
                     } catch {
-                      setDeliveryAddress(carFromCtx?.address || "");
+                      setDeliveryAddress(car?.address || "");
                       setDeliveryCountry("");
                       setDeliveryCity("");
                     }
@@ -1922,8 +1978,8 @@ export default function BookingEditor() {
                       interactive={!isDisabled}
                     >
                       <Marker
-                        longitude={deliveryLong ?? carFromCtx?.long ?? 30.52}
-                        latitude={deliveryLat ?? carFromCtx?.lat ?? 50.45}
+                        longitude={deliveryLong ?? car?.long ?? 30.52}
+                        latitude={deliveryLat ?? car?.lat ?? 50.45}
                         draggable={!isDisabled}
                         onDragEnd={async (e) => {
                           const { lat, lng } = e.lngLat;
@@ -2117,7 +2173,7 @@ export default function BookingEditor() {
             <button
               type="button"
               className="border-gray-300 border rounded-md px-6 py-2 mr-2 disabled:opacity-50"
-              onClick={() => navigate(-1)}
+              onClick={goBack}
               disabled={saving}
             >
               Back
@@ -2156,10 +2212,10 @@ export default function BookingEditor() {
           {/* Фото */}
           <section className=" hidden lg:block">
             <div id="photo">
-              {carFromCtx?.photos?.[0] ? (
+              {car?.photos?.[0] ? (
                 <div className="aspect-video w-full overflow-hidden rounded-2xl">
                   <img
-                    src={carFromCtx.photos[0]}
+                    src={car.photos[0]}
                     className={`${
                       isFinished && "opacity-50"
                     } h-full w-full object-cover`}
@@ -2176,12 +2232,11 @@ export default function BookingEditor() {
             {/* Name */}
             <div id="name" className="mt-3">
               <p className="font-semibold text-lg text-gray-800">
-                {carFromCtx?.model?.brands?.name} {carFromCtx?.model?.name}{" "}
-                {carFromCtx?.year}
+                {car?.model?.brands?.name} {car?.model?.name} {car?.year}
               </p>
-              {carFromCtx?.licensePlate ? (
+              {car?.licensePlate ? (
                 <p className="w-fit border border-gray-200 shadow-sm rounded-sm p-1 text-gray-700 text-sm">
-                  {carFromCtx.licensePlate}
+                  {car.licensePlate}
                 </p>
               ) : null}
             </div>
@@ -2358,9 +2413,10 @@ export default function BookingEditor() {
               </div>
             </div>
           )}
+
           {/* Customer mini card */}
           {userId && selectedUser && mode !== "create" && (
-            <section className=" mt-6 text-gray-700  ">
+            <section className=" mt-6 text-gray-700">
               <p className="md:text-lg font-semibold">Guest</p>
               <Link
                 to={`/users/${userId}`}
@@ -2392,7 +2448,7 @@ export default function BookingEditor() {
             <button
               type="button"
               className="flex-1 border-gray-300 border rounded-md px-6 py-2 mr-2"
-              onClick={() => navigate(-1)}
+              onClick={goBack}
               disabled={saving}
             >
               Back
@@ -2413,7 +2469,7 @@ export default function BookingEditor() {
               <button
                 type="button"
                 className="flex-1 border-gray-300 border rounded-md px-6 py-2 mr-2 text-gray-700"
-                onClick={() => navigate(-1)}
+                onClick={() => goBack()}
                 disabled={saving}
               >
                 Back
@@ -2434,7 +2490,7 @@ export default function BookingEditor() {
                   <button
                     type="button"
                     className="flex-1 border-gray-300 border rounded-md px-6 py-2 mr-2 text-gray-700"
-                    onClick={() => navigate(-1)}
+                    onClick={() => goBack()}
                     disabled={saving}
                   >
                     Back
@@ -2449,16 +2505,12 @@ export default function BookingEditor() {
                   >
                     Confirm booking
                   </button>
-                ) : (
+                ) : isChanged ? (
                   <button
                     type="button"
-                    className={`${
-                      isChanged && !saving
-                        ? "border-green-400 text-green-500"
-                        : "border-gray-300 text-gray-400 cursor-not-allowed"
-                    } flex-1 border rounded-md px-8 py-2 inline-flex items-center justify-center gap-2`}
+                    className="border-green-400 text-green-500 flex-1 border rounded-md px-8 py-2 inline-flex items-center justify-center gap-2"
                     onClick={handleSave}
-                    disabled={isLoading || invalidTime || !isChanged || saving}
+                    disabled={isLoading || invalidTime || saving}
                   >
                     {saving ? (
                       <>
@@ -2468,6 +2520,15 @@ export default function BookingEditor() {
                     ) : (
                       "Save"
                     )}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="flex-1 border-gray-300 border rounded-md px-6 py-2 mr-2 text-gray-700"
+                    onClick={goBack}
+                    disabled={saving}
+                  >
+                    Back
                   </button>
                 )}
               </>

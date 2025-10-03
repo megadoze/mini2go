@@ -261,7 +261,7 @@ export type BookingsIndexRow = {
 };
 
 export async function fetchBookingsIndexPage(params: {
-  ownerId: string;
+  ownerId: string | null;
   limit: number;
   offset: number;
   status?: string;
@@ -282,6 +282,50 @@ export async function fetchBookingsIndexPage(params: {
 
   if (status) qy = qy.eq("status", status.toLowerCase());
   if (userId) qy = qy.eq("user_id", userId);
+  if (countryId) qy = qy.eq("country_id", countryId);
+  if (location) qy = qy.ilike("location_name", `%${location}%`);
+  if (q) {
+    const s = q.replace(/[%_]/g, (m) => `\\${m}`);
+    qy = qy.or(
+      [
+        `license_plate.ilike.%${s}%`,
+        `brand_name.ilike.%${s}%`,
+        `model_name.ilike.%${s}%`,
+        `user_full_name.ilike.%${s}%`,
+      ].join(",")
+    );
+  }
+
+  const { data, error, count } = await qy;
+  if (error) throw error;
+  return { items: (data ?? []) as BookingsIndexRow[], count: count ?? 0 };
+}
+
+
+export async function fetchBookingsByUser(params: {
+  limit: number;
+  offset: number;
+  userId: string;
+  status?: string;
+  countryId?: string;
+  location?: string;
+  q?: string;
+}): Promise<{ items: BookingsIndexRow[]; count: number }> {
+  const { limit, offset, userId, status, countryId, location, q } = params;
+
+  // страховка на уровне кода
+  if (!userId) {
+    throw new Error("fetchBookingsByUser: userId is required");
+  }
+
+  let qy = supabase
+    .from("bookings_index")
+    .select("*", { count: "exact" })
+    .eq("user_id", userId)
+    .order("start_at", { ascending: false })
+    .range(offset, offset + limit - 1);
+
+  if (status) qy = qy.eq("status", status.toLowerCase());
   if (countryId) qy = qy.eq("country_id", countryId);
   if (location) qy = qy.ilike("location_name", `%${location}%`);
   if (q) {

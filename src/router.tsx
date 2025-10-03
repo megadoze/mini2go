@@ -38,6 +38,7 @@ import UserDashboard from "./app/user/userDashboard";
 import HomeRedirect from "./components/homeRedirect";
 import HostGate from "./components/auth/hostGate";
 import CarPageLayout from "./layout/carPageLayout";
+import { userBookingsLoader } from "./routes/userBookings.loader";
 
 export const router = createBrowserRouter([
   { path: "/auth", element: <AuthenticationPage /> },
@@ -65,6 +66,7 @@ export const router = createBrowserRouter([
         loader: bookingsLoader,
         element: <BookingsList />,
       },
+      { path: "bookings/:bookingId", element: <BookingEditor /> },
       { path: "bookings/new", element: <BookingEditor /> },
       { path: "users", element: <UsersPage /> },
       { path: "users/:userId", element: <UserPage /> },
@@ -82,11 +84,18 @@ export const router = createBrowserRouter([
   {
     path: "user/:id",
     element: <UserLayout />,
+    HydrateFallback: HydrateFallback,
     children: [
       { index: true, element: <Navigate to="profile" replace /> },
       { path: "profile", element: <UserProfile /> },
       { path: "dashboard", element: <UserDashboard /> },
-      { path: "bookings", element: <UserBookings /> },
+      {
+        id: "userBookings",
+        path: "bookings",
+        loader: userBookingsLoader,
+        element: <UserBookings />,
+      },
+      { path: "bookings/:bookingId", element: <BookingEditor /> },
       { path: "settings", element: <UserSettings /> },
       { path: "messages", element: <UserMessages /> },
     ],

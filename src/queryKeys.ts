@@ -13,8 +13,10 @@ export const QK = {
   pricingRules: (id: string) => ["pricingRules", id] as const,
   seasonalRates: (id: string) => ["seasonalRates", id] as const,
   bookingsByCarId: (id: string) => ["bookingsByCarId", id] as const,
-  bookingsIndexInfinite: (ownerId: string, limit: number) =>
+  bookingsIndexInfinite: (ownerId: string | null, limit: number) =>
     ["bookingsIndexInfinite", { ownerId, limit }] as const,
+  bookingsUserInfinite: (userId: string | null, limit: number) =>
+    ["bookingsUserInfinite", { userId, limit }] as const,
   booking: (id: string) => ["booking", id] as const,
   bookingExtras: (id: string) => ["bookingExtras", id] as const,
   user: (id: string) => ["user", id] as const,

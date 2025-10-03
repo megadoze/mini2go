@@ -10,7 +10,6 @@ import {
   XCircleIcon,
   UserIcon,
   ChatBubbleLeftRightIcon,
-  PencilSquareIcon,
   LockOpenIcon,
   LockClosedIcon,
   ArrowPathIcon,
@@ -358,12 +357,6 @@ export const UserPage = () => {
                     <h2 className="text-lg md:text-xl font-semibold truncate">
                       {user.full_name || "No name"}
                     </h2>
-                    <button
-                      className="text-gray-500 hover:text-gray-700"
-                      title="Edit"
-                    >
-                      <PencilSquareIcon className="w-5 h-5" />
-                    </button>
                   </div>
                   <p className="text-sm text-gray-500">ID: {user.id}</p>
                 </div>

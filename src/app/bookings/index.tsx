@@ -61,7 +61,6 @@ import { getUserById } from "@/services/user.service";
 type LoaderData = { ownerId: string };
 
 const PAGE_SIZE = 10;
-// type Page = { items: BookingJoinedRow[]; count: number };
 
 export default function BookingsList() {
   const { ownerId } = useLoaderData() as LoaderData;
@@ -266,7 +265,7 @@ export default function BookingsList() {
 
     void prefetchBundle(qc, b.carId, b.id, b.userId ?? undefined);
 
-    navigate(`/cars/${b.carId}/bookings/${b.id}/edit`, {
+    navigate(`/bookings/${b.id}`, {
       state: {
         snapshot: {
           booking: {
@@ -497,7 +496,8 @@ export default function BookingsList() {
                 return (
                   <Link
                     key={b.id}
-                    to={`/cars/${b.carId}/bookings/${b.id}/edit`}
+                    // to={`/cars/${b.carId}/bookings/${b.id}/edit`}
+                    to={`/bookings/${b.id}`}
                     className={`flex items-center bg-white hover:bg-emerald-50/40 transition ease-in-out duration-300 p-2 w-full rounded-2xl my-1 cursor-pointer border border-zinc-100 ${
                       openingId === b.id
                         ? "hover:bg-green-200/20 pointer-events-none"

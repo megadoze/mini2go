@@ -891,35 +891,10 @@ export default function DashboardPage() {
             <option value="cancelled">Cancelled</option>
             <option value="blocked">Blocked</option>
           </NativeSelect>
-
-          {/* <div className="relative flex-1">
-          <MagnifyingGlassIcon className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-zinc-500" />
-          <TextInput
-            placeholder="Search (ID, car)"
-            value={q}
-            onChange={(e) => setQ(e.currentTarget.value)}
-            className="w-full rounded-2xl bg-white/60 shadow-sm pl-9 pr-3 py-2 text-sm hover:bg-white/80 focus:ring-2 focus:ring-black/10"
-          />
-        </div> */}
-
-          {/* <button
-          type="button"
-          onClick={resetFilters}
-          className="p-2 rounded hover:bg-gray-100 active:bg-gray-200 transition"
-          aria-label="Сбросить фильтры"
-          title="Сбросить фильтры"
-        >
-          <XMarkIcon className="size-5 text-gray-800 stroke-1" />
-        </button> */}
         </div>
       </div>
 
       {/* ---- Views ---- */}
-      {/* {loading ? (
-        <div className="flex justify-center items-center gap-2 text-center text-zinc-500 mt-6">
-          <Loader size="sm" color="gray" /> Loading...
-        </div>
-      ) : ( */}
       <>
         {view === "operational" && (
           <>
@@ -1318,7 +1293,7 @@ export default function DashboardPage() {
               </ChartCard>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 lg:grid-cols-[1fr,1.4fr] gap-4">
               <TableCard title="Status breakdown (period)">
                 {statusBreakdown.every((r) => r.count === 0) ? (
                   <div className="py-6 text-center text-zinc-500 text-sm">
@@ -1376,80 +1351,82 @@ export default function DashboardPage() {
                 )}
               </TableCard>
 
-              <ChartCard title="Bookings by raw status (count)">
-                <ResponsiveContainer
-                  width="100%"
-                  height={260}
-                  className="text-sm"
-                >
-                  <BarChart
-                    data={statusCountSeries}
-                    margin={{ left: 8, right: 16, top: 8, bottom: 8 }}
+              <div className="flex flex-col gap-4">
+                <ChartCard title="Bookings by raw status (count)">
+                  <ResponsiveContainer
+                    width="100%"
+                    height={260}
+                    className="text-sm"
                   >
-                    <defs>
-                      <linearGradient
-                        id="countGrad"
-                        x1="0"
-                        y1="0"
-                        x2="0"
-                        y2="1"
-                      >
-                        <stop offset="0%" stopColor="#4f46e5" />
-                        <stop offset="100%" stopColor="#7c3aed" />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="status" />
-                    <YAxis />
-                    <Tooltip />
-                    <Bar
-                      dataKey="count"
-                      fill="url(#countGrad)"
-                      radius={[8, 8, 8, 8]}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
-              </ChartCard>
+                    <BarChart
+                      data={statusCountSeries}
+                      margin={{ left: 8, right: 16, top: 8, bottom: 8 }}
+                    >
+                      <defs>
+                        <linearGradient
+                          id="countGrad"
+                          x1="0"
+                          y1="0"
+                          x2="0"
+                          y2="1"
+                        >
+                          <stop offset="0%" stopColor="#4f46e5" />
+                          <stop offset="100%" stopColor="#7c3aed" />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="status" />
+                      <YAxis />
+                      <Tooltip />
+                      <Bar
+                        dataKey="count"
+                        fill="url(#countGrad)"
+                        radius={[8, 8, 8, 8]}
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </ChartCard>
 
-              <ChartCard title="Revenue by raw status (€)">
-                <ResponsiveContainer
-                  width="100%"
-                  height={260}
-                  className="text-sm"
-                >
-                  <BarChart
-                    data={statusRevenueSeries}
-                    margin={{ left: 8, right: 16, top: 8, bottom: 8 }}
+                <ChartCard title="Revenue by raw status (€)">
+                  <ResponsiveContainer
+                    width="100%"
+                    height={260}
+                    className="text-sm"
                   >
-                    <defs>
-                      <linearGradient
-                        id="revStatusGrad"
-                        x1="0"
-                        y1="0"
-                        x2="0"
-                        y2="1"
-                      >
-                        <stop offset="0%" stopColor="#4f46e5" />
-                        <stop offset="100%" stopColor="#7c3aed" />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="status" />
-                    <YAxis />
-                    <Tooltip
-                      formatter={(v: any) => [
-                        `€${Number(v).toLocaleString()}`,
-                        "Revenue",
-                      ]}
-                    />
-                    <Bar
-                      dataKey="revenue"
-                      fill="url(#revStatusGrad)"
-                      radius={[8, 8, 8, 8]}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
-              </ChartCard>
+                    <BarChart
+                      data={statusRevenueSeries}
+                      margin={{ left: 8, right: 16, top: 8, bottom: 8 }}
+                    >
+                      <defs>
+                        <linearGradient
+                          id="revStatusGrad"
+                          x1="0"
+                          y1="0"
+                          x2="0"
+                          y2="1"
+                        >
+                          <stop offset="0%" stopColor="#4f46e5" />
+                          <stop offset="100%" stopColor="#7c3aed" />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="status" />
+                      <YAxis />
+                      <Tooltip
+                        formatter={(v: any) => [
+                          `€${Number(v).toLocaleString()}`,
+                          "Revenue",
+                        ]}
+                      />
+                      <Bar
+                        dataKey="revenue"
+                        fill="url(#revStatusGrad)"
+                        radius={[8, 8, 8, 8]}
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </ChartCard>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
