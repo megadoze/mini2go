@@ -949,7 +949,7 @@ export default function DashboardPage() {
                     <div role="rowgroup" className="mt-2 space-y-2">
                       {activeNowRows.map((b) => (
                         <Link
-                          to={`/cars/${b.car_id}/bookings/${b.id}/edit`}
+                          to={`/bookings/${b.id}`}
                           state={b}
                           key={b.id}
                           role="row"
@@ -998,7 +998,7 @@ export default function DashboardPage() {
                     <div role="rowgroup" className="mt-2 space-y-2">
                       {endingSoonRows.map((b) => (
                         <Link
-                          to={`/cars/${b.car_id}/bookings/${b.id}/edit`}
+                          to={`/bookings/${b.id}`}
                           state={b}
                           key={b.id}
                           role="row"
@@ -1050,7 +1050,7 @@ export default function DashboardPage() {
                       <div role="rowgroup" className="mt-2 space-y-2">
                         {list.map((b) => (
                           <Link
-                            to={`/cars/${b.car_id}/bookings/${b.id}/edit`}
+                            to={`/bookings/${b.id}`}
                             state={b}
                             key={b.id}
                             role="row"
@@ -1099,7 +1099,7 @@ export default function DashboardPage() {
                     <div role="rowgroup" className="mt-2 space-y-2">
                       {overdue.map((b) => (
                         <Link
-                          to={`/cars/${b.car_id}/bookings/${b.id}/edit`}
+                          to={`/bookings/${b.id}`}
                           state={b}
                           key={b.id}
                           role="row"
@@ -1293,7 +1293,7 @@ export default function DashboardPage() {
               </ChartCard>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-[1fr,1.4fr] gap-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <TableCard title="Status breakdown (period)">
                 {statusBreakdown.every((r) => r.count === 0) ? (
                   <div className="py-6 text-center text-zinc-500 text-sm">

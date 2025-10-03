@@ -683,7 +683,7 @@ export default function CalendarPage() {
             ringClass = "focus-visible:ring-lime-400";
           }
 
-          const url = `/calendar/bookings/${booking.id}`;
+          const url = `/bookings/${booking.id}`;
 
           return (
             <Link
@@ -942,7 +942,7 @@ export default function CalendarPage() {
             end.setDate(end.getDate() + 1);
 
             navigate(
-              `/cars/${createPopover.carId}/bookings/new?carId=${createPopover.carId}` +
+              `/bookings/new?carId=${createPopover.carId}` +
                 `&start=${encodeURIComponent(start.toISOString())}` +
                 `&end=${encodeURIComponent(end.toISOString())}`,
               { state: { from: location.pathname + location.search } }
@@ -1056,7 +1056,7 @@ export default function CalendarPage() {
                 <button
                   className="px-2 py-1 border rounded hover:bg-gray-50"
                   onClick={() => {
-                    const url = `/cars/${b.car_id}/bookings/${b.id}/edit`;
+                    const url = `/bookings/${b.id}`;
                     navigate(url, {
                       state: {
                         snapshot: {
