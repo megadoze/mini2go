@@ -92,7 +92,12 @@ export const router = createBrowserRouter([
   },
   {
     path: "user/:id",
-    element: <UserLayout />,
+    element: (
+      <>
+        <ScrollToTop />
+        <UserLayout />
+      </>
+    ),
     HydrateFallback: HydrateFallback,
     children: [
       { index: true, element: <Navigate to="profile" replace /> },
@@ -111,7 +116,12 @@ export const router = createBrowserRouter([
   },
   {
     path: "cars/:carId",
-    element: <CarPageLayout />, // ← здесь твой CarContext.Provider
+    element: (
+      <>
+        <ScrollToTop />
+        <CarPageLayout />
+      </>
+    ), // ← здесь твой CarContext.Provider
     loader: carLayoutLoader,
     HydrateFallback,
     errorElement: <CarErrorBoundary />,
