@@ -1,4 +1,3 @@
-// src/app/hosts/hostPage.tsx
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { fetchHostById, type Host } from "@/services/host.service";
@@ -12,7 +11,6 @@ export default function HostPage() {
 
   const [host, setHost] = useState<Host | null>(null);
   const [cars, setCars] = useState<CarWithRelations[]>([]);
-  console.log(cars);
 
   const [loading, setLoading] = useState(true);
   const [carsLoading, setCarsLoading] = useState(true);
