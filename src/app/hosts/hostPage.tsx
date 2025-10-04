@@ -1,65 +1,66 @@
-import { useParams, useNavigate, Link } from "react-router-dom";
+// src/app/hosts/hostPage.tsx
 import { useEffect, useMemo, useState } from "react";
-import {
-  ArrowLeftIcon,
-  EnvelopeIcon,
-  PhoneIcon,
-} from "@heroicons/react/24/outline";
-import { getUserById } from "@/services/user.service";
-
-type Host = {
-  id: string;
-  full_name: string | null;
-  email: string | null;
-  phone: string | null;
-  avatar_url: string | null;
-};
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { fetchHostById, type Host } from "@/services/host.service";
+import { ArrowLeftIcon } from "@heroicons/react/24/outline";
+import { fetchCarsByHost } from "@/services/car.service";
+import type { CarWithRelations } from "@/types/carWithRelations";
 
 export default function HostPage() {
   const { hostId } = useParams();
   const navigate = useNavigate();
 
-  const primed = useMemo<Host | null>(() => {
-    if (!hostId) return null;
-    return {
-      id: hostId,
-      full_name: null,
-      email: null,
-      phone: null,
-      avatar_url: null,
-    };
-  }, [hostId]);
+  const [host, setHost] = useState<Host | null>(null);
+  const [cars, setCars] = useState<CarWithRelations[]>([]);
+  console.log(cars);
 
-  const [host, setHost] = useState<Host | null>(primed);
   const [loading, setLoading] = useState(true);
+  const [carsLoading, setCarsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const primed = useMemo(() => {
+    if (!hostId) return null;
+    return { id: hostId } as Host;
+  }, [hostId]);
+
   useEffect(() => {
-    let alive = true;
+    if (!primed?.id) return;
+    let mounted = true;
+    setLoading(true);
+    setError(null);
     (async () => {
-      if (!primed?.id) return;
-      setLoading(true);
-      setError(null);
       try {
-        const full = await getUserById(primed.id);
-        if (!alive) return;
-        setHost({
-          id: primed.id,
-          full_name: (full as any)?.full_name ?? null,
-          email: (full as any)?.email ?? null,
-          phone: (full as any)?.phone ?? null,
-          avatar_url: (full as any)?.avatar_url ?? null,
-        });
+        const h = await fetchHostById(primed.id);
+        if (!mounted) return;
+        setHost(h);
       } catch (e: any) {
-        if (!alive) return;
         setError(e?.message || "Failed to load host");
       } finally {
-        if (!alive) return;
-        setLoading(false);
+        if (mounted) setLoading(false);
       }
     })();
     return () => {
-      alive = false;
+      mounted = false;
+    };
+  }, [primed?.id]);
+
+  useEffect(() => {
+    if (!primed?.id) return;
+    let mounted = true;
+    setCarsLoading(true);
+    (async () => {
+      try {
+        const list = await fetchCarsByHost(primed.id);
+        if (!mounted) return;
+        setCars(list);
+      } catch (e) {
+        // можно показать инлайн-ошибку только в секции машин
+      } finally {
+        if (mounted) setCarsLoading(false);
+      }
+    })();
+    return () => {
+      mounted = false;
     };
   }, [primed?.id]);
 
@@ -68,7 +69,7 @@ export default function HostPage() {
       <div className="w-full max-w-screen-2xl mx-auto">
         <div className="flex items-center gap-2 text-sm text-gray-500">
           <ArrowLeftIcon className="w-4 h-4" />
-          <Link to="/" className="hover:underline">
+          <Link to="/dashboard" className="hover:underline">
             Back
           </Link>
         </div>
@@ -80,7 +81,7 @@ export default function HostPage() {
   }
 
   return (
-    <div className="w-full max-w-screen-2xl mx-auto">
+    <div className="max-w-5xl mx-auto p-4">
       {/* Header */}
       <div className="flex items-center gap-3">
         <button
@@ -88,123 +89,148 @@ export default function HostPage() {
           className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900"
         >
           <ArrowLeftIcon className="w-4 h-4" />
-          <span>Back</span>
+          <span className="sm:inline">Back</span>
         </button>
         <span className="text-xs text-gray-400">/</span>
-        <h1 className="font-roboto text-xl md:text-2xl font-medium md:font-bold">
-          Host
-        </h1>
+        <h1 className="font-roboto text-xl md:text-2xl font-bold">Host</h1>
       </div>
 
-      <section className="mt-4 rounded-2xl border border-gray-100 bg-white/70 backdrop-blur-sm shadow-sm p-4 md:p-5">
+      {/* Host card */}
+      <section className="mt-4 rounded-2xl border border-gray-100 bg-white/70 p-4 md:p-5">
         {loading ? (
-          <div className="animate-pulse space-y-2 mt-2">
-            <div className="h-4 bg-gray-100 rounded" />
-            <div className="h-4 bg-gray-100 rounded w-1/2" />
-          </div>
+          <Skeleton lines={3} />
         ) : error ? (
-          <div className="mt-2 rounded-xl border border-red-100 bg-red-50 text-red-700 p-3 text-sm">
-            {error}
-          </div>
+          <InlineError message={error} />
         ) : host ? (
-          <div className="flex flex-col items-start gap-4">
-            <div className="flex items-center gap-4">
-              <Avatar
-                name={host.full_name ?? host.email ?? host.id}
+          <div className="flex items-center gap-4">
+            {host.avatar_url ? (
+              <img
                 src={host.avatar_url}
+                className="h-16 w-16 md:h-20 md:w-20 rounded-2xl object-cover border border-gray-100"
+                alt={host.full_name ?? host.email ?? host.id}
               />
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <h2 className="text-lg md:text-xl font-semibold truncate">
-                    {host.full_name || "No name"}
-                  </h2>
-                </div>
-                <p className="text-sm text-gray-500">ID: {host.id}</p>
+            ) : (
+              <div className="h-16 w-16 md:h-20 md:w-20 rounded-2xl bg-gray-100 grid place-items-center text-xl text-gray-600 border">
+                {getInitials(host.full_name || host.email || "H")}
               </div>
-            </div>
-
-            <div className="w-full">
-              <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <InfoRow
-                  icon={<EnvelopeIcon className="w-5 h-5" />}
-                  label="Email"
-                  value={host.email || "—"}
-                  copy={host.email || undefined}
-                />
-                <InfoRow
-                  icon={<PhoneIcon className="w-5 h-5" />}
-                  label="Phone"
-                  value={host.phone || "—"}
-                  copy={host.phone || undefined}
-                />
-              </div>
+            )}
+            <div className="min-w-0">
+              <h2 className="text-lg md:text-xl font-semibold truncate">
+                {host.full_name || "Host"}
+              </h2>
+              <p className="text-sm text-gray-500 truncate">
+                {host.email || "—"}
+              </p>
+              {host.phone && (
+                <p className="text-sm text-gray-500">{host.phone}</p>
+              )}
             </div>
           </div>
         ) : null}
+      </section>
+
+      {/* Fleet */}
+      <section className="mt-4 rounded-2xl  border-gray-100 bg-white/70">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-medium text-gray-900">Fleet</h3>
+          <span className="text-xs text-gray-500">
+            {carsLoading
+              ? ""
+              : `${cars.length} car${cars.length === 1 ? "" : "s"}`}
+          </span>
+        </div>
+
+        <div className="mt-3">
+          {carsLoading ? (
+            <Skeleton lines={4} />
+          ) : cars.length === 0 ? (
+            <EmptyState
+              title="No cars yet"
+              description="This host hasn't added cars."
+            />
+          ) : (
+            <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {cars.map((c) => {
+                const photo = c.photos?.[0] ?? null;
+                const brand = c.models?.brands?.name ?? "—";
+                const model = c.models?.name ?? "—";
+                const price = c.price.toFixed?.(2) ?? null;
+                const currency = c.currency ?? "EUR";
+                const country = c.locations?.countries?.name ?? "-";
+                const location = c.locations?.name ?? "-";
+
+                return (
+                  <li
+                    key={c.id}
+                    className="border rounded-xl bg-white/60 p-3 hover:bg-gray-50"
+                  >
+                    <Link to={`/catalog/${c.id}`} className="block">
+                      <div className="aspect-[3/2] w-full overflow-hidden rounded-lg border border-gray-100">
+                        {photo ? (
+                          <img
+                            src={photo}
+                            className="w-full h-full object-cover"
+                            alt={`${brand} ${model}`}
+                          />
+                        ) : (
+                          <div className="w-full h-full grid place-items-center text-gray-400">
+                            no photo
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex justify-between mt-2">
+                        <p className="font-medium text-gray-900 truncate">
+                          {brand} {model} {c.year ?? ""} <br></br>
+                          <span className=" text-gray-500 text-sm">
+                            {country}, {location}
+                          </span>
+                        </p>
+                        <p className="">
+                          <span className=" text-gray-500 text-sm">from</span>{" "}
+                          {price} {currency}
+                        </p>
+                      </div>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
       </section>
     </div>
   );
 }
 
-function InfoRow({
-  icon,
-  label,
-  value,
-  copy,
-}: {
-  icon?: React.ReactNode;
-  label: string;
-  value: string;
-  copy?: string;
-}) {
+function Skeleton({ lines = 3 }: { lines?: number }) {
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-gray-100 bg-white/60 p-3">
-      <div className="shrink-0 text-gray-500">{icon}</div>
-      <div className="min-w-0">
-        <div className="text-xs text-gray-500">{label}</div>
-        <div className="text-sm text-gray-900 truncate max-w-[220px]">
-          {value}
-        </div>
-      </div>
-      {copy && <CopyButton value={copy} />}
+    <div className="animate-pulse space-y-2 mt-2">
+      {Array.from({ length: lines }).map((_, i) => (
+        <div key={i} className="h-4 bg-gray-100 rounded" />
+      ))}
     </div>
   );
 }
 
-function CopyButton({ value }: { value: string }) {
-  const [copied, setCopied] = useState(false);
+function InlineError({ message }: { message: string }) {
   return (
-    <button
-      type="button"
-      onClick={async () => {
-        try {
-          await navigator.clipboard.writeText(value);
-          setCopied(true);
-          setTimeout(() => setCopied(false), 1200);
-        } catch {}
-      }}
-      className="ml-auto inline-flex items-center gap-1 rounded-lg border border-gray-200 px-2 py-1 text-xs text-gray-700 hover:bg-gray-50"
-      title="Copy"
-    >
-      {copied ? "Copied" : "Copy"}
-    </button>
+    <div className="mt-2 rounded-xl border border-red-100 bg-red-50 text-red-700 p-3 text-sm">
+      {message}
+    </div>
   );
 }
 
-function Avatar({ name, src }: { name: string; src: string | null }) {
-  if (src) {
-    return (
-      <img
-        src={src}
-        alt={name}
-        className="h-16 w-16 md:h-20 md:w-20 rounded-2xl object-cover border border-gray-100"
-      />
-    );
-  }
-  const initials = getInitials(name);
+function EmptyState({
+  title,
+  description,
+}: {
+  title: string;
+  description: string;
+}) {
   return (
-    <div className="h-16 w-16 md:h-20 md:w-20 rounded-2xl bg-gray-100 text-gray-600 border border-gray-100 grid place-items-center text-xl font-semibold">
-      {initials}
+    <div className="mt-4 flex flex-col items-center justify-center rounded-xl border border-dashed border-gray-200 p-6 text-center">
+      <p className="mt-2 text-sm font-medium text-gray-900">{title}</p>
+      <p className="text-sm text-gray-500">{description}</p>
     </div>
   );
 }

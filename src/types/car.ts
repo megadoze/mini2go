@@ -1,4 +1,5 @@
 export type Car = {
+  models: any;
   id: string;
   vin: string;
   modelId: string;
