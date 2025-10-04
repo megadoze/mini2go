@@ -1,9 +1,9 @@
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
-  Link,
   useLocation,
   useNavigate,
   useParams,
+  useRouteLoaderData,
   useSearchParams,
 } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -58,6 +58,9 @@ import Pin from "@/components/pin";
 import { fetchAddressFromCoords } from "@/services/geo.service";
 import type { MapRef, ViewState } from "react-map-gl/mapbox";
 import { fetchCarById, fetchCarExtras } from "@/services/car.service";
+import { HostMiniCard } from "@/components/hostMiniCard";
+import { GuestMiniCard } from "@/components/guestMiniCard";
+import { supabase } from "@/lib/supabase";
 
 // ========== Types ===========
 type MapboxFeature = {
@@ -344,6 +347,14 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
     refetchOnMount: false,
   });
 
+  const rootData = useRouteLoaderData("rootAuth") as
+    | { ownerId: string }
+    | undefined;
+
+  const [currentUserId, setCurrentUserId] = useState<string | null>(
+    rootData?.ownerId ?? null
+  );
+
   const [userId, setUserId] = useState<string | null>(
     snapshot?.booking?.user_id ?? null
   );
@@ -360,6 +371,41 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
   const [endDateInp, setEndDateInp] = useState<string>(
     snapshot?.booking?.end_at || ""
   );
+
+  useEffect(() => {
+    if (currentUserId) return;
+    let alive = true;
+    (async () => {
+      try {
+        const { data } = await supabase.auth.getSession();
+        if (!alive) return;
+        setCurrentUserId(data.session?.user.id ?? null);
+      } catch {
+        // ignore
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [currentUserId]);
+
+  const bookingUserId = userIdForQ ?? userId ?? null;
+  const carOwnerId = (car as any)?.owner_id ?? (car as any)?.ownerId ?? null;
+
+  const viewingAsGuest =
+    !!currentUserId && !!bookingUserId && currentUserId === bookingUserId;
+  const viewingAsHost =
+    !!currentUserId && !!carOwnerId && currentUserId === carOwnerId;
+
+  const hostQ = useQuery({
+    queryKey: ["user", carOwnerId],
+    queryFn: () => getUserById(carOwnerId!),
+    enabled: !!carOwnerId,
+    staleTime: 5 * 60_000,
+    refetchOnMount: false,
+  });
+
+  const guest = initialUser ?? userQ.data ?? selectedUser ?? null;
 
   // Прокладка между календарём и существующими стейтами startDateInp/endDateInp
   const calendarRange = useMemo(
@@ -2434,23 +2480,19 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
           )}
 
           {/* Customer mini card */}
-          {userId && selectedUser && mode !== "create" && (
-            <section className=" mt-6 text-gray-700">
-              <p className="md:text-lg font-semibold">Guest</p>
-              <Link
-                to={`/users/${userId}`}
-                className=" flex flex-col items-start gap-1 border rounded-md  border-gray-400 p-3 mt-2"
-              >
-                <div className="font-medium">
-                  {selectedUser.full_name ?? "—"}
-                </div>
-                <div className="text-xs text-gray-600">
-                  {selectedUser.email ?? "—"}
-                  {", "}
-                  {selectedUser.phone ? `  ${selectedUser.phone}` : ""}
-                </div>
-              </Link>
-            </section>
+          {mode !== "create" && mark === "booking" && (
+            <>
+              {viewingAsGuest && <HostMiniCard host={hostQ.data} />}
+              {viewingAsHost && <GuestMiniCard guest={guest} />}
+
+              {/* если роль не определилась (например, открыл админ/третий) — можно показать обе */}
+              {!viewingAsGuest && !viewingAsHost && (
+                <>
+                  <HostMiniCard host={hostQ.data} />
+                  <GuestMiniCard guest={guest} />
+                </>
+              )}
+            </>
           )}
         </aside>
       </div>

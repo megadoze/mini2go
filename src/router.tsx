@@ -42,6 +42,7 @@ import { userBookingsLoader } from "./routes/userBookings.loader";
 import { authLoader } from "./routes/auth.loader";
 import SimpleRouteError from "./routes/simpleRouteError";
 import ScrollToTop from "./components/scrollToTop";
+import HostPage from "./app/hosts/hostPage";
 
 export const router = createBrowserRouter([
   { path: "/auth", element: <AuthenticationPage /> },
@@ -79,6 +80,7 @@ export const router = createBrowserRouter([
       { path: "bookings/new", element: <BookingEditor /> },
       { path: "users", element: <UsersPage /> },
       { path: "users/:userId", element: <UserPage /> },
+      { path: "hosts/:hostId", element: <HostPage /> },
       { path: "settings", element: <SettingsGlobal /> },
     ],
   },
