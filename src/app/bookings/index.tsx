@@ -163,29 +163,41 @@ export default function BookingsList() {
   }, [ownerId]); // привязан к конкретному владельцу
 
   useEffect(() => {
-    const channel = supabase
+    const ch = supabase
       .channel("bookings-list-realtime")
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "bookings" },
         (payload) => {
+          const evt = payload.eventType as "INSERT" | "UPDATE" | "DELETE";
           const row = (payload.new ?? payload.old) as any;
-          // Локально обновим списки/карточки
+          if (!row?.id) return;
+
+          // добираем метаданные авто из локального кэша (бренд/модель/фото/номер)
+          const carMeta = pickCarMetaFromCache(qc, row.car_id);
+
+          if (evt === "INSERT") {
+            // мгновенно положить запись в первую страницу infinite
+            prependIndexRow(qc, { ...row, ...carMeta });
+          } else if (evt === "UPDATE") {
+            // быстрый локальный патч, если запись уже есть в кэше
+            patchIndexRowQuick(qc, { ...row, ...carMeta });
+          }
+
+          // универсальная подстраховка: подтянуть сервером, если фильтры/страницы меняются
           qc.invalidateQueries({
             predicate: (q) =>
               Array.isArray(q.queryKey) &&
               (q.queryKey[0] === "bookingsIndexInfinite" ||
                 q.queryKey[0] === "bookingsByCarId" ||
-                (q.queryKey[0] === "booking" && q.queryKey[1] === row?.id)),
+                (q.queryKey[0] === "booking" && q.queryKey[1] === row.id)),
           });
-          // Быстрый патч первой страницы infinite (без сети):
-          patchIndexRowQuick(qc, row);
         }
       )
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(ch);
     };
   }, [qc]);
 
@@ -713,6 +725,60 @@ function patchIndexRowQuick(qc: any, dbRow: any) {
         nextItems[idx] = { ...nextItems[idx], ...draft };
         return { ...p, items: nextItems };
       });
+      return { ...old, pages };
+    }
+  );
+}
+
+// добрать мету авто из кэша (без сети)
+function pickCarMetaFromCache(qc: QueryClient, carId?: string) {
+  if (!carId) return {};
+  const car = qc.getQueryData<any>(QK.car(String(carId)));
+  if (!car) return {};
+  return {
+    brand_name: car?.model?.brands?.name ?? null,
+    model_name: car?.model?.name ?? null,
+    photos: Array.isArray(car?.photos)
+      ? car.photos
+      : car?.photos
+      ? [car.photos]
+      : null,
+    license_plate: car?.licensePlate ?? null,
+  };
+}
+
+// prepend новой записи в первую страницу infinite-списка
+function prependIndexRow(qc: QueryClient, dbRow: any) {
+  const row = mapDbRowToIndexRow(dbRow);
+  qc.setQueriesData(
+    {
+      predicate: (q: any) =>
+        Array.isArray(q.queryKey) && q.queryKey[0] === "bookingsIndexInfinite",
+    },
+    (old: any) => {
+      if (!old?.pages?.length) {
+        return { pageParams: [0], pages: [{ items: [row], count: 1 }] };
+      }
+      const pages = old.pages.slice();
+      const first = pages[0];
+      const exists = Array.isArray(first?.items)
+        ? first.items.some((x: any) => String(x.id) === String(row.id))
+        : Array.isArray(first)
+        ? first.some((x: any) => String(x.id) === String(row.id))
+        : false;
+      if (exists) return old;
+
+      if (Array.isArray(first?.items)) {
+        pages[0] = {
+          ...first,
+          items: [row, ...first.items],
+          count: (first.count ?? first.items.length) + 1,
+        };
+      } else if (Array.isArray(first)) {
+        pages[0] = [row, ...first];
+      } else {
+        pages[0] = { items: [row], count: 1 };
+      }
       return { ...old, pages };
     }
   );
