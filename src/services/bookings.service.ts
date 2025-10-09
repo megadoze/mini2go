@@ -233,6 +233,8 @@ export type FetchBookingsIndexParams = {
 };
 
 export type BookingsIndexRow = {
+  car_model: string;
+  car_brand: string;
   id: string;
   start_at: string;
   end_at: string;

@@ -17,7 +17,7 @@ export default function PersonMiniCard({
   to?: string | null; // путь для клика
 }) {
   const CardInner = (
-    <div className="flex items-start gap-4 border rounded-md border-gray-400 p-2 mt-2">
+    <div className="flex items-start gap-4 border rounded-md border-gray-300 p-2 mt-2">
       <img src={avatar_url ?? "-"} alt="" className=" size-16 rounded-md" />
       <div className=" flex flex-col flex-1 gap-0">
         <p className="font-medium">{name ?? "—"}</p>

@@ -179,6 +179,8 @@ export default function BookingsList() {
     return uniqById(cards);
   }, [bookingRows]);
 
+  console.log(bookingRows);
+
   const usersById = useMemo(() => {
     const m = new Map<string, string>();
     for (const r of bookingRows) {
@@ -598,7 +600,9 @@ export default function BookingsList() {
                   {isFetchingNext ? "Loading..." : "Показать ещё"}
                 </button>
               ) : (
-                <div className="text-xs text-zinc-400">Больше броней нет</div>
+                <div className="text-xs text-zinc-400">
+                  There are no more bookings
+                </div>
               )}
             </div>
           </>

@@ -661,6 +661,14 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
     const unsubscribe = subscribeBooking(bookingId, () => {
       qc.invalidateQueries({ queryKey: QK.booking(bookingId) });
       qc.invalidateQueries({ queryKey: QK.bookingExtras(bookingId) });
+      qc.invalidateQueries({
+        predicate: (q) =>
+          Array.isArray(q.queryKey) &&
+          (q.queryKey[0] === "bookingsIndex" ||
+            q.queryKey[0] === "bookingsIndexInfinite" ||
+            q.queryKey[0] === "bookingsUserInfinite"),
+      });
+
       if (carId) qc.invalidateQueries({ queryKey: QK.bookingsByCarId(carId) });
     });
     return unsubscribe;
@@ -930,57 +938,103 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
     return years;
   }
 
-  function upsertBookingsIndexRow(
+  function upsertBookingsLists(
     qc: ReturnType<typeof useQueryClient>,
     saved: Booking
   ) {
-    // пробуем найти ВСЕ bookingsIndex ключи и обновить их
+    // Обычные массивы
     qc.setQueriesData<Booking[]>(
       {
         predicate: (q) =>
-          Array.isArray(q.queryKey) && q.queryKey[0] === "bookingsIndex",
+          Array.isArray(q.queryKey) &&
+          (q.queryKey[0] === "bookingsIndex" ||
+            q.queryKey[0] === "bookingsByCarId"),
       },
-      (prev) => {
+      (prev) => (prev ? patchRowInArray(prev, saved) : prev)
+    );
+
+    // Бесконечные ленты: owner index + user index
+    savedGlobalRef.current = saved;
+    patchInfinite(qc, "bookingsIndexInfinite");
+    patchInfinite(qc, "bookingsUserInfinite");
+    savedGlobalRef.current = null;
+  }
+
+  function patchRowInArray(list: Booking[], saved: Booking) {
+    if (!Array.isArray(list)) return list;
+    const i = list.findIndex((x) => x.id === saved.id);
+    if (i === -1) return list;
+    const next = list.slice();
+    next[i] = { ...next[i], ...saved };
+    return next;
+  }
+
+  function patchInfinite(
+    qc: ReturnType<typeof useQueryClient>,
+    family: string
+  ) {
+    qc.setQueriesData<any>(
+      {
+        predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === family, // ровное совпадение семейства
+      },
+      (prev: { pages: any[]; }) => {
         if (!prev) return prev;
-        const idx = prev.findIndex((r) => r.id === saved.id);
-        const patch: Partial<Booking> = {
-          start_at: saved.start_at,
-          end_at: saved.end_at,
-          status: saved.status ?? null,
-          mark: saved.mark,
-          car_id: String(saved.car_id),
-          user_id: saved.user_id ?? null,
-          price_total: saved.price_total ?? null,
-          currency: saved.currency,
-        };
-        if (idx === -1) {
-          return [
-            {
-              ...(patch as Booking),
-              id: saved.id,
-              created_at: saved.created_at ?? new Date().toISOString(),
-            },
-            ...prev,
-          ];
+        // react-query v4 infinite: { pageParams:[], pages:[] }
+        if (Array.isArray(prev.pages)) {
+          const pages = prev.pages.map((page: any) => {
+            // подстрой под свою форму: у тебя скорее всего массив сам по себе,
+            // либо объект { items: Booking[] }. Покажу оба варианта.
+            if (Array.isArray(page)) {
+              return patchRowInArray(page, savedGlobalRef.current!);
+            }
+            if (Array.isArray(page.items)) {
+              return {
+                ...page,
+                items: patchRowInArray(page.items, savedGlobalRef.current!),
+              };
+            }
+            return page;
+          });
+          return { ...prev, pages };
         }
-        const next = prev.slice();
-        next[idx] = { ...next[idx], ...patch };
-        return next;
+        return prev;
       }
     );
   }
 
+  // маленький трюк, чтобы использовать saved внутри patchInfinite без замыканий
+  const savedGlobalRef = { current: null as Booking | null };
+
   // === УНИВЕРСАЛЬНЫЙ ТРИГГЕР ОБНОВЛЕНИЙ КЭША ==================================
+
   function touchBookingCache(
     qc: ReturnType<typeof useQueryClient>,
     saved: Booking
   ) {
+    // 1) одиночная запись
     qc.setQueryData(QK.booking(saved.id), saved);
-    if (saved.car_id) {
-      qc.invalidateQueries({ queryKey: QK.bookingsByCarId(saved.car_id) });
-    }
+
+    // 2) экстры брони
     qc.invalidateQueries({ queryKey: QK.bookingExtras(saved.id) });
-    upsertBookingsIndexRow(qc, saved); // <— сюда
+
+    // 3) список по машине
+    if (saved.car_id) {
+      qc.invalidateQueries({
+        queryKey: QK.bookingsByCarId(String(saved.car_id)),
+      });
+    }
+
+    // 4) мгновенный локальный патч в видимых списках
+    upsertBookingsLists(qc, saved);
+
+    // 5) и безопасная инвалидация семей «индексов» (на случай фильтров/пагинации)
+    qc.invalidateQueries({
+      predicate: (q) =>
+        Array.isArray(q.queryKey) &&
+        (q.queryKey[0] === "bookingsIndex" ||
+          q.queryKey[0] === "bookingsIndexInfinite" ||
+          q.queryKey[0] === "bookingsUserInfinite"),
+    });
   }
 
   function upsertById(list: Booking[], row: Booking) {
@@ -1034,7 +1088,128 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
     });
   }
 
-  // === ОПТИМИСТИЧЕСКИЕ ХЕЛПЕРЫ (необязательно, но приятно) ====================
+  // === ОПТИМИСТИЧЕСКИЕ ХЕЛПЕРЫ ====================
+
+  // async function createBookingOptimistic(
+  //   qc: ReturnType<typeof useQueryClient>,
+  //   payload: Omit<Booking, "id">
+  // ) {
+  //   const tempId = `temp-${Date.now()}`;
+  //   const temp: Booking = { ...(payload as any), id: tempId };
+
+  //   // -- 1) по машине
+  //   const listKey = QK.bookingsByCarId(String(payload.car_id));
+  //   const prevByCar = qc.getQueryData<Booking[]>(listKey) ?? [];
+  //   qc.setQueryData(listKey, [temp, ...prevByCar]);
+
+  //   // -- 2) owner-индексы (обычный и infinite)
+  //   // ownerId можно взять из уже загруженной машины/контекста
+  //   const ownerId = String(
+  //     (car as any)?.owner_id ?? (car as any)?.ownerId ?? ""
+  //   );
+  //   if (ownerId) {
+  //     // обычный индекс
+  //     qc.setQueriesData<Booking[]>(
+  //       { queryKey: QK.bookingsIndex(ownerId) },
+  //       (prev) => addRowToArray(prev, temp)
+  //     );
+  //     // infinite индекс
+  //     qc.setQueriesData(
+  //       {
+  //         predicate: (q) =>
+  //           Array.isArray(q.queryKey) &&
+  //           q.queryKey[0] === "bookingsIndexInfinite",
+  //       },
+  //       (prev) => addToInfiniteData(prev, temp)
+  //     );
+  //   }
+
+  //   // -- 3) user-индекс (если это бронь, а не блок)
+  //   if (temp.user_id) {
+  //     qc.setQueriesData(
+  //       {
+  //         predicate: (q) =>
+  //           Array.isArray(q.queryKey) &&
+  //           q.queryKey[0] === "bookingsUserInfinite",
+  //       },
+  //       (prev) => addToInfiniteData(prev, temp)
+  //     );
+  //   }
+
+  //   try {
+  //     const saved = await createBooking(payload as any);
+
+  //     // заменить temp на saved во всех местах
+
+  //     // по машине
+  //     qc.setQueryData(listKey, (curr?: Booking[]) =>
+  //       replaceRowInArray(curr, tempId, saved)
+  //     );
+
+  //     // owner индекс (обычный)
+  //     if (ownerId) {
+  //       qc.setQueriesData<Booking[]>(
+  //         { queryKey: QK.bookingsIndex(ownerId) },
+  //         (prev) => replaceRowInArray(prev, tempId, saved)
+  //       );
+  //       // owner infinite
+  //       qc.setQueriesData(
+  //         {
+  //           predicate: (q) =>
+  //             Array.isArray(q.queryKey) &&
+  //             q.queryKey[0] === "bookingsIndexInfinite",
+  //         },
+  //         (prev) => replaceInInfiniteData(prev, tempId, saved)
+  //       );
+  //     }
+
+  //     // user infinite
+  //     if (temp.user_id) {
+  //       qc.setQueriesData(
+  //         {
+  //           predicate: (q) =>
+  //             Array.isArray(q.queryKey) &&
+  //             q.queryKey[0] === "bookingsUserInfinite",
+  //         },
+  //         (prev) => replaceInInfiniteData(prev, tempId, saved)
+  //       );
+  //     }
+
+  //     // общий каскад: одиночка, календары, инвалидации
+  //     touchBookingCache(qc, saved);
+  //     patchCalendarWindowsCache(qc, saved);
+
+  //     return saved;
+  //   } catch (e) {
+  //     // откат по машине
+  //     qc.setQueryData(listKey, prevByCar);
+
+  //     // откат owner-индексов
+  //     if (ownerId) {
+  //       qc.invalidateQueries({ queryKey: QK.bookingsIndex(ownerId) });
+  //       qc.invalidateQueries({
+  //         predicate: (q) =>
+  //           Array.isArray(q.queryKey) &&
+  //           q.queryKey[0] === "bookingsIndexInfinite",
+  //       });
+  //     }
+
+  //     // откат user-индексов
+  //     if (temp.user_id) {
+  //       qc.invalidateQueries({
+  //         predicate: (q) =>
+  //           Array.isArray(q.queryKey) &&
+  //           q.queryKey[0] === "bookingsUserInfinite",
+  //       });
+  //     }
+
+  //     throw e;
+  //   }
+  // }
+
+  // BookingEditor.tsx
+  // ⬇️ Полностью замени свою функцию createBookingOptimistic на эту версию
+
   async function createBookingOptimistic(
     qc: ReturnType<typeof useQueryClient>,
     payload: Omit<Booking, "id">
@@ -1043,24 +1218,19 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
     const temp: Booking = { ...(payload as any), id: tempId };
 
     const listKey = QK.bookingsByCarId(String(payload.car_id));
-    const prev = qc.getQueryData<Booking[]>(listKey) ?? [];
-
-    // оптимистично добавляем в список
-    qc.setQueryData(listKey, [temp, ...prev]);
+    const prevByCar = qc.getQueryData<Booking[]>(listKey) ?? [];
+    qc.setQueryData(listKey, [temp, ...prevByCar]);
 
     try {
       const saved = await createBooking(payload as any);
-      // заменяем временную запись реальной
       qc.setQueryData(listKey, (curr?: Booking[]) =>
         (curr ?? []).map((b) => (b.id === tempId ? saved : b))
       );
       touchBookingCache(qc, saved);
       patchCalendarWindowsCache(qc, saved);
-
       return saved;
     } catch (e) {
-      // откат
-      qc.setQueryData(listKey, prev);
+      qc.setQueryData(listKey, prevByCar);
       throw e;
     }
   }
@@ -1196,7 +1366,6 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
       }
     }
 
-    // проверку конфликтов тоже делаем ДО включения лоадера
     try {
       await assertNoConflicts(
         String(carId),
@@ -1209,7 +1378,6 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
       return;
     }
 
-    // ---- НИЖЕ только реальный сетевой сейв, тут уже включаем лоадер
     setSaving(true);
     try {
       const basePayload: Omit<Booking, "id"> & { deposit?: number | null } = {
@@ -1271,6 +1439,76 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
         touchBookingCache(qc, saved);
         patchCalendarWindowsCache(qc, saved);
       }
+
+      // >>> ADD TO INFINITE INDEX (вставляем правильную строку BookingsIndexRow)
+      const row = {
+        id: saved.id,
+        car_id: String(saved.car_id),
+        user_id: saved.user_id ?? null,
+        start_at: saved.start_at,
+        end_at: saved.end_at,
+        created_at: saved.created_at ?? new Date().toISOString(),
+        status: saved.status ?? (mark === "booking" ? "onApproval" : "block"),
+        mark: saved.mark,
+        price_total: saved.price_total ?? null,
+        currency: saved.currency ?? (car as any)?.effectiveCurrency ?? "EUR",
+        // авто
+        brand_name: car?.model?.brands?.name ?? "",
+        model_name: car?.model?.name ?? "",
+        photos: car?.photos ?? null,
+        license_plate: car?.licensePlate ?? null,
+        // гость
+        user_full_name:
+          (selectedUser as any)?.full_name ??
+          (userQ.data as any)?.full_name ??
+          null,
+      } as any; // BookingsIndexRow
+
+      qc.setQueriesData<any>(
+        {
+          // не угадываем ownerId/фильтры — обновляем все активные списки владельца
+          predicate: (q) =>
+            Array.isArray(q.queryKey) &&
+            q.queryKey[0] === "bookingsIndexInfinite",
+        },
+        (old: { pages: string | any[] }) => {
+          // ожидаем InfiniteData<{ items: BookingsIndexRow[]; count: number }, number>
+          if (!old || !Array.isArray(old.pages)) {
+            return {
+              pageParams: [0],
+              pages: [{ items: [row], count: 1 }],
+            };
+          }
+          const pages = old.pages.slice();
+          const first = pages[0];
+
+          if (Array.isArray(first)) {
+            // Защита на случай старой формы: страница — массив
+            const exists = first.some(
+              (x: any) => String(x.id) === String(row.id)
+            );
+            if (exists) return old;
+            pages[0] = [row, ...first];
+            return { ...old, pages };
+          }
+
+          // Нормальная форма: { items, count }
+          const items = Array.isArray(first?.items) ? first.items : [];
+          const exists = items.some(
+            (x: any) => String(x.id) === String(row.id)
+          );
+          if (exists) return old;
+
+          pages[0] = {
+            ...first,
+            items: [row, ...items],
+            count: (first?.count ?? items.length) + 1,
+          };
+          return { ...old, pages };
+        }
+      );
+      // <<< END ADD
+
       setSaved(true);
       setTimeout(() => setSaved(false), 1500);
 
@@ -1282,7 +1520,12 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
           1000
         );
       } else {
-        navigate(location.state?.from ?? -1);
+        const backTo = location.state?.from ?? -1;
+        if (typeof backTo === "string") {
+          navigate(backTo, { replace: true });
+        } else {
+          navigate(-1);
+        }
       }
     } catch (e: any) {
       setError(e?.message ?? "Save error");
