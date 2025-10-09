@@ -53,10 +53,10 @@ import BookingFilters from "@/components/bookingFilters";
 import {
   fetchBookingsIndexPage,
   mapIndexRowToBookingCard,
-  // type BookingJoinedRow,
   type BookingsIndexRow,
 } from "@/services/bookings.service";
 import { getUserById } from "@/services/user.service";
+import { supabase } from "@/lib/supabase";
 
 type LoaderData = { ownerId: string };
 
@@ -162,6 +162,33 @@ export default function BookingsList() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ownerId]); // привязан к конкретному владельцу
 
+  useEffect(() => {
+    const channel = supabase
+      .channel("bookings-list-realtime")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "bookings" },
+        (payload) => {
+          const row = (payload.new ?? payload.old) as any;
+          // Локально обновим списки/карточки
+          qc.invalidateQueries({
+            predicate: (q) =>
+              Array.isArray(q.queryKey) &&
+              (q.queryKey[0] === "bookingsIndexInfinite" ||
+                q.queryKey[0] === "bookingsByCarId" ||
+                (q.queryKey[0] === "booking" && q.queryKey[1] === row?.id)),
+          });
+          // Быстрый патч первой страницы infinite (без сети):
+          patchIndexRowQuick(qc, row);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [qc]);
+
   const EMPTY_PAGES: ReadonlyArray<Page> = [];
 
   const pages = useMemo(
@@ -178,8 +205,6 @@ export default function BookingsList() {
     const cards = bookingRows.map(mapIndexRowToBookingCard);
     return uniqById(cards);
   }, [bookingRows]);
-
-  console.log(bookingRows);
 
   const usersById = useMemo(() => {
     const m = new Map<string, string>();
@@ -639,4 +664,56 @@ function StatusPill({ status }: { status: BookingCard["status"] }) {
 
 function normalize(v?: string | null) {
   return (v ?? "").toString().trim().toLowerCase();
+}
+
+function mapDbRowToIndexRow(db: any) {
+  return {
+    id: db.id,
+    car_id: String(db.car_id),
+    user_id: db.user_id ?? null,
+    start_at: db.start_at,
+    end_at: db.end_at,
+    created_at: db.created_at,
+    status: db.status,
+    mark: db.mark,
+    price_total: db.price_total,
+    currency: db.currency,
+    // ВАЖНО: «правильные» поля для авто:
+    brand_name: db.brand_name ?? db.car_brand ?? null, // на случай если денорм делаешь на сервере
+    model_name: db.model_name ?? db.car_model ?? null,
+    photos: Array.isArray(db.photos)
+      ? db.photos
+      : db.car_photo
+      ? [db.car_photo]
+      : null,
+    license_plate: db.license_plate ?? db.car_license_plate ?? null,
+    // имя гостя (если есть денорм/вьюшка)
+    user_full_name: db.user_full_name ?? null,
+  };
+}
+
+function patchIndexRowQuick(qc: any, dbRow: any) {
+  if (!dbRow?.id) return;
+  const draft = mapDbRowToIndexRow(dbRow);
+
+  qc.setQueriesData(
+    {
+      predicate: (q: any) =>
+        Array.isArray(q.queryKey) && q.queryKey[0] === "bookingsIndexInfinite",
+    },
+    (old: any) => {
+      if (!old?.pages?.length) return old;
+      const pages = old.pages.map((p: any) => {
+        if (!p?.items) return p;
+        const idx = p.items.findIndex(
+          (x: any) => String(x.id) === String(draft.id)
+        );
+        if (idx === -1) return p;
+        const nextItems = p.items.slice();
+        nextItems[idx] = { ...nextItems[idx], ...draft };
+        return { ...p, items: nextItems };
+      });
+      return { ...old, pages };
+    }
+  );
 }
