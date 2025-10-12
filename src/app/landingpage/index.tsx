@@ -15,7 +15,7 @@ export default function MiniRentalHero() {
   return (
     <>
       {/* HEADER */}
-      <HeaderSection menuOpen={menuOpen} handleMenuOpen={setMenuOpen} />
+      <HeaderSection menuOpen={menuOpen} handleMenuOpen={setMenuOpen} color="white" />
 
       <main className="relative min-h-screen">
         {/* HERO */}

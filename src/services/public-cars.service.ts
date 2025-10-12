@@ -18,7 +18,7 @@ export async function fetchPublicCarById(carId: string): Promise<PublicCar | nul
   const { data, error } = await supabase
     .from("cars")
     .select(`
-      id, year, photos, license_plate, price, currency, deposit, address,
+      *,
       owner:profiles(id, full_name, email),
       model:models(
         id, name,

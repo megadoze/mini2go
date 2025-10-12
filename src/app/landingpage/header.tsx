@@ -6,11 +6,13 @@ import type { Dispatch, SetStateAction } from "react";
 type HeaderMenuProps = {
   menuOpen: boolean;
   handleMenuOpen: Dispatch<SetStateAction<boolean>>;
+  color: string;
 };
 
 export const HeaderSection = ({
   menuOpen,
   handleMenuOpen,
+  color,
 }: HeaderMenuProps) => {
   return (
     <header className="absolute inset-x-0 top-0 z-50 transition-colors duration-300 ">
@@ -19,7 +21,7 @@ export const HeaderSection = ({
           <Burger
             opened={menuOpen}
             onClick={() => handleMenuOpen((v: any) => !v)}
-            color="#fff"
+            color={color}
             size="sm"
             aria-label="Toggle menu"
             className=" h-10 w-10 rounded-md"
@@ -31,8 +33,8 @@ export const HeaderSection = ({
             href="#"
             className="flex flex-col items-center shrink-0 font-roboto uppercase font-bold "
           >
-            <img src="/icons/logow.png" className=" w-20" />
-            <p className=" text-white text-sm">MINI2GO</p>
+            <img src={color === "white" ? `/icons/logow.png` : `/icons/logo.png`} className="w-14 md:w-20" />
+            <p className={` text-${color} text-xs md:text-sm`}>MINI2GO</p>
           </a>
           {/* <nav className="mx-auto hidden lg:block">
             <ul className="flex items-center gap-6 xl:gap-8 text-sm font-medium">
@@ -50,7 +52,9 @@ export const HeaderSection = ({
           </nav> */}
         </div>
 
-        <button className=" lg:inline-flex font-robotoCondensed font-medium text-white/90 hover:text-white transition">
+        <button
+          className={` lg:inline-flex font-robotoCondensed font-medium text-${color} hover:text-${color} transition`}
+        >
           <FingerPrintIcon className=" w-6" />
         </button>
       </div>
