@@ -223,9 +223,7 @@ export default function PublicCarLandingMini() {
               {`${car.transmission}`}
             </div>
             <p className="pt-4 text-lg md:text-xl font-roboto">
-              Икона городского драйва. Лёгкий, манёвренный и практичный.{" "}
-              <br></br>
-              MINI для тех, кто любит характер и стиль.
+              Икона городского драйва. Лёгкий, манёвренный и практичный.
             </p>
             <div className="mt-6 flex items-center gap-4">
               <a
