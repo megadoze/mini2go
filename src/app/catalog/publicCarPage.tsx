@@ -1,14 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeftIcon,
-  MapPinIcon,
   CameraIcon,
   ChevronRightIcon,
-  PlayCircleIcon,
 } from "@heroicons/react/24/outline";
 import { fetchCarById } from "@/services/car.service";
 import { HeaderSection } from "../landingpage/header";
+import { WELCOME_FEATURES } from "@/constants/carOptions";
 
 type Car = {
   models: any;
@@ -60,15 +59,7 @@ export default function PublicCarLandingMini() {
   const [end, setEnd] = useState<string>("");
 
   // Anchor nav
-  const sections = [
-    "overview",
-    "highlights",
-    "exterior",
-    "interior",
-    "tech",
-    "specs",
-    "booking",
-  ] as const;
+  const sections = ["overview", "services", "highlights"] as const;
   const [active, setActive] = useState<(typeof sections)[number]>("overview");
   const observerRef = useRef<IntersectionObserver | null>(null);
   const navRef = useRef<HTMLDivElement | null>(null);
@@ -101,9 +92,10 @@ export default function PublicCarLandingMini() {
         const visible = entries
           .filter((e) => e.isIntersecting)
           .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+
         if (visible?.target?.id) setActive(visible.target.id as any);
       },
-      { rootMargin: "-20% 0px -70% 0px", threshold: [0.25, 0.6, 1] }
+      { rootMargin: "-20% 0px -70% 10px", threshold: [0.25, 0.6, 1] }
     );
     ids.forEach((el) => el && observerRef.current?.observe(el));
     return () => observerRef.current?.disconnect();
@@ -111,25 +103,9 @@ export default function PublicCarLandingMini() {
 
   const photos = useMemo(() => (car?.photos || []).filter(Boolean), [car]);
   const hero = photos[0];
-  const brand =
-    (car as any)?.models?.brand?.name ||
-    (car as any)?.model?.brand?.name ||
-    "MINI";
-  const model =
-    (car as any)?.models?.name || (car as any)?.model?.name || "Cooper";
-  const title = `${brand} ${model}`.trim() || "Автомобиль";
-  // const logoUrl =
-  //   (car as any)?.models?.brand?.logo ||
-  //   (car as any)?.model?.brand?.logo ||
-  //   null;
-
-  const ownerObj: any = (car as any)?.owner;
-  const ownerName =
-    typeof ownerObj === "string"
-      ? ownerObj
-      : ownerObj?.full_name || ownerObj?.email || "Хост";
-  const ownerIdDerived =
-    car?.ownerId || (typeof ownerObj === "object" ? ownerObj?.id : undefined);
+  const brand = (car as any)?.model?.brands?.name;
+  const model = (car as any)?.model?.name;
+  const title = `${brand} ${model}`.trim();
 
   const days = useMemo(() => {
     if (!start || !end) return 1;
@@ -158,16 +134,6 @@ export default function PublicCarLandingMini() {
 
   return (
     <div className="min-h-screen bg-white text-neutral-900">
-      {/* Логотип по центру */}
-      {/* <header className="py-3">
-        <div className="mx-auto max-w-5xl px-4 flex justify-center">
-          {logoUrl ? (
-            <img src={logoUrl} alt="logo" className="h-8" />
-          ) : (
-            <span className="text-xl font-semibold tracking-tight">MINI</span>
-          )}
-        </div>
-      </header> */}
       <HeaderSection
         menuOpen={menuOpen}
         handleMenuOpen={setMenuOpen}
@@ -226,55 +192,40 @@ export default function PublicCarLandingMini() {
             onClick={() => navigate(-1)}
             className="inline-flex items-center gap-2 rounded-full bg-white/90 backdrop-blur px-3 py-1.5 text-xs font-medium text-gray-700 shadow hover:bg-white"
           >
-            <ArrowLeftIcon className="h-4 w-4" /> Назад
+            <ArrowLeftIcon className="h-4 w-4" /> Back
           </button>
         </div>
 
-        <div className="mx-auto max-w-5xl px-4 grid grid-cols-1 gap-8 py-8 mt-10">
+        <div className="mx-auto max-w-5xl px-4 grid grid-cols-1">
           <div className=" overflow-hidden">
-            {car.heroVideoUrl ? (
-              <div className="relative h-[44vh] md:h-[64vh] bg-black">
-                <video
-                  src={car.heroVideoUrl}
-                  className="h-full w-full object-cover"
-                  autoPlay
-                  loop
-                  muted
-                  playsInline
+            <div className="relative ">
+              {hero ? (
+                <img
+                  src={hero}
+                  alt={title}
+                  className=" w-full h-full object-cover"
                 />
-                <div className="absolute left-4 bottom-4 flex items-center gap-2 text-white/90">
-                  <PlayCircleIcon className="h-6 w-6" />
-                  <span className="text-xs">Hero video</span>
+              ) : (
+                <div className="h-full w-full grid place-items-center text-neutral-400">
+                  <CameraIcon className="h-10 w-10" />
                 </div>
-              </div>
-            ) : (
-              <div className="relative h-[44vh] md:h-[64vh] bg-neutral-100">
-                {hero ? (
-                  <img
-                    src={hero}
-                    alt={title}
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  <div className="h-full w-full grid place-items-center text-neutral-400">
-                    <CameraIcon className="h-10 w-10" />
-                  </div>
-                )}
-              </div>
-            )}
+              )}
+            </div>
           </div>
 
-          <header className="flex flex-col items-center text-center py-2">
-            <h1 className="text-4xl md:text-5xl font-semibold tracking-tight">
+          <header className="flex flex-col items-center text-center">
+            <h1 className="text-3xl sm:text-4xl lg:text-6xl font-robotoCondensed font-bold text-black">
               {title}
             </h1>
-            <div className="text-neutral-500 mt-1">
-              {car.year ? `${car.year} · ` : ""}
-              {car.bodyType || "Хэтчбек"}
+            <div className=" mt-4 rounded-md py-1 px-2 bg-zinc-100 text-gray-800">
+              {`${car.bodyType} · `}
+              {`${car.fuelType} · `}
+              {`${car.transmission}`}
             </div>
-            <p className="mt-4 text-neutral-700 text-sm max-w-3xl">
-              Икона городского драйва. Лёгкий, манёвренный и практичный. MINI
-              для тех, кто любит характер и стиль.
+            <p className="pt-4 text-lg md:text-xl font-roboto">
+              Икона городского драйва. Лёгкий, манёвренный и практичный.{" "}
+              <br></br>
+              MINI для тех, кто любит характер и стиль.
             </p>
             <div className="mt-6 flex items-center gap-4">
               <a
@@ -295,161 +246,140 @@ export default function PublicCarLandingMini() {
       </section>
 
       {/* Полоса фактов */}
-      <section id="highlights" className="scroll-mt-24">
+      <section className="scroll-mt-24">
         <div className="mx-auto max-w-5xl px-4 py-8">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <Fact
-              label="Цена/день"
+              label="price/day"
               value={`${car.price.toFixed(0)} ${"EUR"}`}
             />
-            <Fact label="Пробег вкл." value={`${car.includeMileage} км`} />
-            <Fact label="Места" value={car.seats ?? "—"} />
-            <Fact label="Двери" value={car.doors ?? "—"} />
+            <Fact label="Inc. mileage." value={`${car.includeMileage} км`} />
+            <Fact label="Seats" value={car.seats ?? "—"} />
+            <Fact label="Doors" value={car.doors ?? "—"} />
           </div>
         </div>
       </section>
 
-      {/* Экстерьер/Интерьер */}
-      <FeatureRow
-        id="exterior"
-        title="Экстерьер"
-        text="Контрастная крыша и светодиодная оптика подчёркивают характер MINI."
-        image={photos[1] || hero}
-      />
-      <FeatureRow
-        id="interior"
-        title="Интерьер"
-        text="Круглый OLED-дисплей и премиальные материалы — всё под рукой."
-        image={photos[2] || photos[0]}
-        flip
-      />
+      {/* Video */}
+      <section className="mx-auto max-w-5xl px-4 py-8">
+        <div className=" aspect-[9/16] md:aspect-video">
+          <video
+            // ref={setStoryRef(2)}
+            className=" inset-0 h-full w-full object-cover rounded-2xl"
+            src="/videos/mini-U25.mp4"
+            muted
+            playsInline
+            preload="metadata"
+            loop
+            // onPlaying={() => setStoryPlaying((s) => ({ ...s, [2]: true }))}
+            // onPause={() => setStoryPlaying((s) => ({ ...s, [2]: false }))}
+            // onEnded={(e) => {
+            //   stopAndPoster(e.currentTarget);
+            //   setStoryPlaying((s) => ({ ...s, [2]: false }));
+            //   setHoveredStory((p) => (p === 2 ? null : p));
+            // }}
+            autoPlay
+          />
+        </div>
+      </section>
 
-      {/* Технологии */}
-      <section id="tech" className="bg-neutral-50 scroll-mt-24">
-        <div className="mx-auto max-w-5xl px-4 py-12 grid grid-cols-1 lg:grid-cols-12 gap-10">
-          <div className="lg:col-span-5">
-            <h2 className="text-2xl font-semibold text-center lg:text-left">
-              Технологии
+      {/* Services */}
+      <section id="services" className="bg-white">
+        <div className="px-[3vw] sm:px-6 lg:px-10 pt-24">
+          <div className="text-center">
+            <h2 className="text-3xl sm:text-4xl lg:text-6xl font-robotoCondensed font-bold text-black">
+              Inclusive services
             </h2>
-            <ul className="mt-6 space-y-3 text-sm text-neutral-700">
-              <Bullet>Адаптивный круиз-контроль*</Bullet>
-              <Bullet>Парковочный ассистент*</Bullet>
-              <Bullet>Apple CarPlay / Android Auto</Bullet>
-              <Bullet>Камера заднего вида*</Bullet>
-            </ul>
-            <p className="mt-3 text-xs text-neutral-500">
-              * Наличие зависит от комплектации конкретного авто.
+            <p className="pt-4 text-lg md:text-xl text-stone-600 font-roboto">
+              What do we provide when you rent a MINI.
             </p>
           </div>
-          <div className="lg:col-span-7 rounded-2xl overflow-hidden min-h-[320px] bg-neutral-100">
-            {photos[3] ? (
-              <img
-                src={photos[3]}
-                alt="Tech"
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div className="h-full w-full grid place-items-center text-neutral-400 p-10 text-center">
-                <CameraIcon className="h-10 w-10" />
-                <p className="mt-2 text-xs">
-                  Добавьте фото, чтобы показать технологии
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
-      </section>
 
-      {/* Галерея */}
-      <section className="scroll-mt-24">
-        <div className="mx-auto max-w-5xl px-4 py-10">
-          <h3 className="text-xl font-semibold mb-4 text-center">Галерея</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {[0, 1, 2, 3, 4, 5].map((i) => (
+          {/* центр и ширины — как у видео/карточек */}
+          <div className="mt-10 w-full max-w-[1200px] mx-auto flex flex-wrap justify-center gap-6 md:gap-8">
+            {MINIMUM_REQS.map((item, i) => (
               <div
                 key={i}
-                className="aspect-[4/3] rounded-2xl overflow-hidden bg-neutral-100"
+                className="w-[94vw] max-w-[420px] md:w-[340px] lg:w-[380px]"
               >
-                {photos[i] ? (
-                  <img
-                    src={photos[i]}
-                    alt={`photo-${i}`}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="h-full w-full grid place-items-center text-neutral-400">
-                    <CameraIcon className="h-10 w-10" />
+                <div className="h-full rounded-2xl ring-1 ring-black/10 bg-white p-5 md:p-6">
+                  <div className="flex items-start gap-3">
+                    <div className="h-9 w-9 shrink-0 rounded-full bg-black text-white flex items-center justify-center">
+                      {item.icon}
+                    </div>
+                    <div>
+                      <h3 className="text-lg md:text-xl font-semibold text-black">
+                        {item.title}
+                      </h3>
+                      <p className="mt-2 text-black/70 md:text-base leading-relaxed">
+                        {item.desc}
+                      </p>
+                    </div>
                   </div>
-                )}
+                </div>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Характеристики */}
-      <section id="specs" className="scroll-mt-24">
-        <div className="mx-auto max-w-5xl px-4 py-12 space-y-10">
-          <div className="rounded-2xl p-6">
-            <h2 className="text-xl font-semibold mb-4 text-center">
-              Характеристики
+      {/* Highlights */}
+      <section id="highlights" className="bg-white">
+        <div className=" lg:px-10 pt-24">
+          <div className="text-center">
+            <h2 className="text-3xl sm:text-4xl lg:text-6xl font-robotoCondensed font-bold text-black">
+              Highlights
             </h2>
-            <dl className="mx-auto max-w-3xl grid grid-cols-1 sm:grid-cols-2 gap-y-3 gap-x-10 text-sm">
-              <Spec k="Мощность (кВт/л.с.)" v={combinePower(car.powerHp)} />
-              <Spec
-                k="Крутящий момент"
-                v={car.torqueNm ? `${car.torqueNm} Н·м` : undefined}
-              />
-              <Spec
-                k="0–100 км/ч"
-                v={car.accelerationSec ? `${car.accelerationSec} с` : undefined}
-              />
-              <Spec k="Трансмиссия" v={car.transmission} />
-              <Spec k="Тип топлива" v={car.fuelType} />
-              <Spec k="Привод" v={car.driveType} />
-              <Spec
-                k="Объём двигателя"
-                v={car.engineCapacity ? `${car.engineCapacity} см³` : undefined}
-              />
-              <Spec k="Цвет" v={car.color} />
-            </dl>
-            <p className="mt-3 text-xs text-neutral-500 text-center">
-              Значения указаны для представленного автомобиля и могут
-              отличаться.
+            <p className="pt-4 text-lg md:text-xl text-stone-600 font-roboto">
+              Small formats — big fun. Choose, book, drive.
             </p>
+          </div>
+
+          {/* центрируем контент как у видео */}
+          <div className="mt-10 w-full max-w-[1200px] mx-auto space-y-12 md:space-y-16">
+            {WELCOME_FEATURES.map((item, i) => {
+              const reversed = i % 2 === 0; // зеркалим каждую вторую строку
+              return (
+                <div
+                  key={i}
+                  className={`md:flex md:items-center md:justify-center md:gap-8 ${
+                    reversed ? "md:flex-row-reverse" : ""
+                  }`}
+                >
+                  {/* КАРТИНКА (ширина как у видео-карточек) */}
+                  <div className="flex justify-center px-4 md:px-0">
+                    <div className=" w-full md:max-w-[420px] md:w-[340px] lg:w-[380px]">
+                      <div className="relative aspect-square md:aspect-[9/16] overflow-hidden rounded-2xl ring-1 ring-black/10 bg-black">
+                        <img
+                          src={item.img}
+                          alt={item.alt}
+                          loading="lazy"
+                          decoding="async"
+                          className="absolute inset-0 h-full w-full object-cover"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* ТЕКСТ (ровно та же ширина, отцентрирован) */}
+                  <div className="mt-4 md:mt-0 flex justify-center">
+                    <div className="w-[82vw] max-w-[420px] md:w-[340px] lg:w-[380px]">
+                      <h3 className="text-2xl md:text-3xl font-robotoCondensed font-semibold text-black">
+                        {item.title}
+                      </h3>
+                      <p className="mt-3 font-roboto text-stone-600 text-lg lg:text-xl">
+                        {item.text}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       </section>
 
-      {/* Описание / Адрес / Хост */}
-      <section className="scroll-mt-24">
-        <div className="mx-auto max-w-5xl px-4 py-10 grid grid-cols-1 gap-10">
-          <div className="rounded-2xl p-6 space-y-4 text-sm">
-            {car.content && (
-              <div>
-                <h3 className="text-base font-semibold mb-1">Описание</h3>
-                <p className="text-neutral-700">{car.content}</p>
-              </div>
-            )}
-            <div>
-              <h3 className="text-base font-semibold mb-1">Адрес</h3>
-              <div className="flex items-start gap-2 text-neutral-700">
-                <MapPinIcon className="h-5 w-5" /> {car.address || "—"}
-              </div>
-            </div>
-            <div>
-              <h3 className="text-base font-semibold mb-1">Хост</h3>
-              {ownerIdDerived ? (
-                <Link to={`/hosts/${ownerIdDerived}`} className="underline">
-                  {ownerName}
-                </Link>
-              ) : (
-                <span>{ownerName || "—"}</span>
-              )}
-            </div>
-          </div>
-        </div>
-      </section>
+      <div className="mb-36 md:mb-24"></div>
 
       {/* Фиксированная нижняя полоса бронирования */}
       <BookingBar
@@ -460,14 +390,6 @@ export default function PublicCarLandingMini() {
         onStartChange={setStart}
         onEndChange={setEnd}
       />
-
-      {/* Низ страницы без разделителей */}
-      <footer>
-        <div className="mx-auto max-w-5xl px-4 py-10 text-xs text-neutral-500">
-          Изображения носят иллюстративный характер. Комплектация и
-          характеристики зависят от конкретного автомобиля.
-        </div>
-      </footer>
     </div>
   );
 }
@@ -496,11 +418,8 @@ function BookingBar({
     }).format(n);
 
   return (
-    <div
-      id="booking"
-      className="fixed inset-x-0 bottom-0 z-50 bg-white/90 backdrop-blur print:hidden border-t"
-    >
-      <div className="flex items-center justify-between mx-auto max-w-7xl px-4 py-1">
+    <div className="fixed inset-x-0 bottom-0 z-50 bg-white/90 backdrop-blur print:hidden border-t">
+      <div className="flex flex-col md:flex-row items-center justify-between mx-auto max-w-7xl px-4 py-1">
         <div className="flex items-center gap-10">
           {/* Сумма */}
           <div className="">
@@ -508,7 +427,7 @@ function BookingBar({
               {fmt(total)}
             </div>
             <div className="mt-1 text-xs text-neutral-500">
-              за {days} {declineDays(days)}
+              for {days} {declineDays(days)}
             </div>
           </div>
 
@@ -519,7 +438,7 @@ function BookingBar({
                 {car.includeMileage}
               </div>
               <div className="text-[11px] md:text-xs text-neutral-500 mt-1">
-                км/день
+                км/day
               </div>
             </div>
             <div className="px-3 py-2">
@@ -527,7 +446,7 @@ function BookingBar({
                 {days}
               </div>
               <div className="text-[11px] md:text-xs text-neutral-500 mt-1">
-                дней
+                days
               </div>
             </div>
           </div>
@@ -544,7 +463,7 @@ function BookingBar({
             }
             className="rounded-xl border px-4 py-3 text-sm font-medium hover:bg-neutral-50"
           >
-            Изменить даты проката
+            Change rental dates
           </button>
           <button
             onClick={() =>
@@ -556,7 +475,7 @@ function BookingBar({
             }
             className="rounded-xl bg-black px-5 py-3 text-white text-sm font-semibold hover:bg-neutral-900"
           >
-            Дальше
+            Next
           </button>
         </div>
       </div>
@@ -573,134 +492,116 @@ function Fact({
   value?: string | number | null;
 }) {
   return (
-    <div className="rounded-2xl p-4 text-center">
-      <div className="text-xs text-neutral-500 uppercase tracking-wide">
+    <div className="rounded-2xl border p-4 text-center">
+      <div className=" text-4xl font-bold">{value ?? "—"}</div>
+      <div className="text-xs text-neutral-500 uppercase tracking-wide pt-1">
         {label}
       </div>
-      <div className="mt-1 text-xl font-semibold">{value ?? "—"}</div>
     </div>
-  );
-}
-
-function Spec({ k, v }: { k: string; v?: string | number | null }) {
-  if (v == null || v === "") return null;
-  return (
-    <div className="grid grid-cols-12">
-      <dt className="col-span-7 text-neutral-500">{k}</dt>
-      <dd className="col-span-5 font-medium text-neutral-900">{String(v)}</dd>
-    </div>
-  );
-}
-
-function FeatureRow({
-  id,
-  title,
-  text,
-  image,
-  flip,
-}: {
-  id: string;
-  title: string;
-  text: string;
-  image?: string;
-  flip?: boolean;
-}) {
-  return (
-    <section id={id} className="scroll-mt-24">
-      <div className="mx-auto max-w-5xl px-4 py-12 grid grid-cols-1 lg:grid-cols-12 gap-10">
-        {flip ? (
-          <>
-            <div className="lg:col-span-6 rounded-2xl overflow-hidden min-h-[320px] bg-neutral-100 order-2 lg:order-none">
-              {image ? (
-                <img
-                  src={image}
-                  alt={title}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div className="h-full w-full grid place-items-center text-neutral-400 p-10 text-center">
-                  <CameraIcon className="h-10 w-10" />
-                  <p className="mt-2 text-xs">
-                    Добавьте фото для раздела “{title}”
-                  </p>
-                </div>
-              )}
-            </div>
-            <div className="lg:col-span-6 flex flex-col justify-center text-center lg:text-left order-1 lg:order-none">
-              <h2 className="text-2xl font-semibold">{title}</h2>
-              <p className="mt-4 text-neutral-700">{text}</p>
-            </div>
-          </>
-        ) : (
-          <>
-            <div className="lg:col-span-6 flex flex-col justify-center text-center lg:text-left">
-              <h2 className="text-2xl font-semibold">{title}</h2>
-              <p className="mt-4 text-neutral-700">{text}</p>
-            </div>
-            <div className="lg:col-span-6 rounded-2xl overflow-hidden min-h-[320px] bg-neutral-100">
-              {image ? (
-                <img
-                  src={image}
-                  alt={title}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div className="h-full w-full grid place-items-center text-neutral-400 p-10 text-center">
-                  <CameraIcon className="h-10 w-10" />
-                  <p className="mt-2 text-xs">
-                    Добавьте фото для раздела “{title}”
-                  </p>
-                </div>
-              )}
-            </div>
-          </>
-        )}
-      </div>
-    </section>
-  );
-}
-
-function Bullet({ children }: { children: React.ReactNode }) {
-  return (
-    <li className="flex items-start gap-2">
-      <span className="mt-1 block h-1.5 w-1.5 rounded-full bg-neutral-900" />
-      <span>{children}</span>
-    </li>
   );
 }
 
 function labelFor(s: string) {
   switch (s) {
     case "overview":
-      return "Обзор";
+      return "Overview";
+    case "services":
+      return "Services";
     case "highlights":
-      return "Особенности";
-    case "exterior":
-      return "Экстерьер";
-    case "interior":
-      return "Интерьер";
-    case "tech":
-      return "Технологии";
-    case "specs":
-      return "Характеристики";
-    case "booking":
-      return "Бронирование";
+      return "Highlights";
     default:
       return s;
   }
 }
 
-function combinePower(hp?: number | null) {
-  if (hp == null) return null;
-  const kw = Math.round(hp * 0.7355);
-  return `${kw} кВт/${hp} л.с.`;
-}
-
 function declineDays(n: number) {
   const v = Math.abs(n) % 100;
   const v1 = v % 10;
-  if (v > 10 && v < 20) return "дней";
-  if (v1 > 1 && v1 < 5) return "дня";
-  if (v1 === 1) return "день";
-  return "дней";
+  if (v > 10 && v < 20) return "days";
+  if (v1 > 1 && v1 < 5) return "day";
+  if (v1 === 1) return "day";
+  return "days";
 }
+
+const MINIMUM_REQS = [
+  {
+    title: "Free kilometers",
+    desc: "Depending on the plan you choose, you'll be entitled to a certain number of free kilometers. Each additional kilometer costs €0.20.",
+    icon: (
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        fill="none"
+        viewBox="0 0 24 24"
+        strokeWidth="1.5"
+        stroke="currentColor"
+        className="size-6"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z"
+        />
+      </svg>
+    ),
+  },
+  {
+    title: "Second driver included",
+    desc: "An additional driver is included in your booking. Please note that this driver must meet the same requirements as the main driver.",
+    icon: (
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        fill="none"
+        viewBox="0 0 24 24"
+        strokeWidth="1.5"
+        stroke="currentColor"
+        className="size-6"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M15 9h3.75M15 12h3.75M15 15h3.75M4.5 19.5h15a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5Zm6-10.125a1.875 1.875 0 1 1-3.75 0 1.875 1.875 0 0 1 3.75 0Zm1.294 6.336a6.721 6.721 0 0 1-3.17.789 6.721 6.721 0 0 1-3.168-.789 3.376 3.376 0 0 1 6.338 0Z"
+        />
+      </svg>
+    ),
+  },
+  {
+    title: "MINI Assistance (24/7)",
+    desc: "Mobility and security on demand. 24/7. Across Europe.",
+    icon: (
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        fill="none"
+        viewBox="0 0 24 24"
+        strokeWidth="1.5"
+        stroke="currentColor"
+        className="size-6"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M2.25 18.75a60.07 60.07 0 0 1 15.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 0 1 3 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 0 0-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 0 1-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 0 0 3 15h-.75M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm3 0h.008v.008H18V10.5Zm-12 0h.008v.008H6V10.5Z"
+        />
+      </svg>
+    ),
+  },
+  {
+    title: "Comprehensive insurance",
+    desc: "Comprehensive insurance with a €1,000 or €1,500 deductible for Countryman and Aceman models protects you against serious damage.",
+    icon: (
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        fill="none"
+        viewBox="0 0 24 24"
+        strokeWidth="1.5"
+        stroke="currentColor"
+        className="size-6"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5Z"
+        />
+      </svg>
+    ),
+  },
+];
