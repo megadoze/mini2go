@@ -157,6 +157,7 @@ export default function PublicCarLandingMini() {
                 href={`#${s}`}
                 onClick={(e) => {
                   e.preventDefault();
+                  setActive(s);
                   const target = document.getElementById(s);
                   const headerH = navRef.current?.offsetHeight ?? 0;
                   if (target) {
@@ -223,14 +224,14 @@ export default function PublicCarLandingMini() {
               {`${car.transmission}`}
             </div>
             <p className="pt-4 text-lg md:text-xl font-roboto">
-              Икона городского драйва. Лёгкий, манёвренный и практичный.
+              An icon of urban driving. Light, maneuverable, and practical.
             </p>
             <div className="mt-6 flex items-center gap-4">
               <a
                 href="#booking"
                 className="rounded-full bg-black text-white px-5 py-3 text-sm font-medium hover:bg-neutral-900"
               >
-                Забронировать
+                Book
               </a>
               <a
                 href="#specs"
@@ -251,7 +252,7 @@ export default function PublicCarLandingMini() {
               label="price/day"
               value={`${car.price.toFixed(0)} ${"EUR"}`}
             />
-            <Fact label="Inc. mileage." value={`${car.includeMileage} км`} />
+            <Fact label="Mileage/day" value={`${car.includeMileage} km`} />
             <Fact label="Seats" value={car.seats ?? "—"} />
             <Fact label="Doors" value={car.doors ?? "—"} />
           </div>
@@ -259,31 +260,20 @@ export default function PublicCarLandingMini() {
       </section>
 
       {/* Video */}
-      <section className="mx-auto max-w-5xl px-4 py-8">
-        <div className=" aspect-[9/16] md:aspect-video">
-          <video
-            // ref={setStoryRef(2)}
-            className=" inset-0 h-full w-full object-cover rounded-2xl"
+      <section className="mx-auto max-w-5xl px-4 py-10">
+        <div className="aspect-[9/16] md:aspect-video rounded-2xl overflow-hidden">
+          <LazyAutoplayVideo
             src="/videos/mini-U25.mp4"
-            muted
-            playsInline
-            preload="metadata"
-            loop
-            // onPlaying={() => setStoryPlaying((s) => ({ ...s, [2]: true }))}
-            // onPause={() => setStoryPlaying((s) => ({ ...s, [2]: false }))}
-            // onEnded={(e) => {
-            //   stopAndPoster(e.currentTarget);
-            //   setStoryPlaying((s) => ({ ...s, [2]: false }));
-            //   setHoveredStory((p) => (p === 2 ? null : p));
-            // }}
-            autoPlay
+            poster="/images/mini-U25-poster.jpg" // опционально
+            className="h-full w-full object-cover"
+            // threshold={0.6} // можно подправить чувствительность
           />
         </div>
       </section>
 
       {/* Services */}
       <section id="services" className="bg-white">
-        <div className="px-[3vw] sm:px-6 lg:px-10 pt-24">
+        <div className="px-[3vw] sm:px-6 lg:px-10 pt-10 mb-10">
           <div className="text-center">
             <h2 className="text-3xl sm:text-4xl lg:text-6xl font-robotoCondensed font-bold text-black">
               Inclusive services
@@ -323,7 +313,7 @@ export default function PublicCarLandingMini() {
 
       {/* Highlights */}
       <section id="highlights" className="bg-white">
-        <div className=" lg:px-10 pt-24">
+        <div className=" lg:px-10 pt-10">
           <div className="text-center">
             <h2 className="text-3xl sm:text-4xl lg:text-6xl font-robotoCondensed font-bold text-black">
               Highlights
@@ -603,3 +593,70 @@ const MINIMUM_REQS = [
     ),
   },
 ];
+
+function LazyAutoplayVideo({
+  src,
+  poster,
+  className,
+  loop = true,
+  threshold = 0.6, // сколько видео должно быть видно, чтобы играть
+}: {
+  src: string;
+  poster?: string;
+  className?: string;
+  loop?: boolean;
+  threshold?: number;
+}) {
+  const ref = useRef<HTMLVideoElement>(null);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+
+    // наблюдаем сам <video>
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        if (!el) return;
+        const inView =
+          entry.isIntersecting && entry.intersectionRatio >= threshold;
+
+        if (inView) {
+          // лениво подставляем src чтобы не грузить заранее
+          if (!loaded) {
+            el.src = src;
+            setLoaded(true);
+          }
+          const p = el.play();
+          if (p && typeof (p as any).catch === "function") {
+            (p as Promise<void>).catch(() => {
+              /* мобильный браузер мог отказать — игнорируем */
+            });
+          }
+        } else {
+          el.pause();
+        }
+      },
+      { threshold: [0, threshold, 1] }
+    );
+
+    io.observe(el);
+    return () => io.disconnect();
+  }, [src, threshold, loaded]);
+
+  return (
+    <video
+      ref={ref}
+      // важно для iOS
+      muted
+      playsInline
+      // чтобы точно не открывалось в плеере
+      controls={false}
+      // не грузим до видимости
+      preload="none"
+      loop={loop}
+      poster={poster}
+      className={className}
+    />
+  );
+}
