@@ -1,53 +1,25 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import {
-  ArrowLeftIcon,
-  CameraIcon,
-  ChevronRightIcon,
-} from "@heroicons/react/24/outline";
+import { ArrowLeftIcon, CameraIcon } from "@heroicons/react/24/outline";
 import { fetchCarById } from "@/services/car.service";
 import { HeaderSection } from "../landingpage/header";
 import { WELCOME_FEATURES } from "@/constants/carOptions";
-
-type Car = {
-  models: any;
-  id: string;
-  vin: string;
-  modelId: string;
-  year?: number | null;
-  fuelType?: string | null;
-  transmission?: string | null;
-  seats?: number | null;
-  licensePlate?: string | null;
-  engineCapacity?: number | null;
-  bodyType?: string | null;
-  driveType?: string | null;
-  color?: string | null;
-  doors?: number | null;
-  photos?: string[] | null;
-  content?: string | null;
-  address: string;
-  pickupInfo: string;
-  returnInfo: string;
-  isDelivery: boolean;
-  deliveryFee: number;
-  includeMileage: number; // km/day
-  price: number; // per day
-  deposit: number;
-  currency?: string | null;
-  accelerationSec?: number | null;
-  powerHp?: number | null;
-  torqueNm?: number | null;
-  heroVideoUrl?: string | null;
-  owner?: any;
-  ownerId?: string | null;
-};
+import type { CarWithRelations } from "@/types/carWithRelations";
 
 export default function PublicCarLandingMini() {
   const { carId } = useParams();
   const navigate = useNavigate();
 
-  const [car, setCar] = useState<Car | null>(null);
+  const goToRequest = () => {
+    if (!car) return;
+    navigate(
+      `/catalog/${car.id}/request?start=${encodeURIComponent(
+        start
+      )}&end=${encodeURIComponent(end)}`
+    );
+  };
+
+  const [car, setCar] = useState<CarWithRelations | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showNav, setShowNav] = useState(false);
@@ -60,16 +32,21 @@ export default function PublicCarLandingMini() {
 
   // Anchor nav
   const sections = ["overview", "services", "highlights"] as const;
-  const [active, setActive] = useState<(typeof sections)[number]>("overview");
+  type SectionId = (typeof sections)[number];
+
+  const [active, setActive] = useState<SectionId>("overview");
   const observerRef = useRef<IntersectionObserver | null>(null);
   const navRef = useRef<HTMLDivElement | null>(null);
+  const ratiosRef = useRef<Record<string, number>>({});
+  const programmaticRef = useRef(false);
+  const scrollStopTimer = useRef<number | null>(null);
 
   useEffect(() => {
     let alive = true;
     (async () => {
       try {
         if (!carId) return;
-        const data = (await fetchCarById(carId)) as unknown as Car;
+        const data = (await fetchCarById(carId)) as unknown as CarWithRelations;
         if (!alive) return;
         setCar(data);
       } catch (e: any) {
@@ -85,21 +62,43 @@ export default function PublicCarLandingMini() {
   }, [carId]);
 
   useEffect(() => {
-    const ids = sections.map((id) => document.getElementById(id));
+    const els = sections
+      .map((id) => document.getElementById(id))
+      .filter(Boolean) as HTMLElement[];
+
+    ratiosRef.current = {} as Record<SectionId, number>;
     observerRef.current?.disconnect();
+
     observerRef.current = new IntersectionObserver(
       (entries) => {
-        const visible = entries
-          .filter((e) => e.isIntersecting)
-          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+        if (programmaticRef.current) return;
+        for (const entry of entries) {
+          const id = (entry.target as HTMLElement).id as SectionId;
+          ratiosRef.current[id] = entry.isIntersecting
+            ? entry.intersectionRatio
+            : 0;
+        }
 
-        if (visible?.target?.id) setActive(visible.target.id as any);
+        let bestId: SectionId = sections[0]; // ← ВАЖНО: тип указан
+        let bestRatio = -1;
+        for (const id of sections as readonly SectionId[]) {
+          const r = ratiosRef.current[id] ?? 0;
+          if (r > bestRatio) {
+            bestRatio = r;
+            bestId = id;
+          }
+        }
+        if (bestId !== active) setActive(bestId);
       },
-      { rootMargin: "-20% 0px -70% 10px", threshold: [0.25, 0.6, 1] }
+      {
+        rootMargin: "-20% 0px -70% 10px",
+        threshold: [0, 0.25, 0.6, 0.9, 1],
+      }
     );
-    ids.forEach((el) => el && observerRef.current?.observe(el));
+
+    els.forEach((el) => observerRef.current!.observe(el));
     return () => observerRef.current?.disconnect();
-  }, [loading]);
+  }, [loading, sections]);
 
   const photos = useMemo(() => (car?.photos || []).filter(Boolean), [car]);
   const hero = photos[0];
@@ -119,6 +118,18 @@ export default function PublicCarLandingMini() {
   useEffect(() => {
     const onScroll = () => setShowNav(window.scrollY > 120);
     onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  useEffect(() => {
+    const onScroll = () => {
+      if (!programmaticRef.current) return;
+      if (scrollStopTimer.current) window.clearTimeout(scrollStopTimer.current);
+      scrollStopTimer.current = window.setTimeout(() => {
+        programmaticRef.current = false; // ⬅️ когда прокрутка «успокоилась»
+      }, 120); // 120–180мс — норм
+    };
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
@@ -157,10 +168,11 @@ export default function PublicCarLandingMini() {
                 href={`#${s}`}
                 onClick={(e) => {
                   e.preventDefault();
-                  setActive(s);
+                  setActive(s as SectionId);
                   const target = document.getElementById(s);
                   const headerH = navRef.current?.offsetHeight ?? 0;
                   if (target) {
+                    programmaticRef.current = true; // ⬅️ мы сами начинаем плавный скролл
                     const top =
                       target.getBoundingClientRect().top +
                       window.scrollY -
@@ -227,25 +239,19 @@ export default function PublicCarLandingMini() {
               An icon of urban driving. Light, maneuverable, and practical.
             </p>
             <div className="mt-6 flex items-center gap-4">
-              <a
-                href="#booking"
+              <button
+                onClick={goToRequest}
                 className="rounded-full bg-black text-white px-5 py-3 text-sm font-medium hover:bg-neutral-900"
               >
                 Book
-              </a>
-              <a
-                href="#specs"
-                className="inline-flex items-center gap-1 text-sm text-neutral-700 hover:text-black"
-              >
-                ТТХ <ChevronRightIcon className="h-4 w-4" />
-              </a>
+              </button>
             </div>
           </header>
         </div>
       </section>
 
       {/* Полоса фактов */}
-      <section className="scroll-mt-24">
+      <section>
         <div className="mx-auto max-w-5xl px-4 py-8">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <Fact
@@ -272,7 +278,7 @@ export default function PublicCarLandingMini() {
       </section>
 
       {/* Services */}
-      <section id="services" className="bg-white">
+      <section id="services" className="bg-white scroll-mt-24">
         <div className="px-[3vw] sm:px-6 lg:px-10 pt-10 mb-10">
           <div className="text-center">
             <h2 className="text-3xl sm:text-4xl lg:text-6xl font-robotoCondensed font-bold text-black">
@@ -312,7 +318,7 @@ export default function PublicCarLandingMini() {
       </section>
 
       {/* Highlights */}
-      <section id="highlights" className="bg-white">
+      <section id="highlights" className="bg-white scroll-mt-24">
         <div className=" lg:px-10 pt-10">
           <div className="text-center">
             <h2 className="text-3xl sm:text-4xl lg:text-6xl font-robotoCondensed font-bold text-black">
@@ -377,6 +383,7 @@ export default function PublicCarLandingMini() {
         days={days}
         onStartChange={setStart}
         onEndChange={setEnd}
+        onProceed={goToRequest}
       />
     </div>
   );
@@ -388,13 +395,17 @@ function BookingBar({
   start,
   end,
   days,
+  // onStartChange,
+  // onEndChange,
+  onProceed,
 }: {
-  car: Car;
+  car: CarWithRelations;
   start: string;
   end: string;
   days: number;
   onStartChange: (v: string) => void;
   onEndChange: (v: string) => void;
+  onProceed: () => void;
 }) {
   const navigate = useNavigate();
   const total = Math.max(1, days) * (car.price || 0);
@@ -406,7 +417,10 @@ function BookingBar({
     }).format(n);
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-50 bg-white/90 backdrop-blur print:hidden border-t">
+    <div
+      id="booking"
+      className="fixed inset-x-0 bottom-0 z-50 bg-white/90 backdrop-blur print:hidden border-t"
+    >
       <div className="flex flex-col md:flex-row items-center justify-between mx-auto max-w-7xl px-4 py-1">
         <div className="flex items-center gap-10">
           {/* Сумма */}
@@ -426,7 +440,7 @@ function BookingBar({
                 {car.includeMileage}
               </div>
               <div className="text-[11px] md:text-xs text-neutral-500 mt-1">
-                км/day
+                included km
               </div>
             </div>
             <div className="px-3 py-2">
@@ -434,7 +448,7 @@ function BookingBar({
                 {days}
               </div>
               <div className="text-[11px] md:text-xs text-neutral-500 mt-1">
-                days
+                {declineDays(days)}
               </div>
             </div>
           </div>
@@ -454,13 +468,7 @@ function BookingBar({
             Change rental dates
           </button>
           <button
-            onClick={() =>
-              navigate(
-                `/catalog/${car.id}/request?start=${encodeURIComponent(
-                  start
-                )}&end=${encodeURIComponent(end)}`
-              )
-            }
+            onClick={onProceed}
             className="rounded-xl bg-black px-5 py-3 text-white text-sm font-semibold hover:bg-neutral-900"
           >
             Next
@@ -515,19 +523,25 @@ const MINIMUM_REQS = [
   {
     title: "Free kilometers",
     desc: "Depending on the plan you choose, you'll be entitled to a certain number of free kilometers. Each additional kilometer costs €0.20.",
+    // Спидометр + значок бесконечности = бесплатные км
     icon: (
       <svg
         xmlns="http://www.w3.org/2000/svg"
-        fill="none"
         viewBox="0 0 24 24"
-        strokeWidth="1.5"
+        fill="none"
         stroke="currentColor"
+        strokeWidth="1.5"
         className="size-6"
       >
         <path
           strokeLinecap="round"
           strokeLinejoin="round"
-          d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z"
+          d="M4.5 13.5a7.5 7.5 0 1 1 15 0v0a3 3 0 0 1-3 3h-9a3 3 0 0 1-3-3Z"
+        />
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M12 9v3m0 0 3 1.5"
         />
       </svg>
     ),
@@ -535,19 +549,35 @@ const MINIMUM_REQS = [
   {
     title: "Second driver included",
     desc: "An additional driver is included in your booking. Please note that this driver must meet the same requirements as the main driver.",
+    // Два профиля + бейдж-плюс
     icon: (
       <svg
         xmlns="http://www.w3.org/2000/svg"
-        fill="none"
         viewBox="0 0 24 24"
-        strokeWidth="1.5"
+        fill="none"
         stroke="currentColor"
+        strokeWidth="1.5"
         className="size-6"
       >
         <path
           strokeLinecap="round"
           strokeLinejoin="round"
-          d="M15 9h3.75M15 12h3.75M15 15h3.75M4.5 19.5h15a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5Zm6-10.125a1.875 1.875 0 1 1-3.75 0 1.875 1.875 0 0 1 3.75 0Zm1.294 6.336a6.721 6.721 0 0 1-3.17.789 6.721 6.721 0 0 1-3.168-.789 3.376 3.376 0 0 1 6.338 0Z"
+          d="M8.25 11.25a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"
+        />
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M2.25 18.75a6 6 0 0 1 12 0"
+        />
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M15.75 10.5a2.25 2.25 0 1 0 0-4.5"
+        />
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M14.25 15.75a5.25 5.25 0 0 1 7.5 4.5"
         />
       </svg>
     ),
@@ -555,19 +585,43 @@ const MINIMUM_REQS = [
   {
     title: "MINI Assistance (24/7)",
     desc: "Mobility and security on demand. 24/7. Across Europe.",
+    // Гарнитура + часы (24/7)
     icon: (
       <svg
         xmlns="http://www.w3.org/2000/svg"
-        fill="none"
         viewBox="0 0 24 24"
-        strokeWidth="1.5"
+        fill="none"
         stroke="currentColor"
+        strokeWidth="1.5"
         className="size-6"
+        aria-hidden="true"
       >
-        <path
+        {/* lifebuoy ring */}
+        <circle
+          cx="12"
+          cy="12"
+          r="8"
           strokeLinecap="round"
           strokeLinejoin="round"
-          d="M2.25 18.75a60.07 60.07 0 0 1 15.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 0 1 3 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 0 0-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 0 1-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 0 0 3 15h-.75M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm3 0h.008v.008H18V10.5Zm-12 0h.008v.008H6V10.5Z"
+        />
+        <circle
+          cx="12"
+          cy="12"
+          r="3.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        {/* lifebuoy straps (N/E/S/W) */}
+        <path
+          d="M12 4v2.5M12 17.5V20M4 12h2.5M17.5 12H20"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        {/* clock hands for 24/7 hint */}
+        <path
+          d="M12 12V10.5M12 12l1.25.75"
+          strokeLinecap="round"
+          strokeLinejoin="round"
         />
       </svg>
     ),
@@ -575,19 +629,25 @@ const MINIMUM_REQS = [
   {
     title: "Comprehensive insurance",
     desc: "Comprehensive insurance with a €1,000 or €1,500 deductible for Countryman and Aceman models protects you against serious damage.",
+    // Щит с галочкой
     icon: (
       <svg
         xmlns="http://www.w3.org/2000/svg"
-        fill="none"
         viewBox="0 0 24 24"
-        strokeWidth="1.5"
+        fill="none"
         stroke="currentColor"
+        strokeWidth="1.5"
         className="size-6"
       >
         <path
           strokeLinecap="round"
           strokeLinejoin="round"
-          d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5Z"
+          d="M12 3.75 5.25 6v6.75c0 3.9 2.55 6.9 6.75 7.5 4.2-.6 6.75-3.6 6.75-7.5V6L12 3.75Z"
+        />
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="m8.75 12.25 2 2 4.5-4.5"
         />
       </svg>
     ),
