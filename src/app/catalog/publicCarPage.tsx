@@ -237,7 +237,7 @@ export default function PublicCarLandingMini() {
               {`${car.fuelType} · `}
               {`${car.transmission}`}
             </div>
-            <p className="pt-2 md:pt-4 text-lg md:text-xl font-roboto text-gray-700">
+            <p className="pt-2 md:pt-4 text-lg md:text-xl font-roboto">
               An icon of urban driving. Light, maneuverable, and practical.
             </p>
             <div className="mt-6 flex items-center gap-4">
