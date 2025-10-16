@@ -31,7 +31,7 @@ export default function PublicCarLandingMini() {
   const [end, setEnd] = useState<string>("");
 
   // Anchor nav
-  const sections = ["overview", "services", "highlights"] as const;
+  const sections = ["overview", "highlights", "services"] as const;
   type SectionId = (typeof sections)[number];
 
   const [active, setActive] = useState<SectionId>("overview");
@@ -102,6 +102,8 @@ export default function PublicCarLandingMini() {
 
   const photos = useMemo(() => (car?.photos || []).filter(Boolean), [car]);
   const hero = photos[0];
+  const videoPoster = photos[1] || "/images/placeholder-16x9.jpg";
+
   const brand = (car as any)?.model?.brands?.name;
   const model = (car as any)?.model?.name;
   const title = `${brand} ${model}`.trim();
@@ -235,7 +237,7 @@ export default function PublicCarLandingMini() {
               {`${car.fuelType} · `}
               {`${car.transmission}`}
             </div>
-            <p className="pt-4 text-lg md:text-xl font-roboto">
+            <p className="pt-4 text-lg md:text-xl font-roboto text-gray-700">
               An icon of urban driving. Light, maneuverable, and practical.
             </p>
             <div className="mt-6 flex items-center gap-4">
@@ -270,55 +272,15 @@ export default function PublicCarLandingMini() {
         <div className="aspect-[9/16] md:aspect-video rounded-2xl overflow-hidden">
           <LazyAutoplayVideo
             src="/videos/mini-U25.mp4"
-            poster="/images/mini-U25-poster.jpg" // опционально
+            poster={videoPoster}
             className="h-full w-full object-cover"
             // threshold={0.6} // можно подправить чувствительность
           />
         </div>
       </section>
 
-      {/* Services */}
-      <section id="services" className="bg-white scroll-mt-24">
-        <div className="px-[3vw] sm:px-6 lg:px-10 pt-10 mb-10">
-          <div className="text-center">
-            <h2 className="text-3xl sm:text-4xl lg:text-6xl font-robotoCondensed font-bold text-black">
-              Inclusive services
-            </h2>
-            <p className="pt-4 text-lg md:text-xl text-stone-600 font-roboto">
-              What do we provide when you rent a MINI.
-            </p>
-          </div>
-
-          {/* центр и ширины — как у видео/карточек */}
-          <div className="mt-10 w-full max-w-[1200px] mx-auto flex flex-wrap justify-center gap-6 md:gap-8">
-            {MINIMUM_REQS.map((item, i) => (
-              <div
-                key={i}
-                className="w-[94vw] max-w-[420px] md:w-[340px] lg:w-[380px]"
-              >
-                <div className="h-full rounded-2xl ring-1 ring-black/10 bg-white p-5 md:p-6">
-                  <div className="flex items-start gap-3">
-                    <div className="h-9 w-9 shrink-0 rounded-full bg-black text-white flex items-center justify-center">
-                      {item.icon}
-                    </div>
-                    <div>
-                      <h3 className="text-lg md:text-xl font-semibold text-black">
-                        {item.title}
-                      </h3>
-                      <p className="mt-2 text-black/70 md:text-base leading-relaxed">
-                        {item.desc}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* Highlights */}
-      <section id="highlights" className="bg-white scroll-mt-24">
+      <section id="highlights" className="bg-white scroll-mt-24 pb-10">
         <div className=" lg:px-10 pt-10">
           <div className="text-center">
             <h2 className="text-3xl sm:text-4xl lg:text-6xl font-robotoCondensed font-bold text-black">
@@ -373,6 +335,46 @@ export default function PublicCarLandingMini() {
         </div>
       </section>
 
+      {/* Services */}
+      <section id="services" className="bg-white scroll-mt-24">
+        <div className="px-[3vw] sm:px-6 lg:px-10 pt-10 mb-10">
+          <div className="text-center">
+            <h2 className="text-3xl sm:text-4xl lg:text-6xl font-robotoCondensed font-bold text-black">
+              Inclusive services
+            </h2>
+            <p className="pt-4 text-lg md:text-xl text-stone-600 font-roboto">
+              What do we provide when you rent a MINI.
+            </p>
+          </div>
+
+          {/* центр и ширины — как у видео/карточек */}
+          <div className="mt-10 w-full max-w-[1200px] mx-auto flex flex-wrap justify-center gap-6 md:gap-8">
+            {MINIMUM_REQS.map((item, i) => (
+              <div
+                key={i}
+                className="w-[94vw] max-w-[420px] md:w-[340px] lg:w-[380px]"
+              >
+                <div className="h-full rounded-2xl ring-1 ring-black/10 bg-white p-5 md:p-6">
+                  <div className="flex items-start gap-3">
+                    <div className="h-9 w-9 shrink-0 rounded-full bg-black text-white flex items-center justify-center">
+                      {item.icon}
+                    </div>
+                    <div>
+                      <h3 className="text-lg md:text-xl font-semibold text-black">
+                        {item.title}
+                      </h3>
+                      <p className="mt-2 text-black/70 md:text-base leading-relaxed">
+                        {item.desc}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       <div className="mb-36 md:mb-24"></div>
 
       {/* Фиксированная нижняя полоса бронирования */}
@@ -409,24 +411,18 @@ function BookingBar({
 }) {
   const navigate = useNavigate();
   const total = Math.max(1, days) * (car.price || 0);
-  const fmt = (n: number) =>
-    new Intl.NumberFormat("de-DE", {
-      style: "currency",
-      currency: "EUR",
-      maximumFractionDigits: 0,
-    }).format(n);
 
   return (
     <div
       id="booking"
       className="fixed inset-x-0 bottom-0 z-50 bg-white/90 backdrop-blur print:hidden border-t"
     >
-      <div className="flex flex-col md:flex-row items-center justify-between mx-auto max-w-7xl px-4 py-1">
-        <div className="flex items-center gap-10">
+      <div className="flex items-center justify-between mx-auto max-w-7xl px-3 md:px-6 py-1">
+        <div className="flex items-center md:gap-10">
           {/* Сумма */}
-          <div className="">
-            <div className="text-3xl md:text-4xl font-extrabold leading-none">
-              {fmt(total)}
+          <div>
+            <div className="text-2xl md:text-4xl font-extrabold leading-none">
+              {total}€
             </div>
             <div className="mt-1 text-xs text-neutral-500">
               for {days} {declineDays(days)}
@@ -434,17 +430,17 @@ function BookingBar({
           </div>
 
           {/* Факты */}
-          <div className="flex gap-10 text-center">
+          <div className="flex md:gap-10 text-center">
             <div className="px-3 py-2">
-              <div className="text-3xl md:text-4xl font-extrabold leading-none">
+              <div className="text-2xl md:text-4xl font-extrabold leading-none">
                 {car.includeMileage}
               </div>
               <div className="text-[11px] md:text-xs text-neutral-500 mt-1">
-                included km
+                incl.km
               </div>
             </div>
             <div className="px-3 py-2">
-              <div className="text-3xl md:text-4xl font-extrabold leading-none">
+              <div className="text-2xl md:text-4xl font-extrabold leading-none">
                 {days}
               </div>
               <div className="text-[11px] md:text-xs text-neutral-500 mt-1">
@@ -454,7 +450,7 @@ function BookingBar({
           </div>
         </div>
         {/* Кнопки */}
-        <div className="flex items-center justify-end gap-3">
+        <div className="flex items-center justify-end gap-2">
           <button
             onClick={() =>
               navigate(
@@ -465,7 +461,7 @@ function BookingBar({
             }
             className="rounded-xl border px-4 py-3 text-sm font-medium hover:bg-neutral-50"
           >
-            Change rental dates
+            Change
           </button>
           <button
             onClick={onProceed}
@@ -659,64 +655,101 @@ function LazyAutoplayVideo({
   poster,
   className,
   loop = true,
-  threshold = 0.6, // сколько видео должно быть видно, чтобы играть
+  threshold = 0.6,
 }: {
   src: string;
-  poster?: string;
+  poster?: string; // передаёшь первый кадр сюда
   className?: string;
   loop?: boolean;
   threshold?: number;
 }) {
-  const ref = useRef<HTMLVideoElement>(null);
-  const [loaded, setLoaded] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [inViewLoaded, setInViewLoaded] = useState(false);
+  const [isReady, setIsReady] = useState(false); // можно декодировать кадр
+  const [isPlaying, setIsPlaying] = useState(false); // реально играет
 
+  // Ленивая загрузка по видимости
   useEffect(() => {
-    const el = ref.current;
+    const el = videoRef.current;
     if (!el) return;
 
-    // наблюдаем сам <video>
     const io = new IntersectionObserver(
       ([entry]) => {
-        if (!el) return;
         const inView =
-          entry.isIntersecting && entry.intersectionRatio >= threshold;
-
+          entry.isIntersecting && entry.intersectionRatio >= (threshold ?? 0.6);
         if (inView) {
-          // лениво подставляем src чтобы не грузить заранее
-          if (!loaded) {
+          if (!inViewLoaded) {
             el.src = src;
-            setLoaded(true);
+            setInViewLoaded(true);
           }
           const p = el.play();
-          if (p && typeof (p as any).catch === "function") {
-            (p as Promise<void>).catch(() => {
-              /* мобильный браузер мог отказать — игнорируем */
-            });
-          }
+          if (p && typeof (p as any).catch === "function")
+            (p as Promise<void>).catch(() => {});
         } else {
           el.pause();
         }
       },
-      { threshold: [0, threshold, 1] }
+      { threshold: [0, threshold ?? 0.6, 1] }
     );
 
     io.observe(el);
     return () => io.disconnect();
-  }, [src, threshold, loaded]);
+  }, [src, threshold, inViewLoaded]);
 
+  // Готовность видео и аккуратный старт
+  useEffect(() => {
+    const el = videoRef.current;
+    if (!el) return;
+
+    const onLoadedMeta = () => {
+      // часто на 0.0 — чёрный кадр; чуть сдвигаем
+      try {
+        el.currentTime = Math.min(0.08, el.duration || 0.08);
+      } catch {}
+    };
+    const onCanPlay = () => setIsReady(true);
+    const onPlaying = () => setIsPlaying(true);
+    const onPause = () => setIsPlaying(false);
+
+    el.addEventListener("loadedmetadata", onLoadedMeta);
+    el.addEventListener("canplay", onCanPlay);
+    el.addEventListener("playing", onPlaying);
+    el.addEventListener("pause", onPause);
+
+    return () => {
+      el.removeEventListener("loadedmetadata", onLoadedMeta);
+      el.removeEventListener("canplay", onCanPlay);
+      el.removeEventListener("playing", onPlaying);
+      el.removeEventListener("pause", onPause);
+    };
+  }, []);
+
+  // Кросс-фейд: постер виден всегда, видео выезжает по opacity
   return (
-    <video
-      ref={ref}
-      // важно для iOS
-      muted
-      playsInline
-      // чтобы точно не открывалось в плеере
-      controls={false}
-      // не грузим до видимости
-      preload="none"
-      loop={loop}
-      poster={poster}
-      className={className}
-    />
+    <div className={`relative ${className ?? ""}`}>
+      {/* Постер под видео (резерв) */}
+      {poster && (
+        <img
+          src={poster}
+          alt=""
+          className="absolute inset-0 h-full w-full object-cover"
+          aria-hidden
+        />
+      )}
+
+      {/* Видео поверх, плавно проявляем как только готово и пошло */}
+      <video
+        ref={videoRef}
+        muted
+        playsInline
+        controls={false}
+        preload="none"
+        loop={loop}
+        // Убираем атрибут poster, чтобы не мерцал default-переключатель
+        className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-500 ${
+          isReady && isPlaying ? "opacity-100" : "opacity-0"
+        }`}
+      />
+    </div>
   );
 }
