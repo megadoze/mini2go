@@ -254,7 +254,7 @@ export default function PublicCarLandingMini() {
 
       {/* Полоса фактов */}
       <section>
-        <div className="mx-auto max-w-5xl px-4 py-8">
+        <div className="mx-auto max-w-5xl px-4 pt-10">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <Fact
               label="price/day"
