@@ -418,7 +418,7 @@ function BookingBar({
       className="fixed inset-x-0 bottom-0 z-50 bg-white/90 backdrop-blur print:hidden border-t"
     >
       <div className="flex items-center justify-between mx-auto max-w-7xl px-3 md:px-6 py-1">
-        <div className="flex items-center md:gap-10">
+        <div className="flex items-center gap-4 md:gap-10">
           {/* Сумма */}
           <div>
             <div className="text-2xl md:text-4xl font-extrabold leading-none">
@@ -430,8 +430,8 @@ function BookingBar({
           </div>
 
           {/* Факты */}
-          <div className="flex md:gap-10 text-center">
-            <div className="px-3 py-2">
+          <div className="flex gap-4 md:gap-10 text-center">
+            <div className="py-2">
               <div className="text-2xl md:text-4xl font-extrabold leading-none">
                 {car.includeMileage}
               </div>
@@ -439,7 +439,7 @@ function BookingBar({
                 incl.km
               </div>
             </div>
-            <div className="px-3 py-2">
+            <div className="py-2">
               <div className="text-2xl md:text-4xl font-extrabold leading-none">
                 {days}
               </div>
