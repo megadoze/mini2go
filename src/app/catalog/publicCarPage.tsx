@@ -232,7 +232,7 @@ export default function PublicCarLandingMini() {
             <h1 className="text-3xl sm:text-4xl lg:text-6xl font-robotoCondensed font-bold text-black">
               {title}
             </h1>
-            <div className=" mt-4 rounded-md py-1 px-2 bg-zinc-100 font-light text-gray-800">
+            <div className=" mt-4 rounded-md py-1 px-2 bg-zinc-100 font-light text-sm md:text-base text-gray-800">
               {`${car.bodyType} · `}
               {`${car.fuelType} · `}
               {`${car.transmission}`}
