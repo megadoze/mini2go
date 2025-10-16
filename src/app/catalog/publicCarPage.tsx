@@ -243,7 +243,7 @@ export default function PublicCarLandingMini() {
             <div className="mt-6 flex items-center gap-4">
               <button
                 onClick={goToRequest}
-                className="rounded-full bg-black text-white px-5 py-3 text-sm font-medium hover:bg-neutral-900"
+                className="rounded-full bg-black text-white px-8 py-3 text-sm font-medium hover:bg-neutral-900"
               >
                 Book
               </button>
