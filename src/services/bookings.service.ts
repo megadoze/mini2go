@@ -137,27 +137,20 @@ export async function updateBookingCard(
   return mapRowToBookingCard(data!);
 }
 
-export function subscribeBooking(id: string, onChange: () => void): () => void {
+export function subscribeBooking<T = any>(
+  id: string,
+  onChange: (row: T) => void
+): () => void {
   const ch = supabase
     .channel(`booking-${id}`)
     .on(
       "postgres_changes",
-      {
-        event: "UPDATE",
-        schema: "public",
-        table: "bookings",
-        filter: `id=eq.${id}`,
-      },
-      onChange
+      { event: "UPDATE", schema: "public", table: "bookings", filter: `id=eq.${id}` },
+      (payload) => onChange(payload.new as T)
     )
     .subscribe();
-  return () => {
-    try {
-      supabase.removeChannel(ch);
-    } catch {
-      /* noop */
-    }
-  };
+
+  return () => { try { supabase.removeChannel(ch); } catch {} };
 }
 
 export async function cancelAndUnlock(

@@ -658,7 +658,15 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
 
   useEffect(() => {
     if (!bookingId) return;
-    const unsubscribe = subscribeBooking(bookingId, () => {
+
+    const unsubscribe = subscribeBooking(bookingId, (row) => {
+      qc.setQueryData(QK.booking(bookingId), (old: any) => ({
+        ...(old ?? {}),
+        ...row,
+      }));
+
+      // 2) если у тебя есть локальный стейт статуса — синхронизируем
+      setStatus?.(row.status);
       qc.invalidateQueries({ queryKey: QK.booking(bookingId) });
       qc.invalidateQueries({ queryKey: QK.bookingExtras(bookingId) });
       qc.invalidateQueries({
