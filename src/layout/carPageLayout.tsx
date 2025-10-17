@@ -492,7 +492,7 @@ export default function CarPageLayout() {
           overlayProps={{ opacity: 0.2 }}
         >
           <SidebarMenu />
-          <div className="fixed bottom-0">
+          <div className="fixed bottom-2">
             <UserMenu onClick={toggle} />
           </div>
         </Drawer>
