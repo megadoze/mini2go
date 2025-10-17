@@ -417,7 +417,7 @@ function BookingBar({
       id="booking"
       className="fixed inset-x-0 bottom-0 z-50 bg-white/90 backdrop-blur print:hidden border-t"
     >
-      <div className="flex items-center justify-between mx-auto max-w-7xl px-4 md:px-6 py-2">
+      <div className="flex items-center justify-between mx-auto max-w-7xl px-4 md:px-6 py-3">
         <div className="flex items-center gap-4 md:gap-10">
           {/* Сумма */}
           <div>
@@ -459,7 +459,7 @@ function BookingBar({
                 )}&end=${encodeURIComponent(end)}`
               )
             }
-            className="rounded-xl border px-4 py-3 text-sm font-medium hover:bg-neutral-50"
+            className="rounded-xl border border-gray-500 px-4 py-3 text-sm font-medium hover:bg-neutral-50"
           >
             Change
           </button>
