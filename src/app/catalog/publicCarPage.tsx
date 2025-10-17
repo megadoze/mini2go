@@ -108,6 +108,28 @@ export default function PublicCarLandingMini() {
   const model = (car as any)?.model?.name;
   const title = `${brand} ${model}`.trim();
 
+  const video = {
+    s: "/videos/mini-one.mp4",
+    countryman: "/videos/mini-U25.mp4",
+    cabrio: "/videos/mini-cabrio.mp4",
+  };
+
+  function getVideoSrcByModelName(raw?: string) {
+    const name = (raw ?? "").toLowerCase();
+    switch (true) {
+      case name.includes("cabrio"):
+        return video["cabrio"];
+      case name.includes("countryman"):
+        return video["countryman"];
+      case name.includes("s"):
+        return video["s"];
+      default:
+        return "";
+    }
+  }
+
+  const videoSrc = useMemo(() => getVideoSrcByModelName(model), [model]);
+
   const days = useMemo(() => {
     if (!start || !end) return 1;
     const s = new Date(start).getTime();
@@ -218,7 +240,7 @@ export default function PublicCarLandingMini() {
                 <img
                   src={hero}
                   alt={title}
-                  className=" w-full h-full object-cover"
+                  className=" w-full h-[560px] object-cover"
                 />
               ) : (
                 <div className="h-full w-full grid place-items-center text-neutral-400">
@@ -271,10 +293,10 @@ export default function PublicCarLandingMini() {
       <section className="mx-auto max-w-5xl px-4 py-10">
         <div className="aspect-[9/16] md:aspect-video rounded-2xl overflow-hidden">
           <LazyAutoplayVideo
-            src="/videos/mini-U25.mp4"
+            key={videoSrc} // перезапускает видео при смене модели
+            src={videoSrc}
             poster={videoPoster}
-            className="h-full w-full object-cover"
-            // threshold={0.6} // можно подправить чувствительность
+            className="h-full w-full object-cover transition-opacity duration-300"
           />
         </div>
       </section>
