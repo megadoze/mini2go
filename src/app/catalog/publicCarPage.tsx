@@ -228,7 +228,7 @@ export default function PublicCarLandingMini() {
             </div>
           </div>
 
-          <header className="flex flex-col items-center text-center -mt-5 md:-mt-14 z-50">
+          <header className="flex flex-col items-center text-center -mt-5 md:-mt-20 z-50">
             <h1 className="text-3xl sm:text-4xl lg:text-6xl font-robotoCondensed font-bold text-black">
               {title}
             </h1>
