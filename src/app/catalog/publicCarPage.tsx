@@ -211,7 +211,7 @@ export default function PublicCarLandingMini() {
           </button>
         </div>
 
-        <div className="mx-auto max-w-5xl px-4 grid grid-cols-1">
+        <div className="mx-auto max-w-5xl px-4 grid grid-cols-1 mt-8 md:mt-0">
           <div className=" overflow-hidden">
             <div className="relative ">
               {hero ? (
