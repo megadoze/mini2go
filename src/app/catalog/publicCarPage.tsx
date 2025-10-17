@@ -240,7 +240,7 @@ export default function PublicCarLandingMini() {
                 <img
                   src={hero}
                   alt={title}
-                  className=" w-full max-h-[560px] object-cover"
+                  className=" w-full h-full object-cover"
                 />
               ) : (
                 <div className="h-full w-full grid place-items-center text-neutral-400">
