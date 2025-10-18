@@ -250,7 +250,7 @@ export default function PublicCarLandingMini() {
             </div>
           </div>
 
-          <header className="flex flex-col items-center text-center -mt-5 md:-mt-20 z-50">
+          <header className="flex flex-col items-center text-center -mt-5 md:-mt-20 z-10">
             <h1 className="text-3xl sm:text-4xl lg:text-6xl font-robotoCondensed font-bold text-black">
               {title}
             </h1>
@@ -481,7 +481,7 @@ function BookingBar({
                 )}&end=${encodeURIComponent(end)}`
               )
             }
-            className="rounded-xl border border-gray-500 px-4 py-3 text-sm font-medium hover:bg-neutral-50"
+            className="rounded-xl bg-gray-100 px-4 py-3 text-sm font-medium hover:bg-gray-200/60"
           >
             Change
           </button>

@@ -28,13 +28,36 @@ type UsersPageParams = {
 };
 
 // Поиск по имени/почте/телефону
+// export async function searchUsers(q: string) {
+//   if (!q) return [];
+//   const { data, error } = await supabase
+//     .from("profiles")
+//     .select("id, full_name, email, phone")
+//     .or(`full_name.ilike.%${q}%,email.ilike.%${q}%,phone.ilike.%${q}%`)
+//     .limit(10);
+//   if (error) throw error;
+//   return data ?? [];
+// }
 export async function searchUsers(q: string) {
   if (!q) return [];
-  const { data, error } = await supabase
+
+  // берём id текущего юзера из Supabase auth
+  const { data: auth } = await supabase.auth.getUser();
+  const currentUid = auth?.user?.id ?? null;
+
+  let query = supabase
     .from("profiles")
     .select("id, full_name, email, phone")
-    .or(`full_name.ilike.%${q}%,email.ilike.%${q}%,phone.ilike.%${q}%`)
+    .or(
+      `full_name.ilike.%${q}%,email.ilike.%${q}%,phone.ilike.%${q}%`
+    )
     .limit(10);
+
+  if (currentUid) {
+    query = query.neq("id", currentUid);
+  }
+
+  const { data, error } = await query;
   if (error) throw error;
   return data ?? [];
 }
@@ -86,7 +109,6 @@ export async function createUserProfile(payload: {
 
   return { user, profile, password: tempPassword };
 }
-
 
 
 export async function getUserById(id: string) {

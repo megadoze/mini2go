@@ -43,6 +43,16 @@ const TIME_OPTIONS = Array.from({ length: 24 * 2 }, (_, i) => {
   return { value, label };
 });
 
+function nowStepValue(stepMin = 30) {
+  const now = new Date();
+  const mins = now.getHours() * 60 + now.getMinutes();
+  const over = mins % stepMin;
+  const next = over ? mins + (stepMin - over) : mins;
+  const hh = Math.floor(next / 60);
+  const mm = next % 60;
+  return hh * 100 + mm; // HHMM numeric, to compare with TIME_OPTIONS.value
+}
+
 type EditMode = null | "block" | "booking";
 
 export default function Calendar() {
@@ -85,6 +95,29 @@ export default function Calendar() {
     `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
       d.getDate()
     ).padStart(2, "0")}`;
+
+  // === NEW: time options filtered by "now" for today
+  const stepMin = 30; // у тебя TIME_OPTIONS шаг 30
+  const _nowStep = nowStepValue(stepMin);
+
+  const startTimeOptions = useMemo(() => {
+    if (!selectedRange.start) return TIME_OPTIONS;
+    const isToday = isSameDay(selectedRange.start, today);
+    const minVal = isToday ? _nowStep : 0;
+    return TIME_OPTIONS.filter((o) => o.value >= minVal);
+  }, [selectedRange.start, today, _nowStep]);
+
+  const endTimeOptions = useMemo(() => {
+    if (!selectedRange.end) return TIME_OPTIONS;
+    const isStartToday =
+      selectedRange.start && isSameDay(selectedRange.start, today);
+    const isEndSameDayAsStart =
+      selectedRange.start && isSameDay(selectedRange.end, selectedRange.start);
+    let minVal = 0;
+    if (isStartToday) minVal = Math.max(minVal, _nowStep);
+    if (isEndSameDayAsStart) minVal = Math.max(minVal, Number(startTime));
+    return TIME_OPTIONS.filter((o) => o.value > minVal);
+  }, [selectedRange.start, selectedRange.end, startTime, today, _nowStep]);
 
   const qc = useQueryClient();
   const listKey = QK.bookingsByCarId(String(carId));
@@ -285,6 +318,25 @@ export default function Calendar() {
           date < start ? { start: date, end: start } : { start, end: date };
         setSelectedRange(next);
         setAnchorKey(keyOf(date));
+
+        // === NEW: bump times if the start day is today
+        if (next.start && isSameDay(next.start, today)) {
+          const asNum = Number(startTime);
+          if (asNum < _nowStep) {
+            setStartTime(String(_nowStep));
+          }
+          // если конец в тот же день и теперь стал <= старта — подвинем endTime на ближайший слот
+          if (next.end && isSameDay(next.end, next.start)) {
+            const endNum = Number(endTime);
+            if (endNum <= Math.max(_nowStep, asNum)) {
+              // ПРОЩЕ: найдём первый допустимый из endTimeOptions
+              const opt = endTimeOptions.find(
+                (o) => o.value > Math.max(_nowStep, asNum)
+              );
+              if (opt) setEndTime(String(opt.value));
+            }
+          }
+        }
       }
     }
   };
@@ -303,6 +355,26 @@ export default function Calendar() {
     const eH = Math.floor(Number(endTime) / 100);
     const eM = Number(endTime) % 100;
     end.setHours(eH, eM);
+
+    // === NEW: clamp start >= now (rounded to 30-min step)
+    const stepMin = 30; // под твои TIME_OPTIONS
+    {
+      const now = new Date();
+      const mins = now.getMinutes();
+      const roundedNow = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate(),
+        now.getHours(),
+        mins % stepMin ? mins + (stepMin - (mins % stepMin)) : mins,
+        0,
+        0
+      );
+      if (start < roundedNow) {
+        start.setTime(roundedNow.getTime());
+        if (end <= start) end.setTime(start.getTime() + stepMin * 60_000);
+      }
+    }
 
     const payload: Omit<Booking, "id"> = {
       car_id: carId,
@@ -343,6 +415,26 @@ export default function Calendar() {
     const eH = Math.floor(Number(endTime) / 100);
     const eM = Number(endTime) % 100;
     end.setHours(eH, eM);
+
+    // === NEW: clamp start >= now (rounded to 30-min step)
+    const stepMin = 30;
+    {
+      const now = new Date();
+      const mins = now.getMinutes();
+      const roundedNow = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate(),
+        now.getHours(),
+        mins % stepMin ? mins + (stepMin - (mins % stepMin)) : mins,
+        0,
+        0
+      );
+      if (start < roundedNow) {
+        start.setTime(roundedNow.getTime());
+        if (end <= start) end.setTime(start.getTime() + stepMin * 60_000);
+      }
+    }
 
     // ещё раз проверим пересечение
     const rangeDays = eachDayOfInterval({ start, end });
@@ -608,7 +700,7 @@ export default function Calendar() {
           <div>
             <label className="block text-sm font-medium mb-1">Start time</label>
             <Select
-              data={TIME_OPTIONS.map((t) => ({
+              data={startTimeOptions.map((t) => ({
                 value: t.value.toString(),
                 label: t.label,
               }))}
@@ -619,7 +711,7 @@ export default function Calendar() {
           <div>
             <label className="block text-sm font-medium mb-1">End time</label>
             <Select
-              data={TIME_OPTIONS.map((t) => ({
+              data={endTimeOptions.map((t) => ({
                 value: t.value.toString(),
                 label: t.label,
               }))}

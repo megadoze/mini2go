@@ -44,6 +44,14 @@ export type RentalDateTimePickerProps = {
   mobileStartOpen?: boolean;
 };
 
+function roundUpToStep(d: Date, step: number) {
+  const t = new Date(d);
+  t.setSeconds(0, 0);
+  const over = t.getMinutes() % step;
+  if (over) t.setMinutes(t.getMinutes() + (step - over));
+  return t;
+}
+
 function clampDate(date: Date, minDate?: Date, maxDate?: Date) {
   if (minDate && isBefore(date, minDate)) return minDate;
   if (maxDate && isAfter(date, maxDate)) return maxDate;
@@ -101,7 +109,7 @@ function idxToTime(base: Date, idx: number, step: number) {
 
 function timeToIdx(d: Date, step: number) {
   const minutes = d.getHours() * 60 + d.getMinutes();
-  return Math.round(minutes / step);
+  return Math.floor(minutes / step);
 }
 
 export default function RentalDateTimePicker({
@@ -166,6 +174,18 @@ export default function RentalDateTimePicker({
 
     if (!startAt || (startAt && endAt)) {
       // start new range
+      let nextStart = day;
+      if (value.startAt) {
+        // переносим часы из предыдущего значения
+        const h = value.startAt.getHours();
+        const m = value.startAt.getMinutes();
+        nextStart = setMinutes(setHours(day, h), m);
+      } else if (isSameDay(day, new Date())) {
+        // если это сегодня — не раньше «сейчас» по шагу
+        nextStart = roundUpToStep(new Date(), minuteStep);
+      }
+      setTempRange({ startAt: nextStart, endAt: null });
+      // start new range
       setTempRange({ startAt: day, endAt: null });
       // move time from existing start if any
       if (value.startAt) {
@@ -209,7 +229,13 @@ export default function RentalDateTimePicker({
   }
 
   function commit(next?: DateRange) {
-    onChange(next ?? { ...tempRange });
+    const nowStep = roundUpToStep(new Date(), minuteStep);
+    const src = next ?? { ...tempRange };
+    const startOk = src.startAt
+      ? new Date(Math.max(+src.startAt, +nowStep))
+      : null;
+    const endOk = src.endAt ? new Date(Math.max(+src.endAt, +nowStep)) : null;
+    onChange({ startAt: startOk, endAt: endOk });
   }
 
   // --- Time slider helpers
@@ -234,14 +260,25 @@ export default function RentalDateTimePicker({
   function setStartIdx(idx: number) {
     if (!tempRange.startAt) return;
     const base = tempRange.startAt;
-    const next = idxToTime(base, idx, minuteStep);
+
+    let next = idxToTime(base, idx, minuteStep);
+    // если выбран сегодня — не даём уйти раньше «сейчас»
+    if (isSameDay(base, new Date())) {
+      const nowStep = roundUpToStep(new Date(), minuteStep);
+      if (next < nowStep) next = nowStep;
+    }
     setTempRange((prev) => ({ ...prev, startAt: next }));
   }
 
   function setEndIdx(idx: number) {
     if (!tempRange.endAt) return;
     const base = tempRange.endAt;
-    const next = idxToTime(base, idx, minuteStep);
+
+    let next = idxToTime(base, idx, minuteStep);
+    if (isSameDay(base, new Date())) {
+      const nowStep = roundUpToStep(new Date(), minuteStep);
+      if (next < nowStep) next = nowStep;
+    }
     setTempRange((prev) => ({ ...prev, endAt: next }));
   }
 

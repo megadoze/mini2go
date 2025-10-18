@@ -31,7 +31,7 @@ import {
 import { Select, Checkbox, Badge, Loader } from "@mantine/core";
 import {
   searchUsers,
-  createUserProfile,
+  // createUserProfile,
   getUserById,
 } from "@/services/user.service";
 import {
@@ -61,6 +61,7 @@ import { fetchCarById, fetchCarExtras } from "@/services/car.service";
 import { HostMiniCard } from "@/components/hostMiniCard";
 import { GuestMiniCard } from "@/components/guestMiniCard";
 import { supabase } from "@/lib/supabase";
+import { toast } from "sonner";
 
 // ========== Types ===========
 type MapboxFeature = {
@@ -355,6 +356,8 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
     rootData?.ownerId ?? null
   );
 
+  // const [draftSelected, setDraftSelected] = useState(false);
+
   const [userId, setUserId] = useState<string | null>(
     snapshot?.booking?.user_id ?? null
   );
@@ -454,6 +457,8 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
     age: null,
     driver_license_issue: "",
   });
+
+  const userForCard = selectedUser;
 
   const [pickerOpen, setPickerOpen] = useState(false);
 
@@ -1162,60 +1167,44 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
   async function handleSave() {
     setError(null);
 
+    // ---------- базовые проверки ----------
     if (!carId) {
-      setError("Car ID is missing");
+      toast.warning("Car ID is missing");
       return;
     }
 
-    if (mark === "booking") {
-      if (!userId) {
-        setError("Select customer to create a booking");
-        return;
-      }
-      const u =
-        selectedUser ??
-        (userId ? await getUserById(userId).catch(() => null) : null);
-      if (!u) {
-        setError("Cannot validate customer profile");
-        return;
-      }
-      if (
-        effectiveAgeRenters > 0 &&
-        typeof u.age === "number" &&
-        u.age < effectiveAgeRenters
-      ) {
-        setError(`Customer must be at least ${effectiveAgeRenters} years old`);
-        return;
-      }
-      if (effectiveMinDriverLicense > 0) {
-        const yrs = yearsBetween(u.driver_license_issue);
-        if (yrs !== null && yrs < effectiveMinDriverLicense) {
-          setError(
-            `Driver's license must be at least ${effectiveMinDriverLicense} year(s) old`
-          );
-          return;
-        }
-      }
+    const nowDt = new Date();
+    const startDt = new Date(startDateInp);
+    const endDt = new Date(endDateInp);
+
+    // базовая валидация дат
+    if (isNaN(+startDt) || isNaN(+endDt)) {
+      toast.warning("Select start and end time");
+      return;
+    }
+
+    // старт должен быть в будущем
+    if (!isAfter(startDt, nowDt)) {
+      toast.warning("Start time must be in the future");
+      return;
     }
 
     if (!isAfter(new Date(endDateInp), new Date(startDateInp))) {
-      setError("End time must be after start time");
+      toast.warning("End time must be after start time");
       return;
     }
-
     if (minRentMinutes > 0 && totalMinutes < minRentMinutes) {
-      setError(
+      toast.warning(
         `Too short: minimum duration is ${effectiveMinRentPeriodDays} day(s)`
       );
       return;
     }
     if (maxRentMinutes > 0 && totalMinutes > maxRentMinutes) {
-      setError(
+      toast.warning(
         `Too long: maximum duration is ${effectiveMaxRentPeriodDays} day(s)`
       );
       return;
     }
-
     if (
       Number.isFinite(effectiveOpenTime) &&
       Number.isFinite(effectiveCloseTime)
@@ -1235,18 +1224,19 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
         true
       );
       if (!startOk || !endOk) {
-        setError("Booking must start and end within working hours");
+        toast.warning("Booking must start and end within working hours");
         return;
       }
     }
-
     if (delivery === "by_address") {
       if (
         !deliveryAddress?.trim() ||
         deliveryLat == null ||
         deliveryLong == null
       ) {
-        setError("Please select a delivery address (pin on map or search).");
+        toast.warning(
+          "Please select a delivery address (pin on map or search)."
+        );
         return;
       }
     }
@@ -1263,126 +1253,132 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
       return;
     }
 
-    setSaving(true);
-    try {
-      const basePayload: Omit<Booking, "id"> & { deposit?: number | null } = {
-        car_id: carId,
-        user_id: mark === "booking" ? userId : null,
-        start_at: new Date(startDateInp).toISOString(),
-        end_at: new Date(endDateInp).toISOString(),
-        mark,
-        price_per_day: mark === "booking" ? baseDailyPrice : null,
-        price_total: mark === "booking" ? price_total : null,
-        deposit: mark === "booking" ? deposit : null,
-        delivery_type: delivery,
-        delivery_fee: deliveryFee,
-        currency: effectiveCurrency,
-        delivery_address: delivery === "by_address" ? deliveryAddress : null,
-        delivery_lat: delivery === "by_address" ? deliveryLat : null,
-        delivery_long: delivery === "by_address" ? deliveryLong : null,
-      };
+    // ---------- подготовка guestPayload ----------
+    let guestPayload: any = null;
+    if (mark === "booking") {
+      if (userId) {
+        // запрет «на самого себя» только для существующего профиля
+        const { data: auth } = await supabase.auth.getUser();
+        const currentUid = auth?.user?.id ?? null;
+        if (currentUid && String(userId) === String(currentUid)) {
+          toast.warning("You cannot create a reservation for yourself.");
+          return;
+        }
+        const u = selectedUser ?? (await getUserById(userId).catch(() => null));
+        if (!u) {
+          toast.warning("Cannot validate customer profile");
+          return;
+        }
+        if (
+          effectiveAgeRenters > 0 &&
+          typeof u.age === "number" &&
+          u.age < effectiveAgeRenters
+        ) {
+          toast.warning(
+            `Customer must be at least ${effectiveAgeRenters} years old`
+          );
 
-      const payload =
-        mode === "create"
-          ? {
-              ...basePayload,
-              status: mark === "booking" ? "onApproval" : "block",
-            }
-          : basePayload;
-
-      let saved: Booking;
-      if (mode === "create") {
-        saved = await createBookingOptimistic(
-          qc,
-          payload as Omit<Booking, "id">
-        );
+          return;
+        }
+        if (effectiveMinDriverLicense > 0) {
+          const yrs = yearsBetween(u.driver_license_issue);
+          if (yrs !== null && yrs < effectiveMinDriverLicense) {
+            toast.warning(
+              `Driver's license must be at least ${effectiveMinDriverLicense} year(s) old`
+            );
+            return;
+          }
+        }
+        guestPayload = { id: userId };
       } else {
-        saved = await updateBookingOptimistic(
-          qc,
-          bookingId!,
-          payload as Partial<Booking>
-        );
-      }
+        // драфтовый гость — создастся на сервере внутри RPC, но сначала проверим дубль
+        if (
+          !selectedUser?.full_name?.trim() ||
+          !selectedUser?.email?.trim() ||
+          !selectedUser?.phone?.trim()
+        ) {
+          toast.warning("Fill guest Full name + Email + Phone.");
+          return;
+        }
 
-      if (mark === "booking") {
-        const fresh = pickedExtras.map((id) => {
-          const ex = extrasMap.byId[id];
-          const qty = ex?.price_type === "per_day" ? billableDaysForExtras : 1;
-          return {
-            extra_id: id,
-            title: ex?.title ?? "Extra",
-            qty,
-            price: ex?.price ?? 0,
-            price_type: ex?.price_type ?? "per_trip",
+        // === ПРОВЕРКА ДУБЛЕЙ ПО EMAIL/PHONE ===
+        const normEmail = selectedUser.email.trim().toLowerCase();
+        const normPhone = selectedUser.phone.trim();
+
+        const { data: conflictUsers, error: checkError } = await supabase
+          .from("profiles")
+          .select("id, full_name, email, phone")
+          .or(`email.ilike.${normEmail},phone.eq.${normPhone}`);
+
+        if (checkError) {
+          setError("Error checking existing users");
+          toast.warning("Error checking existing users.");
+          return;
+        }
+
+        if (conflictUsers?.length) {
+          // точное совпадение по обоим полям
+          const exact = conflictUsers.find(
+            (u) =>
+              (u.email ?? "").toLowerCase() === normEmail &&
+              (u.phone ?? "") === normPhone
+          );
+
+          if (exact) {
+            // используем существующего — не создаём нового
+            guestPayload = { id: exact.id };
+          } else {
+            // совпал email ИЛИ phone — это конфликт
+
+            toast.warning(
+              "User with this email or phone already exists. Please select from list."
+            );
+
+            setSelectedUser(null);
+            return;
+          }
+        } else {
+          // совпадений нет — позволяем создать нового гостя внутри RPC
+          guestPayload = {
+            full_name: selectedUser.full_name.trim(),
+            email: normEmail,
+            phone: normPhone,
+            age: Number.isFinite(Number(selectedUser.age))
+              ? Math.trunc(Number(selectedUser.age))
+              : null,
+            driver_license_issue: selectedUser.driver_license_issue || null,
           };
-        });
-        await upsertBookingExtras(saved.id, fresh);
-        qc.setQueryData(QK.bookingExtras(saved.id), fresh);
+        }
       }
+    }
 
-      if (saved.car_id) {
-        touchBookingCache(qc, saved);
-        patchCalendarWindowsCache(qc, saved);
-      }
+    setSaving(true);
 
-      // >>> ADD TO INFINITE INDEX (вставляем правильную строку BookingsIndexRow)
-      const row = {
-        id: saved.id,
-        car_id: String(saved.car_id),
-        user_id: saved.user_id ?? null,
-        start_at: saved.start_at,
-        end_at: saved.end_at,
-        created_at: saved.created_at ?? new Date().toISOString(),
-        status: saved.status ?? (mark === "booking" ? "onApproval" : "block"),
-        mark: saved.mark,
-        price_total: saved.price_total ?? null,
-        currency: saved.currency ?? (car as any)?.effectiveCurrency ?? "EUR",
-        // авто
-        brand_name: car?.model?.brands?.name ?? "",
-        model_name: car?.model?.name ?? "",
-        photos: car?.photos ?? null,
-        license_plate: car?.licensePlate ?? null,
-        // гость
-        user_full_name:
-          (selectedUser as any)?.full_name ??
-          (userQ.data as any)?.full_name ??
-          null,
-      } as any; // BookingsIndexRow
-
-      qc.setQueriesData<any>(
+    // локальный helper для мгновенного появления записи в ленте
+    const prependToBookingsIndex = (row: any) => {
+      qc.setQueriesData(
         {
-          // не угадываем ownerId/фильтры — обновляем все активные списки владельца
           predicate: (q) =>
             Array.isArray(q.queryKey) &&
             q.queryKey[0] === "bookingsIndexInfinite",
         },
-        (old: { pages: string | any[] }) => {
-          // ожидаем InfiniteData<{ items: BookingsIndexRow[]; count: number }, number>
-          if (!old || !Array.isArray(old.pages)) {
-            return {
-              pageParams: [0],
-              pages: [{ items: [row], count: 1 }],
-            };
+        (old: any) => {
+          if (!old?.pages?.length) {
+            return { pageParams: [0], pages: [{ items: [row], count: 1 }] };
           }
           const pages = old.pages.slice();
           const first = pages[0];
 
           if (Array.isArray(first)) {
-            // Защита на случай старой формы: страница — массив
-            const exists = first.some(
-              (x: any) => String(x.id) === String(row.id)
-            );
-            if (exists) return old;
+            if (first.some((x: any) => String(x.id) === String(row.id)))
+              return old;
             pages[0] = [row, ...first];
             return { ...old, pages };
           }
 
-          // Нормальная форма: { items, count }
           const items = Array.isArray(first?.items) ? first.items : [];
-          const exists = items.some(
-            (x: any) => String(x.id) === String(row.id)
-          );
-          if (exists) return old;
+          if (items.some((x: any) => String(x.id) === String(row.id)))
+            return old;
 
           pages[0] = {
             ...first,
@@ -1392,25 +1388,192 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
           return { ...old, pages };
         }
       );
-      // <<< END ADD
+    };
 
+    try {
+      if (mode === "create") {
+        if (mark === "booking") {
+          // ===== создать (или найти) гостя и бронь в 1 RPC =====
+          const { data: newId, error: rpcErr } = await supabase.rpc(
+            "create_booking_with_guest",
+            {
+              p_car_id: carId,
+              p_guest: guestPayload, // {id} ИЛИ {full_name,email,phone,age,driver_license_issue}
+              p_booking: {
+                start_at: new Date(startDateInp).toISOString(),
+                end_at: new Date(endDateInp).toISOString(),
+                mark: "booking",
+                status: "onApproval",
+                price_per_day: baseDailyPrice || null,
+                price_total,
+                currency: effectiveCurrency,
+                deposit: deposit ?? null,
+                delivery_type: delivery,
+                delivery_fee:
+                  delivery === "by_address" ? Number(deliveryFee) : 0,
+                delivery_address:
+                  delivery === "by_address" ? deliveryAddress : null,
+                delivery_lat: delivery === "by_address" ? deliveryLat : null,
+                delivery_long: delivery === "by_address" ? deliveryLong : null,
+              },
+            }
+          );
+          if (rpcErr) throw rpcErr;
+
+          const saved = await fetchBookingById(String(newId));
+
+          // экстра → booking_extras
+          if (pickedExtras.length) {
+            const fresh = pickedExtras.map((id) => {
+              const ex = extrasMap.byId[id];
+              const qty =
+                ex?.price_type === "per_day" ? billableDaysForExtras : 1;
+              return {
+                extra_id: id,
+                title: ex?.title ?? "Extra",
+                qty,
+                price: ex?.price ?? 0,
+                price_type: ex?.price_type ?? "per_trip",
+              };
+            });
+            await upsertBookingExtras(saved.id, fresh);
+            qc.setQueryData(QK.bookingExtras(saved.id), fresh);
+          }
+
+          if (saved.car_id) {
+            touchBookingCache(qc, saved);
+            patchCalendarWindowsCache(qc, saved);
+          }
+
+          // мгновенно показать в индексе (если страница уже открыта)
+          prependToBookingsIndex({
+            id: saved.id,
+            car_id: String(saved.car_id),
+            user_id: saved.user_id ?? null,
+            start_at: saved.start_at,
+            end_at: saved.end_at,
+            created_at: saved.created_at ?? new Date().toISOString(),
+            status: saved.status ?? "onApproval",
+            mark: saved.mark,
+            price_total: saved.price_total ?? null,
+            currency: saved.currency ?? effectiveCurrency,
+            brand_name: car?.model?.brands?.name ?? "",
+            model_name: car?.model?.name ?? "",
+            photos: car?.photos ?? null,
+            license_plate: (car as any)?.licensePlate ?? null,
+            user_full_name:
+              (selectedUser as any)?.full_name ??
+              (userQ.data as any)?.full_name ??
+              null,
+          });
+
+          // безопасная инвалидация всех списков
+          qc.invalidateQueries({
+            predicate: (q) =>
+              Array.isArray(q.queryKey) &&
+              (q.queryKey[0] === "bookingsIndex" ||
+                q.queryKey[0] === "bookingsIndexInfinite" ||
+                q.queryKey[0] === "bookingsUserInfinite"),
+          });
+        } else {
+          // ===== блок дат =====
+          const saved = await createBookingOptimistic(qc, {
+            car_id: carId,
+            user_id: null,
+            start_at: new Date(startDateInp).toISOString(),
+            end_at: new Date(endDateInp).toISOString(),
+            mark: "block",
+            status: "block",
+            price_per_day: null,
+            price_total: null,
+            deposit: null,
+            delivery_type: delivery,
+            delivery_fee: delivery === "by_address" ? Number(deliveryFee) : 0,
+            currency: effectiveCurrency,
+            delivery_address:
+              delivery === "by_address" ? deliveryAddress : null,
+            delivery_lat: delivery === "by_address" ? deliveryLat : null,
+            delivery_long: delivery === "by_address" ? deliveryLong : null,
+          } as any);
+
+          if (saved.car_id) {
+            touchBookingCache(qc, saved);
+            patchCalendarWindowsCache(qc, saved);
+          }
+
+          // показать сразу
+          prependToBookingsIndex({
+            id: saved.id,
+            car_id: String(saved.car_id),
+            user_id: null,
+            start_at: saved.start_at,
+            end_at: saved.end_at,
+            created_at: saved.created_at ?? new Date().toISOString(),
+            status: "block",
+            mark: "block",
+            price_total: null,
+            currency: effectiveCurrency,
+            brand_name: car?.model?.brands?.name ?? "",
+            model_name: car?.model?.name ?? "",
+            photos: car?.photos ?? null,
+            license_plate: (car as any)?.licensePlate ?? null,
+            user_full_name: null,
+          });
+
+          qc.invalidateQueries({
+            predicate: (q) =>
+              Array.isArray(q.queryKey) &&
+              (q.queryKey[0] === "bookingsIndex" ||
+                q.queryKey[0] === "bookingsIndexInfinite" ||
+                q.queryKey[0] === "bookingsUserInfinite"),
+          });
+        }
+      } else {
+        // ===== EDIT =====
+        const patch: Partial<Booking> = {
+          start_at: new Date(startDateInp).toISOString(),
+          end_at: new Date(endDateInp).toISOString(),
+          delivery_type: delivery,
+          delivery_fee: delivery === "by_address" ? Number(deliveryFee) : 0,
+          delivery_address: delivery === "by_address" ? deliveryAddress : null,
+          delivery_lat: delivery === "by_address" ? deliveryLat : null,
+          delivery_long: delivery === "by_address" ? deliveryLong : null,
+          price_total: mark === "booking" ? price_total : null,
+          price_per_day: mark === "booking" ? baseDailyPrice : null,
+          deposit: mark === "booking" ? deposit : null,
+        };
+
+        const saved = await updateBookingOptimistic(qc, bookingId!, patch);
+
+        if (saved.car_id) {
+          touchBookingCache(qc, saved);
+          patchCalendarWindowsCache(qc, saved);
+        }
+
+        qc.invalidateQueries({
+          predicate: (q) =>
+            Array.isArray(q.queryKey) &&
+            (q.queryKey[0] === "bookingsIndex" ||
+              q.queryKey[0] === "bookingsIndexInfinite" ||
+              q.queryKey[0] === "bookingsUserInfinite"),
+        });
+      }
+
+      // ---------- UI / навигация ----------
       setSaved(true);
       setTimeout(() => setSaved(false), 1500);
 
-      if ((carFromCtx as any)?.id === saved.car_id) {
+      if ((carFromCtx as any)?.id === carId) {
         setCar?.((prev: any) => prev);
+        toast.success("Booking saved");
         setTimeout(
-          () =>
-            navigate(location.state?.from ?? `/cars/${saved.car_id}/calendar`),
-          1000
+          () => navigate(location.state?.from ?? `/cars/${carId}/calendar`),
+          2000
         );
       } else {
         const backTo = location.state?.from ?? -1;
-        if (typeof backTo === "string") {
-          navigate(backTo, { replace: true });
-        } else {
-          navigate(-1);
-        }
+        if (typeof backTo === "string") navigate(backTo, { replace: true });
+        else navigate(-1);
       }
     } catch (e: any) {
       setError(e?.message ?? "Save error");
@@ -2017,27 +2180,18 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
                   <div className="flex justify-end">
                     <button
                       className="px-3 py-1 border rounded text-sm"
-                      onClick={async () => {
-                        try {
-                          if (!newUser.email || !newUser.phone)
-                            throw new Error("Email and phone are required");
-                          const created = await createUserProfile({
-                            full_name: newUser.full_name,
-                            email: newUser.email,
-                            phone: newUser.phone,
-                            age: newUser.age,
-                            driver_license_issue: newUser.driver_license_issue,
-                          });
-                          console.log(created);
-
-                          setUserId(created.profile.id);
-                          setSelectedUser(created.profile);
-                          setCreatingUser(false);
-                          setUserSearch("");
-                          setUserResults([]);
-                        } catch (e: any) {
-                          setError(e?.message ?? "Create user error");
-                        }
+                      onClick={() => {
+                        // выбираем драфт как текущего гостя
+                        setSelectedUser({
+                          ...newUser,
+                          id: null, // у драфта нет id
+                          __draft: true, // для UI, если нужно
+                        });
+                        setUserId(null); // нет реального id — он появится после RPC
+                        // setDraftSelected(true);
+                        setCreatingUser(false);
+                        setUserSearch("");
+                        setUserResults([]);
                       }}
                       disabled={
                         !newUser.full_name.trim() ||
@@ -2045,7 +2199,7 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
                         !newUser.phone.trim()
                       }
                     >
-                      Create user
+                      Use this customer (draft)
                     </button>
                   </div>
                   <div className="text-xs text-gray-500">
@@ -2053,15 +2207,18 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
                   </div>
                 </div>
               )}
-              {userId && selectedUser && (
+              {userForCard && (
                 <div className="mt-2 border border-green-400 rounded p-2 text-sm flex items-start gap-2">
                   <div className="grow">
                     <div className="font-medium">
-                      {selectedUser.full_name ?? "—"}
+                      {userForCard.full_name ?? "—"}
                     </div>
                     <div className="text-xs text-gray-600">
-                      {selectedUser.email ?? "—"}
-                      {selectedUser.phone ? ` • ${selectedUser.phone}` : ""}
+                      {userForCard.email ?? "—"}
+                      {userForCard.phone ? ` • ${userForCard.phone}` : ""}
+                      {userForCard.__draft && (
+                        <span className="ml-2 text-amber-600">(draft)</span>
+                      )}
                     </div>
                   </div>
                   <button
@@ -2069,6 +2226,7 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
                     onClick={() => {
                       setUserId(null);
                       setSelectedUser(null);
+                      // setDraftSelected(false);
                     }}
                   >
                     Change
