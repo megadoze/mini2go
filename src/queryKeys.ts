@@ -2,7 +2,7 @@
 export const QK = {
   extras: ["extras"] as const,
   appSettingsBase: ["appSettings"] as const,
-    appSettingsByOwner(ownerId: string) {
+  appSettingsByOwner(ownerId: string) {
     return ["appSettings", ownerId] as const;
   },
   car: (id: string) => ["car", id] as const,
@@ -25,6 +25,4 @@ export const QK = {
   carsByHost: (ownerId: string) => ["carsByHost", ownerId] as const,
   bookingsIndex: (ownerId: string) => ["bookingsIndex", ownerId] as const,
   calendarWindow: (monthISO: string) => ["calendarWindow", monthISO] as const,
-  // usersByHost: (ownerId: string | null, pageSize: number) =>
-  // ["usersByHost", pageSize, ownerId] as const
 };

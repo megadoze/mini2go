@@ -45,6 +45,7 @@ import ScrollToTop from "./components/scrollToTop";
 import HostPage from "./app/hosts/hostPage";
 import PublicCarPage from "./app/catalog/publicCarPage";
 import { usersLoader } from "./routes/usersLoader";
+import { settingsGlobalLoader } from "./routes/settingsGlobal.loader";
 
 export const router = createBrowserRouter([
   { path: "/auth", element: <AuthenticationPage /> },
@@ -89,7 +90,12 @@ export const router = createBrowserRouter([
       { path: "users/:userId", element: <UserPage /> },
       // { path: "hosts/:hostId", element: <HostPage /> },
       // { path: "catalog/:carId", element: <PublicCarPage /> },
-      { path: "settings", element: <SettingsGlobal /> },
+      {
+        id: "settings",
+        path: "settings",
+        loader: settingsGlobalLoader,
+        element: <SettingsGlobal />,
+      },
     ],
   },
   { path: "hosts/:hostId", element: <HostPage /> },

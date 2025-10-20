@@ -2,18 +2,20 @@ import { useEffect, useMemo, useState } from "react";
 import { Select } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { motion } from "framer-motion";
+import { toast } from "sonner";
+import { useLoaderData } from "react-router-dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+
 import type { AppSettings } from "@/types/setting";
+import type { AppSettingsUpdatePayload } from "@/types/appSettingsUpdatePayload";
 import {
   getGlobalSettings,
   upsertGlobalSettings,
 } from "@/services/settings.service";
-import { toast } from "sonner";
-import type { AppSettingsUpdatePayload } from "@/types/appSettingsUpdatePayload";
-import { supabase } from "@/lib/supabase";
-import { useQueryClient } from "@tanstack/react-query";
 import { QK } from "@/queryKeys";
 
-// ===== Helpers =====
+/* ================= Helpers ================= */
+
 const minutesToLabel = (m: number) => {
   const h = Math.floor(m / 60);
   const mm = m % 60;
@@ -52,13 +54,61 @@ const licenseOptions = Array.from({ length: 5 }, (_, i) => 1 + i).map((y) => ({
 const CURRENCY_OPTIONS = ["EUR", "USD", "GBP"] as const;
 const spring = { type: "spring", stiffness: 700, damping: 30 } as const;
 
+/* ================= Component ================= */
+
 export default function SettingsGlobal() {
   const qc = useQueryClient();
 
-  const [loading, setLoading] = useState(true);
-  const [settings, setSettings] = useState<AppSettings | null>(null);
+  // ⭐️ Берём ownerId из лоадера settingsGlobalLoader
+  const { ownerId } = (useLoaderData() as { ownerId: string | null }) ?? {
+    ownerId: null,
+  };
+  const isGuest = !ownerId;
 
-  // initial — безопасные дефолты (будут перезаписаны после загрузки)
+  const cachedSettings = ownerId
+    ? qc.getQueryData<AppSettings | null>(QK.appSettingsByOwner(ownerId))
+    : null;
+
+  // 🔥 Мгновенный initial render: тянем из кэша, прогретого лоадером
+  // const settingsQ = useQuery<AppSettings | null, Error>({
+  //   queryKey: ownerId ? QK.appSettingsByOwner(ownerId) : QK.appSettingsBase,
+  //   queryFn: () => getGlobalSettings(ownerId as string),
+  //   enabled: !!ownerId,
+  //   initialData: ownerId
+  //     ? qc.getQueryData<AppSettings | null>(QK.appSettingsByOwner(ownerId))
+  //     : undefined,
+  //   staleTime: 5 * 60_000,
+  //   gcTime: 7 * 24 * 60 * 60 * 1000,
+  //   refetchOnMount: false,
+  //   refetchOnWindowFocus: false,
+  //   refetchOnReconnect: false,
+  //   retry: 1,
+  //   placeholderData: (prev) => prev,
+  // });
+
+  const settingsQ = useQuery<AppSettings | null, Error>({
+    queryKey: ownerId ? QK.appSettingsByOwner(ownerId) : QK.appSettingsBase,
+    queryFn: () => getGlobalSettings(ownerId as string),
+    enabled: !!ownerId,
+    initialData: cachedSettings, // ⬅️ сразу из кэша
+    initialDataUpdatedAt: ownerId
+      ? qc.getQueryState(QK.appSettingsByOwner(ownerId))?.dataUpdatedAt
+      : undefined, // ⬅️ чтобы React Query не считал данные устаревшими
+    staleTime: 5 * 60_000,
+    gcTime: 7 * 24 * 60 * 60 * 1000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    retry: 1,
+    placeholderData: (prev) => prev ?? cachedSettings, // ⬅️ держим прошлые
+  });
+
+  const settings = settingsQ.data; // AppSettings | null
+  // const loading = !!ownerId && settingsQ.isPending && !settings;
+
+  const loading = false;
+
+  // ------- форма: исходные значения основаны на settings -------
   const initial = useMemo(
     () => ({
       currency: (settings as any)?.currency ?? "EUR",
@@ -87,13 +137,13 @@ export default function SettingsGlobal() {
     },
   });
 
-  // Локальные свитчи для глобальных флагов (как в твоих компонентах)
+  // Локальные свитчи для глобальных флагов
   const [instantBooking, setInstantBooking] = useState(false);
   const [allowSmoking, setAllowSmoking] = useState(false);
   const [allowPets, setAllowPets] = useState(false);
   const [allowAbroad, setAllowAbroad] = useState(false);
 
-  // базовый снимок свитчей для dirty
+  // Базовый снимок свитчей для dirty
   const [baseToggles, setBaseToggles] = useState({
     instantBooking: false,
     allowSmoking: false,
@@ -103,24 +153,7 @@ export default function SettingsGlobal() {
 
   const [saved, setSaved] = useState(false);
 
-  useEffect(() => {
-    (async () => {
-      setLoading(true);
-      const { data } = await supabase.auth.getUser();
-      const ownerId = data.user?.id;
-      if (!ownerId) {
-        setSettings(null);
-        setLoading(false);
-        return;
-      }
-      const gs = await getGlobalSettings(ownerId);
-      setSettings(gs);
-      qc.setQueryData(QK.appSettingsByOwner(ownerId), gs);
-      setLoading(false);
-    })();
-  }, []);
-
-  // когда settings обновились — переливаем в форму и локальные свитчи
+  // Когда settings приходят (из кэша/сети), переливаем в форму и свитчи
   useEffect(() => {
     form.setValues(initial);
     form.resetDirty(initial);
@@ -140,7 +173,8 @@ export default function SettingsGlobal() {
       allowPets: pt,
       allowAbroad: ab,
     });
-  }, [initial]); // зависимость от initial (который зависит от settings)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initial]);
 
   const togglesChanged =
     instantBooking !== baseToggles.instantBooking ||
@@ -150,9 +184,11 @@ export default function SettingsGlobal() {
 
   const dirty = form.isDirty() || togglesChanged;
 
+  /* ================= Save ================= */
+
   const handleSave = async () => {
     const res = form.validate();
-    if (res.hasErrors) return;
+    if (res.hasErrors || !ownerId) return;
 
     const currency = form.values.currency as (typeof CURRENCY_OPTIONS)[number];
     const minDays = Number(form.values.minDays);
@@ -181,17 +217,13 @@ export default function SettingsGlobal() {
     };
 
     try {
-      const { data } = await supabase.auth.getUser();
-      const ownerId = data.user?.id;
-      if (!ownerId) return;
-
       const saved = await upsertGlobalSettings(ownerId, payload);
-      setSettings(saved);
 
+      // мгновенно обновляем кэш и лёгкая инвалидизация
       qc.setQueryData(QK.appSettingsByOwner(ownerId), saved);
       qc.invalidateQueries({ queryKey: QK.appSettingsByOwner(ownerId) });
 
-      // сброс dirty
+      // сбрасываем dirty
       form.resetDirty({
         ...form.values,
         openTimeMin: String(openTime),
@@ -210,12 +242,21 @@ export default function SettingsGlobal() {
     }
   };
 
+  /* ================= Render ================= */
+
+  if (isGuest) {
+    return (
+      <main className="mb-4 w-full xl:max-w-2xl text-sm text-zinc-500">
+        Sign in to view settings
+      </main>
+    );
+  }
+
   return (
     <main className="mb-4 w-full xl:max-w-2xl">
       <h2 className="font-roboto text-xl md:text-2xl font-medium md:font-bold">
         Global booking settings
       </h2>
-      {/* <hr className="border-gray-200 my-4" /> */}
 
       {/* Currency */}
       <section className="mt-6 mb-8">
@@ -229,7 +270,7 @@ export default function SettingsGlobal() {
             data={CURRENCY_OPTIONS as unknown as string[]}
             searchable={false}
             {...form.getInputProps("currency")}
-            disabled={loading /* пока грузим */}
+            disabled={loading}
             allowDeselect={false}
           />
         </div>
@@ -437,6 +478,8 @@ export default function SettingsGlobal() {
     </main>
   );
 }
+
+/* ================= Toggle ================= */
 
 function MotionToggle({
   label,
