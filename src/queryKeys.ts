@@ -17,10 +17,14 @@ export const QK = {
     ["bookingsIndexInfinite", { ownerId, limit }] as const,
   bookingsUserInfinite: (userId: string | null, limit: number) =>
     ["bookingsUserInfinite", { userId, limit }] as const,
+  usersByHostInfinite: (ownerId: string | null, pageSize: number, category?: string | null) =>
+    ["usersByHostInfinite", pageSize, ownerId, category ?? null] as const,
   booking: (id: string) => ["booking", id] as const,
   bookingExtras: (id: string) => ["bookingExtras", id] as const,
   user: (id: string) => ["user", id] as const,
   carsByHost: (ownerId: string) => ["carsByHost", ownerId] as const,
   bookingsIndex: (ownerId: string) => ["bookingsIndex", ownerId] as const,
   calendarWindow: (monthISO: string) => ["calendarWindow", monthISO] as const,
+  // usersByHost: (ownerId: string | null, pageSize: number) =>
+  // ["usersByHost", pageSize, ownerId] as const
 };

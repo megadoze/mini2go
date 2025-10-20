@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Select, Popover } from "@mantine/core";
 import {
@@ -109,15 +109,89 @@ export default function Calendar() {
 
   const endTimeOptions = useMemo(() => {
     if (!selectedRange.end) return TIME_OPTIONS;
-    const isStartToday =
-      selectedRange.start && isSameDay(selectedRange.start, today);
-    const isEndSameDayAsStart =
+
+    const endIsToday = isSameDay(selectedRange.end, today);
+    const sameDay =
       selectedRange.start && isSameDay(selectedRange.end, selectedRange.start);
+
     let minVal = 0;
-    if (isStartToday) minVal = Math.max(minVal, _nowStep);
-    if (isEndSameDayAsStart) minVal = Math.max(minVal, Number(startTime));
+
+    // 1) если конец сегодня — не раньше "сейчас"
+    if (endIsToday) {
+      minVal = Math.max(minVal, _nowStep);
+    }
+
+    // 2) если старт и конец в один день — конец не раньше старта
+    if (sameDay) {
+      minVal = Math.max(minVal, Number(startTime));
+    }
+
     return TIME_OPTIONS.filter((o) => o.value > minVal);
   }, [selectedRange.start, selectedRange.end, startTime, today, _nowStep]);
+
+  const endTimeSelectData = useMemo(() => {
+    const base = endTimeOptions.map((t) => ({
+      value: String(t.value),
+      label: t.label,
+    }));
+
+    const sameDay =
+      selectedRange.start &&
+      selectedRange.end &&
+      isSameDay(selectedRange.start, selectedRange.end);
+
+    if (sameDay) {
+      const v = Number(startTime);
+      const label =
+        TIME_OPTIONS.find((o) => o.value === v)?.label ??
+        `${String(Math.floor(v / 100)).padStart(2, "0")}:${String(
+          v % 100
+        ).padStart(2, "0")}`;
+      // показываем стартовый слот сверху, но выбирать его нельзя
+      return [
+        { value: String(v), label: `${label} (start)`, disabled: true },
+        ...base,
+      ];
+    }
+    return base;
+  }, [endTimeOptions, selectedRange.start, selectedRange.end, startTime]);
+
+  useEffect(() => {
+    if (!selectedRange.start || !selectedRange.end) return;
+
+    const sameDay = isSameDay(selectedRange.start, selectedRange.end);
+    const endIsToday = isSameDay(selectedRange.end, today);
+    const minVal = Math.max(Number(startTime), endIsToday ? _nowStep : 0);
+
+    const firstValid = endTimeOptions[0]; // у нас endTimeOptions уже фильтрует > minVal
+
+    if (sameDay) {
+      // если конец не валиден ИЛИ <= minVal — сразу двигаем на первый валидный (следующий слот)
+      const endNum = Number(endTime);
+      const endIsInList = endTimeOptions.some(
+        (o) => String(o.value) === endTime
+      );
+      if ((!endIsInList || endNum <= minVal) && firstValid) {
+        setEndTime(String(firstValid.value));
+      }
+    } else {
+      // на разные дни просто убеждаемся, что значение валидно
+      const endIsInList = endTimeOptions.some(
+        (o) => String(o.value) === endTime
+      );
+      if (!endIsInList && firstValid) {
+        setEndTime(String(firstValid.value));
+      }
+    }
+  }, [
+    selectedRange.start,
+    selectedRange.end,
+    startTime,
+    today,
+    _nowStep,
+    endTimeOptions,
+    endTime,
+  ]);
 
   const qc = useQueryClient();
   const listKey = QK.bookingsByCarId(String(carId));
@@ -358,6 +432,7 @@ export default function Calendar() {
 
     // === NEW: clamp start >= now (rounded to 30-min step)
     const stepMin = 30; // под твои TIME_OPTIONS
+
     {
       const now = new Date();
       const mins = now.getMinutes();
@@ -374,6 +449,10 @@ export default function Calendar() {
         start.setTime(roundedNow.getTime());
         if (end <= start) end.setTime(start.getTime() + stepMin * 60_000);
       }
+    }
+
+    if (isSameDay(start, end) && end <= start) {
+      end.setTime(start.getTime() + stepMin * 60_000);
     }
 
     const payload: Omit<Booking, "id"> = {
@@ -434,6 +513,10 @@ export default function Calendar() {
         start.setTime(roundedNow.getTime());
         if (end <= start) end.setTime(start.getTime() + stepMin * 60_000);
       }
+    }
+
+    if (isSameDay(start, end) && end <= start) {
+      end.setTime(start.getTime() + stepMin * 60_000);
     }
 
     // ещё раз проверим пересечение
@@ -711,10 +794,11 @@ export default function Calendar() {
           <div>
             <label className="block text-sm font-medium mb-1">End time</label>
             <Select
-              data={endTimeOptions.map((t) => ({
-                value: t.value.toString(),
-                label: t.label,
-              }))}
+              // data={endTimeOptions.map((t) => ({
+              //   value: t.value.toString(),
+              //   label: t.label,
+              // }))}
+              data={endTimeSelectData}
               value={endTime}
               onChange={(v) => v !== null && setEndTime(v)}
             />

@@ -44,6 +44,7 @@ import SimpleRouteError from "./routes/simpleRouteError";
 import ScrollToTop from "./components/scrollToTop";
 import HostPage from "./app/hosts/hostPage";
 import PublicCarPage from "./app/catalog/publicCarPage";
+import { usersLoader } from "./routes/usersLoader";
 
 export const router = createBrowserRouter([
   { path: "/auth", element: <AuthenticationPage /> },
@@ -79,7 +80,12 @@ export const router = createBrowserRouter([
       },
       { path: "bookings/:bookingId", element: <BookingEditor /> },
       { path: "bookings/new", element: <BookingEditor /> },
-      { path: "users", element: <UsersPage /> },
+      {
+        id: "users",
+        path: "users",
+        loader: usersLoader,
+        element: <UsersPage />,
+      },
       { path: "users/:userId", element: <UserPage /> },
       // { path: "hosts/:hostId", element: <HostPage /> },
       // { path: "catalog/:carId", element: <PublicCarPage /> },

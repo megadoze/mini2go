@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLoaderData } from "react-router-dom";
 import {
   useInfiniteQuery,
   useQueryClient,
@@ -24,8 +24,8 @@ import {
   EyeIcon,
 } from "@heroicons/react/24/outline";
 import { highlightMatch } from "@/utils/highlightMatch";
-import { supabase } from "@/lib/supabase";
 import { fetchHostUsersPage } from "@/services/user.service";
+import { QK } from "@/queryKeys";
 
 type UserRow = {
   id: string;
@@ -65,47 +65,28 @@ function cmp(a?: string | null, b?: string | null, reversed = false) {
 export default function UsersPage() {
   const qc = useQueryClient();
 
+  const { ownerId } = (useLoaderData() as { ownerId: string | null }) ?? {
+    ownerId: null,
+  };
+
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [sortBy, setSortBy] = useState<SortKey>("name");
   const [reversed, setReversed] = useState(false);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
-  const [meId, setMeId] = useState<string | null | undefined>(undefined);
 
-  useEffect(() => {
-    // моментально берём из текущей сессии
-    supabase.auth.getSession().then(({ data }) => {
-      setMeId((prev) => prev ?? data.session?.user?.id ?? null);
-    });
-    // и держим подписку
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
-      setMeId(s?.user?.id ?? null);
-    });
-    return () => sub.subscription.unsubscribe();
-  }, []);
+  const currentKey = QK.usersByHostInfinite(ownerId, PAGE_SIZE, null);
 
-  // ✂️ helper, чтобы обрезать кэш до первой страницы без сети (как у тебя в cars/users)
-  const trimToFirstPage = () => {
-    const key = ["users", "host", PAGE_SIZE, meId ?? "guest"];
-    qc.setQueryData<InfiniteData<Page>>(key, (old) => {
-      if (!old?.pages?.length) return old;
-      return { pages: [old.pages[0]], pageParams: [0] };
-    });
-  };
-
-  // INFINITE: грузим по 10
-  // пагинация: ТОЛЬКО клиенты этого хоста (RPC), + исключаем самого хоста
-  const usersQ = useInfiniteQuery<{ items: UserRow[]; count: number }, Error>({
-    queryKey: ["users", "host", PAGE_SIZE, meId ?? "guest"],
-    enabled: meId !== undefined && !!meId, // пока не знаем meId — не дёргаем сеть
-    queryFn: async ({ pageParam }) => {
+  const usersQ = useInfiniteQuery<Page, Error>({
+    queryKey: currentKey,
+    enabled: !!ownerId,
+    initialPageParam: 0,
+    queryFn: ({ pageParam }) => {
       const pageIndex = typeof pageParam === "number" ? pageParam : 0;
-      const offset = pageIndex * PAGE_SIZE;
       return fetchHostUsersPage({
-        ownerId: meId as string,
+        ownerId: ownerId!,
         limit: PAGE_SIZE,
-        offset,
-        excludeUserId: meId ?? undefined,
+        offset: pageIndex * PAGE_SIZE,
       });
     },
     getNextPageParam: (last, all) => {
@@ -113,17 +94,43 @@ export default function UsersPage() {
       const total = last.count ?? loaded;
       return loaded < total ? all.length : undefined;
     },
-    initialPageParam: 0,
+
+    // МГНОВЕННАЯ отрисовка:
+    initialData: ownerId
+      ? () => qc.getQueryData<InfiniteData<Page>>(currentKey)
+      : undefined,
+    placeholderData: (prev) => prev,
+
     staleTime: 5 * 60_000,
     gcTime: 7 * 24 * 60 * 60 * 1000,
     refetchOnMount: false,
     refetchOnWindowFocus: false,
     retry: 1,
-    placeholderData: (prev) => prev,
   });
 
-  // плоский массив уже загруженных юзеров
-  const users: UserRow[] = usersQ.data?.pages.flatMap((p) => p.items) ?? [];
+  // ✂️ helper, чтобы обрезать кэш до первой страницы без сети (как у тебя в cars/users)
+  const trimToFirstPage = () => {
+    qc.setQueryData<InfiniteData<Page>>(currentKey, (old) => {
+      if (!old?.pages?.length) return old;
+      return { pages: [old.pages[0]], pageParams: [0] };
+    });
+  };
+
+  useEffect(() => {
+    return () => {
+      trimToFirstPage();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ownerId]);
+
+  const EMPTY_PAGES: ReadonlyArray<Page> = [];
+
+  const pages = useMemo(() => usersQ.data?.pages ?? EMPTY_PAGES, [usersQ.data]);
+
+  const users = useMemo<UserRow[]>(
+    () => pages.flatMap((p) => p.items) ?? [],
+    [pages]
+  );
 
   // уникальные статусы из уже загруженного (для селекта)
   const statuses = useMemo(() => {
