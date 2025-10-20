@@ -34,7 +34,6 @@ import type { BookingCard } from "@/types/bookingCard";
 import type { Country } from "@/types/country";
 import type { Location as TLocation } from "@/types/location";
 import { QK } from "@/queryKeys";
-// import { getGlobalSettings } from "@/services/settings.service";
 import {
   fetchPricingRules,
   fetchSeasonalRates,
@@ -175,15 +174,6 @@ export default function UserBookings() {
   const items: BookingCard[] = useMemo(() => {
     const cards = bookingRows.map(mapIndexRowToBookingCard);
     return uniqById(cards);
-  }, [bookingRows]);
-
-  const usersById = useMemo(() => {
-    const m = new Map<string, string>();
-    for (const r of bookingRows) {
-      const name = r.user_full_name ?? null;
-      if (name && r.user_id) m.set(String(r.user_id), String(name));
-    }
-    return m;
   }, [bookingRows]);
 
   /* -------------------- geo queries -------------------- */
@@ -492,7 +482,6 @@ export default function UserBookings() {
           <>
             <div className="flex flex-col">
               {filtered.map((b) => {
-                const fullName = b.userId ? usersById.get(b.userId) ?? "" : "";
                 return (
                   <Link
                     key={b.id}
@@ -542,11 +531,10 @@ export default function UserBookings() {
                             {highlightMatch(b.car.licensePlate, search)}
                           </p>
                         )}
-                        {fullName && (
-                          <p className="text-sm text-gray-900 truncate">
-                            {highlightMatch(fullName, search)}
-                          </p>
-                        )}
+
+                        <p className="text-sm text-gray-900 truncate">
+                          {highlightMatch(b.ownerName ?? "", search)}
+                        </p>
                       </div>
 
                       <div className="mt-1 text-sm sm:hidden">

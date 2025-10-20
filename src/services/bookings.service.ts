@@ -26,6 +26,7 @@ export type BookingJoinedRow = {
   user_id: string | null;
   created_at: string | null;
   price_total: number | null;
+  owner_full_name: string | null;
   car: OneOrMany<{
     id: string;
     year: number | null;
@@ -237,8 +238,8 @@ export type BookingsIndexRow = {
   user_id: string | null;
   created_at: string | null;
   price_total: number | null;
-
   owner_id: string;
+  owner_full_name: string | null;
   photos: string[] | null;
   license_plate: string | null;
   year: number | null;
@@ -287,6 +288,7 @@ export async function fetchBookingsIndexPage(params: {
         `brand_name.ilike.%${s}%`,
         `model_name.ilike.%${s}%`,
         `user_full_name.ilike.%${s}%`,
+        `owner_full_name.ilike.%${s}%`,
       ].join(",")
     );
   }
@@ -331,6 +333,7 @@ export async function fetchBookingsByUser(params: {
         `brand_name.ilike.%${s}%`,
         `model_name.ilike.%${s}%`,
         `user_full_name.ilike.%${s}%`,
+        `owner_full_name.ilike.%${s}%`,
       ].join(",")
     );
   }
@@ -354,6 +357,7 @@ export function mapIndexRowToBookingCard(r: BookingsIndexRow): BookingCard {
     priceTotal: r.price_total ?? null,
     userEmail: r.user_email ?? null,
     userPhone: r.user_phone ?? null,
+    ownerName: r.owner_full_name ?? null,
     car: {
       id: r.car_id,
       brand: r.brand_name ?? null, // ← БРЕНД

@@ -9,6 +9,7 @@ export type BookingCard = {
   carId: string;
   userId?: string | null;
   createdAt?: string;
+  ownerName?: string | null;
   car?: {
     id: string;
     brand?: string | null;
