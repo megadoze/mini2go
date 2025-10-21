@@ -1,7 +1,7 @@
 import { decodeVinAndFillForm } from "@/services/vin.service";
 import { NativeSelect, TextInput } from "@mantine/core";
 import { useEffect, useState } from "react";
-import { fuelTypes, transmissions } from "@/constants/carOptions";
+import { fuelTypes, driveTypes, transmissions } from "@/constants/carOptions";
 import { fetchBrands, fetchModelsByBrand } from "@/services/car.service";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
@@ -25,6 +25,11 @@ export default function Step3({ form, handleChange }: any) {
     handleChange("year", "");
     handleChange("fuelType", "");
     handleChange("transmission", "");
+    handleChange("engine", "");
+    handleChange("driveType", "");
+    handleChange("doors", "");
+    handleChange("seats", "");
+
     setShowManualFields(false);
     setVinError(null);
     setLastDecodedVin(null);
@@ -66,7 +71,7 @@ export default function Step3({ form, handleChange }: any) {
     try {
       const vin = form.vin.trim();
       if (!vin || vin.length < 11) {
-        setVinError("Введите корректный VIN");
+        setVinError("Please enter the correct VIN.");
         return;
       }
       // ✅ Проверка VIN в Supabase
@@ -77,12 +82,12 @@ export default function Step3({ form, handleChange }: any) {
         .maybeSingle();
 
       if (existingCar) {
-        toast.error("Авто с таким VIN уже добавлено");
+        toast.error("A car with this VIN has already been added.");
         return;
       }
       const result = await decodeVinAndFillForm(form.vin);
       if (!result) {
-        setVinError("Ошибка при декодировании VIN");
+        setVinError("Error decoding VIN.");
         setShowManualFields(true);
         return;
       }
@@ -100,11 +105,15 @@ export default function Step3({ form, handleChange }: any) {
       handleChange("year", result.year || "");
       handleChange("fuelType", result.fuelType || "");
       handleChange("transmission", result.transmission || "");
+      handleChange("engine", result.engine || "");
+      handleChange("driveType", result.driveType || "");
+      handleChange("doors", result.doors || "");
+      handleChange("seats", result.seats || "");
 
       setShowManualFields(!result.brandMatched || !result.modelMatched);
       setLastDecodedVin(vin);
     } catch (err) {
-      setVinError("Ошибка при получении данных");
+      setVinError("Error while receiving data.");
       setShowManualFields(true);
     } finally {
       setVinLoading(false);
@@ -116,6 +125,14 @@ export default function Step3({ form, handleChange }: any) {
     : form.fuelType
     ? [form.fuelType, ...fuelTypes]
     : fuelTypes;
+
+  const driveOptions = driveTypes.includes(form.driveType)
+    ? driveTypes
+    : form.driveType
+    ? [form.driveType, ...driveTypes]
+    : driveTypes;
+
+  // console.log(driveOptions);
 
   const transmissionOptions = transmissions.includes(form.transmission)
     ? transmissions
@@ -176,6 +193,19 @@ export default function Step3({ form, handleChange }: any) {
             <span className="font-semibold">Transmission:</span>{" "}
             {form.transmission || "—"}
           </p>
+          <p>
+            <span className="font-semibold">Engine:</span> {form.engine || "—"}
+          </p>
+          <p>
+            <span className="font-semibold">Drive Type:</span>{" "}
+            {form.driveType || "—"}
+          </p>
+          <p>
+            <span className="font-semibold">Doors:</span> {form.doors || "—"}
+          </p>
+          <p>
+            <span className="font-semibold">Seats:</span> {form.seats || "—"}
+          </p>
 
           <button
             onClick={() => setShowManualFields(true)}
@@ -189,7 +219,7 @@ export default function Step3({ form, handleChange }: any) {
       {showManualFields && (
         <>
           <NativeSelect
-            label="Бренд"
+            label="Brand"
             value={form.brandId}
             onChange={(e) => handleChange("brandId", e.currentTarget.value)}
             data={[
@@ -202,7 +232,7 @@ export default function Step3({ form, handleChange }: any) {
           />
 
           <NativeSelect
-            label="Модель"
+            label="Model"
             value={form.modelId}
             onChange={(e) => handleChange("modelId", e.currentTarget.value)}
             data={[
@@ -216,14 +246,14 @@ export default function Step3({ form, handleChange }: any) {
           />
 
           <TextInput
-            label="Год выпуска"
+            label="Year"
             type="number"
             value={form.year}
             onChange={(e) => handleChange("year", e.currentTarget.value)}
           />
 
           <NativeSelect
-            label="Тип топлива"
+            label="Fuel type"
             value={form.fuelType}
             onChange={(e) => handleChange("fuelType", e.currentTarget.value)}
             data={[
@@ -233,7 +263,7 @@ export default function Step3({ form, handleChange }: any) {
           />
 
           <NativeSelect
-            label="Коробка передач"
+            label="Transmission"
             value={form.transmission}
             onChange={(e) =>
               handleChange("transmission", e.currentTarget.value)
@@ -242,6 +272,40 @@ export default function Step3({ form, handleChange }: any) {
               { value: "", label: "Выбери коробку" },
               ...transmissionOptions.map((t) => ({ value: t, label: t })),
             ]}
+          />
+
+          <TextInput
+            label="Engine"
+            type="number"
+            step={0.1}
+            value={form.engine}
+            onChange={(e) => handleChange("engine", e.currentTarget.value)}
+          />
+
+          <NativeSelect
+            label="Drive type"
+            value={form.driveType}
+            onChange={(e) => handleChange("driveType", e.currentTarget.value)}
+            data={[
+              { value: "", label: "Выбери тип топлива" },
+              ...driveOptions.map((f) => ({ value: f, label: f })),
+            ]}
+          />
+
+          <TextInput
+            label="Doors"
+            type="number"
+            step={1}
+            value={form.doors}
+            onChange={(e) => handleChange("doors", e.currentTarget.value)}
+          />
+
+          <TextInput
+            label="Seats"
+            type="number"
+            step={1}
+            value={form.seats}
+            onChange={(e) => handleChange("seats", e.currentTarget.value)}
           />
         </>
       )}

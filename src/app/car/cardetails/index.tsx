@@ -121,7 +121,7 @@ export default function CarDetails() {
 
   const navigate = useNavigate();
 
-  const { patchCar, removeCar } = useCarCache();
+  const { patchCar } = useCarCache();
 
   const { car, setCar } = useCarContext();
   const carId = car?.id;
@@ -304,19 +304,143 @@ export default function CarDetails() {
     }
   };
 
+  // async function handleDelete() {
+  //   setLoading(true);
+
+  //   try {
+  //     if (!carId) throw new Error("No car ID");
+
+  //     await deleteCar(carId);
+  //     removeCar(carId);
+  //     toast.success("Car deleted");
+  //     navigate("/cars");
+  //   } catch (error) {
+  //     console.error(error);
+  //     alert("Failed to remove vehicle");
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // }
+
   async function handleDelete() {
+    if (!carId) return alert("No car ID");
+
+    setConfirmDelete(false);
     setLoading(true);
 
     try {
-      if (!carId) throw new Error("No car ID");
+      // 1) Оптимистично выкидываем из QK.cars (все распространённые формы)
+      qc.setQueryData(QK.cars, (old: any) => {
+        if (!old) return old;
+        const idNE = (c: any) => String(c?.id) !== String(carId);
 
+        if (Array.isArray(old)) return old.filter(idNE);
+        if (Array.isArray(old?.items))
+          return { ...old, items: old.items.filter(idNE) };
+        if (Array.isArray(old?.data))
+          return { ...old, data: old.data.filter(idNE) };
+        if (Array.isArray(old?.rows))
+          return { ...old, rows: old.rows.filter(idNE) };
+        if (Array.isArray(old?.results))
+          return { ...old, results: old.results.filter(idNE) };
+        return old;
+      });
+
+      // 2) carsByHost (все ownerId)
+      qc.setQueriesData(
+        {
+          predicate: ({ queryKey }) =>
+            Array.isArray(queryKey) && String(queryKey[0]) === "carsByHost",
+        },
+        (old: any) => {
+          if (!old) return old;
+          const idNE = (c: any) => String(c?.id) !== String(carId);
+          if (Array.isArray(old)) return old.filter(idNE);
+          if (Array.isArray(old?.items))
+            return { ...old, items: old.items.filter(idNE) };
+          return old;
+        }
+      );
+
+      // 3) carsInfinite (оба формата страниц: массив страниц и {items} на странице)
+      qc.setQueriesData(
+        {
+          predicate: ({ queryKey }) =>
+            Array.isArray(queryKey) && String(queryKey[0]) === "carsInfinite",
+        },
+        (old: any) => {
+          if (!old?.pages) return old;
+          const idNE = (c: any) => String(c?.id) !== String(carId);
+          return {
+            ...old,
+            pages: old.pages.map((p: any) => {
+              if (Array.isArray(p)) return p.filter(idNE);
+              if (Array.isArray(p?.items))
+                return { ...p, items: p.items.filter(idNE) };
+              return p;
+            }),
+          };
+        }
+      );
+
+      // 4) calendarWindow (если где-то используется)
+      qc.setQueriesData(
+        {
+          predicate: ({ queryKey }) =>
+            Array.isArray(queryKey) && String(queryKey[0]) === "calendarWindow",
+        },
+        (win: any) =>
+          !win
+            ? win
+            : {
+                ...win,
+                cars: Array.isArray(win.cars)
+                  ? win.cars.filter((c: any) => String(c?.id) !== String(carId))
+                  : win.cars,
+              }
+      );
+
+      // 5) детальку и связанные — удалить сразу
+      qc.removeQueries({ queryKey: QK.car(carId), exact: true });
+      qc.removeQueries({ queryKey: QK.carExtras(carId), exact: true });
+      if (QK.carFeatures)
+        qc.removeQueries({ queryKey: QK.carFeatures(carId), exact: true });
+      qc.removeQueries({ queryKey: QK.bookingsByCarId(carId), exact: true });
+
+      // 7) Бэкенд
       await deleteCar(carId);
-      removeCar(carId);
+
+      // 3) убиваем ВСЕ кэши carsByHost, чтобы список гарантированно заново фетчнулся
+      qc.removeQueries({
+        predicate: ({ queryKey }) =>
+          Array.isArray(queryKey) && String(queryKey[0]) === "carsByHost",
+      });
+
+      // 4) на всякий — подсносим /cars и /carsInfinite (если где-то ещё смотрят)
+      qc.removeQueries({ queryKey: QK.cars, exact: false });
+      qc.removeQueries({
+        predicate: ({ queryKey }) =>
+          Array.isArray(queryKey) && String(queryKey[0]) === "carsInfinite",
+      });
+
+      // 5) мягкая синхронизация в фоне (необязательно)
+      void qc.invalidateQueries({
+        predicate: ({ queryKey }) => {
+          const root = Array.isArray(queryKey) ? String(queryKey[0]) : "";
+          return (
+            root === QK.cars[0] ||
+            root === "carsByHost" ||
+            root === "carsInfinite" ||
+            root === "calendarWindow"
+          );
+        },
+      });
+
       toast.success("Car deleted");
       navigate("/cars");
-    } catch (error) {
-      console.error(error);
-      alert("Failed to remove vehicle");
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to remove vehicle");
     } finally {
       setLoading(false);
     }

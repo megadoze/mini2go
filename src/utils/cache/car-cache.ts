@@ -1,120 +1,163 @@
-// src/cache/patchCarCaches.ts
+// src/utils/cache/car-cache.ts  (или твой путь)
 import type { QueryClient, QueryKey } from "@tanstack/react-query";
 import { QK } from "@/queryKeys";
 
-// единый предикат для списков машин
 const isCarsListKey = (key: QueryKey) =>
   Array.isArray(key) && (key[0] === QK.cars[0] || key[0] === "carsList");
 
 const isCarsByHostKey = (key: QueryKey) =>
   Array.isArray(key) && key[0] === "carsByHost";
 
+const isCarsInfiniteKey = (key: QueryKey) =>
+  Array.isArray(key) && key[0] === "carsInfinite";
+
 export type CarPatch = Partial<any>;
 
-/** Мгновенно пропатчить авто во всех местах кэша */
-export function patchCarCaches(
-  qc: QueryClient,
-  carId: string,
-  patch: CarPatch
-) {
+// ===== helpers: универсальная правка/удаление для разных форматов =====
+const idNE = (carId: string) => (c: any) => String(c?.id) !== String(carId);
+const applyPatch = (carId: string, patch: any) => (c: any) =>
+  String(c?.id) === String(carId) ? { ...c, ...patch } : c;
+
+function removeFromListLike(list: any, carId: string) {
+  if (!list) return list;
+
+  if (Array.isArray(list)) return list.filter(idNE(carId));
+  if (Array.isArray(list.items))    return { ...list, items:   list.items.filter(idNE(carId)) };
+  if (Array.isArray(list.data))     return { ...list, data:    list.data.filter(idNE(carId)) };
+  if (Array.isArray(list.rows))     return { ...list, rows:    list.rows.filter(idNE(carId)) };
+  if (Array.isArray(list.results))  return { ...list, results: list.results.filter(idNE(carId)) };
+
+  return list;
+}
+
+function patchInListLike(list: any, carId: string, patch: any) {
+  if (!list) return list;
+
+  if (Array.isArray(list)) return list.map(applyPatch(carId, patch));
+  if (Array.isArray(list.items))    return { ...list, items:   list.items.map(applyPatch(carId, patch)) };
+  if (Array.isArray(list.data))     return { ...list, data:    list.data.map(applyPatch(carId, patch)) };
+  if (Array.isArray(list.rows))     return { ...list, rows:    list.rows.map(applyPatch(carId, patch)) };
+  if (Array.isArray(list.results))  return { ...list, results: list.results.map(applyPatch(carId, patch)) };
+
+  return list;
+}
+
+// ================== PATCH ==================
+export function patchCarCaches(qc: QueryClient, carId: string, patch: CarPatch) {
   if (!carId) return;
 
-  // 1) детальная карточка
-  qc.setQueryData(QK.car(carId), (prev: any) =>
-    prev ? { ...prev, ...patch } : prev
+  // детальная карточка
+  qc.setQueryData(QK.car(carId), (prev: any) => (prev ? { ...prev, ...patch } : prev));
+
+  // cars / carsList / carsByHost
+  qc.setQueriesData(
+    { predicate: (q) => isCarsListKey(q.queryKey) || isCarsByHostKey(q.queryKey) },
+    (old: any) => {
+      if (!old) return old;
+      // ВАЖНО: у carsByHost может быть infinite-форма { pages: [...] } (смотри твои логи)
+      if (old.pages) {
+        return {
+          ...old,
+          pages: old.pages.map((p: any) => patchInListLike(p, carId, patch)),
+        };
+      }
+      // обычные списки
+      return patchInListLike(old, carId, patch);
+    }
   );
 
-  // 2) любые списки авто
+  // calendarWindow (если используется)
   qc.setQueriesData(
-    {
-      predicate: (q) =>
-        isCarsListKey(q.queryKey) || isCarsByHostKey(q.queryKey),
-    },
-    (list: any[] | undefined) =>
-      Array.isArray(list)
-        ? list.map((c) =>
-            String(c.id) === String(carId) ? { ...c, ...patch } : c
-          )
-        : list
-  );
-
-  // 3) окна большого календаря (если где-то показывается info об авто)
-  qc.setQueriesData(
-    {
-      predicate: (q) =>
-        Array.isArray(q.queryKey) && q.queryKey[0] === "calendarWindow",
-    },
+    { predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === "calendarWindow" },
     (win: any) =>
       !win
         ? win
         : {
             ...win,
-            cars: (win.cars ?? []).map((c: any) =>
-              String(c.id) === String(carId) ? { ...c, ...patch } : c
-            ),
+            cars: Array.isArray(win.cars)
+              ? win.cars.map(applyPatch(carId, patch))
+              : win.cars,
           }
+  );
+
+  // carsInfinite (на всякий)
+  qc.setQueriesData(
+    { predicate: (q) => isCarsInfiniteKey(q.queryKey) },
+    (old: any) =>
+      !old?.pages
+        ? old
+        : { ...old, pages: old.pages.map((p: any) => patchInListLike(p, carId, patch)) }
   );
 }
 
-/** Удалить авто из всех мест кэша */
+// ================== REMOVE ==================
 export function removeCarEverywhere(qc: QueryClient, carId: string) {
   if (!carId) return;
 
-  // 1) убрать детальную запись
+  // деталька
   qc.removeQueries({ queryKey: QK.car(carId), exact: true });
 
-  // 2) убрать из любых списков машин
+  // cars / carsList / carsByHost
   qc.setQueriesData(
-    {
-      predicate: (q) =>
-        isCarsListKey(q.queryKey) || isCarsByHostKey(q.queryKey),
-    },
-    (list: any[] | undefined) =>
-      Array.isArray(list)
-        ? list.filter((c) => String(c.id) !== String(carId))
-        : list
+    { predicate: (q) => isCarsListKey(q.queryKey) || isCarsByHostKey(q.queryKey) },
+    (old: any) => {
+      if (!old) return old;
+      // ВАЖНО: поддержка infinite-формы у carsByHost -> { pages: [...] }
+      if (old.pages) {
+        return {
+          ...old,
+          pages: old.pages.map((p: any) => removeFromListLike(p, carId)),
+        };
+      }
+      // обычные списки
+      return removeFromListLike(old, carId);
+    }
   );
 
-  // 3) убрать из активных окон календаря
+  // calendarWindow
   qc.setQueriesData(
-    {
-      predicate: (q) =>
-        Array.isArray(q.queryKey) && q.queryKey[0] === "calendarWindow",
-    },
+    { predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === "calendarWindow" },
     (win: any) =>
       !win
         ? win
         : {
             ...win,
-            cars: (win.cars ?? []).filter(
-              (c: any) => String(c.id) !== String(carId)
-            ),
+            cars: Array.isArray(win.cars) ? win.cars.filter(idNE(carId)) : win.cars,
           }
   );
 
-  // 4) привязанные к авто ресурсы
-  qc.removeQueries({ queryKey: QK.carExtras(carId), exact: true }); // extras (если есть)
-  // если у тебя есть ключ фич: QK.carFeatures
+  // carsInfinite (на всякий, если где-то используется)
+  qc.setQueriesData(
+    { predicate: (q) => isCarsInfiniteKey(q.queryKey) },
+    (old: any) =>
+      !old?.pages
+        ? old
+        : { ...old, pages: old.pages.map((p: any) => removeFromListLike(p, carId)) }
+  );
 
-  qc.removeQueries({ queryKey: QK.carFeatures?.(carId), exact: true });
-
-  // 5) связанные брони по машине
+  // связанные ресурсы
+  qc.removeQueries({ queryKey: QK.carExtras(carId), exact: true });
+  if (QK.carFeatures) qc.removeQueries({ queryKey: QK.carFeatures(carId), exact: true });
   qc.removeQueries({ queryKey: QK.bookingsByCarId(carId), exact: true });
 }
 
-/** Опционально подтянуть консистентность после optimistic-патча */
+// ================== INVALIDATE (по желанию) ==================
 export function invalidateCarEverywhere(qc: QueryClient, carId: string) {
   qc.invalidateQueries({ queryKey: QK.car(carId) });
+
   qc.invalidateQueries({
     predicate: (q) => isCarsListKey(q.queryKey) || isCarsByHostKey(q.queryKey),
   });
-  qc.invalidateQueries({
-    predicate: (q) =>
-      Array.isArray(q.queryKey) && q.queryKey[0] === "calendarWindow",
-  });
-  qc.invalidateQueries({ queryKey: QK.carExtras(carId) });
-  // если есть ключ фич:
 
-  qc.invalidateQueries({ queryKey: QK.carFeatures?.(carId) });
+  qc.invalidateQueries({
+    predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === "calendarWindow",
+  });
+
+  qc.invalidateQueries({
+    predicate: (q) => isCarsInfiniteKey(q.queryKey),
+  });
+
+  qc.invalidateQueries({ queryKey: QK.carExtras(carId) });
+  if (QK.carFeatures) qc.invalidateQueries({ queryKey: QK.carFeatures(carId) });
   qc.invalidateQueries({ queryKey: QK.bookingsByCarId(carId) });
 }

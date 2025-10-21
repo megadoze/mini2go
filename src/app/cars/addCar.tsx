@@ -83,6 +83,10 @@ export default function AddCarWizard() {
     year: "",
     fuelType: "",
     transmission: "",
+    engine: "",
+    driveType: "",
+    doors: "",
+    seats: "",
     countryId: "",
     countryName: "",
     locationId: "",
@@ -183,6 +187,7 @@ export default function AddCarWizard() {
   const handleSubmit = async () => {
     setLoading(true);
     try {
+      // 1) Проверяем и получаем locationId
       const locationId = await ensureCountryAndLocationExist(
         form.countryName,
         form.cityName
@@ -193,6 +198,7 @@ export default function AddCarWizard() {
         return;
       }
 
+      // 2) Пользователь
       const {
         data: { user },
       } = await supabase.auth.getUser();
@@ -202,6 +208,7 @@ export default function AddCarWizard() {
         return;
       }
 
+      // 3) Собираем payload с корректными типами (строки -> числа)
       const payload = {
         vin: form.vin,
         model_id: form.modelId,
@@ -209,31 +216,38 @@ export default function AddCarWizard() {
         year: form.year ? Number(form.year) : null,
         fuel_type: form.fuelType || null,
         transmission: form.transmission || null,
+        engine_capacity: form.engine || null,
+        drive_type: form.driveType || null,
+        doors: form.doors ? Number(form.doors) : null,
+        seats: form.seats ? Number(form.seats) : null,
         location_id: locationId,
         address: form.address,
         lat: form.lat,
         long: form.long,
         price: form.price ? Number(form.price) : 0,
-        photos: [],
+        photos: [] as string[],
         status: "unavailable",
         owner: form.owner,
         owner_id: user.id,
       };
 
+      // 4) Вставляем машину
       const inserted = await addCar(payload);
-      const carId = inserted.id;
-      // const result = await addCar(payload);
+      const carId = inserted?.id;
       if (!inserted || !carId) {
         throw new Error("Ошибка добавления авто");
       }
 
+      // 5) Фото
       let uploadedUrls: string[] = [];
       if (photos.length) {
         const files = photos
           .filter((p) => p.isNew && p.file)
           .map((p) => p.file as File);
 
-        uploadedUrls = await uploadCarPhotos(files, carId);
+        if (files.length) {
+          uploadedUrls = await uploadCarPhotos(files, carId);
+        }
       }
 
       if (uploadedUrls.length) {
@@ -243,8 +257,109 @@ export default function AddCarWizard() {
           .eq("id", carId);
       }
 
-      await qc.invalidateQueries({ queryKey: QK.cars, refetchType: "all" });
+      // 6) Финальный объект для кэша
+      const carForCache = {
+        ...inserted,
+        photos: uploadedUrls.length ? uploadedUrls : [],
+      };
 
+      // 7) Моментально добавляем в кэш списков
+      qc.setQueryData(QK.cars, (old: any) => {
+        if (!old) return [carForCache];
+        return Array.isArray(old) ? [carForCache, ...old] : old;
+      });
+
+      qc.setQueryData(QK.carsByHost(user.id), (old: any) => {
+        if (!old) return [carForCache];
+        return Array.isArray(old) ? [carForCache, ...old] : old;
+      });
+
+      // Для infinite-лент аккуратно кладём в первую страницу
+      qc.setQueriesData(
+        {
+          predicate: ({ queryKey }) =>
+            Array.isArray(queryKey) && String(queryKey[0]) === "carsInfinite",
+        },
+        (old: any) => {
+          if (!old) return old;
+          if (old.pages?.[0]?.items) {
+            return {
+              ...old,
+              pages: [
+                {
+                  ...old.pages[0],
+                  items: [carForCache, ...old.pages[0].items],
+                },
+                ...old.pages.slice(1),
+              ],
+            };
+          }
+          return old;
+        }
+      );
+
+      // ➕ CalendarWindow: мгновенно добавить авто в все открытые окна календаря
+      qc.setQueriesData(
+        {
+          predicate: ({ queryKey }) =>
+            Array.isArray(queryKey) && String(queryKey[0]) === "calendarWindow",
+        },
+        (win: any) => {
+          if (!win) return win;
+
+          // Календарь ждёт CarWithBookings: { id, brand, model, license_plate, bookings: [] }
+          const calCar = {
+            id: carForCache.id as string,
+            brand: null as string | null, // безопасно: пока нет имени — null
+            model: null as string | null, // безопасно: пока нет имени — null
+            license_plate: form.licensePlate || null, // берём из формы (есть всегда на шаге 2)
+            bookings: [] as any[],
+          };
+
+          const exists = Array.isArray(win.cars)
+            ? win.cars.some((c: any) => String(c.id) === String(calCar.id))
+            : false;
+
+          if (exists) return win;
+
+          return {
+            ...win,
+            cars: [calCar, ...(win.cars ?? [])],
+          };
+        }
+      );
+
+      // мягкая инвалидция календарей — подтянет точные данные с бэка
+      void qc.invalidateQueries({
+        predicate: ({ queryKey }) =>
+          Array.isArray(queryKey) && String(queryKey[0]) === "calendarWindow",
+      });
+
+      // 8) Инвалидируем остальные списки
+      await qc.invalidateQueries({
+        predicate: ({ queryKey }) => {
+          const root = Array.isArray(queryKey) ? String(queryKey[0]) : "";
+          return (
+            root === QK.cars[0] ||
+            root === "carsInfinite" ||
+            root === "carsByHost"
+          );
+        },
+      });
+
+      // (необязательно) сразу перезапросить
+      await qc.refetchQueries({
+        predicate: ({ queryKey }) => {
+          const root = Array.isArray(queryKey) ? String(queryKey[0]) : "";
+          return (
+            root === QK.cars[0] ||
+            root === "carsInfinite" ||
+            root === "carsByHost"
+          );
+        },
+      });
+
+      // 9) Финал
       toast.success("Car is added!");
       navigate("/cars");
     } catch (e) {

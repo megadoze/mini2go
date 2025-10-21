@@ -8,6 +8,7 @@ export async function decodeVinAndFillForm(vin: string) {
   const data = await res.json();
 
   const results = data?.Results ?? [];
+  
   const getValue = (key: string) =>
     results.find((r: any) => r.Variable === key)?.Value ?? null;
 
@@ -15,7 +16,14 @@ export async function decodeVinAndFillForm(vin: string) {
   const model = getValue("Model");
   const year = getValue("Model Year");
   const fuelType = getValue("Fuel Type - Primary");
-  const transmission = getValue("Transmission Style");
+  const transmission = getValue("Seat Belt Type");
+  const engine = getValue("Displacement (L)");
+  const driveType = getValue("Drive Type");
+  const doors = getValue("Doors");
+  const seats = getValue("Number of Seats");
+  
+  // console.log("make:", make, "model:", model, "year:", year, "fuelType:", fuelType, "transmission:", transmission, "engine:", engine, "driveType:", driveType, "doors:", doors, "seats:", seats);
+  
 
   if (!make || !model) return null;
 
@@ -66,6 +74,10 @@ export async function decodeVinAndFillForm(vin: string) {
     year,
     fuelType,
     transmission,
+    engine,
+    driveType,
+    doors,
+    seats,
     brandMatched: !!brandData?.length,
     modelMatched: !!modelData?.length,
   };
