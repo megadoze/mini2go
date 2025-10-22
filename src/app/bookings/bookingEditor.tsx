@@ -63,6 +63,8 @@ import { GuestMiniCard } from "@/components/guestMiniCard";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 
+const GUEST_CANCEL_MIN_MS = 24 * 60 * 60 * 1000; // сутки
+
 // ========== Types ===========
 type MapboxFeature = {
   place_type?: string[];
@@ -296,15 +298,6 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
     return undefined;
   }, [snapshot?.booking_extras, bookingId, qc]);
 
-  const userIdForQ: string | undefined =
-    initialBooking?.user_id ?? snapshot?.booking?.user_id ?? undefined;
-
-  const initialUser = useMemo(() => {
-    const fromSnap = snapshot?.booking?.user as any | undefined;
-    if (fromSnap) return fromSnap;
-    return userIdForQ ? qc.getQueryData<any>(["user", userIdForQ]) : undefined;
-  }, [snapshot?.booking?.user, userIdForQ, qc]);
-
   const extrasQ = useQuery({
     queryKey: QK.bookingExtras(bookingId!),
     queryFn: () => fetchBookingExtras(bookingId!),
@@ -339,14 +332,15 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
     }));
   }, [extrasQ.data, initialExtras]);
 
-  const userQ = useQuery({
-    queryKey: ["user", userIdForQ],
-    queryFn: () => getUserById(userIdForQ!),
-    enabled: !!userIdForQ && !initialUser,
-    initialData: initialUser,
-    staleTime: 5 * 60_000,
-    refetchOnMount: false,
-  });
+  const [userId, setUserId] = useState<string | null>(
+    snapshot?.booking?.user_id ?? null
+  );
+
+  const userIdForQ: string | undefined =
+    bookingQ.data?.user_id ??
+    initialBooking?.user_id ??
+    snapshot?.booking?.user_id ??
+    undefined;
 
   const rootData = useRouteLoaderData("rootAuth") as
     | { ownerId: string }
@@ -356,11 +350,6 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
     rootData?.ownerId ?? null
   );
 
-  // const [draftSelected, setDraftSelected] = useState(false);
-
-  const [userId, setUserId] = useState<string | null>(
-    snapshot?.booking?.user_id ?? null
-  );
   const [selectedUser, setSelectedUser] = useState<any | null>(
     snapshot?.booking?.user ?? null
   );
@@ -397,18 +386,26 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
 
   const viewingAsGuest =
     !!currentUserId && !!bookingUserId && currentUserId === bookingUserId;
+
   const viewingAsHost =
     !!currentUserId && !!carOwnerId && currentUserId === carOwnerId;
 
-  const hostQ = useQuery({
-    queryKey: ["user", carOwnerId],
-    queryFn: () => getUserById(carOwnerId!),
-    enabled: !!carOwnerId,
-    staleTime: 5 * 60_000,
-    refetchOnMount: false,
-  });
+  const role: "host" | "guest" | "other" = viewingAsHost
+    ? "host"
+    : viewingAsGuest
+    ? "guest"
+    : "other";
 
-  const guest = initialUser ?? userQ.data ?? selectedUser ?? null;
+  const isGuestReadOnly = viewingAsGuest && !viewingAsHost;
+
+  useEffect(() => {
+    if (mode === "create" && isGuestReadOnly) {
+      navigate(-1);
+    }
+  }, [mode, isGuestReadOnly, navigate]);
+
+  const guest = bookingQ.data?.user ?? selectedUser ?? null;
+  const host = bookingQ.data?.host ?? null;
 
   // Прокладка между календарём и существующими стейтами startDateInp/endDateInp
   const calendarRange = useMemo(
@@ -422,6 +419,8 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
   const [status, setStatus] = useState<string | null>(
     hasMatchingSnapshot ? snapshot?.booking?.status ?? null : null
   );
+
+  const cancelLabel = "Cancel booking";
 
   const [deposit, setDeposit] = useState<number>(
     typeof snapshot?.booking?.deposit === "number"
@@ -550,7 +549,11 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
     status === "canceledHost" ||
     status === "canceledClient";
 
-  const isDisabled = status === "rent" || status === "block" || isFinished;
+  // const isDisabled = status === "rent" || status === "block" || isFinished;
+  const isDisabledByStatus =
+    status === "rent" || status === "block" || isFinished;
+
+  const isLocked = isDisabledByStatus || isGuestReadOnly;
 
   // ДО JSX
   const s = String(status);
@@ -693,13 +696,6 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
       setPickedExtras(extrasQ.data.map((r: any) => String(r.extra_id)));
     }
   }, [extrasQ.data]); // initialExtras намеренно не в deps
-
-  // пользователь
-  useEffect(() => {
-    if (userQ.data && !snapshot?.booking?.user) {
-      setSelectedUser(userQ.data);
-    }
-  }, [userQ.data, snapshot?.booking?.user]);
 
   useEffect(() => {
     if (mode !== "create" || hasMatchingSnapshot) return;
@@ -1165,6 +1161,7 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
   }
 
   async function handleSave() {
+    if (isGuestReadOnly) return;
     setError(null);
 
     // ---------- базовые проверки ----------
@@ -1461,10 +1458,7 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
             model_name: car?.model?.name ?? "",
             photos: car?.photos ?? null,
             license_plate: (car as any)?.licensePlate ?? null,
-            user_full_name:
-              (selectedUser as any)?.full_name ??
-              (userQ.data as any)?.full_name ??
-              null,
+            user_full_name: guest?.full_name ?? null,
           });
 
           // безопасная инвалидация всех списков
@@ -1582,12 +1576,8 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
     }
   }
 
-  // подтверждение / отмена
-  const canConfirm = mark === "booking" && status === "onApproval";
-  const canCancel =
-    mark === "booking" && (status === "onApproval" || status === "confirmed");
-
   const handleConfirm = async () => {
+    if (!viewingAsHost) return;
     if (!bookingId) return;
     try {
       const next = await updateBookingOptimistic(qc, bookingId, {
@@ -1601,11 +1591,14 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
 
   const handleCancel = async () => {
     if (!bookingId) return;
+
+    if (isGuestReadOnly && !guestCanCancel) return;
+    const nextStatus = viewingAsHost ? "canceledHost" : "canceledClient";
     try {
       const next = await updateBookingOptimistic(qc, bookingId, {
-        status: "canceledHost",
+        status: nextStatus,
       } as any);
-      setStatus(next.status ?? "canceledHost");
+      setStatus(next.status ?? nextStatus);
     } catch (e: any) {
       setError(e?.message ?? "Cancel error");
     }
@@ -1673,10 +1666,12 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
     () => (isISO(endAt) ? parseISO(endAt) : null),
     [endAt]
   );
+
   const totalMs =
     startDate && endDate
       ? Math.max(0, endDate.getTime() - startDate.getTime())
       : 0;
+
   const elapsedMs = startDate
     ? Math.max(0, now.getTime() - startDate.getTime())
     : 0;
@@ -1822,6 +1817,36 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
     if (s?.startsWith("canceled")) return { text: s, cls: "red" };
     return { text: "unknown", cls: "gray" };
   }, [status]);
+
+  // подтверждение / отмена
+  const timeUntilStartMs = startDate
+    ? startDate.getTime() - now.getTime()
+    : -Infinity;
+
+  const guestCanCancel =
+    isGuestReadOnly &&
+    mark === "booking" &&
+    !isFinished &&
+    (() => {
+      if (status === "onApproval") return true; // всегда можно
+      if (status === "confirmed")
+        return timeUntilStartMs >= GUEST_CANCEL_MIN_MS; // 24ч правило
+      return false; // rent/finished/canceled*
+    })();
+
+  const canConfirm =
+    viewingAsHost &&
+    mark === "booking" &&
+    status === "onApproval" &&
+    !isFinished;
+
+  const hostCanCancel =
+    viewingAsHost &&
+    mark === "booking" &&
+    (status === "onApproval" || status === "confirmed") &&
+    !isFinished;
+
+  const canCancel = hostCanCancel || guestCanCancel;
 
   // плавающая мобильная панель
   const showMobileActionBar =
@@ -1987,7 +2012,7 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
                 <button
                   type="button"
                   className={`mt-2 w-full rounded-xl border border-gray-200 px-3 py-3 text-left hover:bg-gray-50 active:scale-[.999] $isDisabled ? "opacity-60 cursor-not-allowed" : ""}`}
-                  onClick={() => !isDisabled && setPickerOpen(true)}
+                  onClick={() => !isLocked && setPickerOpen(true)}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 md:py-1">
@@ -2051,31 +2076,42 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
           </section>
 
           {/* Прогресс бар */}
-          <section>
+          <section id="dates" className="mt-6">
             {status === "rent" && typeof tripProgress === "number" && (
-              <div className="mt-4">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-gray-800">
-                    Trip progress
-                  </span>
-                  <span className="text-sm font-medium text-gray-800">
-                    {tripProgress}%
-                  </span>
-                </div>
-                <div
-                  className="h-2 w-full rounded-full bg-gray-100 overflow-hidden"
-                  role="progressbar"
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                  aria-valuenow={tripProgress}
-                >
-                  <div
-                    className="h-full rounded-full transition-[width] duration-500 bg-green-400/90"
-                    style={{ width: `${tripProgress}%` }}
-                  />
-                </div>
-              </div>
+              <p className="w-full inline-flex justify-between border rounded-md px-4 py-2">
+                <span>Trip progress</span>
+                {tripProgress}%
+              </p>
             )}
+
+            {/* {status === "confirmed" ? (
+              <p className="border rounded-md px-4 py-2">
+                {role === "guest"
+                  ? "Your booking is confirmed. Starts in: "
+                  : role === "host"
+                  ? "Trip is confirmed. Starts in: "
+                  : "Booking is confirmed. Starts in: "}
+                {cdStart &&
+                (cdStart.days || cdStart.hours || cdStart.minutes) ? (
+                  <>
+                    {cdStart.days ? `${cdStart.days} d ` : ""}
+                    {cdStart.hours} h {cdStart.minutes} m
+                  </>
+                ) : (
+                  <span>less than a minute</span>
+                )}
+              </p>
+            ) : status === "onApproval" ? (
+              <p className="border rounded-md px-4 py-2">
+                {role === "host"
+                  ? "Confirm the guest's booking request as soon as possible."
+                  : role === "guest"
+                  ? "Your request was sent. You can cancel it anytime before confirmation."
+                  : "Booking request is pending host approval."}
+              </p>
+            ) : status === "finished" ? (
+              <p className="border rounded-md px-4 py-2">Trip is finished.</p>
+            ) : null} */}
           </section>
 
           {/* Клиент: только в create-режиме */}
@@ -2297,11 +2333,11 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
                   }
                 }}
                 data={deliveryOptions}
-                readOnly={isDisabled}
+                readOnly={isLocked}
                 radius="md"
-                className={isDisabled ? "opacity-60" : ""}
+                className={isLocked ? "opacity-60" : ""}
                 classNames={{
-                  input: isDisabled
+                  input: isLocked
                     ? "!cursor-not-allowed focus:border-gray-300"
                     : "",
                 }}
@@ -2316,7 +2352,7 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
               {/* +++ адресный блок — показываем только при by_address */}
               {delivery === "by_address" && (
                 <div
-                  className={`mt-3 space-y-3 ${isDisabled ? "opacity-60" : ""}`}
+                  className={`mt-3 space-y-3 ${isLocked ? "opacity-60" : ""}`}
                 >
                   <div className="h-60 rounded-xl overflow-hidden border border-gray-200 my-3">
                     <Map
@@ -2326,12 +2362,12 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
                       style={{ width: "100%", height: "100%" }}
                       mapStyle="mapbox://styles/megadoze/cldamjew5003701p5mbqrrwkc"
                       mapboxAccessToken={import.meta.env.VITE_MAPBOX_TOKEN}
-                      interactive={!isDisabled}
+                      interactive={!isLocked}
                     >
                       <Marker
                         longitude={deliveryLong ?? car?.long ?? 30.52}
                         latitude={deliveryLat ?? car?.lat ?? 50.45}
-                        draggable={!isDisabled}
+                        draggable={!isLocked}
                         onDragEnd={async (e) => {
                           const { lat, lng } = e.lngLat;
                           setDeliveryLat(lat);
@@ -2360,7 +2396,7 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
                         trackUserLocation
                         showUserHeading
                         onGeolocate={async (pos) => {
-                          if (isDisabled) return;
+                          if (isLocked) return;
                           const lat = pos.coords.latitude;
                           const lng = pos.coords.longitude;
                           setDeliveryLat(lat);
@@ -2397,7 +2433,7 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
                   <AddressAutofillWrapper
                     accessToken={import.meta.env.VITE_MAPBOX_TOKEN}
                     onRetrieve={async (res: any) => {
-                      if (isDisabled) return;
+                      if (isLocked) return;
                       const f = res?.features?.[0];
                       const coords = f?.geometry?.coordinates as
                         | [number, number]
@@ -2445,7 +2481,7 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
                       placeholder="Enter delivery address"
                       autoComplete="address-line1"
                       className="w-full p-2 outline-none border border-gray-300 focus:border-gray-600 rounded-md"
-                      disabled={isDisabled}
+                      disabled={isLocked}
                     />
                   </AddressAutofillWrapper>
 
@@ -2496,19 +2532,19 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
                       checked={pickedExtras.includes(ex.id)}
                       onChange={(e) => {
                         const checked = e.currentTarget.checked;
-                        if (isDisabled) return;
+                        if (isLocked) return;
                         setPickedExtras((prev) =>
                           checked
                             ? [...prev, ex.id]
                             : prev.filter((x) => x !== ex.id)
                         );
                       }}
-                      className={isDisabled ? "opacity-80" : ""}
+                      className={isLocked ? "opacity-80" : ""}
                       classNames={{
-                        root: isDisabled ? "!cursor-not-allowed" : "",
-                        input: isDisabled ? "!cursor-not-allowed" : "",
+                        root: isLocked ? "!cursor-not-allowed" : "",
+                        input: isLocked ? "!cursor-not-allowed" : "",
                         label:
-                          (isDisabled ? "!cursor-not-allowed " : "") +
+                          (isLocked ? "!cursor-not-allowed " : "") +
                           (ex.inactive ? "opacity-70" : ""),
                       }}
                     />
@@ -2636,8 +2672,12 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
                   </p>
                 )}
                 {status === "confirmed" ? (
-                  <p className=" border rounded-md px-4 py-2">
-                    Trip starts in:&nbsp;
+                  <p className="border rounded-md px-4 py-2">
+                    {role === "guest"
+                      ? "Your booking is confirmed. Starts in: "
+                      : role === "host"
+                      ? "Trip is confirmed. Starts in: "
+                      : "Booking is confirmed. Starts in: "}
                     {cdStart &&
                     (cdStart.days || cdStart.hours || cdStart.minutes) ? (
                       <>
@@ -2648,36 +2688,55 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
                       <span>less than a minute</span>
                     )}
                   </p>
-                ) : (
-                  status === "onApproval" && (
-                    <p className="border rounded-md px-4 py-2">
-                      Confirm the guest's booking request as soon as possible.
-                    </p>
-                  )
-                )}
+                ) : status === "onApproval" ? (
+                  <p className="border rounded-md px-4 py-2">
+                    {role === "host"
+                      ? "Confirm the guest's booking request as soon as possible."
+                      : role === "guest"
+                      ? "Your request was sent. You can cancel it anytime before confirmation."
+                      : "Booking request is pending host approval."}
+                  </p>
+                ) : status === "finished" ? (
+                  <p className="border rounded-md px-4 py-2">
+                    Trip is finished.
+                  </p>
+                ) : null}
                 {status === "finished" && (
                   <p className="border rounded-md px-4 py-2">
                     Trip is finished.
                   </p>
                 )}
               </section>
-              {!isDisabled && (
+
+              {(viewingAsHost || canCancel) && (
                 <div className="hidden mt-6 space-y-2 lg:block">
-                  <button
-                    className="w-full border rounded-md border-green-400 text-green-500 py-2 text-sm disabled:border-gray-300 disabled:text-gray-400"
-                    onClick={handleConfirm}
-                    disabled={!canConfirm || saving}
-                  >
-                    Confirm booking
-                  </button>
-                  <button
-                    className="w-full border rounded-md border-gray-300 text-gray-700 py-2 text-sm disabled:border-gray-300 disabled:text-gray-400"
-                    onClick={handleCancel}
-                    disabled={!canCancel || saving}
-                  >
-                    Cancel booking
-                  </button>
+                  {viewingAsHost && canConfirm && (
+                    <button
+                      className="w-full border rounded-md border-green-400 text-green-500 py-2 text-sm disabled:border-gray-300 disabled:text-gray-400"
+                      onClick={handleConfirm}
+                      disabled={saving}
+                    >
+                      Confirm booking
+                    </button>
+                  )}
+                  {canCancel && (
+                    <button
+                      className="w-full border rounded-md border-gray-300 text-gray-700 py-2 text-sm disabled:border-gray-300 disabled:text-gray-400"
+                      onClick={handleCancel}
+                      disabled={saving}
+                    >
+                      {cancelLabel}
+                    </button>
+                  )}
                 </div>
+              )}
+
+              {isGuestReadOnly && guestCanCancel && (
+                <p className="mt-2 text-xs text-gray-500">
+                  {status === "onApproval"
+                    ? "You can cancel this request anytime before the host confirms."
+                    : "You can cancel ≥ 24h before start and not during rent."}
+                </p>
               )}
             </>
           )}
@@ -2768,16 +2827,16 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
           {/* Customer mini card */}
           {mode !== "create" && mark === "booking" && (
             <>
-              {viewingAsGuest && <HostMiniCard host={hostQ.data} />}
+              {viewingAsGuest && <HostMiniCard host={host} />}
               {viewingAsHost && <GuestMiniCard guest={guest} />}
 
               {/* если роль не определилась (например, открыл админ/третий) — можно показать обе */}
-              {!viewingAsGuest && !viewingAsHost && (
+              {/* {!viewingAsGuest && !viewingAsHost && (
                 <>
                   <HostMiniCard host={hostQ.data} />
                   <GuestMiniCard guest={guest} />
                 </>
-              )}
+              )} */}
             </>
           )}
         </aside>
@@ -2823,9 +2882,29 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
               </button>
             ) : (
               <>
-                {mode !== "create" &&
-                (status === "onApproval" || status === "confirmed") &&
-                !isChanged ? (
+                {/* 1) Хост + можно подтверждать => показываем Confirm (и при желании Cancel рядом) */}
+                {viewingAsHost && canConfirm ? (
+                  <>
+                    <button
+                      onClick={handleConfirm}
+                      className="flex-1 rounded-md border border-green-400 text-green-500 py-3 text-sm active:scale-[.99] transition"
+                      disabled={saving}
+                    >
+                      Confirm booking
+                    </button>
+
+                    {canCancel && (
+                      <button
+                        onClick={handleCancel}
+                        className="flex-1 border rounded-md border-gray-300 text-gray-700 py-3 text-sm active:scale-[.99] transition"
+                        disabled={saving}
+                      >
+                        {cancelLabel}
+                      </button>
+                    )}
+                  </>
+                ) : canCancel ? (
+                  /* 2) Если подтвердить нельзя, но отменить можно — показываем Cancel */
                   <button
                     onClick={handleCancel}
                     className="flex-1 border rounded-md border-gray-300 text-gray-700 py-3 text-sm active:scale-[.99] transition"
@@ -2833,31 +2912,19 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
                   >
                     Cancel booking
                   </button>
-                ) : (
-                  <button
-                    type="button"
-                    className="flex-1 border-gray-300 border rounded-md px-6 py-2 mr-2 text-gray-700"
-                    onClick={() => goBack()}
-                    disabled={saving}
-                  >
-                    Back
-                  </button>
-                )}
-
-                {mode !== "create" && status === "onApproval" && !isChanged ? (
-                  <button
-                    onClick={handleConfirm}
-                    className="flex-1 rounded-md border border-green-400 text-green-500 py-3 text-sm active:scale-[.99] transition"
-                    disabled={saving}
-                  >
-                    Confirm booking
-                  </button>
                 ) : isChanged ? (
+                  /* 3) Кнопка Save (когда есть изменения и это уместно) */
                   <button
                     type="button"
                     className="border-green-400 text-green-500 flex-1 border rounded-md px-8 py-2 inline-flex items-center justify-center gap-2"
                     onClick={handleSave}
-                    disabled={isLoading || invalidTime || saving}
+                    disabled={
+                      !viewingAsHost ||
+                      isLoading ||
+                      invalidTime ||
+                      !isChanged ||
+                      saving
+                    }
                   >
                     {saving ? (
                       <>
@@ -2869,6 +2936,7 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
                     )}
                   </button>
                 ) : (
+                  /* 4) Иначе — Back */
                   <button
                     type="button"
                     className="flex-1 border-gray-300 border rounded-md px-6 py-2 mr-2 text-gray-700"
@@ -2901,8 +2969,10 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
               <RentalDateTimePicker
                 value={calendarRange}
                 onChange={(next) => {
-                  handleCalendarChange(next);
-                  setPickerOpen(false);
+                  if (!isLocked) {
+                    handleCalendarChange(next);
+                    setPickerOpen(false);
+                  }
                 }}
                 minuteStep={30}
                 minDate={startOfDay(new Date())}

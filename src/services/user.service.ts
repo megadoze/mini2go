@@ -187,7 +187,7 @@ export async function fetchUserBookings(
       )
     `)
     .eq("user_id", userId)
-    .order("start_at", { ascending: false })
+    .order("created_at", { ascending: false })
     .limit(20);
 
   if (ownerId) {

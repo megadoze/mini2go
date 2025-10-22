@@ -273,7 +273,7 @@ export async function fetchBookingsIndexPage(params: {
     .from("bookings_index")
     .select("*", { count: "exact" })
     .eq("owner_id", ownerId)
-    .order("start_at", { ascending: false })
+    .order("created_at", { ascending: false })
     .range(offset, offset + limit - 1);
 
   if (status) qy = qy.eq("status", status.toLowerCase());
@@ -319,7 +319,7 @@ export async function fetchBookingsByUser(params: {
     .from("bookings_index")
     .select("*", { count: "exact" })
     .eq("user_id", userId)
-    .order("start_at", { ascending: false })
+    .order("created_at", { ascending: false })
     .range(offset, offset + limit - 1);
 
   if (status) qy = qy.eq("status", status.toLowerCase());
