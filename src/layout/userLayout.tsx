@@ -141,7 +141,7 @@ export default function UserLayout() {
             />
           </div>
           <SidebarMenu />
-          <div className="lg:hidden fixed left-8 right-8 bottom-4 text-black/80 border border-white/80 rounded-xl">
+          <div className="lg:hidden fixed left-6 right-6 bottom-4 text-black/80 border border-white/80 rounded-xl">
             <UserMenu onClick={toggle} />
           </div>
         </Drawer>
