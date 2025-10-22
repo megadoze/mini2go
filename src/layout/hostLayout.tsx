@@ -150,7 +150,7 @@ export default function HostLayout() {
           withinPortal
           overlayProps={{ opacity: 0.2 }}
           classNames={{
-            body: "h-full ",
+            body: "h-full",
           }}
         >
           <div className=" absolute right-1 top-4 mr-3">
@@ -164,7 +164,7 @@ export default function HostLayout() {
             />
           </div>
           <SidebarMenu />
-          <div className="lg:hidden fixed bottom-2 text-black/80 border border-white/80 rounded-xl">
+          <div className="lg:hidden fixed left-4 right-4 bottom-2 text-black/80 border border-white/80 rounded-xl">
             <UserMenu onClick={toggle} />
           </div>
         </Drawer>

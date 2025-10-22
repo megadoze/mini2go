@@ -1,6 +1,3 @@
-// supabase/functions/create-customer/index.ts
-// Deno Deploy / Edge Functions
-
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {

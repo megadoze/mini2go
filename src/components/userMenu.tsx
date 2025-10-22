@@ -210,15 +210,17 @@ function UserMenu({ onClick }: Props) {
 
   return (
     <Menu
-      withArrow
+      // withArrow
       transitionProps={{ transition: "rotate-right", duration: 150 }}
       offset={4}
+      width={"200"} // ширина выпадающего меню
+      position="bottom-end"
     >
       <Menu.Target>
-        <UnstyledButton className="p-3" aria-label="User menu">
+        <UnstyledButton aria-label="User menu" className=" w-full">
           <Group
             gap={10}
-            className="inline-flex items-center rounded-xl lg:bg-white/60 ring-1 ring-black/5 shadow-sm px-2.5 py-1.5 transition hover:bg-white-800/80"
+            className="inline-flex !justify-center items-center rounded-xl lg:bg-white/60 ring-1 ring-black/5 shadow-sm px-2.5 py-3 md:py-1.5 transition hover:bg-white-800/80"
           >
             {showImg ? (
               <img
