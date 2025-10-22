@@ -210,9 +210,10 @@ function UserMenu({ onClick }: Props) {
 
   return (
     <Menu
-      // withArrow
+      withArrow
+      arrowPosition="center"
       transitionProps={{ transition: "rotate-right", duration: 150 }}
-      offset={4}
+      offset={6}
       width={"200"} // ширина выпадающего меню
       position="bottom-end"
     >
