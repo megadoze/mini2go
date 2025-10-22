@@ -74,19 +74,21 @@ export default function AddCarWizard() {
 
   const qc = useQueryClient();
 
+  const currentYear = new Date().getFullYear();
+
   const [form, setForm] = useState({
     owner: "",
     vin: "",
     brandId: "",
     modelId: "",
     licensePlate: "",
-    year: "",
+    year: currentYear,
     fuelType: "",
     transmission: "",
-    engine: "",
+    engine: "1.0",
     driveType: "",
-    doors: "",
-    seats: "",
+    doors: "4",
+    seats: "5",
     countryId: "",
     countryName: "",
     locationId: "",

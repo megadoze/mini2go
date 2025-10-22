@@ -304,24 +304,6 @@ export default function CarDetails() {
     }
   };
 
-  // async function handleDelete() {
-  //   setLoading(true);
-
-  //   try {
-  //     if (!carId) throw new Error("No car ID");
-
-  //     await deleteCar(carId);
-  //     removeCar(carId);
-  //     toast.success("Car deleted");
-  //     navigate("/cars");
-  //   } catch (error) {
-  //     console.error(error);
-  //     alert("Failed to remove vehicle");
-  //   } finally {
-  //     setLoading(false);
-  //   }
-  // }
-
   async function handleDelete() {
     if (!carId) return alert("No car ID");
 

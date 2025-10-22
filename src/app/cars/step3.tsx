@@ -1,5 +1,5 @@
 import { decodeVinAndFillForm } from "@/services/vin.service";
-import { NativeSelect, TextInput } from "@mantine/core";
+import { NativeSelect, NumberInput, TextInput } from "@mantine/core";
 import { useEffect, useState } from "react";
 import { fuelTypes, driveTypes, transmissions } from "@/constants/carOptions";
 import { fetchBrands, fetchModelsByBrand } from "@/services/car.service";
@@ -219,11 +219,11 @@ export default function Step3({ form, handleChange }: any) {
       {showManualFields && (
         <>
           <NativeSelect
-            label="Brand"
+            label="Mark"
             value={form.brandId}
             onChange={(e) => handleChange("brandId", e.currentTarget.value)}
             data={[
-              { value: "", label: "Выбери бренд" },
+              { value: "", label: "Select mark" },
               ...brands.map((b: any) => ({
                 value: b.id,
                 label: b.name,
@@ -236,7 +236,7 @@ export default function Step3({ form, handleChange }: any) {
             value={form.modelId}
             onChange={(e) => handleChange("modelId", e.currentTarget.value)}
             data={[
-              { value: "", label: "Выбери модель" },
+              { value: "", label: "Select model" },
               ...models.map((m: any) => ({
                 value: m.id,
                 label: m.name,
@@ -245,11 +245,10 @@ export default function Step3({ form, handleChange }: any) {
             disabled={!form.brandId}
           />
 
-          <TextInput
+          <NumberInput
             label="Year"
-            type="number"
             value={form.year}
-            onChange={(e) => handleChange("year", e.currentTarget.value)}
+            onChange={(v) => handleChange("year", v === null ? "" : String(v))}
           />
 
           <NativeSelect
@@ -257,7 +256,7 @@ export default function Step3({ form, handleChange }: any) {
             value={form.fuelType}
             onChange={(e) => handleChange("fuelType", e.currentTarget.value)}
             data={[
-              { value: "", label: "Выбери тип топлива" },
+              { value: "", label: "Select fuel type" },
               ...fuelOptions.map((f) => ({ value: f, label: f })),
             ]}
           />
@@ -269,17 +268,23 @@ export default function Step3({ form, handleChange }: any) {
               handleChange("transmission", e.currentTarget.value)
             }
             data={[
-              { value: "", label: "Выбери коробку" },
+              { value: "", label: "Select transmission" },
               ...transmissionOptions.map((t) => ({ value: t, label: t })),
             ]}
           />
 
-          <TextInput
-            label="Engine"
-            type="number"
-            step={0.1}
+          <NumberInput
+            label="Engine capacity"
             value={form.engine}
-            onChange={(e) => handleChange("engine", e.currentTarget.value)}
+            onChange={(v) =>
+              handleChange("engine", typeof v === "number" ? v : Number(v ?? 0))
+            }
+            step={0.1}
+            decimalScale={1}
+            fixedDecimalScale
+            defaultValue={1.0}
+            min={1}
+            max={6}
           />
 
           <NativeSelect
@@ -287,25 +292,27 @@ export default function Step3({ form, handleChange }: any) {
             value={form.driveType}
             onChange={(e) => handleChange("driveType", e.currentTarget.value)}
             data={[
-              { value: "", label: "Выбери тип топлива" },
+              { value: "", label: "Select drive type" },
               ...driveOptions.map((f) => ({ value: f, label: f })),
             ]}
           />
 
-          <TextInput
+          <NumberInput
             label="Doors"
-            type="number"
-            step={1}
             value={form.doors}
-            onChange={(e) => handleChange("doors", e.currentTarget.value)}
+            onChange={(v) => handleChange("doors", v === null ? "" : String(v))}
+            defaultValue={2}
+            min={2}
+            max={5}
           />
 
-          <TextInput
+          <NumberInput
             label="Seats"
-            type="number"
-            step={1}
             value={form.seats}
-            onChange={(e) => handleChange("seats", e.currentTarget.value)}
+            onChange={(v) => handleChange("seats", v === null ? "" : String(v))}
+            defaultValue={2}
+            min={2}
+            max={9}
           />
         </>
       )}

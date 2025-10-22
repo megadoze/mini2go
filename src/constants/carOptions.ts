@@ -1,5 +1,5 @@
 export const fuelTypes = ["Gasoline", "Diesel", "Electro", "Hybrid"] as const;
-export const transmissions = ["Manual", "Automatic"] as const;
+export const transmissions = ["Automatic", "Manual"] as const;
 export const driveTypes = ["Front", "Rear", "Full"] as const;
 export const bodyTypes = [
   "Sedan",
