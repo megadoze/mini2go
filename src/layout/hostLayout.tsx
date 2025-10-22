@@ -164,7 +164,7 @@ export default function HostLayout() {
             />
           </div>
           <SidebarMenu />
-          <div className="lg:hidden fixed left-4 right-4 bottom-2 text-black/80 border border-white/80 rounded-xl">
+          <div className="lg:hidden fixed left-8 right-8 bottom-4 text-black/80 border border-white/80 rounded-xl">
             <UserMenu onClick={toggle} />
           </div>
         </Drawer>
