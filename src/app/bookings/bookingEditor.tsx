@@ -294,6 +294,7 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
     initialData: extrasFromCtx.length ? extrasFromCtx : undefined,
     staleTime: 5 * 60_000,
     refetchOnMount: false,
+    refetchOnWindowFocus: true,
   });
 
   // Единая точка правды про машину
@@ -854,8 +855,6 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
       seasonalRates,
     ]
   );
-
-  console.log(avgPerDay);
 
   const rawMinutes = differenceInMinutes(
     new Date(endDateInp),
