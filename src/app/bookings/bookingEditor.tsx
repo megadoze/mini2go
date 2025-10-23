@@ -63,6 +63,7 @@ import { HostMiniCard } from "@/components/hostMiniCard";
 import { GuestMiniCard } from "@/components/guestMiniCard";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
+import { fetchPricingRules } from "../car/pricing/pricing.service";
 
 const GUEST_CANCEL_MIN_MS = 24 * 60 * 60 * 1000; // сутки
 
@@ -253,10 +254,36 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
     refetchOnMount: false,
   });
 
+  // const effectivePricingRules =
+  //   carCtx?.pricingRules && carCtx.pricingRules.length > 0
+  //     ? carCtx.pricingRules
+  //     : carQ.data?.pricingRules ?? [];
+
+  const snapshotRules = (snapshot as any)?.pricing_rules ?? [];
+
+  // если ни контекст, ни carQ не принесли правил — подгружаем публичные
+  const { data: publicRules = [] } = useQuery({
+    queryKey: ["pricingRulesPublic", String(carId)],
+    queryFn: () => fetchPricingRules(String(carId!)), // см. сервис ниже
+    enabled:
+      !!carId &&
+      !(
+        (carCtx?.pricingRules?.length ?? 0) > 0 ||
+        (carQ.data?.pricingRules?.length ?? 0) > 0 ||
+        (snapshotRules?.length ?? 0) > 0
+      ),
+    staleTime: 5 * 60_000,
+    refetchOnMount: false,
+  });
+
   const effectivePricingRules =
-    carCtx?.pricingRules && carCtx.pricingRules.length > 0
-      ? carCtx.pricingRules
-      : carQ.data?.pricingRules ?? [];
+    (carCtx?.pricingRules?.length ?? 0) > 0
+      ? carCtx!.pricingRules
+      : (carQ.data?.pricingRules?.length ?? 0) > 0
+      ? carQ.data!.pricingRules
+      : (snapshotRules?.length ?? 0) > 0
+      ? snapshotRules
+      : publicRules;
 
   const extrasFromCtx = isSameCtxCar ? carCtx?.extras ?? [] : [];
 
@@ -788,6 +815,8 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
       seasonalRates,
     ]
   );
+
+  console.log(avgPerDay);
 
   const rawMinutes = differenceInMinutes(
     new Date(endDateInp),

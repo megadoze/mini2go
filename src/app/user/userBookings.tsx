@@ -56,6 +56,7 @@ import {
 } from "@/services/bookings.service";
 import { getUserById } from "@/services/user.service";
 import { supabase } from "@/lib/supabase";
+import { getGlobalSettings } from "@/services/settings.service";
 
 type LoaderData = { userId: string };
 
@@ -335,11 +336,11 @@ export default function UserBookings() {
     uId?: string
   ) {
     await Promise.all([
-      // qc.prefetchQuery({
-      //   queryKey: QK.appSettingsByOwner(userId),
-      //   queryFn: () => getGlobalSettings(userId),
-      //   staleTime: 5 * 60_000,
-      // }),
+      qc.prefetchQuery({
+        queryKey: QK.appSettingsByOwner(userId),
+        queryFn: () => getGlobalSettings(userId),
+        staleTime: 5 * 60_000,
+      }),
       qc.prefetchQuery({
         queryKey: QK.extras,
         queryFn: fetchExtras,
