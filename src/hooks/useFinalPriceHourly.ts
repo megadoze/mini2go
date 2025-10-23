@@ -71,11 +71,20 @@ export function calculateFinalPriceProRated({
     .filter((r) => r.min_days <= totalDaysFloat)
     .sort((a, b) => b.min_days - a.min_days)[0];
 
-  if (rule) {
-    total *= 1 + sToNum(rule.discount_percent) / 100; // тут уже "+", потому что -10 даст 0.9
+  let discountApplied = 0;
+
+   if (rule) {
+    discountApplied = sToNum(rule.discount_percent);
+    total *= 1 + discountApplied / 100;
   }
 
+  // if (rule) {
+  //   total *= 1 + sToNum(rule.discount_percent) / 100;
+  // }
+
   total = Math.round(total * 100) / 100;
+
+  const avgPerDay = totalDaysFloat > 0 ? total / totalDaysFloat : baseDailyPrice;
 
   const hours = Math.floor((minutes % 1440) / 60);
   const mins = minutes % 60;
@@ -86,6 +95,8 @@ export function calculateFinalPriceProRated({
     hours,
     minutes: mins,
     pricePerDay: baseDailyPrice,
+    avgPerDay,
+    discountApplied,
   };
 }
 

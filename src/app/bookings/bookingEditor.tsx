@@ -38,6 +38,7 @@ import {
   ArrowRightIcon,
   CalendarDaysIcon,
   ChevronRightIcon,
+  PercentBadgeIcon,
   ShareIcon,
 } from "@heroicons/react/24/outline";
 import { subscribeBooking } from "@/services/bookings.service";
@@ -750,7 +751,23 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
 
   const baseDailyPrice = Number((car as any)?.price ?? 0);
 
-  const { total: baseTotal } = useMemo(
+  // const { total: baseTotal } = useMemo(
+  //   () =>
+  //     calculateFinalPriceProRated({
+  //       startAt: new Date(startDateInp),
+  //       endAt: new Date(endDateInp),
+  //       baseDailyPrice,
+  //       pricingRules,
+  //       seasonalRates,
+  //     }),
+  //   [startDateInp, endDateInp, baseDailyPrice, pricingRules, seasonalRates]
+  // );
+
+  const {
+    total: baseTotal,
+    avgPerDay,
+    discountApplied,
+  } = useMemo(
     () =>
       calculateFinalPriceProRated({
         startAt: new Date(startDateInp),
@@ -2658,7 +2675,24 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
           {mark === "booking" && (
             <section className="mt-4 text-sm">
               <div className="flex justify-between">
-                <span>Price base</span>
+                <span>Price per day</span>
+                {baseDailyPrice.toFixed(2)} {effectiveCurrency}
+              </div>
+              {discountApplied !== 0 && (
+                <div className="flex justify-between text-green-600">
+                  <span className="flex items-center gap-1">
+                    Discount
+                    <PercentBadgeIcon className=" size-4" />
+                  </span>
+                  {discountApplied?.toFixed(1)}%
+                </div>
+              )}
+              <div className="flex justify-between">
+                <span>Price with discount</span>
+                {avgPerDay?.toFixed(2)} {effectiveCurrency}
+              </div>
+              <div className="flex justify-between">
+                <span>Total for rent</span>
                 {baseTotal.toFixed(2)} {effectiveCurrency}
               </div>
               {deliveryFee > 0 && (
