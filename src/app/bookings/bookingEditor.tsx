@@ -149,9 +149,8 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
   const ctxCarId = (carFromCtx as any)?.id ?? null;
 
   const setCar = carCtx?.setCar;
-  const pricingRules = carCtx?.pricingRules ?? [];
+  // const pricingRules = carCtx?.pricingRules ?? [];
   const seasonalRates = carCtx?.seasonalRates ?? [];
-  // const extras = carCtx?.extras ?? [];
 
   const effectiveCurrency = (carCtx as any)?.effectiveCurrency ?? "EUR";
 
@@ -253,6 +252,11 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
     staleTime: 5 * 60_000,
     refetchOnMount: false,
   });
+
+  const effectivePricingRules =
+    carCtx?.pricingRules && carCtx.pricingRules.length > 0
+      ? carCtx.pricingRules
+      : carQ.data?.pricingRules ?? [];
 
   const extrasFromCtx = isSameCtxCar ? carCtx?.extras ?? [] : [];
 
@@ -773,10 +777,16 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
         startAt: new Date(startDateInp),
         endAt: new Date(endDateInp),
         baseDailyPrice,
-        pricingRules,
+        pricingRules: effectivePricingRules,
         seasonalRates,
       }),
-    [startDateInp, endDateInp, baseDailyPrice, pricingRules, seasonalRates]
+    [
+      startDateInp,
+      endDateInp,
+      baseDailyPrice,
+      effectivePricingRules,
+      seasonalRates,
+    ]
   );
 
   const rawMinutes = differenceInMinutes(
