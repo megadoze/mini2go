@@ -426,7 +426,7 @@ export default function RentalDateTimePicker({
         ))}
       </div>
 
-      <div className=" mt-4 grid sm:grid-cols-2 gap-3">
+      <div className=" mt-2 grid sm:grid-cols-2 gap-3">
         <div className="rounded-xl border border-gray-200 p-3">
           <div className=" flex justify-between">
             <div className="text-xs text-gray-500">Pick Up</div>
@@ -456,7 +456,7 @@ export default function RentalDateTimePicker({
           )}
         </div>
 
-        <div className="rounded-xl border border-gray-200 p-3">
+        <div className="rounded-xl border border-gray-200 p-2">
           <div className=" flex justify-between">
             <div className="text-xs text-gray-500">Drop Off</div>
             <div className="mt-1 text-sm font-medium min-h-[20px]">
@@ -486,7 +486,7 @@ export default function RentalDateTimePicker({
         </div>
       </div>
 
-      <div className="mt-0">
+      <div>
         <div className="text-xs text-red-500 min-h-[1rem]">
           {rangeBlocked ? "Выбранный диапазон пересекается с блокировками" : ""}
         </div>

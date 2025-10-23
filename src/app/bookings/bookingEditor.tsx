@@ -2955,7 +2955,7 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
       {/* Календарь */}
       {pickerOpen && (
         <div
-          className="fixed inset-0 bg-black/40 flex items-center justify-center z-[999]"
+          className="fixed inset-0 bg-black/40 flex items-center justify-center lg:z-[999]"
           onClick={() => setPickerOpen(false)}
           role="dialog"
           aria-modal="true"
