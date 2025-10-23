@@ -262,12 +262,6 @@ export default function BookingsList() {
   const countries = countriesQ.data ?? [];
   const locations = locationsQ.data ?? [];
 
-  /* -------------------- apply filters, then sort -------------------- */
-  // const filtered = useMemo(
-  //   () => [...items].sort((a, b) => (a.startAt < b.startAt ? 1 : -1)),
-  //   [items]
-  // );
-
   const list = items;
 
   /* -------------------- open editor helpers -------------------- */

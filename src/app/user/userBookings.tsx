@@ -222,10 +222,7 @@ export default function UserBookings() {
     }));
   }, [items]);
 
-  const filtered = useMemo(
-    () => [...formattedItems].sort((a, b) => (a.startAt < b.startAt ? 1 : -1)),
-    [formattedItems]
-  );
+  const list = formattedItems;
 
   /* -------------------- open editor helpers -------------------- */
   const [openingId, setOpeningId] = useState<string | null>(null);
@@ -474,14 +471,14 @@ export default function UserBookings() {
           <div className="flex justify-center items-center gap-2 text-center text-zinc-500 mt-10">
             <Loader size="sm" /> Loading...
           </div>
-        ) : filtered.length === 0 ? (
+        ) : list.length === 0 ? (
           <div className="p-6 rounded-2xl border text-gray-600 text-sm">
             Броней пока нет.
           </div>
         ) : (
           <>
             <div className="flex flex-col">
-              {filtered.map((b) => {
+              {list.map((b) => {
                 return (
                   <Link
                     key={b.id}
