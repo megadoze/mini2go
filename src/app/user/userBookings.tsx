@@ -55,6 +55,7 @@ import {
   type BookingsIndexRow,
 } from "@/services/bookings.service";
 import { getUserById } from "@/services/user.service";
+import { supabase } from "@/lib/supabase";
 
 type LoaderData = { userId: string };
 
@@ -150,6 +151,58 @@ export default function UserBookings() {
       return { pages: [old.pages[0]], pageParams: [0] };
     });
   };
+
+  useEffect(() => {
+    if (!userId) return;
+
+    const channel = supabase.channel(`bookings_user_${userId}`).on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "bookings",
+        filter: `user_id=eq.${userId}`,
+      },
+      (payload: any) => {
+        const id = payload?.new?.id ?? payload?.old?.id;
+
+        // (1) Точечные кэши карточки и экстр
+        if (id) {
+          qc.invalidateQueries({ queryKey: QK.booking(id) });
+          qc.invalidateQueries({ queryKey: QK.bookingExtras(id) });
+        }
+
+        // (2) Инвалидируем весь пользовательский индекс (все фильтры/страницы)
+        qc.invalidateQueries({
+          predicate: (q) =>
+            Array.isArray(q.queryKey) &&
+            q.queryKey[0] === "bookingsUserInfinite",
+        });
+
+        // (3) ДОП: дергаем календарь по машине этой брони
+        const carId = payload?.new?.car_id ?? payload?.old?.car_id;
+        if (carId) {
+          qc.invalidateQueries({
+            queryKey: QK.bookingsByCarId(String(carId)),
+          });
+        }
+
+        // (4) На удаление — подчистить точечные кэши
+        if (payload.eventType === "DELETE" && id) {
+          qc.removeQueries({ queryKey: QK.booking(id) });
+          qc.removeQueries({ queryKey: QK.bookingExtras(id) });
+        }
+      }
+    );
+
+    channel.subscribe();
+
+    return () => {
+      try {
+        supabase.removeChannel(channel);
+      } catch {}
+    };
+  }, [userId, qc]);
 
   // при уходе со страницы — всегда возвращаем к первым 10
   useEffect(() => {

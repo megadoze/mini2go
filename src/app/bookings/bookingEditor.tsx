@@ -2095,42 +2095,48 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
           </section>
 
           {/* Прогресс бар */}
+          {/* Прогресс бар (слева в карточке) */}
           <section id="dates" className="mt-6">
-            {status === "rent" && typeof tripProgress === "number" && (
-              <p className="w-full inline-flex justify-between border rounded-md px-4 py-2">
-                <span>Trip progress</span>
-                {tripProgress}%
-              </p>
+            {status === "rent" && startDate && endDate && (
+              <div className="w-full">
+                <div className="flex items-center justify-between text-xs text-gray-600 mb-1">
+                  <span>{format(startDate, "d MMM, HH:mm")}</span>
+                  <span>{format(endDate, "d MMM, HH:mm")}</span>
+                </div>
+
+                {/* Полоса прогресса */}
+                <div className="h-2.5 w-full bg-gray-100 rounded-full overflow-hidden border border-gray-200">
+                  <div
+                    className="h-full bg-green-500 transition-[width] duration-500 ease-out"
+                    style={{ width: `${tripProgress}%` }}
+                    aria-valuenow={tripProgress}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    role="progressbar"
+                  />
+                </div>
+
+                <div className="mt-1 text-right text-xs text-gray-700">
+                  {tripProgress}%
+                </div>
+              </div>
             )}
 
-            {/* {status === "confirmed" ? (
-              <p className="border rounded-md px-4 py-2">
+            {status === "confirmed" && cdStart && (
+              <div className="border rounded-md px-4 py-2 text-sm">
                 {role === "guest"
                   ? "Your booking is confirmed. Starts in: "
                   : role === "host"
                   ? "Trip is confirmed. Starts in: "
                   : "Booking is confirmed. Starts in: "}
-                {cdStart &&
-                (cdStart.days || cdStart.hours || cdStart.minutes) ? (
-                  <>
-                    {cdStart.days ? `${cdStart.days} d ` : ""}
-                    {cdStart.hours} h {cdStart.minutes} m
-                  </>
-                ) : (
-                  <span>less than a minute</span>
-                )}
-              </p>
-            ) : status === "onApproval" ? (
-              <p className="border rounded-md px-4 py-2">
-                {role === "host"
-                  ? "Confirm the guest's booking request as soon as possible."
-                  : role === "guest"
-                  ? "Your request was sent. You can cancel it anytime before confirmation."
-                  : "Booking request is pending host approval."}
-              </p>
-            ) : status === "finished" ? (
-              <p className="border rounded-md px-4 py-2">Trip is finished.</p>
-            ) : null} */}
+                {cdStart.days ? `${cdStart.days} d ` : ""}
+                {cdStart.hours} h {cdStart.minutes} m
+                {/* Доп. тонкая «до старта» полоса */}
+                <div className="mt-2 h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
+                  <div className="h-full bg-gray-400 w-0" />
+                </div>
+              </div>
+            )}
           </section>
 
           {/* Клиент: только в create-режиме */}
