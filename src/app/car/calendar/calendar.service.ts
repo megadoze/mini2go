@@ -25,10 +25,16 @@ export async function fetchBookingById(id: string): Promise<BookingFull> {
   .from('v_bookings_full')
   .select('*')
   .eq('id', id)
-  .single();
+  .maybeSingle();
 
-  if (error) throw error;
-  return data as BookingFull;
+if (error) throw error;
+  if (!data) {
+    const err = new Error("Booking not found");
+    (err as any).code = "NOT_FOUND";
+    throw err;
+  }
+
+return data as BookingFull;
 }
 
 
@@ -53,8 +59,6 @@ export async function deleteBooking(id: string): Promise<void> {
 
   if (error) throw error;
 }
-
-// calendar.service.ts
 
 export async function updateBooking(
   id: string,

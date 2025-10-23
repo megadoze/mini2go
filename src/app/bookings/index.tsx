@@ -182,6 +182,8 @@ export default function BookingsList() {
           } else if (evt === "UPDATE") {
             // быстрый локальный патч, если запись уже есть в кэше
             patchIndexRowQuick(qc, { ...row, ...carMeta });
+          } else if (evt === "DELETE") {
+            removeIndexRow(qc, row.id, row.car_id);
           }
 
           // универсальная подстраховка: подтянуть сервером, если фильтры/страницы меняются
@@ -784,4 +786,44 @@ function prependIndexRow(qc: QueryClient, dbRow: any) {
       return { ...old, pages };
     }
   );
+}
+
+function removeIndexRow(qc: QueryClient, bookingId: string, carId?: string) {
+  // 1) Удаляем из всех бесконечных лент
+  qc.setQueriesData(
+    {
+      predicate: (q: any) =>
+        Array.isArray(q.queryKey) && q.queryKey[0] === "bookingsIndexInfinite",
+    },
+    (old: any) => {
+      if (!old?.pages?.length) return old;
+      const pages = old.pages.map((p: any) => {
+        if (Array.isArray(p?.items)) {
+          const nextItems = p.items.filter(
+            (x: any) => String(x.id) !== String(bookingId)
+          );
+          return { ...p, items: nextItems };
+        }
+        if (Array.isArray(p)) {
+          return p.filter((x: any) => String(x.id) !== String(bookingId));
+        }
+        return p;
+      });
+      return { ...old, pages };
+    }
+  );
+
+  // 2) Удаляем из кеша «броней по машине»
+  if (carId) {
+    qc.setQueryData(
+      QK.bookingsByCarId(String(carId)),
+      (list: any[] | undefined) =>
+        Array.isArray(list)
+          ? list.filter((b) => String(b.id) !== String(bookingId))
+          : list
+    );
+  }
+
+  // 3) Чистим одиночную запись
+  qc.removeQueries({ queryKey: QK.booking(bookingId), exact: true });
 }

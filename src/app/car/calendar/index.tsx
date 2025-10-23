@@ -583,14 +583,17 @@ export default function Calendar() {
     const b = allBookings.find((x) => x.id === id);
     if (!b) return;
 
+    await deleteBooking(id);
+
     // оптимистично: сразу уберём из всех кэшей
     removeFromCalendarWindowsCache(qc, b);
 
-    await deleteBooking(id);
     // оптимистично убрать из кэша
     qc.setQueryData<Booking[]>(listKey, (prev) =>
       (prev ?? []).filter((b) => b.id !== id)
     );
+
+    removeFromInfiniteLists(qc, id);
 
     setCar((prev) => ({
       ...prev,
@@ -614,14 +617,16 @@ export default function Calendar() {
       return;
     }
 
+    await deleteBooking(id);
+
     // оптимистично сразу убрать из большого календаря
     removeFromCalendarWindowsCache(qc, b);
-
-    await deleteBooking(id);
 
     qc.setQueryData<Booking[]>(listKey, (prev) =>
       (prev ?? []).filter((r) => r.id !== id)
     );
+
+    removeFromInfiniteLists(qc, id);
 
     setCar((prev) => ({
       ...prev,
@@ -978,5 +983,37 @@ export default function Calendar() {
         })}
       </div>
     </div>
+  );
+}
+
+function removeFromInfiniteLists(
+  qc: ReturnType<typeof useQueryClient>,
+  bookingId: string
+) {
+  qc.setQueriesData(
+    {
+      predicate: (q) =>
+        Array.isArray(q.queryKey) &&
+        (q.queryKey[0] === "bookingsIndexInfinite" ||
+          q.queryKey[0] === "bookingsUserInfinite"),
+    },
+    (old: any) => {
+      if (!old?.pages) return old;
+      const pages = old.pages.map((p: any) => {
+        if (Array.isArray(p?.items)) {
+          return {
+            ...p,
+            items: p.items.filter(
+              (x: any) => String(x.id) !== String(bookingId)
+            ),
+          };
+        }
+        if (Array.isArray(p)) {
+          return p.filter((x: any) => String(x.id) !== String(bookingId));
+        }
+        return p;
+      });
+      return { ...old, pages };
+    }
   );
 }

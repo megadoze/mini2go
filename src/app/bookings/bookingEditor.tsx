@@ -1539,6 +1539,25 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
 
         const saved = await updateBookingOptimistic(qc, bookingId!, patch);
 
+        if (mark === "booking") {
+          const extrasPayload = pickedExtras.map((id) => {
+            const ex = extrasMap.byId[id];
+            const qty =
+              ex?.price_type === "per_day" ? billableDaysForExtras : 1;
+            return {
+              extra_id: id,
+              title: ex?.title ?? "Extra",
+              qty,
+              price: ex?.price ?? 0,
+              price_type: ex?.price_type ?? "per_trip",
+            };
+          });
+          await upsertBookingExtras(bookingId!, extrasPayload);
+          qc.setQueryData(QK.bookingExtras(bookingId!), extrasPayload);
+          // можно подстраховаться инвалидацией:
+          qc.invalidateQueries({ queryKey: QK.bookingExtras(bookingId!) });
+        }
+
         if (saved.car_id) {
           touchBookingCache(qc, saved);
           patchCalendarWindowsCache(qc, saved);
