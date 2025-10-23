@@ -109,7 +109,9 @@ export const router = createBrowserRouter([
     ),
   },
   {
+    id: "userAuth",
     path: "user/:id",
+    loader: authLoader,
     element: (
       <>
         <ScrollToTop />
