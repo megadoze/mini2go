@@ -733,19 +733,17 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
     return unsubscribe;
   }, [bookingId, carId, qc]);
 
-  // если initialExtras не было, но extrasQ догрузил — заполнить чекбоксы
-  // useEffect(() => {
-  //   if (!Array.isArray(initialExtras) && Array.isArray(extrasQ.data)) {
-  //     setPickedExtras(extrasQ.data.map((r: any) => String(r.extra_id)));
-  //   }
-  // }, [extrasQ.data]);
-
   useEffect(() => {
-    if (!isGuestReadOnly) return; // только гостю авто-синк из сервера
     if (Array.isArray(extrasQ.data)) {
-      setPickedExtras(extrasQ.data.map((r: any) => String(r.extra_id)));
+      const next = extrasQ.data.map((r: any) => String(r.extra_id));
+      setPickedExtras((prev) => {
+        // чтобы лишний раз не триггерить ререндеры
+        const a = [...prev].sort().join(",");
+        const b = [...next].sort().join(",");
+        return a === b ? prev : next;
+      });
     }
-  }, [extrasQ.data, isGuestReadOnly]);
+  }, [extrasQ.data]);
 
   useEffect(() => {
     if (!bookingId) return;
