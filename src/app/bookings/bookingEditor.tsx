@@ -330,18 +330,28 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
     return undefined;
   }, [snapshot?.booking_extras, bookingId, qc]);
 
+  // const extrasQ = useQuery({
+  //   queryKey: QK.bookingExtras(bookingId!),
+  //   queryFn: () => fetchBookingExtras(bookingId!),
+  //   enabled:
+  //     mode === "edit" &&
+  //     !!bookingId &&
+  //     (snapshot?.booking?.mark ?? mark) === "booking" &&
+  //     (!initialExtras ||
+  //       (Array.isArray(initialExtras) && initialExtras.length === 0)),
+  //   initialData: initialExtras,
+  //   staleTime: 60_000,
+  //   refetchOnMount: false,
+  // });
+
   const extrasQ = useQuery({
     queryKey: QK.bookingExtras(bookingId!),
     queryFn: () => fetchBookingExtras(bookingId!),
-    enabled:
-      mode === "edit" &&
-      !!bookingId &&
-      (snapshot?.booking?.mark ?? mark) === "booking" &&
-      (!initialExtras ||
-        (Array.isArray(initialExtras) && initialExtras.length === 0)),
-    initialData: initialExtras,
-    staleTime: 60_000,
-    refetchOnMount: false,
+    enabled: mode === "edit" && !!bookingId && mark === "booking",
+    initialData: initialExtras, // можно оставить, чтобы сразу показать старые данные
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
   });
 
   // экстра, сохранённые в самой броне (фиксируем цену/название/price_type)
@@ -723,11 +733,40 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
   }, [bookingId, carId, qc]);
 
   // если initialExtras не было, но extrasQ догрузил — заполнить чекбоксы
+  // useEffect(() => {
+  //   if (!Array.isArray(initialExtras) && Array.isArray(extrasQ.data)) {
+  //     setPickedExtras(extrasQ.data.map((r: any) => String(r.extra_id)));
+  //   }
+  // }, [extrasQ.data]);
+
   useEffect(() => {
-    if (!Array.isArray(initialExtras) && Array.isArray(extrasQ.data)) {
+    if (!isGuestReadOnly) return; // только гостю авто-синк из сервера
+    if (Array.isArray(extrasQ.data)) {
       setPickedExtras(extrasQ.data.map((r: any) => String(r.extra_id)));
     }
-  }, [extrasQ.data]); // initialExtras намеренно не в deps
+  }, [extrasQ.data, isGuestReadOnly]);
+
+  useEffect(() => {
+    if (!bookingId) return;
+
+    const ch = supabase
+      .channel(`be_${bookingId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "booking_extras",
+          filter: `booking_id=eq.${bookingId}`,
+        },
+        () => qc.invalidateQueries({ queryKey: QK.bookingExtras(bookingId) })
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(ch);
+    };
+  }, [bookingId, qc]);
 
   useEffect(() => {
     if (mode !== "create" || hasMatchingSnapshot) return;
