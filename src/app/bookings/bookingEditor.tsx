@@ -1986,33 +1986,69 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
     return opts;
   }, [deliveryEnabled, delivery, car]);
 
+  const cardCls =
+    "rounded-2xl bg-white shadow-sm ring-1 ring-gray-200 px-4 py-4 sm:px-5 sm:py-5";
+
   if (isLoading) return <div className="p-4">Loading…</div>;
 
   return (
     <div className={`text-gray-800 max-w-4xl ${containerPad}`}>
       {/* Header */}
-      <div className="flex flex-wrap flex-col md:flex-row justify-between md:items-center">
-        <div className="flex items-center gap-2">
-          <h1 className="font-roboto text-xl md:text-2xl font-medium md:font-semibold">
-            {mode === "create" && mark === "booking" ? (
-              "New Booking"
-            ) : mark === "block" ? (
-              "Block dates"
-            ) : (
-              <>
-                Booking #
-                <span className=" font-normal text-green-500">{displayId}</span>
-              </>
-            )}
-          </h1>
+      <header className="mb-6 rounded-2xl bg-white shadow-sm ring-1 ring-gray-200 px-4 py-4 sm:px-6 sm:py-5">
+        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+          {/* left side: title + subtitle */}
+          <div className="flex flex-col">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-lg font-semibold text-gray-900 md:text-xl">
+                {mode === "create" && mark === "booking" ? (
+                  "New Booking"
+                ) : mark === "block" ? (
+                  "Block dates"
+                ) : (
+                  <>
+                    Booking&nbsp;#
+                    <span className="text-green-600 font-mono">
+                      {displayId}
+                    </span>
+                  </>
+                )}
+              </h1>
+
+              {mode === "edit" && mark === "booking" && (
+                <Badge
+                  variant="dot"
+                  color={statusView.cls as any}
+                  fw={500}
+                  className="uppercase tracking-wide text-[10px] leading-none"
+                >
+                  {statusView.text}
+                </Badge>
+              )}
+            </div>
+
+            {/* subline with car */}
+            <div className="mt-1 text-xs text-gray-500 md:text-sm flex flex-wrap items-center gap-2">
+              <span className="font-medium text-gray-700">
+                {car?.model?.brands?.name} {car?.model?.name} {car?.year}
+              </span>
+              {car?.licensePlate && (
+                <span className="rounded-md border border-gray-300 bg-gray-50 px-1.5 py-0.5 text-[10px] font-mono text-gray-700 shadow-sm">
+                  {car.licensePlate}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* right side: actions (QR / Share) */}
           {mark === "booking" && mode === "edit" && (
-            <div className="flex gap-2 h-fit">
+            <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center">
               <button
                 onClick={() => setQrOpen(true)}
-                className=" inline-flex items-center rounded-md border border-gray-300 px-2.5 py-1.5 text-xs text-gray-700 active:scale-[.98]"
+                className="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-700 shadow-sm active:scale-[.98]"
               >
                 QR
               </button>
+
               <button
                 onClick={async () => {
                   try {
@@ -2029,29 +2065,16 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
                     }
                   } catch {}
                 }}
-                className=" inline-flex items-center rounded-md border border-gray-300 px-2 py-1.5 text-xs text-gray-700 active:scale-[.98] gap-1"
+                className="inline-flex items-center justify-center gap-1 rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-700 shadow-sm active:scale-[.98]"
               >
-                <ShareIcon className="w-4 h-4" />
-                Share
+                <ShareIcon className="h-4 w-4" />
+                <span>Share</span>
               </button>
             </div>
           )}
         </div>
+      </header>
 
-        {/* Статус */}
-        {mode === "edit" && mark === "booking" && (
-          <Badge
-            variant="dot"
-            color={statusView.cls as any}
-            className="mt-2 md:mt-0"
-            fw={500}
-          >
-            {statusView.text}
-          </Badge>
-        )}
-      </div>
-
-      {/* тип записи */}
       {mode !== "edit" && (
         <fieldset className="mt-4">
           <legend className="sr-only">Record type</legend>
@@ -2079,399 +2102,448 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
       {/* LEFT — форма */}
       <div className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 ">
-          {/* Фото */}
-          <section className=" lg:hidden flex gap-3 mb-5">
-            <div id="photo" className={`${!status ? "opacity-40" : ""} flex-1`}>
-              {car?.photos?.[0] ? (
-                <div className="aspect-[3/2] w-full overflow-hidden rounded-2xl">
-                  <img
-                    src={car.photos[0]}
-                    className={`${
-                      isFinished && "opacity-50"
-                    } h-full w-full object-cover`}
-                    alt="Car"
-                  />
-                </div>
-              ) : (
-                <div className="w-full rounded-2xl bg-gray-100 aspect-video flex items-center justify-center text-sm text-gray-400">
-                  no photo
-                </div>
+          {/* Даты проката */}
+          {/* [UI+] Trip timeline card */}
+          <section className={cardCls}>
+            <div className="flex items-start justify-between">
+              <div>
+                <h2 className="text-base font-semibold text-gray-900">
+                  Trip timeline
+                </h2>
+                <p className="mt-1 text-xs text-gray-500">
+                  Start / end time, duration, and status
+                </p>
+              </div>
+
+              {/* статус для мобильного когда нет header-badge (например create/block) */}
+              {mode !== "edit" && mark === "booking" && status && (
+                <Badge
+                  variant="dot"
+                  color={statusView.cls as any}
+                  fw={500}
+                  className="uppercase tracking-wide text-[10px] leading-none"
+                >
+                  {statusView.text}
+                </Badge>
               )}
             </div>
 
-            {/* Name */}
-            <div id="name" className={`${!status ? "opacity-60" : ""} flex-1`}>
-              <p className="font-semibold text-lg text-gray-800">
-                {car?.model?.brands?.name} {car?.model?.name} {car?.year}
-              </p>
-              {car?.licensePlate ? (
-                <p className="w-fit border border-gray-200 shadow-sm rounded-sm p-1 text-gray-700 text-sm">
-                  {car.licensePlate}
-                </p>
-              ) : null}
-            </div>
-          </section>
-
-          {/* Даты проката */}
-          <section id="dates">
-            <p className="font-medium text-base sm:text-lg text-gray-800">
-              Dates of trip
-            </p>
-            {/* Триггер-поле: открывает полноэкранный оверлей с календарём */}
-            {!isFinished ? (
-              status !== "rent" ? (
-                <button
-                  type="button"
-                  className={`mt-2 w-full rounded-xl border border-gray-200 px-3 py-3 text-left hover:bg-gray-50 active:scale-[.999] $isDisabled ? "opacity-60 cursor-not-allowed" : ""}`}
-                  onClick={() => !isLocked && setPickerOpen(true)}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 md:py-1">
-                      <CalendarDaysIcon className="size-5 text-gray-700" />
-                      <div>
-                        {/* <div className="text-xs text-gray-500">
-                          Rental period
-                        </div> */}
-                        <div className="text-sm font-medium text-gray-800">
-                          {startDateInp && endDateInp
-                            ? `${format(
-                                new Date(startDateInp).toISOString(),
-                                "d MMM, HH:mm"
-                              )} — ${format(
-                                new Date(endDateInp).toISOString(),
-                                "d MMM, HH:mm"
-                              )}`
-                            : "Select start and end"}
+            {/* дата-кнопка или статичные даты */}
+            <div className="mt-4">
+              {!isFinished ? (
+                status !== "rent" ? (
+                  <button
+                    type="button"
+                    className={`w-full rounded-xl border border-gray-300 bg-white px-3 py-3 text-left shadow-sm hover:bg-gray-50 active:scale-[.995] ${
+                      isLocked ? "opacity-60 cursor-not-allowed" : ""
+                    }`}
+                    onClick={() => !isLocked && setPickerOpen(true)}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3 md:py-1">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100 text-gray-700 ring-1 ring-gray-200">
+                          <CalendarDaysIcon className="size-5" />
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-[11px] uppercase tracking-wide text-gray-500">
+                            Rental period
+                          </span>
+                          <span className="text-sm font-medium text-gray-900">
+                            {startDateInp && endDateInp
+                              ? `${format(
+                                  new Date(startDateInp).toISOString(),
+                                  "d MMM, HH:mm"
+                                )} — ${format(
+                                  new Date(endDateInp).toISOString(),
+                                  "d MMM, HH:mm"
+                                )}`
+                              : "Select start and end"}
+                          </span>
                         </div>
                       </div>
+                      <ChevronRightIcon className="size-4 text-gray-400" />
                     </div>
-                    <ChevronRightIcon className=" size-4 text-gray-400" />
-                  </div>
-                </button>
-              ) : (
-                <p className="mt-2 inline-flex items-center gap-2">
-                  <CalendarDaysIcon className="size-5" />
-                  {format(
-                    new Date(startDateInp).toISOString(),
-                    "d MMM yy, hh:mm"
-                  )}
-                  <ArrowRightIcon className="size-4 text-gray-700" />
-                  {format(new Date(endDateInp).toISOString(), "d MMM yy, h:mm")}
-                </p>
-              )
-            ) : (
-              <p className="line-through mt-2">
-                {fmt(startDateInp)} — {fmt(endDateInp)}
-              </p>
-            )}
-
-            {!isFinished && (
-              <div className="text-xs text-gray-500 mt-2">
-                {effectiveOpenTime === effectiveCloseTime ? (
-                  "Working hours: 24/7"
+                  </button>
                 ) : (
-                  <>
-                    Working hours: {mmToHHMM(effectiveOpenTime)} –{" "}
-                    {mmToHHMM(effectiveCloseTime)}
-                  </>
-                )}
-              </div>
-            )}
+                  <div className="flex flex-wrap items-center gap-2 text-sm font-medium text-gray-800">
+                    <CalendarDaysIcon className="size-5 text-gray-700" />
+                    {format(
+                      new Date(startDateInp).toISOString(),
+                      "d MMM yy, HH:mm"
+                    )}
+                    <ArrowRightIcon className="size-4 text-gray-500" />
+                    {format(
+                      new Date(endDateInp).toISOString(),
+                      "d MMM yy, HH:mm"
+                    )}
+                  </div>
+                )
+              ) : (
+                <p className="mt-2 line-through text-sm text-gray-500">
+                  {fmt(startDateInp)} — {fmt(endDateInp)}
+                </p>
+              )}
 
-            <div className="mt-5">
-              Duration:{" "}
-              <span>
-                {durationDays}d {durationHours}h {durationMinutes}m
-              </span>
+              {!isFinished && (
+                <div className="mt-3 text-[11px] text-gray-500">
+                  {effectiveOpenTime === effectiveCloseTime ? (
+                    <>Working hours: 24/7</>
+                  ) : (
+                    <>
+                      Working hours:{" "}
+                      <span className="font-medium text-gray-700">
+                        {mmToHHMM(effectiveOpenTime)} –{" "}
+                        {mmToHHMM(effectiveCloseTime)}
+                      </span>
+                    </>
+                  )}
+                </div>
+              )}
+
+              <div className="mt-4 text-sm text-gray-700">
+                <span className="text-gray-500">Duration: </span>
+                <span className="font-medium text-gray-900">
+                  {durationDays}d {durationHours}h {durationMinutes}m
+                </span>
+              </div>
             </div>
-          </section>
 
-          {/* Прогресс бар */}
-          {/* Прогресс бар (слева в карточке) */}
-          <section id="dates" className="mt-6">
-            {status === "rent" && startDate && endDate && (
-              <div className="w-full">
-                <div className="flex items-center justify-between text-xs text-gray-600 mb-1">
-                  <span>{format(startDate, "d MMM, HH:mm")}</span>
-                  <span>{format(endDate, "d MMM, HH:mm")}</span>
-                </div>
+            {/* прогресс или таймер до начала */}
+            <div className="mt-6 space-y-3">
+              {status === "rent" && startDate && endDate && (
+                <div>
+                  <div className="flex items-center justify-between text-[11px] text-gray-600 mb-1">
+                    <span>{format(startDate, "d MMM, HH:mm")}</span>
+                    <span>{format(endDate, "d MMM, HH:mm")}</span>
+                  </div>
 
-                {/* Полоса прогресса */}
-                <div className="h-2.5 w-full bg-gray-100 rounded-full overflow-hidden border border-gray-200">
-                  <div
-                    className="h-full bg-green-500 transition-[width] duration-500 ease-out"
-                    style={{ width: `${tripProgress}%` }}
-                    aria-valuenow={tripProgress}
-                    aria-valuemin={0}
-                    aria-valuemax={100}
-                    role="progressbar"
-                  />
-                </div>
+                  <div className="h-2.5 w-full overflow-hidden rounded-full border border-gray-200 bg-gray-100">
+                    <div
+                      className="h-full bg-green-500 transition-[width] duration-500 ease-out"
+                      style={{ width: `${tripProgress}%` }}
+                      role="progressbar"
+                      aria-valuenow={tripProgress}
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                    />
+                  </div>
 
-                <div className="mt-1 text-right text-xs text-gray-700">
-                  {tripProgress}%
+                  <div className="mt-1 text-right text-[11px] font-medium text-gray-700">
+                    {tripProgress}%
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {status === "confirmed" && cdStart && (
-              <div className="border rounded-md px-4 py-2 text-sm">
-                {role === "guest"
-                  ? "Your booking is confirmed. Starts in: "
-                  : role === "host"
-                  ? "Trip is confirmed. Starts in: "
-                  : "Booking is confirmed. Starts in: "}
-                {cdStart.days ? `${cdStart.days} d ` : ""}
-                {cdStart.hours} h {cdStart.minutes} m
-                {/* Доп. тонкая «до старта» полоса */}
-                <div className="mt-2 h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
-                  <div className="h-full bg-gray-400 w-0" />
+              {status === "confirmed" && cdStart && (
+                <div className="rounded-lg border border-blue-200 bg-blue-50/50 px-4 py-3 text-sm text-blue-800 shadow-sm">
+                  <div className="font-medium">
+                    {role === "guest"
+                      ? "Your booking is confirmed"
+                      : role === "host"
+                      ? "Trip is confirmed"
+                      : "Booking confirmed"}
+                  </div>
+                  <div className="text-xs text-blue-700 mt-1">
+                    Starts in:&nbsp;
+                    {cdStart.days ? `${cdStart.days}d ` : ""}
+                    {cdStart.hours}h {cdStart.minutes}m
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+
+              {status === "onApproval" && (
+                <div className="rounded-lg border border-amber-200 bg-amber-50/60 px-4 py-3 text-sm shadow-sm">
+                  <div className="font-medium text-amber-800">
+                    {role === "host"
+                      ? "Waiting for your confirmation"
+                      : role === "guest"
+                      ? "Request sent to host"
+                      : "Pending host approval"}
+                  </div>
+                  <div className="text-xs text-amber-700 mt-1">
+                    {role === "host"
+                      ? "Please confirm this booking."
+                      : role === "guest"
+                      ? "You can cancel before it's confirmed."
+                      : "Host hasn't confirmed yet."}
+                  </div>
+                </div>
+              )}
+
+              {status === "finished" && (
+                <div className="rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 text-sm text-gray-700 shadow-sm">
+                  Trip is finished.
+                </div>
+              )}
+            </div>
           </section>
 
           {/* Клиент: только в create-режиме */}
           {mark === "booking" && mode === "create" && (
-            <div className="mt-4 space-y-2">
-              <label className="block text-sm font-medium">Customer</label>
-              <div className="flex gap-2">
-                <input
-                  className="flex-1 border rounded px-2 py-1"
-                  placeholder="Search by name/email/phone…"
-                  value={userSearch}
-                  onChange={(e) => setUserSearch(e.target.value)}
-                  onBlur={() => setTimeout(() => setUserResults([]), 100)}
-                />
-                <button
-                  className="px-3 py-1 border rounded text-sm"
-                  onClick={() => setCreatingUser((v) => !v)}
-                >
-                  {creatingUser ? "Cancel" : "New user"}
-                </button>
-              </div>
-              {userResults.length > 0 && (
-                <div className="border rounded">
-                  {userResults.map((u) => (
-                    <button
-                      key={u.id}
-                      type="button"
-                      className={`w-full text-left px-3 py-2 hover:bg-zinc-50 ${
-                        userId === u.id ? "bg-zinc-100" : ""
-                      }`}
-                      onClick={() => {
-                        setUserId(u.id);
-                        setSelectedUser(u);
-                        setUserSearch("");
-                        setUserResults([]);
-                      }}
-                    >
-                      <div className="text-sm font-medium">
-                        {u.full_name ?? "—"}
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        {u.email ?? "—"} {u.phone ? `• ${u.phone}` : ""}
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
-              {creatingUser && (
-                <div className="border rounded p-3 space-y-2">
-                  <div className="grid grid-cols-3 gap-2">
-                    <input
-                      className="border rounded px-2 py-1 col-span-3 sm:col-span-1"
-                      placeholder="Full name"
-                      value={newUser.full_name}
-                      onChange={(e) =>
-                        setNewUser({ ...newUser, full_name: e.target.value })
-                      }
-                    />
-                    <input
-                      className="border rounded px-2 py-1 col-span-3 sm:col-span-1"
-                      placeholder="Email"
-                      value={newUser.email}
-                      onChange={(e) =>
-                        setNewUser({ ...newUser, email: e.target.value })
-                      }
-                    />
-                    <input
-                      className="border rounded px-2 py-1 col-span-3 sm:col-span-1"
-                      placeholder="Phone"
-                      value={newUser.phone}
-                      onChange={(e) =>
-                        setNewUser({ ...newUser, phone: e.target.value })
-                      }
-                    />
-                    <input
-                      className="border rounded px-2 py-1 col-span-3 sm:col-span-1"
-                      placeholder="Age (optional)"
-                      type="number"
-                      value={newUser.age ?? ""}
-                      onChange={(e) =>
-                        setNewUser({
-                          ...newUser,
-                          age:
-                            e.target.value === ""
-                              ? null
-                              : Number(e.target.value),
-                        })
-                      }
-                    />
-                    <input
-                      className="border rounded px-2 py-1 col-span-3 sm:col-span-2"
-                      placeholder="Driver license issue date (YYYY-MM-DD)"
-                      value={newUser.driver_license_issue ?? ""}
-                      onChange={(e) =>
-                        setNewUser({
-                          ...newUser,
-                          driver_license_issue: e.target.value,
-                        })
-                      }
-                    />
-                  </div>
-                  <div className="flex justify-end">
-                    <button
-                      className="px-3 py-1 border rounded text-sm"
-                      onClick={() => {
-                        // выбираем драфт как текущего гостя
-                        setSelectedUser({
-                          ...newUser,
-                          id: null, // у драфта нет id
-                          __draft: true, // для UI, если нужно
-                        });
-                        setUserId(null); // нет реального id — он появится после RPC
-                        // setDraftSelected(true);
-                        setCreatingUser(false);
-                        setUserSearch("");
-                        setUserResults([]);
-                      }}
-                      disabled={
-                        !newUser.full_name.trim() ||
-                        !newUser.email.trim() ||
-                        !newUser.phone.trim()
-                      }
-                    >
-                      Use this customer (draft)
-                    </button>
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    * Email и phone обязательны по схеме profiles.
-                  </div>
-                </div>
-              )}
-              {userForCard && (
-                <div className="mt-2 border border-green-400 rounded p-2 text-sm flex items-start gap-2">
-                  <div className="grow">
-                    <div className="font-medium">
-                      {userForCard.full_name ?? "—"}
-                    </div>
-                    <div className="text-xs text-gray-600">
-                      {userForCard.email ?? "—"}
-                      {userForCard.phone ? ` • ${userForCard.phone}` : ""}
-                      {userForCard.__draft && (
-                        <span className="ml-2 text-amber-600">(draft)</span>
-                      )}
-                    </div>
-                  </div>
+            <section className={`${cardCls} mt-6`}>
+              <h2 className="text-base font-semibold text-gray-900">
+                Customer
+              </h2>
+              <p className="mt-1 text-xs text-gray-500">
+                Select existing user or add a new guest
+              </p>
+
+              <div className="mt-4 space-y-3">
+                <div className="flex gap-2">
+                  <input
+                    className="flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-gray-600 focus:outline-none"
+                    placeholder="Search by name / email / phone…"
+                    value={userSearch}
+                    onChange={(e) => setUserSearch(e.target.value)}
+                    onBlur={() => setTimeout(() => setUserResults([]), 100)}
+                  />
                   <button
-                    className="text-xs underline"
-                    onClick={() => {
-                      setUserId(null);
-                      setSelectedUser(null);
-                      // setDraftSelected(false);
-                    }}
+                    className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-medium text-gray-700 shadow-sm active:scale-[.98]"
+                    onClick={() => setCreatingUser((v) => !v)}
                   >
-                    Change
+                    {creatingUser ? "Cancel" : "New user"}
                   </button>
                 </div>
-              )}
-            </div>
+
+                {userResults.length > 0 && (
+                  <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm ring-1 ring-gray-100">
+                    {userResults.map((u) => (
+                      <button
+                        key={u.id}
+                        type="button"
+                        className={`w-full text-left px-4 py-3 text-sm hover:bg-gray-50 ${
+                          userId === u.id ? "bg-gray-50" : ""
+                        }`}
+                        onClick={() => {
+                          setUserId(u.id);
+                          setSelectedUser(u);
+                          setUserSearch("");
+                          setUserResults([]);
+                        }}
+                      >
+                        <div className="font-medium text-gray-900">
+                          {u.full_name ?? "—"}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          {u.email ?? "—"} {u.phone ? `• ${u.phone}` : ""}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {creatingUser && (
+                  <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm ring-1 ring-gray-100">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <input
+                        className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-gray-600 focus:outline-none"
+                        placeholder="Full name"
+                        value={newUser.full_name}
+                        onChange={(e) =>
+                          setNewUser({ ...newUser, full_name: e.target.value })
+                        }
+                      />
+                      <input
+                        className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-gray-600 focus:outline-none"
+                        placeholder="Email"
+                        value={newUser.email}
+                        onChange={(e) =>
+                          setNewUser({ ...newUser, email: e.target.value })
+                        }
+                      />
+                      <input
+                        className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-gray-600 focus:outline-none"
+                        placeholder="Phone"
+                        value={newUser.phone}
+                        onChange={(e) =>
+                          setNewUser({ ...newUser, phone: e.target.value })
+                        }
+                      />
+                      <input
+                        className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-gray-600 focus:outline-none"
+                        placeholder="Age (optional)"
+                        type="number"
+                        value={newUser.age ?? ""}
+                        onChange={(e) =>
+                          setNewUser({
+                            ...newUser,
+                            age:
+                              e.target.value === ""
+                                ? null
+                                : Number(e.target.value),
+                          })
+                        }
+                      />
+                      <input
+                        className="sm:col-span-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-gray-600 focus:outline-none"
+                        placeholder="Driver license issue date (YYYY-MM-DD)"
+                        value={newUser.driver_license_issue ?? ""}
+                        onChange={(e) =>
+                          setNewUser({
+                            ...newUser,
+                            driver_license_issue: e.target.value,
+                          })
+                        }
+                      />
+                    </div>
+
+                    <div className="mt-3 flex justify-end">
+                      <button
+                        className="rounded-lg border border-green-400 bg-white px-3 py-2 text-xs font-medium text-green-600 shadow-sm active:scale-[.98] disabled:border-gray-300 disabled:text-gray-400"
+                        onClick={() => {
+                          setSelectedUser({
+                            ...newUser,
+                            id: null,
+                            __draft: true,
+                          });
+                          setUserId(null);
+                          setCreatingUser(false);
+                          setUserSearch("");
+                          setUserResults([]);
+                        }}
+                        disabled={
+                          !newUser.full_name.trim() ||
+                          !newUser.email.trim() ||
+                          !newUser.phone.trim()
+                        }
+                      >
+                        Use this customer (draft)
+                      </button>
+                    </div>
+
+                    <div className="mt-2 text-[11px] text-gray-500">
+                      * Email и phone обязательны.
+                    </div>
+                  </div>
+                )}
+
+                {userForCard && (
+                  <div className="rounded-lg border border-green-400 bg-green-50/60 p-3 text-sm text-gray-800 shadow-sm ring-1 ring-green-200/50 flex items-start gap-2">
+                    <div className="grow">
+                      <div className="font-medium text-gray-900">
+                        {userForCard.full_name ?? "—"}
+                      </div>
+                      <div className="text-xs text-gray-600">
+                        {userForCard.email ?? "—"}
+                        {userForCard.phone ? ` • ${userForCard.phone}` : ""}
+                        {userForCard.__draft && (
+                          <span className="ml-2 text-amber-600">(draft)</span>
+                        )}
+                      </div>
+                    </div>
+                    <button
+                      className="text-[11px] font-medium text-blue-600 underline"
+                      onClick={() => {
+                        setUserId(null);
+                        setSelectedUser(null);
+                      }}
+                    >
+                      Change
+                    </button>
+                  </div>
+                )}
+              </div>
+            </section>
           )}
 
           {/* Delivery */}
           {mark === "booking" && (
-            <div className="mt-4">
-              <label className="font-medium text-base sm:text-lg text-gray-800">
-                Delivery
-              </label>
-              <Select
-                value={delivery}
-                onChange={async (v: any) => {
-                  const next = (v ?? "car_address") as DeliveryOption;
-                  setDelivery(next);
+            <section className="mt-6 rounded-2xl bg-white shadow-sm ring-1 ring-gray-200 px-4 py-4 sm:px-5 sm:py-5">
+              {/* header */}
+              <div className="flex items-start justify-between">
+                <div>
+                  <h2 className="text-base font-semibold text-gray-900">
+                    Delivery
+                  </h2>
+                  <p className="mt-1 text-xs text-gray-500">
+                    Pickup or drop-off location
+                  </p>
+                </div>
+              </div>
 
-                  if (next === "car_address") {
-                    setDeliveryFeeValue(0);
-                    return;
-                  }
+              {/* select + fee */}
+              <div className="mt-4 space-y-2">
+                <Select
+                  value={delivery}
+                  onChange={async (v: any) => {
+                    const next = (v ?? "car_address") as DeliveryOption;
+                    setDelivery(next);
 
-                  // next === "by_address"
-                  if (!deliveryFeeValue && (car as any)?.deliveryFee != null) {
-                    setDeliveryFeeValue(Number((car as any).deliveryFee));
-                  }
-
-                  // если адрес ещё пуст — подставляем "текущий" (как в AddCar):
-                  if (
-                    !deliveryAddress &&
-                    car?.lat != null &&
-                    car?.long != null
-                  ) {
-                    // 1) координаты берем из машины
-                    const lat = Number(car.lat);
-                    const lng = Number(car.long);
-                    setDeliveryLat(lat);
-                    setDeliveryLong(lng);
-
-                    try {
-                      // 2) обратное геокодирование адреса
-                      const addr = await fetchAddressFromCoords(lat, lng);
-                      setDeliveryAddress(addr?.address || car?.address || "");
-                      setDeliveryCountry(addr?.country || "");
-                      setDeliveryCity(addr?.city || "");
-                    } catch {
-                      setDeliveryAddress(car?.address || "");
-                      setDeliveryCountry("");
-                      setDeliveryCity("");
+                    if (next === "car_address") {
+                      setDeliveryFeeValue(0);
+                      return;
                     }
 
-                    // 3) подвинем карту
-                    setMapView((prev) => ({
-                      ...prev,
-                      latitude: lat,
-                      longitude: lng,
-                      zoom: 13,
-                    }));
-                    mapRef.current?.flyTo({
-                      center: [lng, lat],
-                      zoom: 13,
-                      essential: true,
-                    });
-                  }
-                }}
-                data={deliveryOptions}
-                readOnly={isLocked}
-                radius="md"
-                className={isLocked ? "opacity-60" : ""}
-                classNames={{
-                  input: isLocked
-                    ? "!cursor-not-allowed focus:border-gray-300"
-                    : "",
-                }}
-              />
+                    // next === "by_address"
+                    if (
+                      !deliveryFeeValue &&
+                      (car as any)?.deliveryFee != null
+                    ) {
+                      setDeliveryFeeValue(Number((car as any).deliveryFee));
+                    }
 
-              <div className="text-xs text-gray-600 mt-1">
-                Delivery fee:{" "}
-                <b>
-                  {deliveryFee.toFixed(2)} {effectiveCurrency}
-                </b>
+                    // автоподстановка адреса/координат если пусто
+                    if (
+                      !deliveryAddress &&
+                      car?.lat != null &&
+                      car?.long != null
+                    ) {
+                      const lat = Number(car.lat);
+                      const lng = Number(car.long);
+                      setDeliveryLat(lat);
+                      setDeliveryLong(lng);
+
+                      try {
+                        const addr = await fetchAddressFromCoords(lat, lng);
+                        setDeliveryAddress(addr?.address || car?.address || "");
+                        setDeliveryCountry(addr?.country || "");
+                        setDeliveryCity(addr?.city || "");
+                      } catch {
+                        setDeliveryAddress(car?.address || "");
+                        setDeliveryCountry("");
+                        setDeliveryCity("");
+                      }
+
+                      // подвинуть карту
+                      setMapView((prev) => ({
+                        ...prev,
+                        latitude: lat,
+                        longitude: lng,
+                        zoom: 13,
+                      }));
+                      mapRef.current?.flyTo({
+                        center: [lng, lat],
+                        zoom: 13,
+                        essential: true,
+                      });
+                    }
+                  }}
+                  data={deliveryOptions}
+                  readOnly={isLocked}
+                  radius="md"
+                  className={isLocked ? "opacity-60" : ""}
+                  classNames={{
+                    input: isLocked
+                      ? "!cursor-not-allowed focus:border-gray-300"
+                      : "",
+                  }}
+                />
+
+                <div className="text-[11px] text-gray-600">
+                  Delivery fee:&nbsp;
+                  <b className="text-gray-800">
+                    {deliveryFee.toFixed(2)} {effectiveCurrency}
+                  </b>
+                </div>
               </div>
-              {/* +++ адресный блок — показываем только при by_address */}
+
+              {/* map + address only if delivery by_address */}
               {delivery === "by_address" && (
                 <div
-                  className={`mt-3 space-y-3 ${isLocked ? "opacity-60" : ""}`}
+                  className={`mt-4 space-y-4 ${isLocked ? "opacity-60" : ""}`}
                 >
-                  <div className="h-60 rounded-xl overflow-hidden border border-gray-200 my-3">
+                  {/* MAP CARD */}
+                  <div className="h-60 overflow-hidden rounded-xl border border-gray-200 shadow-sm ring-1 ring-gray-100">
                     <Map
                       ref={mapRef}
                       {...mapView}
@@ -2547,104 +2619,114 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
                     </Map>
                   </div>
 
-                  <AddressAutofillWrapper
-                    accessToken={import.meta.env.VITE_MAPBOX_TOKEN}
-                    onRetrieve={async (res: any) => {
-                      if (isLocked) return;
-                      const f = res?.features?.[0];
-                      const coords = f?.geometry?.coordinates as
-                        | [number, number]
-                        | undefined;
-                      if (!coords) return;
+                  {/* ADDRESS INPUT + meta */}
+                  <div className="space-y-2">
+                    <AddressAutofillWrapper
+                      accessToken={import.meta.env.VITE_MAPBOX_TOKEN}
+                      onRetrieve={async (res: any) => {
+                        if (isLocked) return;
+                        const f = res?.features?.[0];
+                        const coords = f?.geometry?.coordinates as
+                          | [number, number]
+                          | undefined;
+                        if (!coords) return;
 
-                      const [lng, lat] = coords;
-                      setDeliveryLat(lat);
-                      setDeliveryLong(lng);
+                        const [lng, lat] = coords;
+                        setDeliveryLat(lat);
+                        setDeliveryLong(lng);
 
-                      // сразу показать адрес в инпуте:
-                      const fallback =
-                        f?.properties?.full_address || f?.place_name || "";
-                      try {
-                        const addr = await fetchAddressFromCoords(lat, lng);
-                        setDeliveryAddress(addr?.address || fallback);
-                        setDeliveryCountry(addr?.country || "");
-                        setDeliveryCity(addr?.city || "");
-                      } catch {
-                        setDeliveryAddress(fallback);
-                        setDeliveryCountry("");
-                        setDeliveryCity("");
-                      }
+                        // показать адрес сразу
+                        const fallback =
+                          f?.properties?.full_address || f?.place_name || "";
+                        try {
+                          const addr = await fetchAddressFromCoords(lat, lng);
+                          setDeliveryAddress(addr?.address || fallback);
+                          setDeliveryCountry(addr?.country || "");
+                          setDeliveryCity(addr?.city || "");
+                        } catch {
+                          setDeliveryAddress(fallback);
+                          setDeliveryCountry("");
+                          setDeliveryCity("");
+                        }
 
-                      // подвигать карту
-                      setMapView((prev) => ({
-                        ...prev,
-                        latitude: lat,
-                        longitude: lng,
-                        zoom: Math.max(prev.zoom, 13),
-                      }));
-                      mapRef.current?.flyTo({
-                        center: [lng, lat],
-                        zoom: Math.max(mapView.zoom, 14),
-                        essential: true,
-                      });
-                    }}
-                  >
-                    <input
-                      name="delivery-address"
-                      id="delivery-address"
-                      type="text"
-                      value={deliveryAddress}
-                      onChange={(e) => setDeliveryAddress(e.target.value)}
-                      placeholder="Enter delivery address"
-                      autoComplete="address-line1"
-                      className="w-full p-2 outline-none border border-gray-300 focus:border-gray-600 rounded-md"
-                      disabled={isLocked}
-                    />
-                  </AddressAutofillWrapper>
+                        // сдвинуть карту
+                        setMapView((prev) => ({
+                          ...prev,
+                          latitude: lat,
+                          longitude: lng,
+                          zoom: Math.max(prev.zoom, 13),
+                        }));
+                        mapRef.current?.flyTo({
+                          center: [lng, lat],
+                          zoom: Math.max(mapView.zoom, 14),
+                          essential: true,
+                        });
+                      }}
+                    >
+                      <input
+                        name="delivery-address"
+                        id="delivery-address"
+                        type="text"
+                        value={deliveryAddress}
+                        onChange={(e) => setDeliveryAddress(e.target.value)}
+                        placeholder="Enter delivery address"
+                        autoComplete="address-line1"
+                        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-gray-600 focus:outline-none"
+                        disabled={isLocked}
+                      />
+                    </AddressAutofillWrapper>
 
-                  <div className="flex flex-wrap items-center gap-2 text-sm text-gray-600">
-                    <p>
-                      Country:{" "}
-                      <span className="font-semibold">
-                        {deliveryCountry || "—"}
-                      </span>
-                    </p>
-                    <p>
-                      City:{" "}
-                      <span className="font-semibold">
-                        {deliveryCity || "—"}
-                      </span>
-                    </p>
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-600">
+                      <p>
+                        <span className="text-gray-500">Country: </span>
+                        <span className="font-semibold text-gray-800">
+                          {deliveryCountry || "—"}
+                        </span>
+                      </p>
+                      <p>
+                        <span className="text-gray-500">City: </span>
+                        <span className="font-semibold text-gray-800">
+                          {deliveryCity || "—"}
+                        </span>
+                      </p>
+                    </div>
                   </div>
                 </div>
               )}
-            </div>
+            </section>
           )}
 
           {/* Extras */}
           {mark === "booking" && (
-            <div className="mt-4">
-              <p className="font-medium text-base sm:text-lg text-gray-800 mb-2">
-                Extras
+            <section className={`${cardCls} mt-6`}>
+              <h2 className="text-base font-semibold text-gray-900">Extras</h2>
+              <p className="mt-1 text-xs text-gray-500">
+                Additional services & fees
               </p>
-              <div className="space-y-1">
+
+              <div className="mt-4 space-y-2">
                 {extrasMap.list.map((ex) => (
                   <div
                     key={ex.id}
-                    className="flex items-center justify-between"
+                    className="flex items-start justify-between rounded-lg border border-gray-200 bg-gray-50/50 px-3 py-2 shadow-sm ring-1 ring-white/50"
                   >
                     <Checkbox
                       color="dark"
                       label={
-                        <>
-                          {ex.title} ({ex.price} {effectiveCurrency}
-                          {ex.price_type === "per_day" ? " / day" : ""})
+                        <div className="text-sm leading-5">
+                          <span className="font-medium text-gray-800">
+                            {ex.title}
+                          </span>{" "}
+                          <span className="text-gray-500">
+                            ({ex.price} {effectiveCurrency}
+                            {ex.price_type === "per_day" ? " / day" : ""})
+                          </span>
                           {ex.inactive && (
-                            <span className="ml-2 text-xs text-sky-600">
-                              (больше не предлагается)
+                            <span className="ml-2 text-[11px] text-sky-600">
+                              (no longer offered)
                             </span>
                           )}
-                        </>
+                        </div>
                       }
                       checked={pickedExtras.includes(ex.id)}
                       onChange={(e) => {
@@ -2656,9 +2738,13 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
                             : prev.filter((x) => x !== ex.id)
                         );
                       }}
-                      className={isLocked ? "opacity-80" : ""}
+                      className={`${
+                        isLocked ? "opacity-60" : ""
+                      } w-full flex items-start`}
                       classNames={{
-                        root: isLocked ? "!cursor-not-allowed" : "",
+                        root: `w-full flex ${
+                          isLocked ? "!cursor-not-allowed" : ""
+                        }`,
                         input: isLocked ? "!cursor-not-allowed" : "",
                         label:
                           (isLocked ? "!cursor-not-allowed " : "") +
@@ -2668,78 +2754,80 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
                   </div>
                 ))}
               </div>
-            </div>
+            </section>
           )}
 
           {error && <div className="mt-3 text-red-600 text-sm">{error}</div>}
 
-          <div className="hidden lg:flex justify-between items-centermt-8 text-right mt-10">
-            <button
-              type="button"
-              className="border-gray-300 border rounded-md px-6 py-2 mr-2 disabled:opacity-50"
-              onClick={goBack}
-              disabled={saving}
-            >
-              Back
-            </button>
-            <div className="flex items-center">
-              {saved && !saving && (
-                <span className="text-lime-500 font-medium text-sm animate-fade-in mr-2">
-                  ✓ Saved
-                </span>
-              )}
+          <div className="hidden lg:block mt-8">
+            <section className="rounded-2xl bg-white shadow-sm ring-1 ring-gray-200 px-5 py-4 flex items-center justify-between">
               <button
                 type="button"
-                className={`${
-                  isChanged && !saving
-                    ? "border-green-400 text-green-500"
-                    : "border-gray-300 text-gray-400 cursor-not-allowed"
-                } border rounded-md px-8 py-2 inline-flex items-center gap-2`}
-                onClick={handleSave}
-                disabled={isLoading || invalidTime || !isChanged || saving}
+                className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm active:scale-[.98] disabled:opacity-50"
+                onClick={goBack}
+                disabled={saving}
               >
-                {saving ? (
-                  <>
-                    <Loader size="xs" color="gray" />
-                    Saving…
-                  </>
-                ) : (
-                  "Save"
-                )}
+                Back
               </button>
-            </div>
+
+              <div className="flex items-center gap-3">
+                {saved && !saving && (
+                  <span className="text-sm font-medium text-lime-600 animate-fade-in">
+                    ✓ Saved
+                  </span>
+                )}
+
+                <button
+                  type="button"
+                  className={`inline-flex items-center gap-2 rounded-lg border px-5 py-2 text-sm font-medium shadow-sm active:scale-[.98] ${
+                    isChanged && !saving
+                      ? "border-green-400 bg-white text-green-600"
+                      : "border-gray-300 bg-white text-gray-400 cursor-not-allowed"
+                  }`}
+                  onClick={handleSave}
+                  disabled={isLoading || invalidTime || !isChanged || saving}
+                >
+                  {saving ? (
+                    <>
+                      <Loader size="xs" color="gray" />
+                      Saving…
+                    </>
+                  ) : (
+                    "Save changes"
+                  )}
+                </button>
+              </div>
+            </section>
           </div>
         </div>
 
         {/* RIGHT — сводка/действия */}
         <aside className="lg:col-span-1 lg:sticky lg:top-6">
           {/* Фото */}
-          <section className=" hidden lg:block">
-            <div id="photo">
+          {/* [UI+] Car card in sidebar */}
+          <section className="rounded-2xl bg-white shadow-sm ring-1 ring-gray-200 p-4 sm:p-5">
+            <div className="aspect-video w-full overflow-hidden rounded-xl ring-1 ring-gray-200 bg-gray-100">
               {car?.photos?.[0] ? (
-                <div className="aspect-video w-full overflow-hidden rounded-2xl">
-                  <img
-                    src={car.photos[0]}
-                    className={`${
-                      isFinished && "opacity-50"
-                    } h-full w-full object-cover`}
-                    alt="Car"
-                  />
-                </div>
+                <img
+                  src={car.photos[0]}
+                  className={`h-full w-full object-cover ${
+                    isFinished ? "opacity-50" : ""
+                  }`}
+                  alt="Car"
+                />
               ) : (
-                <div className="w-full rounded-2xl bg-gray-100 aspect-video flex items-center justify-center text-sm text-gray-400">
+                <div className="flex h-full w-full items-center justify-center text-sm text-gray-400">
                   no photo
                 </div>
               )}
             </div>
 
-            {/* Name */}
-            <div id="name" className="mt-3">
-              <p className="font-semibold text-lg text-gray-800">
+            <div className="mt-3">
+              <p className="text-sm font-semibold text-gray-900">
                 {car?.model?.brands?.name} {car?.model?.name} {car?.year}
               </p>
               {car?.licensePlate ? (
-                <p className="w-fit border border-gray-200 shadow-sm rounded-sm p-1 text-gray-700 text-sm">
+                <p className="mt-1 inline-flex items-center rounded-md border border-gray-300 bg-gray-50 px-1.5 py-0.5 text-[10px] font-mono text-gray-700 shadow-sm ring-1 ring-white/50">
                   {car.licensePlate}
                 </p>
               ) : null}
@@ -2748,70 +2836,111 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
 
           {/* Итоги справа */}
           {mark === "booking" && (
-            <section className="mt-4 text-sm">
-              <div className="flex justify-between">
-                <span>Price per day</span>
-                {baseDailyPrice.toFixed(2)} {effectiveCurrency}
+            <section className="mt-6 rounded-2xl bg-white shadow-sm ring-1 ring-gray-200 p-4 sm:p-5 text-sm">
+              <div className="mb-4">
+                <p className="text-[11px] uppercase tracking-wide text-gray-500 font-medium">
+                  Trip summary
+                </p>
               </div>
-              {discountApplied !== 0 && (
-                <div className="flex justify-between text-green-600">
-                  <span className="flex items-center gap-1">
-                    Discount
-                    <PercentBadgeIcon className=" size-4" />
+
+              <div className="space-y-3 text-gray-700">
+                <div className="flex items-start justify-between">
+                  <div className="flex flex-col">
+                    <span className="text-gray-600 text-sm">Price per day</span>
+
+                    {discountApplied !== 0 && (
+                      <span className="mt-1 flex items-center gap-1 text-[11px] leading-tight text-green-600">
+                        <PercentBadgeIcon className="size-3" />
+                        {avgPerDay?.toFixed(2)} {effectiveCurrency} with
+                        discount
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="text-right">
+                    <span className="block font-medium text-gray-900">
+                      {baseDailyPrice.toFixed(2)} {effectiveCurrency}
+                    </span>
+                    {discountApplied !== 0 && (
+                      <span className="text-[11px] font-medium leading-tight text-green-600">
+                        {discountApplied?.toFixed(1)}%
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-start justify-between">
+                  <span className="text-gray-600 text-sm">Rental subtotal</span>
+                  <span className="font-medium text-gray-900">
+                    {baseTotal.toFixed(2)} {effectiveCurrency}
                   </span>
-                  {discountApplied?.toFixed(1)}%
                 </div>
-              )}
-              <div className="flex justify-between">
-                <span>Price with discount</span>
-                {avgPerDay?.toFixed(2)} {effectiveCurrency}
-              </div>
-              <div className="flex justify-between">
-                <span>Total for rent</span>
-                {baseTotal.toFixed(2)} {effectiveCurrency}
-              </div>
-              {deliveryFee > 0 && (
-                <div className="flex justify-between">
-                  <span>Delivery</span>
-                  {deliveryFee.toFixed(2)} {effectiveCurrency}
+
+                {deliveryFee > 0 && (
+                  <div className="flex items-start justify-between">
+                    <span className="text-gray-600 text-sm">Delivery</span>
+                    <span className="font-medium text-gray-900">
+                      {deliveryFee.toFixed(2)} {effectiveCurrency}
+                    </span>
+                  </div>
+                )}
+
+                {extrasTotal > 0 && (
+                  <div className="flex items-start justify-between">
+                    <span className="text-gray-600 text-sm">Extras</span>
+                    <span className="font-medium text-gray-900">
+                      {extrasTotal.toFixed(2)} {effectiveCurrency}
+                    </span>
+                  </div>
+                )}
+
+                <div className="border-t border-dashed border-gray-300 pt-3" />
+
+                <div className="flex items-start justify-between">
+                  <span className="font-semibold text-gray-900">Total</span>
+                  <span className="text-base font-semibold text-gray-900">
+                    {price_total.toFixed(2)} {effectiveCurrency}
+                  </span>
                 </div>
-              )}
-              {extrasTotal > 0 && (
-                <div className="flex justify-between">
-                  <span>Extras</span>
-                  {extrasTotal.toFixed(2)} {effectiveCurrency}
+
+                <div className="flex items-start justify-between pt-2 text-[13px] text-gray-600">
+                  <span>Deposit</span>
+                  <span className="font-medium text-gray-900">
+                    {Number(deposit ?? 0).toFixed(2)} {effectiveCurrency}
+                  </span>
                 </div>
-              )}
-              <div className="flex justify-between">
-                <span className=" font-bold">Total</span>
-                <b>
-                  {price_total.toFixed(2)} {effectiveCurrency}
-                </b>
-              </div>
-              <div className="flex justify-between mt-2">
-                <span>Deposit</span>
-                {Number(deposit ?? 0).toFixed(2)} {effectiveCurrency}
               </div>
             </section>
           )}
 
           {/* Даты + прогресс + отсчёт */}
           {mode === "edit" && mark === "booking" && (
-            <>
-              <section id="dates" className="mt-6">
-                {status === "rent" && typeof tripProgress === "number" && (
-                  <p className="w-full inline-flex justify-between border rounded-md px-4 py-2">
-                    <span>Trip progress</span>
-                    {tripProgress}%
-                  </p>
-                )}
-                {status === "confirmed" ? (
-                  <p className="border rounded-md px-4 py-2">
+            <section className="mt-6 rounded-2xl bg-white shadow-sm ring-1 ring-gray-200 p-4 sm:p-5 text-sm">
+              {/* status info */}
+              {status === "rent" && typeof tripProgress === "number" && (
+                <div className="w-full rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-800 shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium text-gray-900">
+                      Trip progress
+                    </span>
+                    <span className="text-gray-700 font-medium">
+                      {tripProgress}%
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {status === "confirmed" && (
+                <div className="mt-3 rounded-lg border border-blue-200 bg-blue-50/50 px-4 py-3 text-sm text-blue-800 shadow-sm">
+                  <div className="font-medium">
                     {role === "guest"
-                      ? "Your booking is confirmed. Starts in: "
+                      ? "Your booking is confirmed"
                       : role === "host"
-                      ? "Trip is confirmed. Starts in: "
-                      : "Booking is confirmed. Starts in: "}
+                      ? "Trip is confirmed"
+                      : "Booking confirmed"}
+                  </div>
+                  <div className="text-xs text-blue-700 mt-1">
+                    Starts in:{" "}
                     {cdStart &&
                     (cdStart.days || cdStart.hours || cdStart.minutes) ? (
                       <>
@@ -2819,60 +2948,60 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
                         {cdStart.hours} h {cdStart.minutes} m
                       </>
                     ) : (
-                      <span>less than a minute</span>
+                      "less than a minute"
                     )}
-                  </p>
-                ) : status === "onApproval" ? (
-                  <p className="border rounded-md px-4 py-2">
-                    {role === "host"
-                      ? "Confirm the guest's booking request as soon as possible."
-                      : role === "guest"
-                      ? "Your request was sent. You can cancel it anytime before confirmation."
-                      : "Booking request is pending host approval."}
-                  </p>
-                ) : status === "finished" ? (
-                  <p className="border rounded-md px-4 py-2">
-                    Trip is finished.
-                  </p>
-                ) : null}
-                {status === "finished" && (
-                  <p className="border rounded-md px-4 py-2">
-                    Trip is finished.
-                  </p>
-                )}
-              </section>
+                  </div>
+                </div>
+              )}
+
+              {status === "onApproval" && (
+                <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50/60 px-4 py-3 text-sm text-amber-900 shadow-sm">
+                  {role === "host"
+                    ? "Confirm the guest's booking request as soon as possible."
+                    : role === "guest"
+                    ? "Your request was sent. You can cancel it anytime before confirmation."
+                    : "Booking request is pending host approval."}
+                </div>
+              )}
+
+              {status === "finished" && (
+                <div className="mt-3 rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 text-sm text-gray-700 shadow-sm">
+                  Trip is finished.
+                </div>
+              )}
 
               {(viewingAsHost || canCancel) && (
-                <div className="hidden mt-6 space-y-2 lg:block">
+                <div className="mt-5 space-y-2">
                   {viewingAsHost && canConfirm && (
                     <button
-                      className="w-full border rounded-md border-green-400 text-green-500 py-2 text-sm disabled:border-gray-300 disabled:text-gray-400"
+                      className="w-full rounded-lg border border-green-400 bg-white py-2 text-center text-sm font-medium text-green-600 shadow-sm active:scale-[.98] disabled:border-gray-300 disabled:text-gray-400"
                       onClick={handleConfirm}
                       disabled={saving}
                     >
                       Confirm booking
                     </button>
                   )}
+
                   {canCancel && (
                     <button
-                      className="w-full border rounded-md border-gray-300 text-gray-700 py-2 text-sm disabled:border-gray-300 disabled:text-gray-400"
+                      className="w-full rounded-lg border border-gray-300 bg-white py-2 text-center text-sm font-medium text-gray-700 shadow-sm active:scale-[.98] disabled:border-gray-300 disabled:text-gray-400"
                       onClick={handleCancel}
                       disabled={saving}
                     >
                       {cancelLabel}
                     </button>
                   )}
+
+                  {isGuestReadOnly && guestCanCancel && (
+                    <p className="text-[11px] text-gray-500">
+                      {status === "onApproval"
+                        ? "You can cancel this request anytime before the host confirms."
+                        : "You can cancel ≥ 24h before start and not during rent."}
+                    </p>
+                  )}
                 </div>
               )}
-
-              {isGuestReadOnly && guestCanCancel && (
-                <p className="mt-2 text-xs text-gray-500">
-                  {status === "onApproval"
-                    ? "You can cancel this request anytime before the host confirms."
-                    : "You can cancel ≥ 24h before start and not during rent."}
-                </p>
-              )}
-            </>
+            </section>
           )}
 
           {/* Modal QR */}
@@ -2960,18 +3089,18 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
 
           {/* Customer mini card */}
           {mode !== "create" && mark === "booking" && (
-            <>
+            <div className="mt-6 space-y-4">
               {viewingAsGuest && <HostMiniCard host={host} />}
+
               {viewingAsHost && <GuestMiniCard guest={guest} />}
 
-              {/* если роль не определилась (например, открыл админ/третий) — можно показать обе */}
-              {/* {!viewingAsGuest && !viewingAsHost && (
+              {!viewingAsGuest && !viewingAsHost && (
                 <>
-                  <HostMiniCard host={hostQ.data} />
+                  <HostMiniCard host={host} />
                   <GuestMiniCard guest={guest} />
                 </>
-              )} */}
-            </>
+              )}
+            </div>
           )}
         </aside>
       </div>
