@@ -2007,7 +2007,7 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
                 ) : (
                   <>
                     Booking&nbsp;#
-                    <span className="text-green-600 font-mono">
+                    <span className="text-green-500 font-mono">
                       {displayId}
                     </span>
                   </>
@@ -2219,7 +2219,7 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
 
                   <div className="h-2.5 w-full overflow-hidden rounded-full border border-gray-200 bg-gray-100">
                     <div
-                      className="h-full bg-green-500 transition-[width] duration-500 ease-out"
+                      className="h-full bg-green-500/90 transition-[width] duration-500 ease-out"
                       style={{ width: `${tripProgress}%` }}
                       role="progressbar"
                       aria-valuenow={tripProgress}
