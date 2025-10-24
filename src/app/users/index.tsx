@@ -443,7 +443,7 @@ export default function UsersPage() {
                 </button>
               ) : (
                 <div className="text-xs text-zinc-400">
-                  Больше пользователей нет
+                  There are no more users
                 </div>
               )}
             </div>

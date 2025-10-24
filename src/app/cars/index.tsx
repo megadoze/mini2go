@@ -333,7 +333,9 @@ export default function CarsPage() {
                 {isFetchingNext ? "Loading..." : "Показать ещё"}
               </button>
             ) : (
-              <div className="text-xs text-zinc-400">Больше машин нет</div>
+              <div className="text-xs text-zinc-400">
+                There are no more cars
+              </div>
             )}
           </div>
         </>

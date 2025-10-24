@@ -233,6 +233,12 @@ export default function AddCarWizard() {
         owner_id: user.id,
       };
 
+      if (!form.modelId) {
+        toast.error("Please select car model");
+        setLoading(false);
+        return;
+      }
+
       // 4) Вставляем машину
       const inserted = await addCar(payload);
       const carId = inserted?.id;

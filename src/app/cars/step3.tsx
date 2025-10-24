@@ -1,5 +1,5 @@
 import { decodeVinAndFillForm } from "@/services/vin.service";
-import { NativeSelect, NumberInput, TextInput } from "@mantine/core";
+import { NumberInput, Select, TextInput } from "@mantine/core";
 import { useEffect, useState } from "react";
 import { fuelTypes, driveTypes, transmissions } from "@/constants/carOptions";
 import { fetchBrands, fetchModelsByBrand } from "@/services/car.service";
@@ -218,30 +218,49 @@ export default function Step3({ form, handleChange }: any) {
 
       {showManualFields && (
         <>
-          <NativeSelect
+          <Select
             label="Mark"
-            value={form.brandId}
-            onChange={(e) => handleChange("brandId", e.currentTarget.value)}
-            data={[
-              { value: "", label: "Select mark" },
-              ...brands.map((b: any) => ({
-                value: b.id,
-                label: b.name,
-              })),
-            ]}
+            placeholder="Select mark"
+            value={form.brandId || null}
+            onChange={(value) => {
+              const brandId = value ?? "";
+              handleChange("brandId", brandId);
+
+              // найти объект бренда и сохранить читаемое имя
+              const brandObj = brands.find((b: any) => b.id === brandId);
+              handleChange("brand", brandObj ? brandObj.name : "");
+
+              // сбрасываем модель, потому что марка поменялась
+              handleChange("modelId", "");
+              handleChange("model", "");
+            }}
+            data={brands.map((b: any) => ({
+              value: b.id,
+              label: b.name,
+            }))}
+            maxDropdownHeight={200}
+            searchable
+            nothingFoundMessage="Not found"
           />
 
-          <NativeSelect
+          <Select
             label="Model"
-            value={form.modelId}
-            onChange={(e) => handleChange("modelId", e.currentTarget.value)}
-            data={[
-              { value: "", label: "Select model" },
-              ...models.map((m: any) => ({
-                value: m.id,
-                label: m.name,
-              })),
-            ]}
+            placeholder="Select model"
+            value={form.modelId || null}
+            onChange={(value) => {
+              const mid = value ?? "";
+              handleChange("modelId", mid);
+
+              const modelObj = models.find((m: any) => m.id === mid);
+              handleChange("model", modelObj ? modelObj.name : "");
+            }}
+            data={models.map((m: any) => ({
+              value: m.id,
+              label: m.name,
+            }))}
+            maxDropdownHeight={200}
+            searchable
+            nothingFoundMessage="Not found"
             disabled={!form.brandId}
           />
 
@@ -251,26 +270,28 @@ export default function Step3({ form, handleChange }: any) {
             onChange={(v) => handleChange("year", v === null ? "" : String(v))}
           />
 
-          <NativeSelect
+          <Select
             label="Fuel type"
-            value={form.fuelType}
-            onChange={(e) => handleChange("fuelType", e.currentTarget.value)}
-            data={[
-              { value: "", label: "Select fuel type" },
-              ...fuelOptions.map((f) => ({ value: f, label: f })),
-            ]}
+            placeholder="Select fuel type"
+            value={form.fuelType || null}
+            onChange={(value) => handleChange("fuelType", value ?? "")}
+            data={fuelOptions.map((f) => ({
+              value: f,
+              label: f,
+            }))}
+            maxDropdownHeight={200}
           />
 
-          <NativeSelect
+          <Select
             label="Transmission"
-            value={form.transmission}
-            onChange={(e) =>
-              handleChange("transmission", e.currentTarget.value)
-            }
-            data={[
-              { value: "", label: "Select transmission" },
-              ...transmissionOptions.map((t) => ({ value: t, label: t })),
-            ]}
+            placeholder="Select transmission"
+            value={form.transmission || null}
+            onChange={(value) => handleChange("transmission", value ?? "")}
+            data={transmissionOptions.map((t) => ({
+              value: t,
+              label: t,
+            }))}
+            maxDropdownHeight={200}
           />
 
           <NumberInput
@@ -287,14 +308,16 @@ export default function Step3({ form, handleChange }: any) {
             max={6}
           />
 
-          <NativeSelect
+          <Select
             label="Drive type"
-            value={form.driveType}
-            onChange={(e) => handleChange("driveType", e.currentTarget.value)}
-            data={[
-              { value: "", label: "Select drive type" },
-              ...driveOptions.map((f) => ({ value: f, label: f })),
-            ]}
+            placeholder="Select drive type"
+            value={form.driveType || null}
+            onChange={(value) => handleChange("driveType", value ?? "")}
+            data={driveOptions.map((d) => ({
+              value: d,
+              label: d,
+            }))}
+            maxDropdownHeight={200}
           />
 
           <NumberInput

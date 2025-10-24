@@ -196,20 +196,28 @@ function mapCarRow(car: any): CarWithRelations {
 
 // Получение списка марок авто
 export async function fetchBrands(): Promise<Brand[]> {
-  const { data, error } = await supabase.from("brands").select("*");
+  const { data, error } = await supabase
+    .from("brands")
+    .select("*")
+    .eq("is_active", true)
+    .order("name", { ascending: true });
   if (error) throw error;
   return data;
 }
+
 
 // Получение списка моделей конкретной марки авто
 export async function fetchModelsByBrand(brandId: string) {
   const { data, error } = await supabase
     .from("models")
     .select("*")
-    .eq("brand_id", brandId); // ← теперь это string
+    .eq("brand_id", brandId)
+    .eq("is_active", true)
+    .order("name", { ascending: true });
   if (error) throw error;
   return data;
 }
+
 
 // Получение списка авто
 export async function fetchCars(): Promise<CarWithRelations[]> {
