@@ -1,0 +1,26 @@
+# .gitignore (корень mini2go)
+
+# папки сборки
+.next
+dist
+out
+build
+
+# зависимости
+node_modules
+pnpm-lock.yaml
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# env
+.env
+.env.local
+.env.*.local
+
+# macOS
+.DS_Store
+
+# turbo / monorepo
+apps/*/.next
+apps/*/node_modules

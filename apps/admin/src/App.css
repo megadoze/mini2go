@@ -1,0 +1,119 @@
+.bg-hatched-booked {
+  background-image: repeating-linear-gradient(
+    135deg,
+    rgba(190, 242, 100, 1),
+    rgba(190, 242, 100, 0.3) 1px,
+    transparent 1px,
+    transparent 2px
+  );
+}
+
+.bg-hatched-blocked {
+  background-image: repeating-linear-gradient(
+    135deg,
+    rgba(217, 10, 206, 0.2),
+    rgba(217, 10, 206, 0.3) 0.2px,
+    transparent 1px,
+    transparent 2px
+  );
+}
+
+.bg-hatched-past {
+  background-image: repeating-linear-gradient(
+    45deg,
+    rgb(201, 203, 198, 0.6),
+    rgba(201, 203, 198, 0.2) 0.3px,
+    transparent 2px,
+    transparent 4px
+  );
+}
+
+.bg-hatched-today {
+  /* background-image: repeating-linear-gradient(
+    135deg,
+    rgb(201, 203, 198),
+    rgba(201, 203, 198, 0.4) 0.1px,
+    transparent 2px,
+    transparent 4px
+  ); */
+  /* background-image: radial-gradient(
+    circle,
+    rgba(194, 200, 210, 0.25) 1px,
+    transparent 1px
+  );
+  background-size: 3px 3px; */
+  background-color: #f9fafb;
+}
+
+/* частично занятый день (начало в середине) — зелёный, по диагонали */
+.bg-partly-busy-diag-start {
+  background-image: linear-gradient(
+    /* 135deg,
+    transparent 0%,
+    transparent 49%,
+    rgba(190, 242, 100, 0.4) 50%,
+    rgba(190, 242, 100, 1) 100% */ -45deg,
+    rgba(190, 242, 100, 0.5) 0%,
+    rgba(190, 242, 100, 0.1) 50%,
+    transparent 51%,
+    transparent 100%
+  );
+}
+
+/* частично занятый день (конец в середине) — зелёный, по диагонали */
+.bg-partly-busy-diag-end {
+  background-image: linear-gradient(
+    135deg,
+    rgba(190, 242, 100, 0.5) 0%,
+    rgba(190, 242, 100, 0.1) 50%,
+    transparent 51%,
+    transparent 100%
+  );
+}
+
+/* частично заблокированный день — фиолетовый по диагонали */
+.bg-partly-busy-diag-block {
+  background-image: linear-gradient(
+    135deg,
+    rgba(217, 10, 206, 0.4) 0%,
+    rgba(217, 10, 206, 0.25) 50%,
+    transparent 51%,
+    transparent 100%
+  );
+}
+
+/* Calendar Dashboard Mantine*/
+
+/* globals.css */
+.text-shadow {
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+/* выбранный день */
+.mantine-Popover-dropdown [data-selected] {
+  background-color: hsla(145, 76%, 45%, 0.6) !important;
+  color: #fff !important;
+}
+
+/* дни между началом и концом диапазона */
+.mantine-Popover-dropdown [data-in-range] {
+  background-color: hsla(145, 76%, 45%, 0.11) !important;
+  color: #000 !important;
+}
+
+/* hover по дню */
+.mantine-Popover-dropdown [role="gridcell"]:hover {
+  background-color: rgba(124, 58, 237, 0.25) !important;
+  color: #000 !important;
+}
+
+/* скругления краёв диапазона */
+.mantine-Popover-dropdown [data-first-in-range] {
+  border-top-left-radius: 9999px !important;
+  border-bottom-left-radius: 9999px !important;
+}
+
+.mantine-Popover-dropdown [data-last-in-range] {
+  border-top-right-radius: 9999px !important;
+  border-bottom-right-radius: 9999px !important;
+}
