@@ -1,16 +1,15 @@
 import { useEffect, useRef, useState } from "react";
-import { CircleFlag } from "react-circle-flags";
 
 type LanguageOption = {
   locale: string;
   label: string;
-  countryCode: string; // ISO 3166-1 alpha-2 (es, gb, de, fr, it, etc.)
+  flag: string; // emoji-флаг
 };
 
 const LANG_OPTIONS: LanguageOption[] = [
-  { locale: "en-GB", label: "International — English", countryCode: "gb" },
-  { locale: "es-ES", label: "Spain — Spanish", countryCode: "es" },
-  { locale: "de-DE", label: "Germany — German", countryCode: "de" },
+  { locale: "en-GB", label: "International — English", flag: "🇬🇧" },
+  { locale: "es-ES", label: "Spain — Spanish", flag: "🇪🇸" },
+  { locale: "de-DE", label: "Germany — German", flag: "🇩🇪" },
 ];
 
 export function LanguagePicker() {
@@ -21,7 +20,9 @@ export function LanguagePicker() {
   useEffect(() => {
     function onDocClick(e: MouseEvent) {
       if (!menuRef.current) return;
-      if (!menuRef.current.contains(e.target as Node)) setOpen(false);
+      if (!menuRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
     }
     function onEsc(e: KeyboardEvent) {
       if (e.key === "Escape") setOpen(false);
@@ -43,8 +44,8 @@ export function LanguagePicker() {
         onClick={() => setOpen((s) => !s)}
         className="inline-flex items-center gap-2 rounded-full border border-white/20 px-3 py-1.5 text-sm text-white hover:bg-white/10"
       >
-        <span className="inline-flex h-4 w-4 items-center justify-center rounded-full overflow-hidden ring-1 ring-white/15">
-          <CircleFlag countryCode={selected.countryCode} height="16" />
+        <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-white/10 text-[10px] leading-none ring-1 ring-white/15">
+          {selected.flag}
         </span>
         {selected.label}
         <svg
@@ -77,8 +78,8 @@ export function LanguagePicker() {
                 }}
                 className="w-full flex items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-white hover:bg-white/10"
               >
-                <span className="inline-flex h-4 w-4 items-center justify-center rounded-full overflow-hidden ring-1 ring-white/15">
-                  <CircleFlag countryCode={opt.countryCode} height="16" />
+                <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-white/10 text-[10px] leading-none ring-1 ring-white/15">
+                  {opt.flag}
                 </span>
                 <span className="grow">{opt.label}</span>
                 {active && (
