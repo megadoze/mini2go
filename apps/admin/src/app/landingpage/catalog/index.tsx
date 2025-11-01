@@ -9,7 +9,7 @@ import {
   FunnelIcon,
 } from "@heroicons/react/24/outline";
 import { toast } from "sonner";
-import { HeaderSection } from "../mainPage/header";
+// import { HeaderSection } from "../mainPage/header";
 import RentalDateTimePicker from "@/components/RentalDateTimePicker";
 import CarFilters from "@/components/carFilters";
 import {
@@ -106,7 +106,7 @@ export default function PublicCatalogPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
 
-  const [menuOpen, setMenuOpen] = useState(false);
+  // const [menuOpen, setMenuOpen] = useState(false);
 
   // даты
   const [start, setStart] = useState("");
@@ -615,11 +615,11 @@ export default function PublicCatalogPage() {
   return (
     <>
       <div className="min-h-screen bg-white text-neutral-900 flex flex-col">
-        <HeaderSection
+        {/* <HeaderSection
           menuOpen={menuOpen}
           handleMenuOpen={setMenuOpen}
           color="black"
-        />
+        /> */}
 
         <main className="flex-1 pb-24 pt-24 md:pt-32">
           {/* desktop filters */}

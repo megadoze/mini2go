@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeftIcon, CameraIcon } from "@heroicons/react/24/outline";
 import { fetchCarById } from "@/services/car.service";
-import { HeaderSection } from "../mainPage/header";
+// import { HeaderSection } from "../mainPage/header";
 import { WELCOME_FEATURES } from "@/constants/carOptions";
 import type { CarWithRelations } from "@/types/carWithRelations";
 
@@ -16,7 +16,7 @@ export default function PublicCarLandingMini() {
   const [error, setError] = useState<string | null>(null);
 
   const [showNav, setShowNav] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
+  // const [menuOpen, setMenuOpen] = useState(false);
 
   const [start] = useState<string>("2025-11-10T08:00");
   const [end] = useState<string>("2025-11-12T08:00");
@@ -181,11 +181,11 @@ export default function PublicCarLandingMini() {
 
   return (
     <div className="min-h-screen bg-white text-neutral-900">
-      <HeaderSection
+      {/* <HeaderSection
         menuOpen={menuOpen}
         handleMenuOpen={setMenuOpen}
         color="black"
-      />
+      /> */}
 
       {/* sticky anchor nav */}
       <nav

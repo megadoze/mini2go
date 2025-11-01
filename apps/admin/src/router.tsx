@@ -23,7 +23,6 @@ import HydrateFallback from "./components/hydrateFallback";
 import CarErrorBoundary from "./components/carErrorBoundary";
 import BookingsList from "./app/bookings";
 import BookingEditor from "./app/bookings/bookingEditor";
-import MiniLandingPage from "./app/landingpage/mainPage";
 import { calendarLoader } from "./routes/calendarLoader";
 import Calendar from "./app/car/calendar";
 import CalendarPage from "./app/calendarGant";
@@ -170,7 +169,6 @@ export const router = createBrowserRouter([
       { path: "settings", element: <Settings /> },
     ],
   },
-  { path: "/landing", element: <MiniLandingPage /> },
   { path: "/catalog", element: <AllCarsPage /> },
   {
     path: "/catalog/:brandSlug/:modelSlug/:carId",
