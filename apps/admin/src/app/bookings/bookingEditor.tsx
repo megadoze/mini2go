@@ -1916,12 +1916,14 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
     })();
 
   const canConfirm =
+    mode !== "create" && // ← НОВОЕ
     viewingAsHost &&
     mark === "booking" &&
     status === "onApproval" &&
     !isFinished;
 
   const hostCanCancel =
+    mode !== "create" && // ← НОВОЕ
     viewingAsHost &&
     mark === "booking" &&
     (status === "onApproval" || status === "confirmed") &&
@@ -3113,6 +3115,33 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
               >
                 Back
               </button>
+            ) : mode === "create" ? (
+              <>
+                <button
+                  type="button"
+                  className="border-green-400 text-green-500 flex-1 border rounded-md px-8 py-2 inline-flex items-center justify-center gap-2"
+                  onClick={handleSave}
+                  disabled={isLoading || invalidTime || saving}
+                >
+                  {saving ? (
+                    <>
+                      <Loader size="xs" color="gray" />
+                      Saving…
+                    </>
+                  ) : (
+                    "Save"
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  className="flex-1 border-gray-300 border rounded-md px-6 py-2 mr-2 text-gray-700"
+                  onClick={goBack}
+                  disabled={saving}
+                >
+                  Back
+                </button>
+              </>
             ) : (
               <>
                 {/* 1) Хост + можно подтверждать => показываем Confirm (и при желании Cancel рядом) */}
