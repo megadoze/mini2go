@@ -1,7 +1,8 @@
+/* eslint-disable @next/next/no-img-element */
+
 import { NAV } from "@/constants/carOptions";
 import { ChevronRightIcon, FingerPrintIcon } from "@heroicons/react/24/outline";
 import { Burger, Drawer } from "@mantine/core";
-import Image from "next/image";
 import type { Dispatch, SetStateAction } from "react";
 
 type HeaderMenuProps = {
@@ -34,9 +35,7 @@ export const HeaderSection = ({
             href="#"
             className="flex flex-col items-center shrink-0 font-roboto uppercase font-bold "
           >
-            <Image
-              width={56}
-              height={32}
+            <img
               src={color === "white" ? `/icons/logow.png` : `/icons/logo.png`}
               className="w-14 md:w-20 h-8 md:h-11"
               alt="mini2go logo"

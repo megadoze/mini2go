@@ -2,12 +2,12 @@
 
 import { useState } from "react";
 import { WelcomeSection } from "./welcome";
-import { HeaderSection } from "./header";
+import { HeaderSection } from "../header";
 import { HeroSection } from "./hero";
 import { ModelsSection } from "./models";
 import { VideoSection } from "./video";
 import { RequirementsSection } from "./requirements";
-import { Footer } from "./footer";
+import { Footer } from "../footer";
 import { MiniWorld } from "./miniWorld";
 
 export default function MiniRentalHero() {

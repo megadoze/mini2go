@@ -12,11 +12,15 @@
     "@heroicons/react": "^2.2.0",
     "@mantine/core": "^8.3.6",
     "@mantine/hooks": "^8.3.6",
+    "@supabase/supabase-js": "^2.78.0",
+    "@tanstack/react-query": "^5.90.6",
+    "date-fns": "^4.1.0",
     "framer-motion": "^12.23.24",
     "next": "16.0.1",
     "react": "19.2.0",
     "react-circle-flags": "^0.0.23",
-    "react-dom": "19.2.0"
+    "react-dom": "19.2.0",
+    "sonner": "^2.0.7"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -25,6 +29,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.0.1",
+    "supabase": "^2.54.11",
     "tailwindcss": "^4",
     "typescript": "^5"
   }
