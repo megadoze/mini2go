@@ -3,6 +3,7 @@
 import { NAV } from "@/constants/carOptions";
 import { ChevronRightIcon, FingerPrintIcon } from "@heroicons/react/24/outline";
 import { Burger, Drawer } from "@mantine/core";
+import Link from "next/link";
 import type { Dispatch, SetStateAction } from "react";
 
 type HeaderMenuProps = {
@@ -31,8 +32,8 @@ export const HeaderSection = ({
         </div>
 
         <div className="w-14 md:w-20">
-          <a
-            href="#"
+          <Link
+            href="/"
             className="flex flex-col items-center shrink-0 font-roboto uppercase font-bold "
           >
             <img
@@ -41,7 +42,7 @@ export const HeaderSection = ({
               alt="mini2go logo"
             />
             <p className={` text-${color} text-xs md:text-sm`}>MINI2GO</p>
-          </a>
+          </Link>
         </div>
 
         <button
