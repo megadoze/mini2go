@@ -1,13 +1,40 @@
-import { supabase } from "@/lib/supabase";
+// src/services/geo.service.ts
+"use client";
+
+import { getSupabaseClient } from "@/lib/supabase";
 import type { Country } from "@/types/country";
 
-const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
+// читаем токен один раз, это норм
+const MAPBOX_TOKEN =
+  process.env.NEXT_PUBLIC_MAPBOX_TOKEN ||
+  // вдруг ещё осталась старая Vite-переменная
+  (typeof import.meta !== "undefined" &&
+    (import.meta as any).env?.VITE_MAPBOX_TOKEN) ||
+  "";
 
+/**
+ * Обратное геокодирование через Mapbox
+ */
 export async function fetchAddressFromCoords(lat: number, lon: number) {
-  const response = await fetch(
+  if (!MAPBOX_TOKEN) {
+    if (process.env.NODE_ENV !== "production") {
+      console.warn("[geo.service] MAPBOX token missing");
+    }
+    return null;
+  }
+
+  const resp = await fetch(
     `https://api.mapbox.com/geocoding/v5/mapbox.places/${lon},${lat}.json?types=address&language=en&access_token=${MAPBOX_TOKEN}`
   );
-  const data = await response.json();
+
+  if (!resp.ok) {
+    if (process.env.NODE_ENV !== "production") {
+      console.warn("[geo.service] mapbox response not ok", resp.status);
+    }
+    return null;
+  }
+
+  const data = await resp.json();
 
   const feature =
     data.features?.find((f: any) => f.place_type?.includes("address")) ||
@@ -33,48 +60,72 @@ export async function fetchAddressFromCoords(lat: number, lon: number) {
   };
 }
 
+/**
+ * страны (публичный вызов — не валим билд)
+ */
 export async function fetchCountries(): Promise<Country[]> {
+  const supabase = getSupabaseClient();
+  if (!supabase) return []; // билд / нет env
   const { data, error } = await supabase.from("countries").select("*");
   if (error) throw error;
-  return data;
+  return data ?? [];
 }
 
-// Получение списка моделей конкретной марки авто
+/**
+ * локации по стране
+ */
 export async function fetchLocationsByCountry(locationId: string) {
+  const supabase = getSupabaseClient();
+  if (!supabase) return [];
   const { data, error } = await supabase
     .from("locations")
     .select("*")
-    .eq("country_id", locationId); // ← теперь это string
+    .eq("country_id", locationId);
   if (error) throw error;
-  return data;
+  return data ?? [];
 }
 
 export async function getCountryByName(name: string) {
+  const supabase = getSupabaseClient();
+  if (!supabase) return null;
   const { data, error } = await supabase
     .from("countries")
     .select("*")
     .ilike("name", name)
-    .single();
+    .maybeSingle();
   if (error) return null;
   return data;
 }
 
 export async function getLocationByName(name: string, countryId: string) {
+  const supabase = getSupabaseClient();
+  if (!supabase) return null;
   const { data, error } = await supabase
     .from("locations")
     .select("*")
     .ilike("name", name)
     .eq("country_id", countryId)
-    .single();
+    .maybeSingle();
   if (error) return null;
   return data;
 }
 
+/**
+ * создать страну/город, если нет
+ * это уже "запись" → здесь лучше упасть, если клиента нет
+ */
 export async function ensureCountryAndLocationExist(
   countryName: string,
   cityName: string
 ): Promise<string | null> {
-  // 1. Страна
+  const supabase = getSupabaseClient();
+  if (!supabase) {
+    throw new Error(
+      "[geo.service] supabase client not available for ensureCountryAndLocationExist"
+    );
+  }
+
+  // 1. страна
   let countryId: string | null = null;
 
   const { data: existingCountry, error: countryError } = await supabase
@@ -105,7 +156,7 @@ export async function ensureCountryAndLocationExist(
     countryId = newCountry.id;
   }
 
-  // 2. Локация (город)
+  // 2. город
   let locationId: string | null = null;
 
   const { data: existingLocation, error: locationError } = await supabase

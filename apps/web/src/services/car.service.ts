@@ -1,13 +1,27 @@
-import { supabase } from "@/lib/supabase";
+// src/services/car.service.ts
+"use client";
+
+import { getSupabaseClient } from "@/lib/supabase";
 import type { Brand } from "@/types/brand";
 import type { Car } from "@/types/car";
-import { CarExtraWithMeta } from "@/types/carExtra";
+import type { CarExtraWithMeta } from "@/types/carExtra";
 import type { CarWithRelations } from "@/types/carWithRelations";
 import type { Extra } from "@/types/extra";
 import type { Feature } from "@/types/feature";
 import type { CarUpdatePayload } from "@/types/сarUpdatePayload";
 
 const carCache = new Map<string, any>();
+
+// маленький хелпер, чтобы не копипастить
+function requireSupabase() {
+  const supabase = getSupabaseClient();
+  if (!supabase) {
+    throw new Error(
+      "[car.service] Supabase client is not available (no NEXT_PUBLIC_SUPABASE_URL / KEY or called on server)"
+    );
+  }
+  return supabase;
+}
 
 function toCamelCar(raw: any) {
   const model = Array.isArray(raw.model) ? raw.model[0] : raw.model;
@@ -205,19 +219,25 @@ function mapCarRow(car: any): CarWithRelations {
   };
 }
 
-// Получение списка марок авто
+/* ====================== ПУБЛИЧНЫЕ ФУНКЦИИ ====================== */
+
+// марки
 export async function fetchBrands(): Promise<Brand[]> {
+  const supabase = getSupabaseClient();
+  if (!supabase) return []; // чтобы билд не падал
   const { data, error } = await supabase
     .from("brands")
     .select("*")
     .eq("is_active", true)
     .order("name", { ascending: true });
   if (error) throw error;
-  return data;
+  return data ?? [];
 }
 
-// Получение списка моделей конкретной марки авто
+// модели по марке
 export async function fetchModelsByBrand(brandId: string) {
+  const supabase = getSupabaseClient();
+  if (!supabase) return [];
   const { data, error } = await supabase
     .from("models")
     .select("*")
@@ -225,43 +245,10 @@ export async function fetchModelsByBrand(brandId: string) {
     .eq("is_active", true)
     .order("name", { ascending: true });
   if (error) throw error;
-  return data;
+  return data ?? [];
 }
 
-// Получение списка авто
-// export async function fetchCars(): Promise<CarWithRelations[]> {
-//   const { data } = await supabase
-//     .from("cars")
-//     .select(CARS_BASE_SELECT)
-//     .throwOnError();
-
-//   if (!data) return [];
-//   return data.map(mapCarRow);
-// }
-
-// Получение авто постранично (открытый доступ, только активные)
-// export async function fetchCarsPage(opts: {
-//   limit: number;
-//   offset: number;
-// }): Promise<{
-//   items: CarWithRelations[];
-//   count: number;
-// }> {
-//   const { limit, offset } = opts;
-
-//   const { data, error, count } = await supabase
-//     .from("cars")
-//     .select(CARS_BASE_SELECT, { count: "exact", head: false })
-//     .eq("status", "available")
-//     .order("created_at", { ascending: false })
-//     // В supabase .range — включительно по обоим концам
-//     .range(offset, offset + limit - 1);
-
-//   if (error) throw error;
-
-//   const items = (data ?? []).map(mapCarRow);
-//   return { items, count: count ?? items.length };
-// }
+// публичный каталог
 export async function fetchCarsPage(opts: {
   limit: number;
   offset: number;
@@ -269,6 +256,12 @@ export async function fetchCarsPage(opts: {
   locationName?: string | null;
   brandOrModel?: string | null;
 }): Promise<{ items: CarWithRelations[]; count: number }> {
+  const supabase = getSupabaseClient();
+  if (!supabase) {
+    // на билде / без env
+    return { items: [], count: 0 };
+  }
+
   const { limit, offset, countryId, locationName, brandOrModel } = opts;
 
   let q = supabase
@@ -310,28 +303,18 @@ export async function fetchCarsPage(opts: {
       `,
       { count: "exact", head: false }
     )
-    // публичке нужны только доступные
     .eq("status", "available");
 
-  // фильтр по стране
   if (countryId) {
-    // у тебя страна лежит в locations.countries.id
-    // в supabase через RPC это проще, но можно и так:
-    // если у тебя в таблице cars уже есть country_id — используй .eq("country_id", countryId)
     q = q.eq("locations.countries.id", countryId);
   }
 
-  // фильтр по локации (по имени)
   if (locationName) {
     q = q.ilike("locations.name", `%${locationName}%`);
   }
 
-  // фильтр по марке/модели
   if (brandOrModel) {
     const v = brandOrModel.trim();
-    // supabase не умеет OR по json-реляциям в одной строке красиво,
-    // поэтому чаще делают view или отдельный rpc.
-    // Сделаем самый простой вариант: по модели
     q = q.or(`models.name.ilike.%${v}%,models.brands.name.ilike.%${v}%`, {
       foreignTable: "models",
     });
@@ -344,16 +327,16 @@ export async function fetchCarsPage(opts: {
   if (error) throw error;
 
   const items = (data ?? []).map(mapCarRow);
-
   return { items, count: count ?? items.length };
 }
 
-// Получение авто хоста (постранично)
+// авто хоста (постранично)
 export async function fetchCarsPageByHost(opts: {
   ownerId: string;
   limit: number;
   offset: number;
 }): Promise<{ items: CarWithRelations[]; count: number }> {
+  const supabase = requireSupabase();
   const { ownerId, limit, offset } = opts;
 
   const { data, error, count } = await supabase
@@ -369,10 +352,11 @@ export async function fetchCarsPageByHost(opts: {
   return { items, count: count ?? items.length };
 }
 
-// Получение авто хоста
+// авто хоста (всё)
 export async function fetchCarsByHost(
   ownerId: string
 ): Promise<CarWithRelations[]> {
+  const supabase = requireSupabase();
   const { data, error } = await supabase
     .from("cars")
     .select(CARS_BASE_SELECT)
@@ -389,21 +373,23 @@ export type NewCar = Omit<
   "id" | "address" | "pickupInfo" | "returnInfo" | "created_at"
 >;
 
-// Добавление нового авто
-export async function addCar(car: Partial<NewCar>): Promise<{
-  id: string;
-}> {
+// добавить авто
+export async function addCar(car: Partial<NewCar>): Promise<{ id: string }> {
+  const supabase = requireSupabase();
   const { data, error } = await supabase
     .from("cars")
     .insert(car)
-    .select("id") // минимально
-    .single(); // ожидаем 1 строку
+    .select("id")
+    .single();
 
   if (error) throw error;
   return data!;
 }
 
+// авто по id
 export async function fetchCarById(id: string) {
+  const supabase = requireSupabase();
+
   if (carCache.has(id)) return carCache.get(id);
 
   const { data, error } = await supabase
@@ -420,23 +406,26 @@ export async function fetchCarById(id: string) {
     .maybeSingle();
 
   if (error) throw error;
+  if (!data) return null;
 
   const camel = toCamelCar(data);
   carCache.set(id, camel);
   return camel;
 }
 
-//Удаление авто
+// удалить авто
 export async function deleteCar(carId: string) {
+  const supabase = requireSupabase();
   const { error } = await supabase.from("cars").delete().eq("id", carId);
-
   if (error) {
     throw new Error("Ошибка при удалении автомобиля: " + error.message);
   }
+  carCache.delete(carId);
 }
 
-// Обновление данных авто
+// обновить авто
 export async function updateCar(id: string, data: CarUpdatePayload) {
+  const supabase = requireSupabase();
   const snakeData = carCamelToSnake(data);
 
   const { error } = await supabase.from("cars").update(snakeData).eq("id", id);
@@ -445,8 +434,9 @@ export async function updateCar(id: string, data: CarUpdatePayload) {
   carCache.delete(id);
 }
 
-// Загрузка фото авто
+// загрузка фото (storage)
 export async function uploadCarPhotos(files: File[], carId: string) {
+  const supabase = requireSupabase();
   const uploadedUrls: string[] = [];
 
   for (const file of files) {
@@ -481,30 +471,32 @@ export async function uploadCarPhotos(files: File[], carId: string) {
   return uploadedUrls;
 }
 
-// Обновление массива photos у авто
+// обновить массив photos
 export async function updateCarPhotos(carId: string, photos: string[]) {
+  const supabase = requireSupabase();
   const { error } = await supabase
     .from("cars")
     .update({ photos })
     .eq("id", carId);
   if (error) throw error;
-  carCache.delete(carId); // ♻️
+  carCache.delete(carId);
 }
 
-// Получение всех доступных опций авто
+// фичи
 export async function fetchFeatures(): Promise<Feature[]> {
+  const supabase = getSupabaseClient();
+  if (!supabase) return [];
   const { data, error } = await supabase.from("features").select("*");
-
   if (error) {
     console.error("Ошибка при загрузке фич:", error);
     throw error;
   }
-
   return data ?? [];
 }
 
-// Загрузка опций конретного авто
+// фичи авто
 export async function fetchCarFeatures(carId: string): Promise<string[]> {
+  const supabase = requireSupabase();
   const { data, error } = await supabase
     .from("car_features")
     .select("feature_id")
@@ -515,9 +507,10 @@ export async function fetchCarFeatures(carId: string): Promise<string[]> {
   return data.map((item) => item.feature_id);
 }
 
-// Обновление опций авто
+// обновить фичи авто
 export async function updateCarFeatures(carId: string, featureIds: string[]) {
-  // Удаляем все старые связи
+  const supabase = requireSupabase();
+
   const { error: deleteError } = await supabase
     .from("car_features")
     .delete()
@@ -525,7 +518,6 @@ export async function updateCarFeatures(carId: string, featureIds: string[]) {
 
   if (deleteError) throw deleteError;
 
-  // Добавляем новые связи
   const inserts = featureIds.map((featureId) => ({
     car_id: carId,
     feature_id: featureId,
@@ -536,14 +528,17 @@ export async function updateCarFeatures(carId: string, featureIds: string[]) {
     .insert(inserts);
 
   if (insertError) throw insertError;
+  carCache.delete(carId);
 }
 
-// Получение всех extras
+// все extras
 export async function fetchExtras(): Promise<Extra[]> {
+  const supabase = getSupabaseClient();
+  if (!supabase) return [];
   const { data, error } = await supabase.from("extras").select("*");
 
   if (error) {
-    console.error("Ошибка при загрузке фич:", error);
+    console.error("Ошибка при загрузке extras:", error);
     throw error;
   }
 
@@ -558,10 +553,11 @@ type ExtraDetails = {
   is_active: boolean;
 };
 
-// Получение extras авто
+// extras конкретного авто
 export async function fetchCarExtras(
   carId: string
 ): Promise<CarExtraWithMeta[]> {
+  const supabase = requireSupabase();
   const { data, error } = await supabase
     .from("car_extras")
     .select(
@@ -603,7 +599,7 @@ export async function fetchCarExtras(
   return result;
 }
 
-// Обновляем авто с extras
+// upsert extras
 export async function upsertCarExtra({
   car_id,
   extra_id,
@@ -615,6 +611,8 @@ export async function upsertCarExtra({
   price: number;
   is_available: boolean;
 }) {
+  const supabase = requireSupabase();
+
   if (!is_available) {
     const { error } = await supabase
       .from("car_extras")
@@ -622,12 +620,13 @@ export async function upsertCarExtra({
       .eq("car_id", car_id)
       .eq("extra_id", extra_id);
     if (error) throw error;
-    carCache.delete(car_id); // ♻️
+    carCache.delete(car_id);
     return;
   }
+
   const { error } = await supabase
     .from("car_extras")
     .upsert({ car_id, extra_id, price }, { onConflict: "car_id,extra_id" });
   if (error) throw error;
-  carCache.delete(car_id); // ♻️
+  carCache.delete(car_id);
 }

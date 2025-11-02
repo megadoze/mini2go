@@ -1,5 +1,8 @@
-import { supabase } from "@/lib/supabase";
-import { BookingFull } from "./calendar.service";
+// src/services/catalog-availability.service.ts
+"use client";
+
+import { getSupabaseClient } from "@/lib/supabase";
+import type { BookingFull } from "./calendar.service";
 
 // диапазон пересекается, если (start_at <= end) и (end_at >= start)
 export async function fetchBookingsForCarsInRange(params: {
@@ -10,7 +13,17 @@ export async function fetchBookingsForCarsInRange(params: {
   const { carIds, start, end } = params;
   if (!carIds.length) return [];
 
-  // supabase не любит очень большие in(), но под каталожные 50 — норм
+  const supabase = getSupabaseClient();
+  // если это билд / нет env — просто не валим сборку
+  if (!supabase) {
+    if (process.env.NODE_ENV !== "production") {
+      console.warn(
+        "[catalog-availability.service] supabase client not available, returning []"
+      );
+    }
+    return [];
+  }
+
   const { data, error } = await supabase
     .from("v_bookings_full")
     .select("*")

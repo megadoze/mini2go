@@ -1,4 +1,7 @@
-import { supabase } from "@/lib/supabase";
+// src/services/calendar.service.ts
+"use client";
+
+import { getSupabaseClient } from "@/lib/supabase";
 import type { Booking } from "@/types/booking";
 import type { Car } from "@/types/car";
 import type { Profile } from "@/types/profile";
@@ -9,7 +12,26 @@ export type BookingFull = Booking & {
   car?: Car | null;
 };
 
-export async function fetchBookingsByCarId(carId: string): Promise<BookingFull[]> {
+function requireSupabase() {
+  const supabase = getSupabaseClient();
+  if (!supabase) {
+    throw new Error(
+      "[calendar.service] Supabase client is not available (no NEXT_PUBLIC_SUPABASE_URL / KEY or code ran on server)"
+    );
+  }
+  return supabase;
+}
+
+// READ: можно сделать мягким, чтобы билд не падал
+export async function fetchBookingsByCarId(
+  carId: string
+): Promise<BookingFull[]> {
+  const supabase = getSupabaseClient();
+  if (!supabase) {
+    // на билде / без env — просто пусто
+    return [];
+  }
+
   const { data, error } = await supabase
     .from("v_bookings_full")
     .select("*")
@@ -19,42 +41,47 @@ export async function fetchBookingsByCarId(carId: string): Promise<BookingFull[]
   return (data ?? []) as BookingFull[];
 }
 
-
 export async function fetchBookingById(id: string): Promise<BookingFull> {
-  const { data, error } = await supabase
-  .from('v_bookings_full')
-  .select('*')
-  .eq('id', id)
-  .maybeSingle();
+  const supabase = getSupabaseClient();
+  if (!supabase) {
+    throw new Error("[calendar.service] Cannot fetch booking on server");
+  }
 
-if (error) throw error;
+  const { data, error } = await supabase
+    .from("v_bookings_full")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (error) throw error;
   if (!data) {
     const err = new Error("Booking not found");
     (err as any).code = "NOT_FOUND";
     throw err;
   }
 
-return data as BookingFull;
+  return data as BookingFull;
 }
 
-
-
-
+// WRITE: тут лучше жёстко требовать клиент
 export async function createBooking(
   booking: Omit<Booking, "id">
 ): Promise<BookingFull> {
+  const supabase = requireSupabase();
+
   const { data, error } = await supabase
     .from("bookings")
     .insert(booking)
-    .select("id") // важно: только id
+    .select("id")
     .single();
+
   if (error) throw error;
 
-  // единая точка истины
   return await fetchBookingById(data.id);
 }
 
 export async function deleteBooking(id: string): Promise<void> {
+  const supabase = requireSupabase();
   const { error } = await supabase.from("bookings").delete().eq("id", id);
 
   if (error) throw error;
@@ -64,12 +91,10 @@ export async function updateBooking(
   id: string,
   patch: Partial<Booking>
 ): Promise<BookingFull> {
-  const { error } = await supabase
-    .from("bookings")
-    .update(patch)
-    .eq("id", id);
+  const supabase = requireSupabase();
+
+  const { error } = await supabase.from("bookings").update(patch).eq("id", id);
   if (error) throw error;
 
-  // единая точка истины
   return await fetchBookingById(id);
 }

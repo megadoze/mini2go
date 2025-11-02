@@ -1,4 +1,7 @@
-import { supabase } from "@/lib/supabase";
+// src/services/pricing.service.ts
+"use client";
+
+import { getSupabaseClient } from "@/lib/supabase";
 
 export type PricingRule = {
   id?: string;
@@ -17,17 +20,35 @@ export type SeasonalRate = {
   created_at?: string;
 };
 
-export async function fetchPricingRules(carId: string) {
+/**
+ * ЧТЕНИЕ — мягкое: если клиента нет (билд / нет env) — вернём пусто,
+ * чтобы каталог не падал.
+ */
+export async function fetchPricingRules(carId: string): Promise<PricingRule[]> {
+  const supabase = getSupabaseClient();
+  if (!supabase) return [];
   const { data, error } = await supabase
     .from("pricing_rules")
     .select("id, car_id, min_days, discount_percent, created_at")
     .eq("car_id", carId)
     .order("min_days", { ascending: true });
   if (error) throw error;
-  return data as PricingRule[];
+  return (data ?? []) as PricingRule[];
 }
 
-export async function upsertPricingRule(rule: PricingRule) {
+/**
+ * ЗАПИСЬ — тут уже нужен реальный клиент
+ */
+export async function upsertPricingRule(
+  rule: PricingRule
+): Promise<PricingRule> {
+  const supabase = getSupabaseClient();
+  if (!supabase) {
+    throw new Error(
+      "[pricing.service] Supabase client is not available for upsertPricingRule"
+    );
+  }
+
   const payload = { ...rule };
   const { data, error } = await supabase
     .from("pricing_rules")
@@ -38,22 +59,44 @@ export async function upsertPricingRule(rule: PricingRule) {
   return data as PricingRule;
 }
 
-export async function deletePricingRule(id: string) {
+export async function deletePricingRule(id: string): Promise<void> {
+  const supabase = getSupabaseClient();
+  if (!supabase) {
+    throw new Error(
+      "[pricing.service] Supabase client is not available for deletePricingRule"
+    );
+  }
   const { error } = await supabase.from("pricing_rules").delete().eq("id", id);
   if (error) throw error;
 }
 
-export async function fetchSeasonalRates(carId: string) {
+/**
+ * ЧТЕНИЕ — мягкое
+ */
+export async function fetchSeasonalRates(
+  carId: string
+): Promise<SeasonalRate[]> {
+  const supabase = getSupabaseClient();
+  if (!supabase) return [];
   const { data, error } = await supabase
     .from("seasonal_rates")
     .select("id, car_id, start_date, end_date, adjustment_percent, created_at")
     .eq("car_id", carId)
     .order("start_date", { ascending: true });
   if (error) throw error;
-  return data as SeasonalRate[];
+  return (data ?? []) as SeasonalRate[];
 }
 
-export async function upsertSeasonalRate(rate: SeasonalRate) {
+export async function upsertSeasonalRate(
+  rate: SeasonalRate
+): Promise<SeasonalRate> {
+  const supabase = getSupabaseClient();
+  if (!supabase) {
+    throw new Error(
+      "[pricing.service] Supabase client is not available for upsertSeasonalRate"
+    );
+  }
+
   const payload = { ...rate };
   const { data, error } = await supabase
     .from("seasonal_rates")
@@ -64,7 +107,13 @@ export async function upsertSeasonalRate(rate: SeasonalRate) {
   return data as SeasonalRate;
 }
 
-export async function deleteSeasonalRate(id: string) {
+export async function deleteSeasonalRate(id: string): Promise<void> {
+  const supabase = getSupabaseClient();
+  if (!supabase) {
+    throw new Error(
+      "[pricing.service] Supabase client is not available for deleteSeasonalRate"
+    );
+  }
   const { error } = await supabase.from("seasonal_rates").delete().eq("id", id);
   if (error) throw error;
 }

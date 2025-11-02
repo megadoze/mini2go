@@ -29,7 +29,6 @@ import {
   type SeasonalRate,
 } from "@/services/pricing.service";
 import { getGlobalSettings } from "@/services/settings.service";
-import { supabase } from "@/lib/supabase";
 import { highlightMatch } from "@/utils/highlightMatch";
 import { calculateFinalPriceProRated } from "@/hooks/useFinalPriceHourly";
 import type { CarWithRelations } from "@/types/carWithRelations";
@@ -37,6 +36,7 @@ import type { Booking } from "@/types/booking";
 import type { Country } from "@/types/country";
 import type { Location } from "@/types/location";
 import { HeaderSection } from "@/components/header";
+import { getSupabaseClient } from "@/lib/supabase";
 
 function cn(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
@@ -372,6 +372,9 @@ export default function CatalogClient() {
 
   // realtime
   useEffect(() => {
+    const supabase = getSupabaseClient();
+    if (!supabase) return; // на билде / без env — просто выходим
+
     const ch = supabase
       .channel("public-cars-realtime")
       .on(
@@ -382,6 +385,7 @@ export default function CatalogClient() {
         }
       )
       .subscribe();
+
     return () => {
       supabase.removeChannel(ch);
     };

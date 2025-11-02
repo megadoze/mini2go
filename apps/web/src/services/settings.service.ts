@@ -1,11 +1,13 @@
-import { supabase } from "@/lib/supabase";
+// src/services/settings.service.ts
+"use client";
+
+import { getSupabaseClient } from "@/lib/supabase";
 import type { AppSettings } from "@/types/setting";
 import type { AppSettingsUpdatePayload } from "@/types/appSettingsUpdatePayload";
 
 function toCamel(row: any): AppSettings {
   if (!row) return row;
   return {
-    // числа/строки
     currency: row.currency ?? null,
     openTime: row.open_time ?? null,
     closeTime: row.close_time ?? null,
@@ -14,16 +16,23 @@ function toCamel(row: any): AppSettings {
     intervalBetweenBookings: row.interval_between_bookings ?? null,
     ageRenters: row.age_renters ?? null,
     minDriverLicense: row.min_driver_license ?? null,
-    // булевы
     isInstantBooking: row.is_instant_booking ?? false,
     isSmoking: row.is_smoking ?? false,
     isPets: row.is_pets ?? false,
     isAbroad: row.is_abroad ?? false,
-    // если в типе есть служебные — добавь при необходимости
   } as AppSettings;
 }
 
-export async function getGlobalSettings(ownerId: string) {
+// READ — мягко, чтобы билд не падал
+export async function getGlobalSettings(
+  ownerId: string
+): Promise<AppSettings | null> {
+  const supabase = getSupabaseClient();
+  if (!supabase) {
+    // на билде или без env — просто вернём null
+    return null;
+  }
+
   const { data, error } = await supabase
     .from("app_settings")
     .select("*")
@@ -35,10 +44,18 @@ export async function getGlobalSettings(ownerId: string) {
   return data ? toCamel(data) : null;
 }
 
+// WRITE — тут уже нужен реальный клиент
 export async function upsertGlobalSettings(
   ownerId: string,
   payload: AppSettingsUpdatePayload
-) {
+): Promise<AppSettings> {
+  const supabase = getSupabaseClient();
+  if (!supabase) {
+    throw new Error(
+      "[settings.service] Supabase client is not available for upsertGlobalSettings"
+    );
+  }
+
   const row = {
     owner_id: ownerId,
     scope: "global",
