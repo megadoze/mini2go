@@ -893,7 +893,7 @@ function CatalogCardGlass({
 
   const brandSlug = slugify(brand);
   const modelSlug = slugify(model);
-  const href = `/catalog/${brandSlug}/${modelSlug}/${
+  const href = `/cars/${brandSlug}/${modelSlug}/${
     car.id
   }?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`;
 
