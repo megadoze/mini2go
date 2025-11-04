@@ -4,7 +4,7 @@
 
 import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import { startOfDay } from "date-fns";
 import { TextInput, Drawer } from "@mantine/core";
@@ -108,6 +108,8 @@ function overlaps(aS: Date, aE: Date, bS: Date, bE: Date) {
 }
 
 export default function CatalogClient() {
+  const searchParams = useSearchParams();
+
   const router = useRouter();
   const qc = useQueryClient();
 
@@ -150,6 +152,19 @@ export default function CatalogClient() {
   >({});
 
   const lastBookingsKeyRef = useRef<string | null>(null);
+
+  // парсим query параметры один раз при монтировании
+  useEffect(() => {
+    const s = searchParams.get("start");
+    const e = searchParams.get("end");
+    const c = searchParams.get("country");
+    const l = searchParams.get("location");
+
+    if (s) setStart(s);
+    if (e) setEnd(e);
+    if (c) setCountryId(c);
+    if (l) setLocationFilter(l);
+  }, [searchParams]);
 
   // страны
   useEffect(() => {
