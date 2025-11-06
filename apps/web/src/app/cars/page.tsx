@@ -15,7 +15,10 @@ export const metadata: Metadata = {
 
 export default function CatalogPage() {
   return (
-    <Suspense fallback={<div className="p-6">Loading cars…</div>}>
+    // <Suspense fallback={<div className="p-6">Loading cars…</div>}>
+    //   <CatalogClient />
+    // </Suspense>
+    <Suspense fallback={null}>
       <CatalogClient />
     </Suspense>
   );
