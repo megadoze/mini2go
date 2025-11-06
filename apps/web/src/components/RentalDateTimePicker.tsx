@@ -425,7 +425,7 @@ export default function RentalDateTimePicker({
         <div className="rounded-xl border border-gray-200 p-2">
           <div className=" flex justify-between">
             <div className="text-xs text-gray-500">Pick Up</div>
-            <div className="mt-1 text-sm font-medium min-h-[20px]">
+            <div className="mt-1 text-sm font-medium min-h-5">
               {tempRange.startAt
                 ? format(tempRange.startAt, "d MMM, HH:mm", { locale })
                 : "—"}
@@ -454,7 +454,7 @@ export default function RentalDateTimePicker({
         <div className="rounded-xl border border-gray-200 p-2">
           <div className=" flex justify-between">
             <div className="text-xs text-gray-500">Drop Off</div>
-            <div className="mt-1 text-sm font-medium min-h-[20px]">
+            <div className="mt-1 text-sm font-medium min-h-5">
               {tempRange.endAt
                 ? format(tempRange.endAt, "d MMM, HH:mm", { locale })
                 : "—"}
@@ -482,13 +482,13 @@ export default function RentalDateTimePicker({
       </div>
 
       <div>
-        <div className="text-xs text-red-500 min-h-[1rem]">
+        <div className="text-xs text-red-500 min-h-4">
           {rangeBlocked ? "Выбранный диапазон пересекается с блокировками" : ""}
         </div>
         <div className="flex items-center justify-between">
           <div>
             <button
-              className=" px-4 py-2 border rounded-xl hover:bg-gray-100"
+              className=" px-4 py-2 border rounded-xl hover:bg-gray-100 cursor-pointer"
               onClick={() => {
                 commit(value);
                 setTempRange(value);
@@ -501,13 +501,13 @@ export default function RentalDateTimePicker({
 
           <div className="py-2 flex items-center gap-2">
             <button
-              className="px-3 py-2 rounded-xl border border-gray-200 hover:bg-gray-50"
+              className="px-3 py-2 rounded-xl border border-gray-200 hover:bg-gray-50 cursor-pointer"
               onClick={() => setTempRange(value)}
             >
               Reset
             </button>
             <button
-              className="px-4 py-2 rounded-xl bg-black text-white disabled:opacity-50"
+              className="px-4 py-2 rounded-xl bg-black text-white disabled:opacity-50 cursor-pointer"
               disabled={!tempRange.startAt || !tempRange.endAt || rangeBlocked}
               onClick={() => commit()}
             >

@@ -4,17 +4,16 @@
 import { getSupabaseClient } from "@/lib/supabase";
 import type { BookingFull } from "./calendar.service";
 
-// диапазон пересекается, если (start_at <= end) и (end_at >= start)
 export async function fetchBookingsForCarsInRange(params: {
   carIds: string[];
   start: string; // ISO
   end: string; // ISO
+  bufferMinutes?: number; // optional buffer in minutes (default 0)
 }): Promise<BookingFull[]> {
-  const { carIds, start, end } = params;
-  if (!carIds.length) return [];
+  const { carIds, start, end, bufferMinutes = 0 } = params;
+  if (!carIds || !carIds.length) return [];
 
   const supabase = getSupabaseClient();
-  // если это билд / нет env — просто не валим сборку
   if (!supabase) {
     if (process.env.NODE_ENV !== "production") {
       console.warn(
@@ -24,14 +23,26 @@ export async function fetchBookingsForCarsInRange(params: {
     return [];
   }
 
+  // compute adjusted interval with buffer (ISO strings)
+  const startMs = new Date(start).getTime();
+  const endMs = new Date(end).getTime();
+  const bufMs = Math.max(0, Number(bufferMinutes) || 0) * 60 * 1000;
+  const adjStart = new Date(startMs - bufMs).toISOString();
+  const adjEnd = new Date(endMs + bufMs).toISOString();
+
+  // intersection: booking.start_at < adjEnd  AND  booking.end_at > adjStart
+  // Using strict < and > to avoid edge miscounts (change to lte/gte if inclusive edges needed)
   const { data, error } = await supabase
     .from("v_bookings_full")
     .select("*")
     .in("car_id", carIds)
-    // внимание: тут две части пересечения
-    .lte("start_at", end)
-    .gte("end_at", start);
+    .lt("start_at", adjEnd)
+    .gt("end_at", adjStart);
 
-  if (error) throw error;
+  if (error) {
+    // bubble up error so caller can decide fallback
+    throw error;
+  }
+
   return (data ?? []) as BookingFull[];
 }

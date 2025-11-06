@@ -156,7 +156,7 @@ export const ModelsSection = () => {
                   e.preventDefault();
                 }}
                 data-slide
-                className=" snap-center shrink-0 w-[80vw] sm:w-[50vw] lg:w-[560px] flex flex-col items-center justify-center no-underline"
+                className="z-10 snap-center shrink-0 w-[80vw] sm:w-[50vw] lg:w-[560px] flex flex-col items-center justify-center no-underline"
                 aria-label={`Open ${c.title} preview`}
               >
                 <div

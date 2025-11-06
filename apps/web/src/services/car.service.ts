@@ -1,4 +1,3 @@
-// src/services/car.service.ts
 "use client";
 
 import { getSupabaseClient } from "@/lib/supabase";
@@ -330,6 +329,132 @@ export async function fetchCarsPage(opts: {
   return { items, count: count ?? items.length };
 }
 
+// export async function fetchCarsPage(opts: {
+//   limit: number;
+//   offset: number;
+//   countryId?: string | null;
+//   locationName?: string | null;
+//   brandOrModel?: string | null;
+// }): Promise<{ items: CarWithRelations[]; count: number }> {
+//   const supabase = getSupabaseClient();
+
+//   if (!supabase) return { items: [], count: 0 };
+
+//   const { limit, offset, countryId, locationName, brandOrModel } = opts;
+
+//   // --- 1) Resolve matching location IDs (safe, step-by-step) ---
+//   let locationIds: string[] | null = null;
+
+//   try {
+//     if (countryId || (locationName && locationName.trim() !== "")) {
+//       // Try simple query: filter by country_id column (most common)
+//       let q = supabase.from("locations").select("id");
+
+//       if (countryId) {
+//         q = q.eq("country_id", countryId);
+//       }
+//       if (locationName) {
+//         q = q.ilike("name", `%${locationName}%`);
+//       }
+
+//       const { data: byCol, error: byColErr } = await q.range(0, 199);
+//       if (!byColErr && Array.isArray(byCol) && byCol.length > 0) {
+//         locationIds = byCol.map((r: any) => r.id).filter(Boolean);
+//       } else {
+//         // fallback: try filtering via relation "countries.id" (if relation exists)
+//         // build new query
+//         let q2 = supabase.from("locations").select("id");
+//         if (countryId) q2 = q2.filter("countries.id", "eq", countryId);
+//         if (locationName) q2 = q2.ilike("name", `%${locationName}%`);
+
+//         const { data: byRel, error: byRelErr } = await q2.range(0, 199);
+//         if (!byRelErr && Array.isArray(byRel) && byRel.length > 0) {
+//           locationIds = byRel.map((r: any) => r.id).filter(Boolean);
+//         } else {
+//           return { items: [], count: 0 };
+//         }
+//       }
+//     }
+//   } catch (e) {
+//     console.warn(
+//       "[fetchCarsPage] error resolving locations, proceeding without location filter",
+//       e
+//     );
+//     locationIds = null;
+//   }
+
+//   // --- 2) Build cars select (no !inner usage) ---
+//   const select = `
+//     id,
+//     vin,
+//     model_id,
+//     year,
+//     license_plate,
+//     created_at,
+//     location_id,
+//     models(name, brands(name)),
+//     body_type,
+//     fuel_type,
+//     transmission,
+//     locations(name, countries(id, name)),
+//     status,
+//     photos,
+//     address,
+//     lat,
+//     long,
+//     pickup_info,
+//     return_info,
+//     is_delivery,
+//     delivery_fee,
+//     include_mileage,
+//     price,
+//     currency,
+//     open_time,
+//     close_time,
+//     min_rent_period,
+//     max_rent_period,
+//     interval_between_bookings,
+//     deposit,
+//     owner,
+//     owner_id
+//   `;
+
+//   let q = supabase
+//     .from("cars")
+//     .select(select, { count: "exact", head: false })
+//     .eq("status", "available");
+
+//   if (locationIds && locationIds.length) {
+//     q = q.in("location_id", locationIds);
+//   } else if (countryId && !locationIds) {
+//     // best-effort: try relation-based filtering (may or may not work, harmless if it doesn't)
+//     try {
+//       q = q.filter("locations.countries.id", "eq", countryId);
+//     } catch {
+//       // ignore
+//     }
+//   }
+
+//   if (brandOrModel) {
+//     const v = brandOrModel.trim();
+//     q = q.or(`models.name.ilike.%${v}%,models.brands.name.ilike.%${v}%`, {
+//       foreignTable: "models",
+//     });
+//   }
+
+//   const { data, error, count } = await q
+//     .order("created_at", { ascending: false })
+//     .range(offset, offset + limit - 1);
+
+//   if (error) {
+//     console.error("[fetchCarsPage] supabase error:", error);
+//     throw error;
+//   }
+
+//   const items = (data ?? []).map(mapCarRow);
+//   return { items, count: count ?? items.length };
+// }
+
 // авто хоста (постранично)
 export async function fetchCarsPageByHost(opts: {
   ownerId: string;
@@ -349,6 +474,7 @@ export async function fetchCarsPageByHost(opts: {
   if (error) throw error;
 
   const items = (data ?? []).map(mapCarRow);
+
   return { items, count: count ?? items.length };
 }
 

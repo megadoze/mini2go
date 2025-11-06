@@ -116,15 +116,23 @@ export default function CatalogClient() {
   const [menuOpen, setMenuOpen] = useState(false);
 
   // даты
-  const [start, setStart] = useState("");
-  const [end, setEnd] = useState("");
+  const [start, setStart] = useState(searchParams.get("start") ?? "");
+  const [end, setEnd] = useState(searchParams.get("end") ?? "");
+
+  // показ календаря
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerVisible, setPickerVisible] = useState(false);
+
+  // десктоп/мобила
   const [isMobile, setIsMobile] = useState(false);
 
   // фильтры
-  const [countryId, setCountryId] = useState<string | null>(null);
-  const [locationFilter, setLocationFilter] = useState("");
+  const [countryId, setCountryId] = useState<string | null>(
+    searchParams.get("country") ?? null
+  );
+  const [locationFilter, setLocationFilter] = useState(
+    searchParams.get("location") ?? ""
+  );
   const [search, setSearch] = useState("");
 
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
@@ -152,19 +160,6 @@ export default function CatalogClient() {
   >({});
 
   const lastBookingsKeyRef = useRef<string | null>(null);
-
-  // парсим query параметры один раз при монтировании
-  useEffect(() => {
-    const s = searchParams.get("start");
-    const e = searchParams.get("end");
-    const c = searchParams.get("country");
-    const l = searchParams.get("location");
-
-    if (s) setStart(s);
-    if (e) setEnd(e);
-    if (c) setCountryId(c);
-    if (l) setLocationFilter(l);
-  }, [searchParams]);
 
   // страны
   useEffect(() => {
@@ -343,48 +338,6 @@ export default function CatalogClient() {
     };
   }, [cars, settingsByOwner]);
 
-  // брони по диапазону
-  // подгрузка броней под выбранный диапазон
-  useEffect(() => {
-    if (!cars.length) return;
-    if (!start || !end) return;
-
-    // нормализуем данные в ключ
-    const carIds = cars.map((c) => c.id).sort(); // порядок не важен
-    const key = JSON.stringify({ carIds, start, end });
-
-    // если такой же запрос уже был — выходим
-    if (lastBookingsKeyRef.current === key) {
-      return;
-    }
-
-    let alive = true;
-    setRangeLoading(true);
-
-    (async () => {
-      try {
-        const data = await fetchBookingsForCarsInRange({
-          carIds,
-          start,
-          end,
-        });
-        if (!alive) return;
-        lastBookingsKeyRef.current = key; // запоминаем УСПЕШНЫЙ ключ
-        setRangeBookings((data ?? []).filter(isBlockingBooking));
-      } catch {
-        if (!alive) return;
-        // не запоминаем ключ при ошибке — чтобы можно было попробовать ещё
-        setRangeBookings([]);
-      } finally {
-        if (alive) setRangeLoading(false);
-      }
-    })();
-
-    return () => {
-      alive = false;
-    };
-  }, [cars, start, end]);
-
   // realtime
   useEffect(() => {
     const supabase = getSupabaseClient();
@@ -406,30 +359,9 @@ export default function CatalogClient() {
     };
   }, [qc, publicCarsQueryKey]);
 
-  // disabled в пикере — только брони
   const pickerDisabledIntervals = useMemo(() => {
-    const blocking = rangeBookings.filter(isBlockingBooking);
-    if (!start || !end) {
-      return blocking.map((b) => ({
-        start: new Date(b.start_at),
-        end: new Date(b.end_at),
-      }));
-    }
-    const s = new Date(start).getTime();
-    const e = new Date(end).getTime();
-    const overlapFn = (aS: number, aE: number, bS: number, bE: number) =>
-      aS <= bE && bS <= aE;
-    return blocking
-      .filter((b) => {
-        const bS = new Date(b.start_at).getTime();
-        const bE = new Date(b.end_at).getTime();
-        return !overlapFn(s, e, bS, bE);
-      })
-      .map((b) => ({
-        start: new Date(b.start_at),
-        end: new Date(b.end_at),
-      }));
-  }, [start, end, rangeBookings]);
+    return []; // никаких disabled intervals на уровне списка
+  }, []);
 
   // базовая фильтрация
   const filteredCars = useMemo(() => {
@@ -455,9 +387,145 @@ export default function CatalogClient() {
     });
   }, [cars, search, countryId, locationFilter]);
 
+  // брони по диапазону — оптимизация: группируем машины по bufferMinutes и делаем 1 запрос на группу
+
+  const bookingsGroupsKey = useMemo(() => {
+    if (!filteredCars.length) return null;
+    if (!start || !end) return null;
+
+    // тот же алгоритм, что и раньше — пары {carId, bufferMinutes}
+    const carBuffers = filteredCars.map((car) => {
+      const ownerId = car.ownerId ? String(car.ownerId) : null;
+      const ownerSt = ownerId ? settingsByOwner[ownerId] : null;
+
+      const carBuf =
+        (car as any).intervalBetweenBookings ??
+        (car as any).interval_between_bookings ??
+        ownerSt?.intervalBetweenBookings ??
+        0;
+
+      const buf = Math.max(0, Number(carBuf) || 0);
+      return { carId: car.id, bufferMinutes: buf };
+    });
+
+    const groups = new Map<number, string[]>();
+    for (const { carId, bufferMinutes } of carBuffers) {
+      if (!groups.has(bufferMinutes)) groups.set(bufferMinutes, []);
+      groups.get(bufferMinutes)!.push(carId);
+    }
+
+    // сортируем entries по ключу bufferMinutes чтобы ключ был детерминирован
+    const entries = Array.from(groups.entries()).sort((a, b) => a[0] - b[0]);
+    return JSON.stringify({ start, end, groups: entries });
+  }, [filteredCars, start, end, settingsByOwner]);
+
+  // --- REPLACE your existing effect with this: эффект пользуется bookingsGroupsKey ---
+  useEffect(() => {
+    if (!filteredCars.length) return;
+    if (!start || !end) return;
+    if (!bookingsGroupsKey) return;
+
+    // если уже загружали точно такой же набор — ничего не делаем
+    if (lastBookingsKeyRef.current === bookingsGroupsKey) return;
+
+    let alive = true;
+    setRangeLoading(true);
+
+    (async () => {
+      try {
+        // мы восстанавливаем groups по ключу — проще заново собрать, как в memo
+        // (альтернативно: можно вернуть структуру из memo, но здесь повторяем логику ради простоты)
+        const carBuffers = filteredCars.map((car) => {
+          const ownerId = car.ownerId ? String(car.ownerId) : null;
+          const ownerSt = ownerId ? settingsByOwner[ownerId] : null;
+          const carBuf =
+            (car as any).intervalBetweenBookings ??
+            (car as any).interval_between_bookings ??
+            ownerSt?.intervalBetweenBookings ??
+            0;
+          return {
+            carId: car.id,
+            bufferMinutes: Math.max(0, Number(carBuf) || 0),
+          };
+        });
+
+        const groups = new Map<number, string[]>();
+        for (const { carId, bufferMinutes } of carBuffers) {
+          if (!groups.has(bufferMinutes)) groups.set(bufferMinutes, []);
+          groups.get(bufferMinutes)!.push(carId);
+        }
+
+        const promises: Promise<any[]>[] = [];
+        for (const [bufferMinutes, carIds] of groups.entries()) {
+          if (!carIds.length) continue;
+          promises.push(
+            (async () => {
+              try {
+                const data = await fetchBookingsForCarsInRange({
+                  carIds,
+                  start,
+                  end,
+                  bufferMinutes,
+                });
+                return data ?? [];
+              } catch (err) {
+                if (process.env.NODE_ENV !== "production") {
+                  // eslint-disable-next-line no-console
+                  console.warn(
+                    `[catalog-availability] group fetch failed (buffer=${bufferMinutes}):`,
+                    err
+                  );
+                }
+                return [];
+              }
+            })()
+          );
+        }
+
+        const results = await Promise.all(promises);
+        if (!alive) return;
+
+        const allBookings = results.flat();
+        const blocking = (allBookings ?? []).filter(isBlockingBooking);
+
+        lastBookingsKeyRef.current = bookingsGroupsKey;
+        setRangeBookings(blocking);
+      } catch (err) {
+        if (!alive) return;
+        lastBookingsKeyRef.current = null;
+        setRangeBookings([]);
+        if (process.env.NODE_ENV !== "production") {
+          // eslint-disable-next-line no-console
+          console.error("[catalog-availability] grouped fetch failed:", err);
+        }
+      } finally {
+        if (alive) setRangeLoading(false);
+      }
+    })();
+
+    return () => {
+      alive = false;
+    };
+  }, [filteredCars, start, end, settingsByOwner, bookingsGroupsKey]);
+
   // финальная фильтрация с учётом настроек owner’а
   const availableCars = useMemo(() => {
+    // если даты не заданы, просто возвращаем фильтрованный список
     if (!start || !end) return filteredCars;
+
+    // если у нас нет сформированного ключа (значит ещё не готовы группы) — считаем, что данные не готовы
+    if (!bookingsGroupsKey) {
+      // показываем пустой список и включаем индикацию проверки (rangeLoading)
+      return [];
+    }
+
+    // Если текущий ключ загрузок не совпадает с ожидаемым — значит брони ещё не пришли для текущего запроса
+    const bookingsReady =
+      lastBookingsKeyRef.current === bookingsGroupsKey && !rangeLoading;
+    if (!bookingsReady) {
+      // Ждём данных — не показываем список (исключаем "мигание")
+      return [];
+    }
 
     const startDt = new Date(start);
     const endDt = new Date(end);
@@ -490,7 +558,9 @@ export default function CatalogClient() {
       const ownerId = car.ownerId ? String(car.ownerId) : null;
       const ownerSt = ownerId ? settingsByOwner[ownerId] : null;
 
-      // 👇 собираем effective-правила для этой конкретной машины
+      // Если для этой машины ещё не пришли настройки владельца — не показываем её (предотвращаем мигание)
+      if (ownerId && !ownerSt) continue;
+
       const openTime =
         (car as any).openTime ??
         (car as any).open_time ??
@@ -521,7 +591,6 @@ export default function CatalogClient() {
         ownerSt?.intervalBetweenBookings ??
         null;
 
-      // дальше уже проверяем НЕ ownerSt, а эти effective-* поля
       if (
         !isInDailyWindow(startDt, openTime, closeTime, false) ||
         !isInDailyWindow(endDt, openTime, closeTime, true)
@@ -562,7 +631,15 @@ export default function CatalogClient() {
     }
 
     return result;
-  }, [filteredCars, start, end, rangeBookings, settingsByOwner]);
+  }, [
+    filteredCars,
+    start,
+    end,
+    rangeBookings,
+    settingsByOwner,
+    bookingsGroupsKey,
+    rangeLoading,
+  ]);
 
   // тост — только если реально что-то скрыли
   useEffect(() => {
@@ -737,22 +814,107 @@ export default function CatalogClient() {
 
           {/* list */}
           <section className="mx-auto max-w-5xl w-full px-4 pb-10 pt-0 md:pt-2">
-            {isLoading ? (
-              <CatalogSkeletonGlass />
-            ) : isError ? (
-              <InlineError
-                message={carsQ.error?.message || "Failed to load cars"}
-              />
-            ) : availableCars.length === 0 && !rangeLoading ? (
-              <EmptyState
-                title="Авто не нашлось под эти фильтры"
-                description="Попробуй убрать часть фильтров или изменить время"
-              />
-            ) : (
-              <>
-                <ul className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
-                  {availableCars.map((car) => {
-                    return (
+            {(() => {
+              const bookingsReady =
+                bookingsGroupsKey !== null &&
+                lastBookingsKeyRef.current === bookingsGroupsKey &&
+                !rangeLoading;
+
+              // 0) Первичная загрузка машин — показываем глобальный skeleton пока идёт fetch
+              if (isLoading) {
+                return <CatalogSkeletonGlass />;
+              }
+
+              // 1) Даты заданы, есть хотя бы 1 машина и данные по броням ещё не готовы
+              if (start && end && filteredCars.length > 0 && !bookingsReady) {
+                const skeletonCount = Math.min(
+                  Math.max(filteredCars.length || 4, 4),
+                  8
+                );
+                return (
+                  <>
+                    <div className="mt-4 mb-6 flex flex-col items-center gap-2">
+                      <svg
+                        className="animate-spin h-5 w-5 text-zinc-500"
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                      >
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                        />
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                        />
+                      </svg>
+                      <p className="text-xs text-zinc-400">
+                        Checking availability…
+                      </p>
+                    </div>
+
+                    <ul className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
+                      {Array.from({ length: skeletonCount }).map((_, i) => (
+                        <li
+                          key={i}
+                          className="relative flex flex-col overflow-hidden rounded-2xl bg-white/60 backdrop-blur supports-backdrop-filter:bg-white/40 shadow-[0_2px_10px_rgba(0,0,0,0.06)] ring-1 ring-black/5 transition-all duration-300 animate-pulse"
+                        >
+                          <div className="h-48 w-full sm:h-52 md:h-56 bg-linear-to-br from-zinc-100 to-zinc-200" />
+                          <div className="p-5 space-y-3">
+                            <div className="h-4 bg-gray-100 rounded w-2/3" />
+                            <div className="h-3 bg-gray-100 rounded w-1/3" />
+                            <div className="h-3 bg-gray-100 rounded w-1/2" />
+                            <div className="h-10 bg-gray-100 rounded-xl" />
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                );
+              }
+
+              // 2) Даты заданы, но в выбранной локации нет машин — показываем EmptyState сразу
+              if (start && end && filteredCars.length === 0) {
+                return (
+                  <EmptyState
+                    title="No car was found matching these filters."
+                    description="Try removing some filters or changing the time."
+                  />
+                );
+              }
+
+              // 3) Когда даты не заданы — глобальный skeleton при загрузке cars
+              // if (isLoading) return <CatalogSkeletonGlass />;
+
+              // 4) Ошибка загрузки машин
+              if (isError)
+                return (
+                  <InlineError
+                    message={carsQ.error?.message || "Failed to load cars"}
+                  />
+                );
+
+              // 5) Когда брони/настройки готовы и нет доступных машин — EmptyState
+              if (bookingsReady && availableCars.length === 0) {
+                return (
+                  <EmptyState
+                    title="No car was found matching these filters."
+                    description="Try removing some filters or changing the time."
+                  />
+                );
+              }
+
+              // 6) Обычный вывод списка
+              return (
+                <>
+                  <ul className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
+                    {availableCars.map((car) => (
                       <CatalogCardGlass
                         key={car.id}
                         car={car}
@@ -769,27 +931,23 @@ export default function CatalogClient() {
                         highlight={search}
                         pricingMeta={pricingMeta[car.id]}
                       />
-                    );
-                  })}
-                </ul>
-                {rangeLoading ? (
-                  <p className="mt-4 text-xs text-zinc-400">
-                    Проверяем занятость…
-                  </p>
-                ) : null}
-                {canLoadMore && (
-                  <div className="w-full flex justify-center mt-8">
-                    <button
-                      onClick={() => carsQ.fetchNextPage()}
-                      disabled={isFetchingNext}
-                      className="px-5 py-2 rounded-2xl bg-black text-white text-sm hover:opacity-90 disabled:opacity-50"
-                    >
-                      {isFetchingNext ? "Загружаем…" : "Показать ещё"}
-                    </button>
-                  </div>
-                )}
-              </>
-            )}
+                    ))}
+                  </ul>
+
+                  {canLoadMore && (
+                    <div className="w-full flex justify-center mt-8">
+                      <button
+                        onClick={() => carsQ.fetchNextPage()}
+                        disabled={isFetchingNext}
+                        className="px-5 py-2 rounded-2xl bg-black text-white text-sm hover:opacity-90 disabled:opacity-50"
+                      >
+                        {isFetchingNext ? "Loading..." : "Show more"}
+                      </button>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
           </section>
         </main>
 

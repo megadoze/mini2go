@@ -69,7 +69,7 @@ export default function CarFilters({
           value={locationFilter}
           onChange={(e) => onChangeLocation(e.currentTarget.value)}
           disabled={!countryId}
-          className={`w-full sm:w-auto min-w-[150px] rounded-xl pl-9 pr-3 py-2 text-sm shadow-sm transition focus:ring-2 focus:ring-black/10 ${
+          className={`w-full sm:w-auto min-w-[200px] rounded-xl pl-9 pr-3 py-2 text-sm shadow-sm transition focus:ring-2 focus:ring-black/10 ${
             !countryId
               ? "bg-gray-100/80 text-zinc-400 cursor-not-allowed"
               : "bg-white/60 backdrop-blur-sm hover:bg-white/80"
