@@ -260,7 +260,7 @@ export const HeroSection = () => {
           </p>
 
           {/* Mantine Select (grouped by country -> locations) */}
-          <div className="flex-1">
+          <div className="md:flex-1">
             <Select
               data={groupedData as any}
               searchable
@@ -272,6 +272,12 @@ export const HeroSection = () => {
                 setSelectedCountry(parsed.countryId);
                 setLocationFilter(parsed.locationName);
               }}
+              comboboxProps={{
+                transitionProps: { transition: "pop", duration: 200 },
+                dropdownPadding: 2,
+                offset: 10,
+              }}
+              withScrollArea={false}
               variant="unstyled"
               className="h-12 border border-gray-600 rounded-md content-center"
               placeholder="Location"
@@ -286,7 +292,10 @@ export const HeroSection = () => {
                   setLocationFilter("");
                 },
               }}
-              styles={{ input: { paddingLeft: "10px" } }}
+              styles={{
+                input: { paddingLeft: "10px" },
+                dropdown: { maxHeight: 200, overflowY: "auto" },
+              }}
             />
           </div>
 
