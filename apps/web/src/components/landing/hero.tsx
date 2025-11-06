@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { startOfDay } from "date-fns";
 import { useRouter } from "next/navigation";
-import { Select } from "@mantine/core";
+import { NativeSelect, Select } from "@mantine/core";
 import { motion, AnimatePresence } from "framer-motion";
 import RentalDateTimePicker from "@/components/RentalDateTimePicker";
 import {
@@ -252,7 +252,7 @@ export const HeroSection = () => {
         )}
 
         <form
-          className="flex bg-white rounded-xl shadow-xl flex-col sm:flex-row items-stretch md:items-center gap-2 p-4"
+          className="flex flex-col sm:flex-row bg-white rounded-xl shadow-xl md:items-center gap-2 p-4"
           onSubmit={handleSubmit}
         >
           <p className="text-black font-robotoCondensed text-lg font-bold shrink-0">
@@ -260,7 +260,7 @@ export const HeroSection = () => {
           </p>
 
           {/* Mantine Select (grouped by country -> locations) */}
-          <div className="md:flex-1">
+          {/* <div className="md:flex-1">
             <Select
               data={groupedData as any}
               searchable
@@ -297,6 +297,84 @@ export const HeroSection = () => {
                 dropdown: { maxHeight: 200, overflowY: "auto" },
               }}
             />
+          </div> */}
+          <div className="md:flex-1">
+            {isMobile ? (
+              // На мобилке используем нативный селект — лучше UX и системный picker
+              <select
+                aria-label="Location"
+                value={buildSelectValue(selectedCountry, locationFilter) ?? ""}
+                onChange={(e) => {
+                  const val = e.target.value || null;
+                  const parsed = parseSelectValue(val);
+                  setSelectedCountry(parsed.countryId);
+                  setLocationFilter(parsed.locationName);
+                }}
+                className="w-full h-12 rounded-md border border-gray-600 px-3 text-sm bg-white"
+                // На мобильных браузерах placeholder option будет служить как "clear"
+              >
+                {/* Placeholder / empty option — служит как 'очистить' */}
+                <option value="">
+                  {/* Пустая метка, можно поменять текст */}Location
+                </option>
+
+                {/* Группы с optgroup */}
+                {groupedData.map((g) => (
+                  <optgroup label={g.group} key={g.group}>
+                    {g.items.map((it) => (
+                      <option value={it.value} key={it.value}>
+                        {/* Показываем "Location — Country" или только locationName, на твой выбор */}
+                        {it.label}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+            ) : (
+              // Десктоп: Mantine Select — с контролем ширины дропдауна и flip middleware
+              <Select
+                data={groupedData as any} // grouped: [{group, items: string[] | { value,label } }]
+                searchable
+                nothingFoundMessage="No locations"
+                clearable
+                value={buildSelectValue(selectedCountry, locationFilter)}
+                onChange={(val) => {
+                  const parsed = parseSelectValue(val ?? null);
+                  setSelectedCountry(parsed.countryId);
+                  setLocationFilter(parsed.locationName);
+                }}
+                placeholder="Location"
+                // включаем поведение flip/shift, позицию и переход
+                comboboxProps={{
+                  position: "bottom-start",
+                  middlewares: { flip: true, shift: true },
+                  transitionProps: { transition: "pop", duration: 120 },
+                }}
+                // withinPortal={true} // порталы + Floating UI — корректная работа флипа
+                // Фикс ширины дропдауна: сделаем его ровно ширины триггера
+                styles={{
+                  dropdown: {
+                    minWidth: "unset", // убрать авто-минимальную ширину
+                    width: "100%", // заполнить ширину триггера
+                  },
+                  input: { paddingLeft: "10px" },
+                }}
+                variant="unstyled"
+                className="h-12 border border-gray-600 rounded-md content-center"
+                // перехват клика по крестику — prevent focus/открытие, и очистка
+                clearButtonProps={{
+                  onMouseDown: (e: React.MouseEvent) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                  },
+                  onClick: (e: React.MouseEvent) => {
+                    e.stopPropagation();
+                    setSelectedCountry(null);
+                    setLocationFilter("");
+                  },
+                }}
+              />
+            )}
           </div>
 
           {/* Dates input (same behavior) */}
