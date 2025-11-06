@@ -113,6 +113,12 @@ export default function CatalogClient() {
   const router = useRouter();
   const qc = useQueryClient();
 
+  // detect hydration so we don't show client skeleton before hydration completes
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => {
+    setHydrated(true);
+  }, []);
+
   const [menuOpen, setMenuOpen] = useState(false);
 
   // даты
@@ -240,9 +246,15 @@ export default function CatalogClient() {
   const totalAvailable = pages[0]?.count ?? cars.length;
   const canLoadMore = cars.length < totalAvailable;
 
-  const isLoading = !carsQ.data && carsQ.fetchStatus === "fetching";
+  // react-query flags
+  const isFetching = carsQ.isFetching;
+  const isFetched = carsQ.isFetched;
+  const isError = carsQ.isError;
   const isFetchingNext = carsQ.isFetchingNextPage;
-  const isError = carsQ.status === "error";
+
+  // delayed empty state
+  const [showEmptyDelayed, setShowEmptyDelayed] = useState(false);
+  const emptyTimerRef = useRef<number | null>(null);
 
   // BOOKINGS
   const [rangeBookings, setRangeBookings] = useState<Booking[]>([]);
@@ -641,6 +653,61 @@ export default function CatalogClient() {
     rangeLoading,
   ]);
 
+  const bookingsReady = useMemo(() => {
+    return (
+      bookingsGroupsKey !== null &&
+      lastBookingsKeyRef.current === bookingsGroupsKey &&
+      !rangeLoading
+    );
+  }, [
+    bookingsGroupsKey,
+    rangeLoading /* не добавляем ref.current в deps — ok */,
+  ]);
+
+  useEffect(() => {
+    // условие, при котором мы *бы хотели* показать Empty
+    const wantEmpty =
+      bookingsReady &&
+      availableCars.length === 0 &&
+      // guard: убедимся, что клиент гидрирован и initial fetch завершён
+      hydrated &&
+      isFetched &&
+      // опционально: требуем хотя бы 1 машин в фильтре (если хочешь)
+      filteredCars.length > 0;
+
+    // если хотим показать — ставим таймер, чтобы избежать мигания
+    if (wantEmpty) {
+      if (emptyTimerRef.current) window.clearTimeout(emptyTimerRef.current);
+      // небольшой delay — 150ms достаточно, можно увеличить/уменьшить
+      emptyTimerRef.current = window.setTimeout(() => {
+        setShowEmptyDelayed(true);
+        emptyTimerRef.current = null;
+      }, 250);
+      return;
+    }
+
+    // иначе — отменяем таймер и скрываем Empty
+    if (emptyTimerRef.current) {
+      window.clearTimeout(emptyTimerRef.current);
+      emptyTimerRef.current = null;
+    }
+    setShowEmptyDelayed(false);
+
+    // cleanup
+    return () => {
+      if (emptyTimerRef.current) {
+        window.clearTimeout(emptyTimerRef.current);
+        emptyTimerRef.current = null;
+      }
+    };
+  }, [
+    bookingsReady,
+    availableCars.length,
+    hydrated,
+    isFetched,
+    filteredCars.length,
+  ]);
+
   // тост — только если реально что-то скрыли
   useEffect(() => {
     if (!start || !end) return;
@@ -821,12 +888,27 @@ export default function CatalogClient() {
                 !rangeLoading;
 
               // 0) Первичная загрузка машин — показываем глобальный skeleton пока идёт fetch
-              if (isLoading) {
-                return <CatalogSkeletonGlass />;
-              }
+              // if (isLoading) {
+              //   return <CatalogSkeletonGlass />;
+              // }
+              // if (showClientInitialSkeleton) {
+              //   return (
+              //     <div className="min-h-[28rem]">
+              //       <CatalogSkeletonGlass />
+              //     </div>
+              //   );
+              // }
+
+              const showAvailabilityChecking =
+                hydrated &&
+                start &&
+                end &&
+                filteredCars.length > 0 &&
+                !bookingsReady &&
+                !isFetching; // ждем пока initial fetch закончится
 
               // 1) Даты заданы, есть хотя бы 1 машина и данные по броням ещё не готовы
-              if (start && end && filteredCars.length > 0 && !bookingsReady) {
+              if (showAvailabilityChecking) {
                 const skeletonCount = Math.min(
                   Math.max(filteredCars.length || 4, 4),
                   8
@@ -880,7 +962,24 @@ export default function CatalogClient() {
               }
 
               // 2) Даты заданы, но в выбранной локации нет машин — показываем EmptyState сразу
-              if (start && end && filteredCars.length === 0) {
+
+              // if (!isLoading && start && end && filteredCars.length === 0) {
+              //   return (
+              //     <EmptyState
+              //       title="No car was found matching these filters."
+              //       description="Try removing some filters or changing the time."
+              //     />
+              //   );
+              // }
+              if (
+                hydrated &&
+                isFetched &&
+                !isFetching &&
+                !rangeLoading &&
+                start &&
+                end &&
+                filteredCars.length === 0
+              ) {
                 return (
                   <EmptyState
                     title="No car was found matching these filters."
@@ -901,7 +1000,16 @@ export default function CatalogClient() {
                 );
 
               // 5) Когда брони/настройки готовы и нет доступных машин — EmptyState
-              if (bookingsReady && availableCars.length === 0) {
+              // if (bookingsReady && availableCars.length === 0) {
+              //   return (
+              //     <EmptyState
+              //       title="No car was found matching these filters."
+              //       description="Try removing some filters or changing the time."
+              //     />
+              //   );
+              // }
+
+              if (showEmptyDelayed) {
                 return (
                   <EmptyState
                     title="No car was found matching these filters."
