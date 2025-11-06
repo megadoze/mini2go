@@ -310,11 +310,16 @@ export const HeroSection = () => {
                   setSelectedCountry(parsed.countryId);
                   setLocationFilter(parsed.locationName);
                 }}
-                className="w-full h-12 rounded-md border border-gray-600 px-3 text-sm bg-white"
+                className="w-full h-12 rounded-md border border-gray-600 px-3 text-sm"
                 // На мобильных браузерах placeholder option будет служить как "clear"
               >
                 {/* Placeholder / empty option — служит как 'очистить' */}
-                <option value="">
+                <option
+                  className=" font-light text-gray-200"
+                  value=""
+                  disabled
+                  hidden
+                >
                   {/* Пустая метка, можно поменять текст */}Location
                 </option>
 
@@ -333,7 +338,7 @@ export const HeroSection = () => {
             ) : (
               // Десктоп: Mantine Select — с контролем ширины дропдауна и flip middleware
               <Select
-                data={groupedData as any} // grouped: [{group, items: string[] | { value,label } }]
+                data={groupedData as any}
                 searchable
                 nothingFoundMessage="No locations"
                 clearable
@@ -343,35 +348,29 @@ export const HeroSection = () => {
                   setSelectedCountry(parsed.countryId);
                   setLocationFilter(parsed.locationName);
                 }}
-                placeholder="Location"
-                // включаем поведение flip/shift, позицию и переход
                 comboboxProps={{
-                  position: "bottom-start",
-                  middlewares: { flip: true, shift: true },
-                  transitionProps: { transition: "pop", duration: 120 },
+                  transitionProps: { transition: "pop", duration: 200 },
+                  dropdownPadding: 2,
+                  offset: 10,
                 }}
-                // withinPortal={true} // порталы + Floating UI — корректная работа флипа
-                // Фикс ширины дропдауна: сделаем его ровно ширины триггера
-                styles={{
-                  dropdown: {
-                    minWidth: "unset", // убрать авто-минимальную ширину
-                    width: "100%", // заполнить ширину триггера
-                  },
-                  input: { paddingLeft: "10px" },
-                }}
+                withScrollArea={false}
                 variant="unstyled"
                 className="h-12 border border-gray-600 rounded-md content-center"
-                // перехват клика по крестику — prevent focus/открытие, и очистка
+                placeholder="Location"
+                // ---- FIX: перехват клика по крестику, чтобы очистка сработала сразу без открытия дропдауна ----
                 clearButtonProps={{
                   onMouseDown: (e: React.MouseEvent) => {
+                    // предотвращаем фокус/открытие дропдауна и всплытие события
                     e.preventDefault();
                     e.stopPropagation();
-                  },
-                  onClick: (e: React.MouseEvent) => {
-                    e.stopPropagation();
+                    // сразу очищаем состояние (Select тоже вызовет onChange -> дубль нестрашен)
                     setSelectedCountry(null);
                     setLocationFilter("");
                   },
+                }}
+                styles={{
+                  input: { paddingLeft: "10px" },
+                  dropdown: { maxHeight: 200, overflowY: "auto" },
                 }}
               />
             )}
