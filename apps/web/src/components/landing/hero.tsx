@@ -327,7 +327,7 @@ export const HeroSection = () => {
                   // Открыть календарь только если реально выбрали локацию (не очистили)
                   if (parsed.locationName) setPickerVisible(true);
                 }}
-                className={`w-full h-12 rounded-md border border-gray-600 px-2 text-sm ${
+                className={`w-full h-12 rounded-md border border-gray-600 px-3 text-sm ${
                   locationFilter ? "text-black" : "text-neutral-500"
                 }`}
                 // На мобильных браузерах placeholder option будет служить как "clear"
