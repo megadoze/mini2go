@@ -3,8 +3,8 @@
 import { useState, useEffect } from "react";
 import { startOfDay } from "date-fns";
 import { useRouter } from "next/navigation";
-import { InputPlaceholder, Select } from "@mantine/core";
-import { motion, AnimatePresence, color } from "framer-motion";
+import { Select } from "@mantine/core";
+import { motion, AnimatePresence } from "framer-motion";
 import RentalDateTimePicker from "@/components/RentalDateTimePicker";
 import {
   fetchCountries,
@@ -24,10 +24,7 @@ export const HeroSection = () => {
   const [selectedCountry, setSelectedCountry] = useState<string | null>(null);
   const [locationFilter, setLocationFilter] = useState("");
   const [countries, setCountries] = useState<any[]>([]);
-  const [locationsByCountry, setLocationsByCountry] = useState<
-    Record<string, any[]>
-  >({});
-  // groupedData: [{ group: 'Country name', items: [{ value: 'countryId::locationName', label: 'Location' }] }]
+
   const [groupedData, setGroupedData] = useState<
     Array<{ group: string; items: Array<{ value: string; label: string }> }>
   >([]);
@@ -69,7 +66,6 @@ export const HeroSection = () => {
   useEffect(() => {
     if (!countries || countries.length === 0) {
       setGroupedData([]);
-      setLocationsByCountry({});
       return;
     }
 
@@ -105,10 +101,8 @@ export const HeroSection = () => {
           groups.push({ group: countryName, items });
         });
 
-        setLocationsByCountry(byCountry);
         setGroupedData(groups);
       } catch {
-        setLocationsByCountry({});
         setGroupedData([]);
       }
     })();
@@ -195,8 +189,6 @@ export const HeroSection = () => {
     const locationName = rest.join("::");
     return { countryId: countryId || null, locationName };
   };
-
-  console.log(locationFilter);
 
   return (
     <section className="relative flex items-center pt-16 md:pt-0 min-h-svh md:min-h-dvh lg:min-h-screen">
