@@ -1,3 +1,4 @@
+// <тот же импорт, без изменений>
 import React, { useMemo, useState, useEffect } from "react";
 import {
   addDays,
@@ -170,6 +171,10 @@ export default function RentalDateTimePicker({
 
     const { startAt, endAt } = tempRange;
 
+    // default time to use for end if startAt absent
+    const defaultHour = 10;
+    const defaultMinute = 0;
+
     // 1) Начинаем новый диапазон
     if (!startAt || (startAt && endAt)) {
       let nextStart = day;
@@ -182,6 +187,9 @@ export default function RentalDateTimePicker({
       } else if (isSameDay(day, new Date())) {
         // если клик по сегодняшнему дню — не раньше «сейчас» по шагу
         nextStart = roundUpToStep(new Date(), minuteStep);
+      } else {
+        // для даты в будущем без существующего time — ставим локальную default (10:00)
+        nextStart = setMinutes(setHours(day, defaultHour), defaultMinute);
       }
 
       setTempRange({ startAt: nextStart, endAt: null });
@@ -189,6 +197,21 @@ export default function RentalDateTimePicker({
     }
 
     // 2) Выбираем конец
+    // determine which time to apply to end:
+    let endHour = defaultHour;
+    let endMinute = defaultMinute;
+    if (tempRange.startAt) {
+      endHour = tempRange.startAt.getHours();
+      endMinute = tempRange.startAt.getMinutes();
+    } else if (value.startAt) {
+      endHour = value.startAt.getHours();
+      endMinute = value.startAt.getMinutes();
+    }
+
+    // helper to create day with chosen hour/minutes
+    const dayWithTime = (srcDay: Date) =>
+      setMinutes(setHours(srcDay, endHour), endMinute);
+
     if (isBefore(day, startOfDay(startAt))) {
       // Клик назад относительно старта
       const block = firstBlockingIntervalBetween(
@@ -197,10 +220,15 @@ export default function RentalDateTimePicker({
         disabledIntervals
       );
       if (block) {
-        const clampedStart = new Date(block.end.getTime() + 1);
-        setTempRange({ startAt: clampedStart, endAt: startAt });
+        const clampedStartRaw = new Date(block.end.getTime() + 1);
+        // preserve time from clampedStartRaw but ensure it matches chosen hour/minute
+        const clampedStart = dayWithTime(clampedStartRaw);
+        setTempRange({ startAt: clampedStart, endAt: dayWithTime(startAt) });
       } else {
-        setTempRange({ startAt: day, endAt: startAt });
+        setTempRange({
+          startAt: dayWithTime(day),
+          endAt: dayWithTime(startAt),
+        });
       }
     } else {
       // Клик вперёд
@@ -210,10 +238,11 @@ export default function RentalDateTimePicker({
         disabledIntervals
       );
       if (block) {
-        const clampedEnd = new Date(block.start.getTime() - 1);
-        setTempRange({ startAt, endAt: clampedEnd });
+        const clampedEndRaw = new Date(block.start.getTime() - 1);
+        const clampedEnd = dayWithTime(clampedEndRaw);
+        setTempRange({ startAt: startAt, endAt: clampedEnd });
       } else {
-        setTempRange({ startAt, endAt: day });
+        setTempRange({ startAt, endAt: dayWithTime(day) });
       }
     }
   }
@@ -237,7 +266,7 @@ export default function RentalDateTimePicker({
       timeStepsPerDay - 1,
       timeToIdx(tempRange.startAt, minuteStep)
     );
-  }, [tempRange.startAt?.getTime(), minuteStep]);
+  }, [minuteStep, tempRange.startAt, timeStepsPerDay]);
 
   const endIdx = useMemo(() => {
     if (!tempRange.endAt) return 40; // 20:00 default
@@ -245,7 +274,7 @@ export default function RentalDateTimePicker({
       timeStepsPerDay - 1,
       timeToIdx(tempRange.endAt, minuteStep)
     );
-  }, [tempRange.endAt?.getTime(), minuteStep]);
+  }, [minuteStep, tempRange.endAt, timeStepsPerDay]);
 
   function setStartIdx(idx: number) {
     if (!tempRange.startAt) return;
@@ -302,7 +331,7 @@ export default function RentalDateTimePicker({
     }
   }, [minDate?.getTime(), maxDate?.getTime()]);
 
-  // --- Render helpers
+  // --- Render helpers (DayCell, CalendarGrid) — оставлены без изменений ---
   const DayCell: React.FC<{ d: Date }> = ({ d }) => {
     const inCurrent = isSameMonth(d, currentMonth);
     const disabled =
@@ -312,7 +341,6 @@ export default function RentalDateTimePicker({
     const isEnd = tempRange.endAt && isSameDay(d, tempRange.endAt);
     const isSingle = Boolean(isStart && isEnd);
 
-    // Compute continuous band (no circles) + hover preview
     let inRange = false;
     if (tempRange.startAt && tempRange.endAt) {
       inRange = isWithinInterval(d, {
@@ -336,7 +364,6 @@ export default function RentalDateTimePicker({
       !inCurrent ? "text-gray-400" : "",
       disabled ? "opacity-40 cursor-not-allowed" : "cursor-pointer",
       inRange ? "bg-green-100/20 border-y-2 border-green-300" : "",
-      // Акцент границ
       isSingle ? "border-green-300 rounded-full border-2 border-green-300" : "",
       isStart && !isEnd
         ? "border border-2 border-green-300 rounded-l-full border-r-0 pr-[2px]"
