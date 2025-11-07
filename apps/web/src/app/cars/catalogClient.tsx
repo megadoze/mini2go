@@ -3,8 +3,8 @@
 "use client";
 
 import { useEffect, useMemo, useState, useCallback, useRef } from "react";
+import { usePathname, useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import { startOfDay } from "date-fns";
 import { TextInput, Drawer } from "@mantine/core";
@@ -118,6 +118,11 @@ export default function CatalogClient() {
 
   const router = useRouter();
   const qc = useQueryClient();
+
+  const updateQuery = useSyncQuery();
+
+  const countryChangeDebounceRef = useRef<number | null>(null);
+  const pendingCountryRef = useRef<string | null>(null);
 
   // detect hydration so we don't show client skeleton before hydration completes
   const [hydrated, setHydrated] = useState(false);
@@ -275,10 +280,6 @@ export default function CatalogClient() {
   // delayed empty state
   const [showEmptyDelayed, setShowEmptyDelayed] = useState(false);
   const emptyTimerRef = useRef<number | null>(null);
-
-  // BOOKINGS — мы теперь используем availabilityState.bookings и availabilityState.loading
-  // const [rangeBookings, setRangeBookings] = useState<Booking[]>([]);
-  // const [rangeLoading, setRangeLoading] = useState(false);
 
   // pricing для новых машин
   useEffect(() => {
@@ -873,9 +874,72 @@ export default function CatalogClient() {
     startAt: Date | null;
     endAt: Date | null;
   }) => {
-    setStart(next.startAt ? next.startAt.toISOString() : "");
-    setEnd(next.endAt ? next.endAt.toISOString() : "");
+    const startIso = next.startAt ? next.startAt.toISOString() : "";
+    const endIso = next.endAt ? next.endAt.toISOString() : "";
+
+    setStart(startIso);
+    setEnd(endIso);
+
+    // сразу синхронизируем URL (замена, чтобы не плодить history)
+    updateQuery({ start: startIso || null, end: endIso || null });
   };
+
+  const handleChangeCountry = useCallback(
+    (nextCountryId: string | null) => {
+      // Быстрая локальная оптимистичная установка, чтобы UI отреагировал
+      setCountryId(nextCountryId);
+
+      // Если nextCountryId отсутствует — очистим локально locations/filter сразу
+      if (!nextCountryId) {
+        setLocations([]);
+        setLocationFilter("");
+      }
+
+      // Сброс/перезапланирование дебаунса
+      if (countryChangeDebounceRef.current) {
+        window.clearTimeout(countryChangeDebounceRef.current);
+        countryChangeDebounceRef.current = null;
+      }
+
+      // Поместим в pending — последний вызов победит
+      pendingCountryRef.current = nextCountryId;
+
+      // Планируем единичный updateQuery через небольшой интервал
+      countryChangeDebounceRef.current = window.setTimeout(() => {
+        const toApply = pendingCountryRef.current;
+        pendingCountryRef.current = null;
+        countryChangeDebounceRef.current = null;
+
+        // если null -> удаляем country + location из URL
+        if (!toApply) {
+          setLocations([]);
+          setLocationFilter("");
+          updateQuery({ country: null, location: null });
+          console.debug("[debug] apply country -> null (cleared)");
+          return;
+        }
+
+        // иначе ставим страну и очищаем параметр location
+        setLocationFilter("");
+        // ensure we pass string
+        updateQuery({ country: String(toApply), location: null });
+        console.debug("[debug] apply country ->", toApply);
+      }, 120); // 120ms — коалесцирует быстрые переключения
+    },
+    // updateQuery — из useSyncQuery, включим его в зависимости
+    [updateQuery]
+  );
+
+  const handleChangeLocation = useCallback(
+    (nextLocation: string) => {
+      // обновляем локальное состояние
+      setLocationFilter(nextLocation ?? "");
+
+      // синхронизируем URL — если пустая строка или null -> удаляем param
+      updateQuery({ location: nextLocation ? String(nextLocation) : null });
+    },
+    [updateQuery]
+  );
 
   const goToCar = useCallback(
     (brand: string, model: string, carId: string) => {
@@ -894,6 +958,7 @@ export default function CatalogClient() {
     setSearch("");
     setCountryId(null);
     setLocationFilter("");
+    updateQuery({ search: null, country: null, location: null });
   };
 
   // длительность для бара
@@ -936,8 +1001,8 @@ export default function CatalogClient() {
               locations={locations}
               countryId={countryId}
               locationFilter={locationFilter}
-              onChangeCountry={setCountryId}
-              onChangeLocation={setLocationFilter}
+              onChangeCountry={handleChangeCountry}
+              onChangeLocation={handleChangeLocation}
               hideStatus
             />
 
@@ -1002,8 +1067,8 @@ export default function CatalogClient() {
                 locations={locations}
                 countryId={countryId}
                 locationFilter={locationFilter}
-                onChangeCountry={setCountryId}
-                onChangeLocation={setLocationFilter}
+                onChangeCountry={handleChangeCountry}
+                onChangeLocation={handleChangeLocation}
                 hideStatus
               />
             </div>
@@ -1453,27 +1518,6 @@ function BottomStickyBar({
   );
 }
 
-function CatalogSkeletonGlass() {
-  return (
-    <ul className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
-      {Array.from({ length: 4 }).map((_, i) => (
-        <li
-          key={i}
-          className="relative flex flex-col overflow-hidden rounded-2xl bg-white/60 backdrop-blur supports-backdrop-filter:bg-white/40 shadow-[0_2px_10px_rgba(0,0,0,0.06)] ring-1 ring-black/5 transition-all duration-300"
-        >
-          <div className="h-48 w-full sm:h-52 md:h-56 bg-linear-to-br from-zinc-100 to-zinc-200 animate-pulse" />
-          <div className="p-5 space-y-3 animate-pulse">
-            <div className="h-4 bg-gray-100 rounded w-2/3" />
-            <div className="h-3 bg-gray-100 rounded w-1/3" />
-            <div className="h-3 bg-gray-100 rounded w-1/2" />
-            <div className="h-10 bg-gray-100 rounded-xl" />
-          </div>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
 function InlineError({ message }: { message: string }) {
   return (
     <div className="mx-auto max-w-5xl px-4 py-6">
@@ -1511,6 +1555,61 @@ function formatDateTimeForLabel(dt: string) {
   } catch {
     return dt;
   }
+}
+function useSyncQuery() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const updateQuery = useCallback(
+    (patch: Record<string, string | null>) => {
+      // Берём актуальные params из useSearchParams (если оно доступно),
+      // иначе — из window.location.search (в fallback-режиме).
+      const base =
+        typeof window !== "undefined"
+          ? searchParams?.toString()
+            ? searchParams.toString()
+            : window.location.search.replace(/^\?/, "")
+          : searchParams?.toString() ?? "";
+
+      const params = new URLSearchParams(base);
+
+      Object.entries(patch).forEach(([k, v]) => {
+        if (v == null || v === "") params.delete(k);
+        else params.set(k, v);
+      });
+
+      const qs = params.toString();
+      const href = qs ? `${pathname}?${qs}` : pathname;
+
+      // Первично пробуем через router.replace (чтобы Next знал о навигации)
+      try {
+        router.replace(href);
+      } catch (err) {
+        console.warn("[updateQuery] router.replace failed:", err);
+      }
+
+      // Маленький таймаут: если URL в адресной строке не поменялся — делаем прямой history.replaceState
+      // Это гарантирует, что параметр появится в query независимо от гонок.
+      setTimeout(() => {
+        if (typeof window === "undefined") return;
+        const current =
+          window.location.pathname + (window.location.search || "");
+        if (current !== href) {
+          console.debug("[updateQuery] fallback history.replaceState ->", {
+            from: current,
+            to: href,
+          });
+          window.history.replaceState({}, "", href);
+        } else {
+          console.debug("[updateQuery] router already applied href");
+        }
+      }, 50);
+    },
+    [router, pathname, searchParams]
+  );
+
+  return updateQuery;
 }
 
 // /* eslint-disable @next/next/no-img-element */

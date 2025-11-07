@@ -48,8 +48,23 @@ export default function CarFilters({
         <NativeSelect
           value={countryId ?? ""}
           onChange={(e) => {
-            onChangeCountry(e.currentTarget.value || null);
-            onChangeLocation(""); // как у тебя было
+            const raw = e.currentTarget.value;
+            const next = raw === "" ? null : raw;
+
+            // guard: если выбранное значение равно текущему — ничего не делаем
+            if (next === countryId) return;
+
+            // оптимистично обновляем страну
+            onChangeCountry(next);
+
+            // если страна стала пустой (сброс) — очищаем location
+            if (!next) {
+              onChangeLocation("");
+            } else {
+              // при смене страны логично очистить фильтр локации,
+              // но если у тебя нужен другой UX — адаптируй.
+              onChangeLocation("");
+            }
           }}
           className="w-full sm:w-auto min-w-[150px] rounded-xl bg-white/60 shadow-sm pl-9 pr-3 py-2 text-sm transition hover:bg-white/80 focus:ring-2 focus:ring-black/10"
         >

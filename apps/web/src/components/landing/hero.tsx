@@ -320,7 +320,7 @@ export const HeroSection = () => {
                   disabled
                   hidden
                 >
-                  {/* Пустая метка, можно поменять текст */}Location
+                  Location
                 </option>
 
                 {/* Группы с optgroup */}
