@@ -195,7 +195,7 @@ export const HeroSection = () => {
       {/* Background */}
       <div
         aria-hidden
-        className="absolute inset-0 z-0 bg-center bg-cover"
+        className="absolute inset-0 z-0 bg-center bg-cover saturate-60 contrast-95"
         style={{ backgroundImage: `url(${mainBanner})` }}
       />
       <div className="absolute inset-0 z-0 bg-linear-to-b from-black/20 via-black/10 to-black/10" />
@@ -204,24 +204,28 @@ export const HeroSection = () => {
       <div className="flex justify-center relative z-10 w-full px-4 sm:px-6 lg:px-10 pb-52 md:pb-20">
         <div className="flex flex-col items-center text-center max-w-4xl">
           <motion.h1
-            className="font-robotoCondensed font-bold tracking-[0.01em] leading-tight text-white text-4xl sm:text-5xl lg:text-7xl text-shadow"
+            className="font-robotoCondensed font-bold tracking-[0.01em] leading-tight text-white text-4xl sm:text-5xl lg:text-7xl text-shadow bg-black/60 pl-2"
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0, transition: { duration: 0.5 } }}
           >
-            It’s time to drive
-            <span className="inline-block ">
-              <span className="px-2 bg-white/20 ml-1">MINI</span>
-            </span>
+            <p className="bg-linear-to-r to-emerald-400 from-violet-400 bg-clip-text text-transparent">
+              It’s time to drive
+              <span className="px-2  ml-1">MINI</span>
+            </p>
+
+            {/* <span className="inline-block "> */}
+            {/* <span className="px-2  ml-1">MINI</span> */}
+            {/* </span> */}
           </motion.h1>
 
           <motion.p
-            className="mt-4 text-white font-robotoCondensed text-lg sm:text-xl lg:text-2xl max-w-3xl "
+            className="mt-4 text-white font-robotoCondensed text-lg sm:text-xl lg:text-2xl max-w-3xl"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1, transition: { delay: 0.2 } }}
           >
-            <span className="bg-linear-to-r from-black/70 to-black/40 px-2 py-3 leading-8">
+            <span className="bg-linear-to-r from-black/70 to-black/40 px-2 py-3 leading-8 tracking-wide">
               Life’s too short for boring cars.
-              <strong className="text-shadow pl-1">
+              <strong className="text-shadow ml-1 pl-1">
                 Rent MINI — enjoy the ride.
               </strong>
             </span>
@@ -384,9 +388,7 @@ export const HeroSection = () => {
                 styles={{
                   input: {
                     paddingLeft: "10px",
-                    "::placeholder": {
-                      color: "dark",
-                    },
+                    fontSize: "16px",
                   },
                   dropdown: { maxHeight: 200, overflowY: "auto" },
                 }}
@@ -408,7 +410,7 @@ export const HeroSection = () => {
             aria-label="Dates"
             readOnly
             onClick={() => locationFilter && setPickerVisible(true)}
-            className={`h-12 flex-1 rounded-md border border-gray-600 py-3 px-3 text-sm text-black focus:outline-none  ${
+            className={`h-12 flex-1 rounded-md border border-gray-600 py-3 px-3 text-sm text-black focus:outline-none placeholder-neutral-500 ${
               !locationFilter
                 ? "bg-neutral-50 cursor-not-allowed"
                 : "cursor-pointer"
