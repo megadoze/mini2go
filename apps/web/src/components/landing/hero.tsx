@@ -225,12 +225,12 @@ export const HeroSection = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1, transition: { delay: 0.2 } }}
           >
-            <span className="bg-linear-to-r from-black/80 to-transparent px-2 py-1 ">
+            <span className="bg-linear-to-r from-black/90 to-black/40 px-2 py-3">
               Life’s too short for boring cars.
+              <strong className="text-shadow pl-1">
+                Rent MINI — enjoy the ride.
+              </strong>
             </span>
-            <strong className="text-shadow">
-              Rent MINI Cooper — enjoy the ride.
-            </strong>
           </motion.p>
           {/* CTA buttons */}
           <motion.div
@@ -323,7 +323,7 @@ export const HeroSection = () => {
                   setSelectedCountry(parsed.countryId);
                   setLocationFilter(parsed.locationName);
                 }}
-                className="w-full h-12 rounded-md border border-gray-600 px-3 text-sm"
+                className="w-full h-12 rounded-md border border-gray-600 px-3 text-sm text-neutral-500"
                 // На мобильных браузерах placeholder option будет служить как "clear"
               >
                 {/* Placeholder / empty option — служит как 'очистить' */}
@@ -333,7 +333,7 @@ export const HeroSection = () => {
                   disabled
                   hidden
                 >
-                  Location
+                  Select location
                 </option>
 
                 {/* Группы с optgroup */}
@@ -415,7 +415,7 @@ export const HeroSection = () => {
             disabled={!locationFilter || !start || !end || !selectedCountry}
             className={`h-12 rounded-md px-6 tracking-[0.04em] uppercase font-robotoCondensed font-medium ${
               !locationFilter || !start || !end || !selectedCountry
-                ? "bg-black/70 text-white cursor-not-allowed border"
+                ? "bg-black/80 text-white cursor-not-allowed border"
                 : "bg-black text-white hover:bg-black/85 cursor-pointer"
             }`}
           >
