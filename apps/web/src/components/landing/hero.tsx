@@ -214,7 +214,7 @@ export const HeroSection = () => {
           </motion.h1>
 
           <motion.p
-            className=" text-white font-robotoCondensed text-lg  sm:text-xl lg:text-2xl max-w-3xl px-3 md:w-fit"
+            className=" text-white font-robotoCondensed text-xl lg:text-2xl max-w-3xl px-3 md:w-fit"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1, transition: { delay: 0.2 } }}
           >
