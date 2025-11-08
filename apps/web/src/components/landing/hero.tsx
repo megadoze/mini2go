@@ -33,7 +33,7 @@ export const HeroSection = () => {
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 768); // md breakpoint
+    const checkMobile = () => setIsMobile(window.innerWidth <= 800); // md breakpoint
     checkMobile();
     window.addEventListener("resize", checkMobile);
     return () => window.removeEventListener("resize", checkMobile);
@@ -204,7 +204,7 @@ export const HeroSection = () => {
       <div className="flex justify-center relative z-10 w-full px-4 sm:px-6 lg:px-10 pb-52 md:pb-20">
         <div className="flex flex-col items-center text-center max-w-4xl">
           <motion.h1
-            className="font-robotoCondensed font-bold tracking-[0.01em] leading-tight text-white text-4xl sm:text-5xl lg:text-7xl text-shadow bg-black/60 pl-2"
+            className="font-robotoCondensed font-bold tracking-[0.01em] leading-tight text-white text-3xl sm:text-5xl lg:text-7xl text-shadow bg-black/60 pl-2 py-2 rounded"
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0, transition: { duration: 0.5 } }}
           >
@@ -219,11 +219,11 @@ export const HeroSection = () => {
           </motion.h1>
 
           <motion.p
-            className="mt-4 text-white font-robotoCondensed text-lg sm:text-xl lg:text-2xl max-w-3xl"
+            className="mt-4 text-white font-robotoCondensed  sm:text-xl lg:text-2xl max-w-3xl"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1, transition: { delay: 0.2 } }}
           >
-            <span className="bg-linear-to-r from-black/70 to-black/40 px-2 py-3 leading-8 tracking-wide">
+            <span className="bg-linear-to-r from-black/70 to-black/40 px-2 py-3 leading-8 tracking-wide rounded">
               Life’s too short for boring cars.
               <strong className="text-shadow ml-1 pl-1">
                 Rent MINI — enjoy the ride.
