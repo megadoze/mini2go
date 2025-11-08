@@ -219,7 +219,7 @@ export const HeroSection = () => {
             animate={{ opacity: 1, transition: { delay: 0.2 } }}
           >
             <span className=" px-2 leading-8 tracking-wide ">
-              Life’s too short for boring cars. Rent MINI — enjoy the ride.
+              Life’s too short for boring cars. Rent MINI — reach the stars.
             </span>
           </motion.p>
           {/* CTA buttons */}
