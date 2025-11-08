@@ -135,7 +135,7 @@ export const ModelsSection = () => {
           <h2 className="text-3xl sm:text-4xl lg:text-6xl font-pacifico font-extrabold tracking-wide">
             Which one will it be today?
           </h2>
-          <p className="pt-4 text-lg font-roboto md:text-xl text-stone-600">
+          <p className="pt-6 text-lg md:text-2xl text-neutral-600 font-roboto-condensed">
             Our rental stations offer you a wide selection of models and are
             happy to fulfil your individual wishes.
           </p>
@@ -160,7 +160,7 @@ export const ModelsSection = () => {
                 aria-label={`Open ${c.title} preview`}
               >
                 <div
-                  className={`absolute top-10 text-4xl sm:text-6xl font-roboto-condensed font-bold z-50 transition-opacity duration-75 bg-linear-to-r from-indigo-200 to-cyan-200  bg-clip-text text-transparent ${
+                  className={` absolute top-5 text-4xl sm:text-7xl font-boogaloo font-bold z-50 transition-opacity duration-75 bg-zinc-300/60  bg-clip-text text-transparent ${
                     i === displayIdx ? "opacity-100" : "opacity-0"
                   }`}
                   aria-hidden={i !== displayIdx}
@@ -182,7 +182,7 @@ export const ModelsSection = () => {
                   }`}
                   aria-hidden={i !== displayIdx}
                 >
-                  <div className="font-robotoCondensed font-medium text-lg md:text-2xl text-neutral-600">
+                  <div className="font-boogaloo font-medium text-lg md:text-2xl text-neutral-600">
                     {c.price}
                   </div>
                 </div>

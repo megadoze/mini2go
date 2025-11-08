@@ -259,7 +259,7 @@ export const VideoSection = () => {
           <h2 className="text-3xl sm:text-4xl lg:text-6xl font-pacifico font-bold text-black">
             Your MINI adventure starts now.
           </h2>
-          <p className="pt-4 text-lg md:text-xl text-stone-600 font-roboto">
+          <p className="pt-4 text-lg md:text-2xl text-neutral-600 font-roboto-condensed">
             Desktop — hover to play. Mobile — auto-play on view.
           </p>
         </div>

@@ -9,7 +9,7 @@ export const WelcomeSection = () => {
           <h2 className="text-3xl sm:text-4xl lg:text-6xl font-pacifico font-bold text-black">
             Welcome to MINI Drive
           </h2>
-          <p className="pt-4 text-lg md:text-xl text-stone-600 font-roboto">
+          <p className="pt-4 text-lg md:text-2xl text-neutral-600 font-roboto-condensed">
             Small formats — big fun. Choose, book, drive.
           </p>
         </div>
@@ -43,10 +43,10 @@ export const WelcomeSection = () => {
                 {/* ТЕКСТ (ровно та же ширина, отцентрирован) */}
                 <div className="mt-4 md:mt-0 flex justify-center">
                   <div className="w-[82vw] max-w-[420px] md:w-[340px] lg:w-[380px]">
-                    <h3 className="text-2xl md:text-3xl font-robotoCondensed font-semibold text-black">
+                    <h3 className="text-2xl md:text-3xl font-roboto-condensed font-semibold text-black">
                       {item.title}
                     </h3>
-                    <p className="mt-3 font-roboto text-stone-600 text-lg lg:text-xl">
+                    <p className="mt-3 font-poppins text-stone-600 text-lg lg:text-xl">
                       {item.text}
                     </p>
                   </div>

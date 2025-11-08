@@ -214,7 +214,7 @@ export const HeroSection = () => {
           </motion.h1>
 
           <motion.p
-            className=" text-white font-robotoCondensed text-xl lg:text-2xl max-w-3xl px-3 md:w-fit"
+            className=" text-white font-robotoCondensed text-xl lg:text-3xl max-w-3xl px-3 md:w-fit"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1, transition: { delay: 0.2 } }}
           >
@@ -261,7 +261,7 @@ export const HeroSection = () => {
       >
         {stepsVisible && (
           <motion.div
-            className="hidden mb-5 md:flex flex-wrap justify-center items-center gap-4 font-robotoCondensed text-shadow text-white mt-4"
+            className="hidden mb-5 md:flex flex-wrap justify-center items-center gap-4 font-boogaloo text-shadow text-white mt-4"
             variants={{
               hidden: { opacity: 0 },
               visible: { opacity: 1, transition: { staggerChildren: 0.15 } },
