@@ -195,10 +195,10 @@ export const HeroSection = () => {
       {/* Background */}
       <div
         aria-hidden
-        className="absolute inset-0 z-0 bg-center bg-cover saturate-60 contrast-95"
+        className="absolute inset-0 z-0 bg-center bg-cover saturate-70 contrast-90"
         style={{ backgroundImage: `url(${mainBanner})` }}
       />
-      <div className="absolute inset-0 z-0 bg-linear-to-b from-black/20 from-10% via-black/40  to-95% to-black/10" />
+      <div className="absolute inset-0 z-0 bg-linear-to-b from-black/30 from-10% via-black/60  to-100% to-black/40" />
 
       {/* Content */}
       <div className="flex justify-center relative z-10 w-full px-4 sm:px-6 lg:px-10 pb-52 md:pb-20">
@@ -208,7 +208,7 @@ export const HeroSection = () => {
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0, transition: { duration: 0.5 } }}
           >
-            <span className=" bg-linear-to-r from-violet-400 to-emerald-400/90  bg-clip-text text-transparent">
+            <span className=" bg-linear-to-r from-violet-400 to-teal-500/90  bg-clip-text text-transparent">
               It’s time to drive MINI
             </span>
           </motion.h1>
