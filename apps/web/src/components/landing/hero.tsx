@@ -198,13 +198,13 @@ export const HeroSection = () => {
         className="absolute inset-0 z-0 bg-center bg-cover saturate-60 contrast-95"
         style={{ backgroundImage: `url(${mainBanner})` }}
       />
-      <div className="absolute inset-0 z-0 bg-linear-to-b from-black/20 via-black/10 to-black/10" />
+      <div className="absolute inset-0 z-0 bg-linear-to-b from-black/20 from-10% via-black/40  to-95% to-black/10" />
 
       {/* Content */}
       <div className="flex justify-center relative z-10 w-full px-4 sm:px-6 lg:px-10 pb-52 md:pb-20">
-        <div className=" flex flex-col items-center text-center max-w-4xl bg-linear-to-b from-black/5 via-black/50 to-black/10 pb-4">
+        <div className=" flex flex-col items-center text-center max-w-4xl  pb-4">
           <motion.h1
-            className=" font-roboto-condensed font-bold tracking-[0.01em] leading-tight text-4xl sm:text-5xl lg:text-7xl text-shadow  px-2 py-3 rounded w-dvw md:w-fit "
+            className=" font-roboto-condensed font-bold tracking-[0.01em] leading-tight text-4xl sm:text-5xl lg:text-7xl text-shadow  px-2 py-3 rounded w-dvw md:w-fit"
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0, transition: { duration: 0.5 } }}
           >
