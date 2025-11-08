@@ -4,7 +4,12 @@ import "./globals.css";
 import type { Metadata } from "next";
 import { mantineHtmlProps } from "@mantine/core";
 import { AppProviders } from "./providers";
-import { Montserrat, Pacifico, Roboto_Condensed } from "next/font/google";
+import {
+  Boogaloo,
+  Montserrat,
+  Pacifico,
+  Roboto_Condensed,
+} from "next/font/google";
 
 const robotoCondensed = Roboto_Condensed({
   subsets: ["latin"],
@@ -27,6 +32,13 @@ const pacifico = Pacifico({
   display: "swap",
 });
 
+const boogaloo = Boogaloo({
+  subsets: ["latin"],
+  weight: ["400"],
+  variable: "--font-boogaloo",
+  display: "swap",
+});
+
 export const metadata: Metadata = {
   title: "MINI2GO",
   description: "Rent MINI - drive dream!",
@@ -41,10 +53,10 @@ export default function RootLayout({
     <html
       lang="en"
       {...mantineHtmlProps}
-      className={`${robotoCondensed.variable} ${montserrat.variable} ${pacifico.variable}`}
+      className={`${robotoCondensed.variable} ${montserrat.variable} ${pacifico.variable} ${boogaloo.variable}`}
     >
       <body
-        className={`${robotoCondensed.className} ${montserrat.className} ${pacifico.variable}`}
+        className={`${robotoCondensed.className} ${montserrat.className} ${pacifico.variable} ${boogaloo.variable}`}
       >
         <AppProviders>{children}</AppProviders>
       </body>

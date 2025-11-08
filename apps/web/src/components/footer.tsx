@@ -10,7 +10,7 @@ export function Footer() {
           {/* Region / Language */}
           <div>
             <h4 className="text-sm font-semibold tracking-wide text-white/80">
-              Region & Language
+              Language
             </h4>
             <div className="mt-4 flex flex-wrap items-center gap-3">
               <LanguagePicker />

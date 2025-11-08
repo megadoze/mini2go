@@ -202,27 +202,24 @@ export const HeroSection = () => {
 
       {/* Content */}
       <div className="flex justify-center relative z-10 w-full px-4 sm:px-6 lg:px-10 pb-52 md:pb-20">
-        <div className="flex flex-col items-center text-center max-w-4xl">
+        <div className=" flex flex-col items-center text-center max-w-4xl bg-linear-to-b from-black/5 via-black/50 to-black/10 pb-4">
           <motion.h1
-            className=" font-montserrat font-bold tracking-[0.01em] leading-tight text-3xl sm:text-5xl lg:text-7xl text-shadow bg-black/60 px-2 py-2 rounded inline-block"
+            className=" font-roboto-condensed font-bold tracking-[0.01em] leading-tight text-4xl sm:text-5xl lg:text-7xl text-shadow  px-2 py-3 rounded w-dvw md:w-fit "
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0, transition: { duration: 0.5 } }}
           >
-            <span className=" bg-linear-to-r to-emerald-400 from-violet-400 bg-clip-text text-transparent">
+            <span className=" bg-linear-to-r from-violet-400 to-emerald-400/90  bg-clip-text text-transparent">
               It’s time to drive MINI
             </span>
           </motion.h1>
 
           <motion.p
-            className="mt-4 text-white font-robotoCondensed  sm:text-xl lg:text-2xl max-w-3xl"
+            className=" text-white font-robotoCondensed text-lg  sm:text-xl lg:text-2xl max-w-3xl px-3 md:w-fit"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1, transition: { delay: 0.2 } }}
           >
-            <span className=" font-pacifico bg-linear-to-r from-black/70 to-black/40 px-2 py-3 leading-8 tracking-wide rounded">
-              Life’s too short for boring cars.
-              <strong className="text-shadow ml-1 pl-1">
-                Rent MINI — enjoy the ride.
-              </strong>
+            <span className=" font-boogaloo px-2 leading-8 tracking-wide ">
+              Life’s too short for boring cars. Rent MINI — enjoy the ride.
             </span>
           </motion.p>
           {/* CTA buttons */}

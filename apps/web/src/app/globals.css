@@ -17,6 +17,7 @@
   --font-montserrat: Montserrat, ui-sans-serif, system-ui;
   --font-roboto-condensed: Roboto_Condensed, sans-serif;
   --font-pacifico: Pacifico, sans-serif;
+  --font-boogaloo: Boogaloo, sans-serif;
 }
 
 @layer base {

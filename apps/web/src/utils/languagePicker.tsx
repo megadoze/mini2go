@@ -7,9 +7,9 @@ type LanguageOption = {
 };
 
 const LANG_OPTIONS: LanguageOption[] = [
-  { locale: "en-GB", label: "International — English", flag: "🇬🇧" },
-  { locale: "es-ES", label: "Spain — Spanish", flag: "🇪🇸" },
-  { locale: "de-DE", label: "Germany — German", flag: "🇩🇪" },
+  { locale: "en-GB", label: "English", flag: "🇬🇧" },
+  { locale: "es-ES", label: "Spanish", flag: "🇪🇸" },
+  { locale: "de-DE", label: "German", flag: "🇩🇪" },
 ];
 
 export function LanguagePicker() {
