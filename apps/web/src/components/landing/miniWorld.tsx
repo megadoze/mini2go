@@ -35,21 +35,21 @@ export function MiniWorld() {
                       loading="lazy"
                       decoding="async"
                     />
-                    <span className="absolute left-3 top-3 z-10 inline-flex items-center rounded-full bg-white/90 px-2.5 py-1 text-xs font-semibold text-black font-roboto-condensed">
+                    <span className="absolute left-3 top-3 z-10 inline-flex items-center rounded-full bg-white/90 px-2.5 py-1 text-xs font-semibold text-black font-poppins">
                       {p.tag}
                     </span>
                   </div>
 
                   <div className="p-4 flex flex-col h-full">
-                    <h3 className="text-lg font-boogaloo! font-semibold text-black line-clamp-2">
+                    <h3 className="text-lg font-roboto-condensed font-semibold text-black line-clamp-2">
                       {p.title}
                     </h3>
-                    <p className="mt-2 font-roboto text-sm text-black/70 line-clamp-3">
+                    <p className="mt-2 font-montserrat text-sm text-black/70 line-clamp-3">
                       {p.excerpt}
                     </p>
 
                     {/* CTA прижат вниз */}
-                    <div className="mt-auto inline-flex items-center gap-2 text-sm font-medium text-black/90">
+                    <div className="mt-auto inline-flex items-center gap-2 font-roboto-condensed font-medium text-black/90">
                       Read
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
