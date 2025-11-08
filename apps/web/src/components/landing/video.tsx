@@ -256,7 +256,7 @@ export const VideoSection = () => {
     <section id="mini-stories" className="relative bg-white">
       <div className="px-4 sm:px-6 lg:px-10">
         <div className="text-center">
-          <h2 className="text-3xl sm:text-4xl lg:text-6xl font-robotoCondensed font-bold text-black">
+          <h2 className="text-3xl sm:text-4xl lg:text-6xl font-pacifico font-bold text-black">
             Your MINI adventure starts now.
           </h2>
           <p className="pt-4 text-lg md:text-xl text-stone-600 font-roboto">

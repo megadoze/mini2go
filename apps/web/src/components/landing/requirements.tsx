@@ -86,7 +86,7 @@ export const RequirementsSection = () => {
     <section id="minimum-requirements" className="bg-white">
       <div className="px-[3vw] sm:px-6 lg:px-10 pt-24">
         <div className="text-center">
-          <h2 className="text-3xl sm:text-4xl lg:text-6xl font-robotoCondensed font-bold text-black">
+          <h2 className="text-3xl sm:text-4xl lg:text-6xl font-pacifico font-bold text-black">
             Minimum Requirements
           </h2>
           <p className="pt-4 text-lg md:text-xl text-stone-600 font-roboto">

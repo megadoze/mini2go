@@ -8,7 +8,7 @@ export function MiniWorld() {
     <section id="mini-world" className="bg-white">
       <div className="w-full max-w-[1200px] mx-auto px-[3vw] pt-24 pb-6">
         <div className="text-center">
-          <h2 className="text-3xl sm:text-4xl lg:text-6xl font-robotoCondensed font-extrabold tracking-wide">
+          <h2 className="text-3xl sm:text-4xl lg:text-6xl font-pacifico font-extrabold tracking-wide">
             MINI World
           </h2>
           <p className="pt-4 text-lg font-roboto md:text-xl text-stone-600">

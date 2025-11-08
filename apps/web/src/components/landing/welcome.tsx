@@ -6,7 +6,7 @@ export const WelcomeSection = () => {
     <section id="welcome-mini-drive" className="bg-white">
       <div className=" lg:px-10 pt-24">
         <div className="text-center">
-          <h2 className="text-3xl sm:text-4xl lg:text-6xl font-robotoCondensed font-bold text-black">
+          <h2 className="text-3xl sm:text-4xl lg:text-6xl font-pacifico font-bold text-black">
             Welcome to MINI Drive
           </h2>
           <p className="pt-4 text-lg md:text-xl text-stone-600 font-roboto">

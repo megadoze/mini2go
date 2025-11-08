@@ -12,6 +12,20 @@
   --font-mono: var(--font-geist-mono);
 }
 
+@theme {
+  --font-poppins: Poppins, sans-serif;
+  --font-montserrat: Montserrat, ui-sans-serif, system-ui;
+  --font-roboto-condensed: Roboto_Condensed, sans-serif;
+  --font-pacifico: Pacifico, sans-serif;
+}
+
+@layer base {
+  html,
+  body {
+    min-height: 100%;
+  }
+}
+
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;

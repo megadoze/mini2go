@@ -204,18 +204,13 @@ export const HeroSection = () => {
       <div className="flex justify-center relative z-10 w-full px-4 sm:px-6 lg:px-10 pb-52 md:pb-20">
         <div className="flex flex-col items-center text-center max-w-4xl">
           <motion.h1
-            className="font-robotoCondensed font-bold tracking-[0.01em] leading-tight text-white text-3xl sm:text-5xl lg:text-7xl text-shadow bg-black/60 pl-2 py-2 rounded"
+            className=" font-montserrat font-bold tracking-[0.01em] leading-tight text-3xl sm:text-5xl lg:text-7xl text-shadow bg-black/60 px-2 py-2 rounded inline-block"
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0, transition: { duration: 0.5 } }}
           >
-            <p className="bg-linear-to-r to-emerald-400 from-violet-400 bg-clip-text text-transparent">
-              It’s time to drive
-              <span className="px-2  ml-1">MINI</span>
-            </p>
-
-            {/* <span className="inline-block "> */}
-            {/* <span className="px-2  ml-1">MINI</span> */}
-            {/* </span> */}
+            <span className=" bg-linear-to-r to-emerald-400 from-violet-400 bg-clip-text text-transparent">
+              It’s time to drive MINI
+            </span>
           </motion.h1>
 
           <motion.p
@@ -223,7 +218,7 @@ export const HeroSection = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1, transition: { delay: 0.2 } }}
           >
-            <span className="bg-linear-to-r from-black/70 to-black/40 px-2 py-3 leading-8 tracking-wide rounded">
+            <span className=" font-pacifico bg-linear-to-r from-black/70 to-black/40 px-2 py-3 leading-8 tracking-wide rounded">
               Life’s too short for boring cars.
               <strong className="text-shadow ml-1 pl-1">
                 Rent MINI — enjoy the ride.
