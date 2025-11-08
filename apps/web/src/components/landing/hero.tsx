@@ -204,7 +204,7 @@ export const HeroSection = () => {
       <div className="flex justify-center relative z-10 w-full px-4 sm:px-6 lg:px-10 pb-52 md:pb-20">
         <div className=" flex flex-col items-center text-center max-w-4xl  pb-4">
           <motion.h1
-            className=" font-roboto-condensed font-bold tracking-[0.01em] leading-tight text-4xl sm:text-5xl lg:text-7xl text-shadow  px-2 py-3 rounded w-dvw md:w-fit"
+            className=" font-roboto-condensed font-bold tracking-[0.01em] leading-tight text-5xl sm:text-5xl lg:text-7xl text-shadow  px-2 py-3 rounded w-dvw md:w-fit"
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0, transition: { duration: 0.5 } }}
           >
@@ -214,11 +214,11 @@ export const HeroSection = () => {
           </motion.h1>
 
           <motion.p
-            className=" text-white font-robotoCondensed text-xl lg:text-3xl max-w-3xl px-3 md:w-fit"
+            className=" text-white font-bold font-roboto-condensed text-xl lg:text-2xl max-w-3xl px-3 md:w-fit"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1, transition: { delay: 0.2 } }}
           >
-            <span className=" font-boogaloo px-2 leading-8 tracking-wide ">
+            <span className=" px-2 leading-8 tracking-wide ">
               Life’s too short for boring cars. Rent MINI — enjoy the ride.
             </span>
           </motion.p>
@@ -293,10 +293,10 @@ export const HeroSection = () => {
         )}
 
         <form
-          className="flex flex-col sm:flex-row bg-white rounded-xl shadow-xl md:items-center gap-2 p-4"
+          className="flex flex-col sm:flex-row bg-black/60 rounded-xl shadow-xl md:items-center gap-2 p-4"
           onSubmit={handleSubmit}
         >
-          <p className="text-black font-roboto-condensed text-lg font-bold shrink-0">
+          <p className="text-white font-roboto-condensed text-lg font-bold shrink-0">
             Book your MINI
           </p>
 
@@ -315,7 +315,7 @@ export const HeroSection = () => {
                   // Открыть календарь только если реально выбрали локацию (не очистили)
                   if (parsed.locationName) setPickerVisible(true);
                 }}
-                className={`w-full h-12 rounded-md border border-gray-600 px-3 text-sm ${
+                className={`w-full h-12 rounded-md  border-gray-600 px-3 text-sm bg-white/90 outline-0 ${
                   locationFilter ? "text-black" : "text-neutral-500"
                 }`}
                 // На мобильных браузерах placeholder option будет служить как "clear"
@@ -364,7 +364,7 @@ export const HeroSection = () => {
                 }}
                 withScrollArea={false}
                 variant="unstyled"
-                className="h-12 border border-gray-600 rounded-md content-center"
+                className="h-12 border border-gray-600 bg-white rounded-md content-center"
                 placeholder="Select location"
                 // ---- FIX: перехват клика по крестику, чтобы очистка сработала сразу без открытия дропдауна ----
                 clearButtonProps={{
@@ -403,7 +403,7 @@ export const HeroSection = () => {
             aria-label="Dates"
             readOnly
             onClick={() => locationFilter && setPickerVisible(true)}
-            className={`h-12 flex-1 font-montserrat rounded-md border border-gray-600 py-3 px-3 text-sm text-black focus:outline-none placeholder-neutral-600 ${
+            className={`h-12 flex-1 font-montserrat rounded-md border bg-white border-gray-600 py-3 px-3 text-sm text-black focus:outline-none placeholder-neutral-600 ${
               !locationFilter
                 ? "bg-neutral-50 cursor-not-allowed"
                 : "cursor-pointer"
@@ -415,8 +415,8 @@ export const HeroSection = () => {
             disabled={!locationFilter || !start || !end || !selectedCountry}
             className={`h-12 rounded-md px-6 tracking-[0.04em] font-medium font-poppins! ${
               !locationFilter || !start || !end || !selectedCountry
-                ? "bg-black/80 text-white cursor-not-allowed border"
-                : "bg-black text-white hover:bg-black/85 cursor-pointer"
+                ? "bg-black/60 text-white cursor-not-allowed"
+                : "bg-black/80 text-white hover:bg-black/85 cursor-pointer"
             }`}
           >
             Book
