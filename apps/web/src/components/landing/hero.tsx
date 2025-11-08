@@ -230,13 +230,13 @@ export const HeroSection = () => {
           >
             <Link
               href="/cars"
-              className="inline-flex items-center justify-center rounded-full bg-white text-black px-5 py-2.5 font-robotoCondensed font-semibold hover:bg-white/90 focus:outline-none focus:ring-4 focus:ring-white/30 transition"
+              className="inline-flex items-center justify-center rounded-full bg-white text-black px-5 py-2.5 font-roboto-condensed font-semibold hover:bg-white/90 focus:outline-none focus:ring-4 focus:ring-white/30 transition"
             >
               Book MINI now
             </Link>
             <a
               href="#mehr"
-              className="inline-flex items-center justify-center rounded-full ring-1 ring-white/40 px-5 py-2.5 font-robotoCondensed font-semibold hover:ring-white/70 bg-black/20 text-white focus:outline-none focus:ring-4 focus:ring-white/30 transition"
+              className="inline-flex items-center justify-center rounded-full ring-1 ring-white/40 px-5 py-2.5 font-roboto-condensed font-semibold hover:ring-white/70 bg-black/20 text-white focus:outline-none focus:ring-4 focus:ring-white/30 transition"
             >
               More
             </a>
@@ -261,7 +261,7 @@ export const HeroSection = () => {
       >
         {stepsVisible && (
           <motion.div
-            className="hidden mb-5 md:flex flex-wrap justify-center items-center gap-4 font-boogaloo text-shadow text-white mt-4"
+            className="hidden mb-5 md:flex flex-wrap justify-center items-center gap-4 font-roboto-condensed text-shadow text-white mt-4"
             variants={{
               hidden: { opacity: 0 },
               visible: { opacity: 1, transition: { staggerChildren: 0.15 } },
@@ -296,7 +296,7 @@ export const HeroSection = () => {
           className="flex flex-col sm:flex-row bg-white rounded-xl shadow-xl md:items-center gap-2 p-4"
           onSubmit={handleSubmit}
         >
-          <p className="text-black font-robotoCondensed text-lg font-bold shrink-0">
+          <p className="text-black font-roboto-condensed text-lg font-bold shrink-0">
             Book your MINI
           </p>
 
@@ -381,6 +381,7 @@ export const HeroSection = () => {
                   input: {
                     paddingLeft: "10px",
                     fontSize: "16px",
+                    fontFamily: "Montserrat",
                   },
                   dropdown: { maxHeight: 200, overflowY: "auto" },
                 }}
@@ -402,7 +403,7 @@ export const HeroSection = () => {
             aria-label="Dates"
             readOnly
             onClick={() => locationFilter && setPickerVisible(true)}
-            className={`h-12 flex-1 rounded-md border border-gray-600 py-3 px-3 text-sm text-black focus:outline-none placeholder-neutral-500 ${
+            className={`h-12 flex-1 font-montserrat rounded-md border border-gray-600 py-3 px-3 text-sm text-black focus:outline-none placeholder-neutral-600 ${
               !locationFilter
                 ? "bg-neutral-50 cursor-not-allowed"
                 : "cursor-pointer"
@@ -412,7 +413,7 @@ export const HeroSection = () => {
           <button
             type="submit"
             disabled={!locationFilter || !start || !end || !selectedCountry}
-            className={`h-12 rounded-md px-6 tracking-[0.04em] uppercase font-robotoCondensed font-medium ${
+            className={`h-12 rounded-md px-6 tracking-[0.04em] font-medium font-poppins! ${
               !locationFilter || !start || !end || !selectedCountry
                 ? "bg-black/80 text-white cursor-not-allowed border"
                 : "bg-black text-white hover:bg-black/85 cursor-pointer"

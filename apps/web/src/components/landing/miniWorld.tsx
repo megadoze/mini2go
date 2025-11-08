@@ -35,13 +35,13 @@ export function MiniWorld() {
                       loading="lazy"
                       decoding="async"
                     />
-                    <span className="absolute left-3 top-3 z-10 inline-flex items-center rounded-full bg-white/90 px-2.5 py-1 text-xs font-semibold text-black">
+                    <span className="absolute left-3 top-3 z-10 inline-flex items-center rounded-full bg-white/90 px-2.5 py-1 text-xs font-semibold text-black font-roboto-condensed">
                       {p.tag}
                     </span>
                   </div>
 
                   <div className="p-4 flex flex-col h-full">
-                    <h3 className="text-lg font-robotoCondensed font-semibold text-black line-clamp-2">
+                    <h3 className="text-lg font-boogaloo! font-semibold text-black line-clamp-2">
                       {p.title}
                     </h3>
                     <p className="mt-2 font-roboto text-sm text-black/70 line-clamp-3">
@@ -91,18 +91,18 @@ export function MiniWorld() {
                   sizes="100vw"
                 />
 
-                <span className="absolute left-3 top-3 z-10 inline-flex items-center rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-semibold text-black">
+                <span className="absolute left-3 top-3 z-10 inline-flex items-center rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-semibold text-black font-poppins">
                   {p.tag}
                 </span>
               </div>
               <div className="p-4 md:p-5">
-                <h3 className="text-lg md:text-xl font-robotoCondensed font-semibold text-black">
+                <h3 className="text-lg md:text-xl font-roboto-condensed font-semibold text-black">
                   {p.title}
                 </h3>
-                <p className="mt-2 font-roboto text-sm md:text-base text-black/70 line-clamp-3">
+                <p className="mt-2 font-montserrat font-roboto text-sm md:text-base text-black/70 line-clamp-3">
                   {p.excerpt}
                 </p>
-                <div className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-black/90 group-hover:text-black">
+                <div className="mt-4 inline-flex items-center gap-2  font-roboto-condensed font-medium text-black/90 group-hover:text-black">
                   Read
                   <div>
                     <svg
@@ -130,7 +130,7 @@ export function MiniWorld() {
         <div className="mt-10 flex justify-center">
           <a
             href="#"
-            className="inline-flex items-center gap-2 rounded-full border border-black/15 px-4 py-2 text-sm font-medium text-black hover:bg-black hover:text-white transition"
+            className="inline-flex items-center gap-2 rounded-full border border-black/15 px-4 py-2  font-medium text-black hover:bg-black hover:text-white transition font-roboto-condensed"
           >
             Read more
             <svg

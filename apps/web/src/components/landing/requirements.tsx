@@ -107,10 +107,10 @@ export const RequirementsSection = () => {
                     {item.icon}
                   </div>
                   <div>
-                    <h3 className="text-lg md:text-xl font-semibold text-black">
+                    <h3 className="text-lg md:text-xl font-roboto-condensed font-semibold text-black">
                       {item.title}
                     </h3>
-                    <p className="mt-2 text-black/70 md:text-base leading-relaxed">
+                    <p className="mt-2 text-black/70 font-montserrat md:text-base leading-relaxed">
                       {item.desc}
                     </p>
                   </div>
