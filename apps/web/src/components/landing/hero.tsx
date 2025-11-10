@@ -205,7 +205,7 @@ export const HeroSection = () => {
       <div className="flex justify-center relative z-10 w-full px-4 sm:px-6 lg:px-10 py-6 md:py-10 mt-32">
         <div className="flex flex-col items-center text-center max-w-4xl">
           <motion.h1
-            className="font-roboto-condensed font-bold tracking-[0.01em] leading-tight text-5xl sm:text-5xl lg:text-7xl text-shadow px-2 pt-3 rounded w-auto max-w-full"
+            className="font-roboto-condensed font-bold tracking-[0.01em] leading-tight text-4xl sm:text-5xl lg:text-7xl text-shadow px-2 pt-3 rounded w-auto max-w-full"
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0, transition: { duration: 0.5 } }}
           >
@@ -215,7 +215,7 @@ export const HeroSection = () => {
           </motion.h1>
 
           <motion.p
-            className="text-white font-bold font-roboto-condensed text-xl lg:text-2xl max-w-3xl px-3 md:w-fit"
+            className="text-white font-medium md:font-bold font-boogaloo text-xl lg:text-2xl max-w-3xl px-3 md:w-fit"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1, transition: { delay: 0.2 } }}
           >
