@@ -34,7 +34,7 @@ export const HeroSection = () => {
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 1024); // md breakpoint
+    const checkMobile = () => setIsMobile(window.innerWidth <= 1024); // md breakpoint
     checkMobile();
     window.addEventListener("resize", checkMobile);
     return () => window.removeEventListener("resize", checkMobile);

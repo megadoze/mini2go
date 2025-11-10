@@ -1012,7 +1012,7 @@ export default function CatalogClient() {
                 placeholder="Search by brand, model"
                 value={search}
                 onChange={(e) => setSearch(e.currentTarget.value)}
-                className="w-full rounded-xl bg-white/60 shadow-sm pl-9 pr-3 py-2 text-sm hover:bg-white/80 focus:ring-2 focus:ring-black/10"
+                className="w-full rounded-xl bg-white/60 shadow-sm pl-9 pr-3 py-2 hover:bg-white/80 focus:ring-2 focus:ring-black/10"
               />
             </div>
             <button
@@ -1034,7 +1034,7 @@ export default function CatalogClient() {
                 placeholder="Search by brand, model"
                 value={search}
                 onChange={(e) => setSearch(e.currentTarget.value)}
-                className="w-full rounded-xl bg-white/60 shadow-sm pl-9 pr-3 py-2 text-sm hover:bg-white/80 focus:ring-2 focus:ring-black/10"
+                className="w-full rounded-xl bg-white/60 shadow-sm pl-9 pr-3 py-2 hover:bg-white/80 focus:ring-2 focus:ring-black/10"
               />
             </div>
             <button
