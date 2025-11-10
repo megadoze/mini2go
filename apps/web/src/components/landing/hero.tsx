@@ -17,6 +17,7 @@ const mainBanner = "/img/main2.webp";
 
 export const HeroSection = () => {
   const matches = useMediaQuery("(max-width: 56.25em)");
+  const isTouch = useMediaQuery("(hover: none), (pointer: coarse)");
 
   const router = useRouter();
 
@@ -306,7 +307,7 @@ export const HeroSection = () => {
 
           {/* Mantine Select (grouped by country -> locations) */}
           <div className="md:flex-1">
-            {matches ? (
+            {isTouch ? (
               // На мобилке используем нативный селект — лучше UX и системный picker
               <NativeSelect
                 aria-label="Location"
@@ -446,7 +447,7 @@ export const HeroSection = () => {
 
       {/* Date picker modal / panel (unchanged) */}
       {pickerVisible &&
-        (matches ? (
+        (isTouch ? (
           // мобильный — простой div, без анимации
           <div
             className="fixed inset-0 flex items-center justify-center z-999  bg-white"
