@@ -180,7 +180,7 @@ export const HeroSection = () => {
   };
 
   return (
-    <section className="relative flex flex-col min-h-lvh  lg:min-h-dvh overflow-y-auto">
+    <section className="relative flex flex-col min-h-lvh md:min-h-svh lg:min-h-dvh overflow-y-auto">
       {/* Background (обрезаем эффекты по краям) */}
       <div className="absolute inset-0 z-0 overflow-hidden">
         <div
@@ -235,25 +235,27 @@ export const HeroSection = () => {
         </div>
       </div>
 
-      <div
-        className="
-    w-full max-w-4xl px-4 z-20
-    relative md:sticky
-    md:bottom-10 md:self-center
-    mt-auto
-  "
-      >
+      <div className="w-full z-20 mt-auto">
+        {/* ВНУТРЕННИЙ КОНТЕЙНЕР:
+      - mobile: фиксируем у низа экрана с безопасным отступом и боковыми полями
+      - md+: статичный блок в потоке, центрируем и даём нижний зазор */}
         <div
           className="
-      absolute inset-x-0
+      fixed inset-x-4
       bottom-[max(16px,env(safe-area-inset-bottom))]
       md:static
+      md:inset-auto
+      md:bottom-auto
+      md:px-4
+      md:mb-6
+      max-w-4xl
+      mx-auto
     "
         >
-          {/* Steps */}
+          {/* Steps – прилипают к форме, показываем только на md+ */}
           {stepsVisible && (
             <motion.div
-              className="hidden md:justify-center md:sticky bottom-0 md:flex gap-4 font-roboto-condensed text-shadow text-white mt-1 z-10 md:self-center pb-5"
+              className="hidden md:flex flex-wrap justify-center items-center gap-4 font-roboto-condensed text-shadow text-white mb-2"
               variants={{
                 hidden: { opacity: 0 },
                 visible: { opacity: 1, transition: { staggerChildren: 0.15 } },
@@ -284,7 +286,7 @@ export const HeroSection = () => {
             </motion.div>
           )}
 
-          {/* Booking form (в потоке, прижата книзу секции) */}
+          {/* Форма — без absolute/sticky/mt-auto (эти классы больше не нужны) */}
           <motion.div
             variants={{
               hidden: { opacity: 0, y: 30 },
@@ -306,55 +308,19 @@ export const HeroSection = () => {
                 Book your MINI
               </p>
 
-              {/* Location Select */}
+              {/* --- твой селект (NativeSelect/Select) без изменений --- */}
               <div className="md:flex-1">
                 {isTouch ? (
                   <div className="relative">
-                    {/* <NativeSelect
-                    aria-label="Location"
-                    data={[
-                      {
-                        value: "",
-                        label: "Select location",
-                        disabled: true,
-                      } as any,
-                      ...(groupedData as any),
-                    ]}
-                    value={
-                      buildSelectValue(selectedCountry, locationFilter) ?? ""
-                    }
-                    onChange={(e) => {
-                      const val = e.currentTarget.value || null;
-                      const parsed = parseSelectValue(val);
-                      setSelectedCountry(parsed.countryId);
-                      setLocationFilter(parsed.locationName);
-                      if (parsed.locationName) setPickerVisible(true);
-                    }}
-                    variant="unstyled"
-                    className={`h-12 w-full rounded-md border border-gray-600 bg-white/90 outline-0 px-3 ${
-                      locationFilter ? "text-black" : "text-neutral-500"
-                    }`}
-                    styles={{
-                      input: {
-                        height: "3rem",
-                        lineHeight: "3rem",
-                        paddingLeft: "10px",
-                        fontSize: "16px",
-                        WebkitAppearance: "menulist",
-                      },
-                    }}
-                  /> */}
                     <NativeSelect
                       aria-label="Location"
-                      // placeholder-опция + группы как в твоём select
                       data={[
                         {
                           value: "",
                           label: "Select location",
                           disabled: true,
-                          hidden: true,
                         } as any,
-                        ...(groupedData as any), // [{ group, items: [{ value, label }] }]
+                        ...(groupedData as any),
                       ]}
                       value={
                         buildSelectValue(selectedCountry, locationFilter) ?? ""
@@ -364,42 +330,39 @@ export const HeroSection = () => {
                         const parsed = parseSelectValue(val);
                         setSelectedCountry(parsed.countryId);
                         setLocationFilter(parsed.locationName);
-                        if (parsed.locationName) setPickerVisible(true); // открыть календарь только при реальном выборе
+                        if (parsed.locationName) setPickerVisible(true);
                       }}
-                      // Стилизуем под твой input
                       variant="unstyled"
-                      className={`h-12 w-full rounded-md border border-gray-600 bg-white/90 outline-0 px-1 ${
+                      className={`h-12 w-full rounded-md border border-gray-600 bg-white/90 outline-0 px-3 ${
                         locationFilter ? "text-black" : "text-neutral-500"
                       }`}
                       styles={{
                         input: {
-                          height: "3rem", // 48px
+                          height: "3rem",
                           lineHeight: "3rem",
                           paddingLeft: "10px",
                           fontSize: "16px",
-                          fontFamily: "Montserrat",
+                          WebkitAppearance: "menulist",
                         },
                       }}
-                      // Крестик очистки справа (виден только когда есть значение)
-                      rightSection={
-                        locationFilter ? (
-                          <button
-                            type="button"
-                            aria-label="Clear location"
-                            onMouseDown={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              setSelectedCountry(null);
-                              setLocationFilter("");
-                            }}
-                            className="rounded px-2 py-1 text-sm text-gray-600 hover:bg-gray-100"
-                          >
-                            ✕
-                          </button>
-                        ) : null
-                      }
-                      rightSectionPointerEvents="all"
                     />
+                    {locationFilter && (
+                      <button
+                        type="button"
+                        aria-label="Clear location"
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                        }}
+                        onClick={() => {
+                          setSelectedCountry(null);
+                          setLocationFilter("");
+                        }}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 rounded px-2 py-1 text-sm text-gray-600 hover:bg-gray-100"
+                      >
+                        ✕
+                      </button>
+                    )}
                   </div>
                 ) : (
                   <Select
@@ -484,7 +447,7 @@ export const HeroSection = () => {
       {pickerVisible &&
         (isTouch ? (
           <div
-            className="fixed inset-0 flex items-center justify-center z-[999] bg-white"
+            className="fixed inset-0 flex items-center justify-center z-999 bg-white"
             onClick={closeDatePicker}
           >
             <div
