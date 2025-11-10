@@ -236,23 +236,22 @@ export const HeroSection = () => {
       </div>
 
       <div className="w-full z-20 mt-auto">
-        {/* ВНУТРЕННИЙ КОНТЕЙНЕР:
-      - mobile: фиксируем у низа экрана с безопасным отступом и боковыми полями
-      - md+: статичный блок в потоке, центрируем и даём нижний зазор */}
-        <div
-          className="
-      absolute inset-x-4
-      bottom-[max(16px,env(safe-area-inset-bottom))]
-      md:static
-      md:inset-auto
-      md:bottom-auto
-      md:px-4
-      md:mb-6
-      max-w-4xl
-      mx-auto
-    "
+        {/* ---- Steps + Form (как раньше: один абсолютный блок у нижнего края) ---- */}
+        <motion.div
+          className="absolute left-1/2 -translate-x-1/2 w-full max-w-4xl px-4 z-20 bottom-[max(16px,env(safe-area-inset-bottom))] sm:bottom-10"
+          variants={{
+            hidden: { opacity: 0, y: 30 },
+            visible: {
+              opacity: 1,
+              y: 0,
+              transition: { delay: 0.3, duration: 0.5 },
+            },
+          }}
+          initial="hidden"
+          animate="visible"
+          onAnimationComplete={() => setStepsVisible(true)}
         >
-          {/* Steps – прилипают к форме, показываем только на md+ */}
+          {/* Steps — в том же контейнере, сразу над формой */}
           {stepsVisible && (
             <motion.div
               className="hidden md:flex flex-wrap justify-center items-center gap-4 font-roboto-condensed text-shadow text-white mb-2"
@@ -286,161 +285,147 @@ export const HeroSection = () => {
             </motion.div>
           )}
 
-          {/* Форма — без absolute/sticky/mt-auto (эти классы больше не нужны) */}
-          <motion.div
-            variants={{
-              hidden: { opacity: 0, y: 30 },
-              visible: {
-                opacity: 1,
-                y: 0,
-                transition: { delay: 0.3, duration: 0.5 },
-              },
-            }}
-            initial="hidden"
-            animate="visible"
-            onAnimationComplete={() => setStepsVisible(true)}
+          {/* Form — без fixed/sticky/relative — просто как раньше */}
+          <form
+            className="flex flex-col sm:flex-row bg-black/60 rounded-xl shadow-xl md:items-center gap-2 p-4"
+            onSubmit={handleSubmit}
           >
-            <form
-              className="flex flex-col sm:flex-row bg-black/60 rounded-xl shadow-xl md:items-center gap-2 p-4"
-              onSubmit={handleSubmit}
-            >
-              <p className="text-white font-roboto-condensed text-lg font-bold shrink-0">
-                Book your MINI
-              </p>
+            <p className="text-white font-roboto-condensed text-lg font-bold shrink-0">
+              Book your MINI
+            </p>
 
-              {/* --- твой селект (NativeSelect/Select) без изменений --- */}
-              <div className="md:flex-1">
-                {isTouch ? (
-                  <div className="relative">
-                    <NativeSelect
-                      aria-label="Location"
-                      data={[
-                        {
-                          value: "",
-                          label: "Select location",
-                          disabled: true,
-                        } as any,
-                        ...(groupedData as any),
-                      ]}
-                      value={
-                        buildSelectValue(selectedCountry, locationFilter) ?? ""
-                      }
-                      onChange={(e) => {
-                        const val = e.currentTarget.value || null;
-                        const parsed = parseSelectValue(val);
-                        setSelectedCountry(parsed.countryId);
-                        setLocationFilter(parsed.locationName);
-                        if (parsed.locationName) setPickerVisible(true);
-                      }}
-                      variant="unstyled"
-                      className={`h-12 w-full rounded-md border border-gray-600 bg-white/90 outline-0 px-3 ${
-                        locationFilter ? "text-black" : "text-neutral-500"
-                      }`}
-                      styles={{
-                        input: {
-                          height: "3rem",
-                          lineHeight: "3rem",
-                          paddingLeft: "10px",
-                          fontSize: "16px",
-                          WebkitAppearance: "menulist",
-                        },
-                      }}
-                    />
-                    {locationFilter && (
-                      <button
-                        type="button"
-                        aria-label="Clear location"
-                        onMouseDown={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                        }}
-                        onClick={() => {
-                          setSelectedCountry(null);
-                          setLocationFilter("");
-                        }}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 rounded px-2 py-1 text-sm text-gray-600 hover:bg-gray-100"
-                      >
-                        ✕
-                      </button>
-                    )}
-                  </div>
-                ) : (
-                  <Select
-                    data={groupedData as any}
-                    searchable
-                    nothingFoundMessage="No locations"
-                    clearable
-                    value={buildSelectValue(selectedCountry, locationFilter)}
-                    onChange={(val) => {
-                      const parsed = parseSelectValue(val ?? null);
+            {/* Location Select (оставляю твою логику isTouch → NativeSelect/Select) */}
+            <div className="md:flex-1">
+              {isTouch ? (
+                <div className="relative">
+                  <NativeSelect
+                    aria-label="Location"
+                    data={[
+                      {
+                        value: "",
+                        label: "Select location",
+                        disabled: true,
+                      } as any,
+                      ...(groupedData as any),
+                    ]}
+                    value={
+                      buildSelectValue(selectedCountry, locationFilter) ?? ""
+                    }
+                    onChange={(e) => {
+                      const val = e.currentTarget.value || null;
+                      const parsed = parseSelectValue(val);
                       setSelectedCountry(parsed.countryId);
                       setLocationFilter(parsed.locationName);
                       if (parsed.locationName) setPickerVisible(true);
                     }}
-                    comboboxProps={{
-                      transitionProps: { transition: "pop", duration: 200 },
-                      dropdownPadding: 2,
-                      offset: 10,
-                    }}
-                    withScrollArea={false}
                     variant="unstyled"
-                    className="h-12 border border-gray-600 bg-white rounded-md content-center"
-                    placeholder="Select location"
-                    clearButtonProps={{
-                      onMouseDown: (e: React.MouseEvent) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        setSelectedCountry(null);
-                        setLocationFilter("");
-                      },
-                    }}
+                    className={`h-12 w-full rounded-md border border-gray-600 bg-white/90 outline-0 px-3 ${
+                      locationFilter ? "text-black" : "text-neutral-500"
+                    }`}
                     styles={{
                       input: {
+                        height: "3rem",
+                        lineHeight: "3rem",
                         paddingLeft: "10px",
                         fontSize: "16px",
-                        fontFamily: "Montserrat",
+                        WebkitAppearance: "menulist",
                       },
-                      dropdown: { maxHeight: 200, overflowY: "auto" },
                     }}
                   />
-                )}
-              </div>
+                  {locationFilter && (
+                    <button
+                      type="button"
+                      aria-label="Clear location"
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                      }}
+                      onClick={() => {
+                        setSelectedCountry(null);
+                        setLocationFilter("");
+                      }}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 rounded px-2 py-1 text-sm text-gray-600 hover:bg-gray-100"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <Select
+                  data={groupedData as any}
+                  searchable
+                  nothingFoundMessage="No locations"
+                  clearable
+                  value={buildSelectValue(selectedCountry, locationFilter)}
+                  onChange={(val) => {
+                    const parsed = parseSelectValue(val ?? null);
+                    setSelectedCountry(parsed.countryId);
+                    setLocationFilter(parsed.locationName);
+                    if (parsed.locationName) setPickerVisible(true);
+                  }}
+                  comboboxProps={{
+                    transitionProps: { transition: "pop", duration: 200 },
+                    dropdownPadding: 2,
+                    offset: 10,
+                  }}
+                  withScrollArea={false}
+                  variant="unstyled"
+                  className="h-12 border border-gray-600 bg-white rounded-md content-center"
+                  placeholder="Select location"
+                  clearButtonProps={{
+                    onMouseDown: (e: React.MouseEvent) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setSelectedCountry(null);
+                      setLocationFilter("");
+                    },
+                  }}
+                  styles={{
+                    input: {
+                      paddingLeft: "10px",
+                      fontSize: "16px",
+                      fontFamily: "Montserrat",
+                    },
+                    dropdown: { maxHeight: 200, overflowY: "auto" },
+                  }}
+                />
+              )}
+            </div>
 
-              {/* Dates input */}
-              <input
-                type="text"
-                value={
-                  start && end
-                    ? `${new Date(start).toLocaleDateString()} → ${new Date(
-                        end
-                      ).toLocaleDateString()}`
-                    : ""
-                }
-                placeholder="Dates"
-                aria-label="Dates"
-                readOnly
-                onClick={() => locationFilter && setPickerVisible(true)}
-                className={`h-12 flex-1 font-montserrat rounded-md border bg-white border-gray-600 py-3 px-3 text-sm text-black focus:outline-none placeholder-neutral-600 ${
-                  !locationFilter
-                    ? "bg-neutral-50 cursor-not-allowed"
-                    : "cursor-pointer"
-                }`}
-              />
+            {/* Dates input */}
+            <input
+              type="text"
+              value={
+                start && end
+                  ? `${new Date(start).toLocaleDateString()} → ${new Date(
+                      end
+                    ).toLocaleDateString()}`
+                  : ""
+              }
+              placeholder="Dates"
+              aria-label="Dates"
+              readOnly
+              onClick={() => locationFilter && setPickerVisible(true)}
+              className={`h-12 flex-1 font-montserrat rounded-md border bg-white border-gray-600 py-3 px-3 text-sm text-black focus:outline-none placeholder-neutral-600 ${
+                !locationFilter
+                  ? "bg-neutral-50 cursor-not-allowed"
+                  : "cursor-pointer"
+              }`}
+            />
 
-              <button
-                type="submit"
-                disabled={!locationFilter || !start || !end || !selectedCountry}
-                className={`h-12 rounded-md px-6 tracking-[0.04em] font-medium ${
-                  !locationFilter || !start || !end || !selectedCountry
-                    ? "bg-black/60 text-white cursor-not-allowed"
-                    : "bg-black/80 text-white hover:bg-black/85 cursor-pointer"
-                }`}
-              >
-                Book
-              </button>
-            </form>
-          </motion.div>
-        </div>
+            <button
+              type="submit"
+              disabled={!locationFilter || !start || !end || !selectedCountry}
+              className={`h-12 rounded-md px-6 tracking-[0.04em] font-medium ${
+                !locationFilter || !start || !end || !selectedCountry
+                  ? "bg-black/60 text-white cursor-not-allowed"
+                  : "bg-black/80 text-white hover:bg-black/85 cursor-pointer"
+              }`}
+            >
+              Book
+            </button>
+          </form>
+        </motion.div>
       </div>
 
       {/* Date picker modal / panel */}
