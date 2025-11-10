@@ -241,7 +241,7 @@ export const HeroSection = () => {
       - md+: статичный блок в потоке, центрируем и даём нижний зазор */}
         <div
           className="
-      fixed inset-x-4
+      absolute inset-x-4
       bottom-[max(16px,env(safe-area-inset-bottom))]
       md:static
       md:inset-auto
