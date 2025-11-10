@@ -297,7 +297,7 @@ export const HeroSection = () => {
 
           {/* Form — без fixed/sticky/relative — просто как раньше */}
           <form
-            className="flex flex-col sm:flex-row bg-black/60 rounded-xl shadow-xl md:items-center gap-2 p-4"
+            className="flex flex-col sm:flex-row bg-black/70 rounded-xl shadow-xl md:items-center gap-2 p-4"
             onSubmit={handleSubmit}
           >
             <p className="text-white font-roboto-condensed text-lg font-bold shrink-0">
@@ -431,7 +431,7 @@ export const HeroSection = () => {
             <button
               type="submit"
               disabled={!locationFilter || !start || !end || !selectedCountry}
-              className={`h-12 rounded-md px-6 tracking-[0.04em] font-medium ${
+              className={`h-12 rounded-md px-6 tracking-[0.04em] font-roboto-condensed! font-medium ${
                 !locationFilter || !start || !end || !selectedCountry
                   ? "bg-black/60 text-white cursor-not-allowed"
                   : "bg-black/80 text-white hover:bg-black/85 cursor-pointer"
