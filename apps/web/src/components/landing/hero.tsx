@@ -238,75 +238,79 @@ export const HeroSection = () => {
       <div
         className="
     w-full max-w-4xl px-4 z-20
+    relative md:sticky
+    md:bottom-10 md:self-center
     mt-auto
-    sticky
-    bottom-[max(16px,env(safe-area-inset-bottom))]
-    md:bottom-6
-    self-center
-    flex flex-col
   "
       >
-        {/* Steps */}
-        {stepsVisible && (
+        <div
+          className="
+      absolute inset-x-0
+      bottom-[max(16px,env(safe-area-inset-bottom))]
+      md:static
+    "
+        >
+          {/* Steps */}
+          {stepsVisible && (
+            <motion.div
+              className="hidden md:justify-center md:sticky bottom-0 md:flex gap-4 font-roboto-condensed text-shadow text-white mt-1 z-10 md:self-center pb-5"
+              variants={{
+                hidden: { opacity: 0 },
+                visible: { opacity: 1, transition: { staggerChildren: 0.15 } },
+              }}
+              initial="hidden"
+              animate="visible"
+            >
+              {[
+                "Select location",
+                "Select period",
+                "Choose your MINI",
+                "Pick up and go",
+              ].map((text, idx) => (
+                <motion.p
+                  key={idx}
+                  className="flex bg-linear-to-r from-neutral-800/90 to-neutral-600/40 pl-1 pr-2 py-1 rounded-full"
+                  variants={{
+                    hidden: { opacity: 0, y: 10 },
+                    visible: { opacity: 1, y: 0 },
+                  }}
+                >
+                  <span className="text-center bg-neutral-200/30 rounded-full w-6 h-6 mr-1">
+                    {idx + 1}
+                  </span>
+                  <span dangerouslySetInnerHTML={{ __html: text }} />
+                </motion.p>
+              ))}
+            </motion.div>
+          )}
+
+          {/* Booking form (в потоке, прижата книзу секции) */}
           <motion.div
-            className="hidden md:sticky bottom-0 md:flex gap-4 font-roboto-condensed text-shadow text-white mt-1 z-10 md:self-center"
             variants={{
-              hidden: { opacity: 0 },
-              visible: { opacity: 1, transition: { staggerChildren: 0.15 } },
+              hidden: { opacity: 0, y: 30 },
+              visible: {
+                opacity: 1,
+                y: 0,
+                transition: { delay: 0.3, duration: 0.5 },
+              },
             }}
             initial="hidden"
             animate="visible"
+            onAnimationComplete={() => setStepsVisible(true)}
           >
-            {[
-              "Select location",
-              "Select period",
-              "Choose your MINI",
-              "Pick up and go",
-            ].map((text, idx) => (
-              <motion.p
-                key={idx}
-                className="flex bg-linear-to-r from-neutral-800/90 to-neutral-600/40 pl-1 pr-2 py-1 rounded-full"
-                variants={{
-                  hidden: { opacity: 0, y: 10 },
-                  visible: { opacity: 1, y: 0 },
-                }}
-              >
-                <span className="text-center bg-neutral-200/30 rounded-full w-6 h-6 mr-1">
-                  {idx + 1}
-                </span>
-                <span dangerouslySetInnerHTML={{ __html: text }} />
-              </motion.p>
-            ))}
-          </motion.div>
-        )}
+            <form
+              className="flex flex-col sm:flex-row bg-black/60 rounded-xl shadow-xl md:items-center gap-2 p-4"
+              onSubmit={handleSubmit}
+            >
+              <p className="text-white font-roboto-condensed text-lg font-bold shrink-0">
+                Book your MINI
+              </p>
 
-        {/* Booking form (в потоке, прижата книзу секции) */}
-        <motion.div
-          variants={{
-            hidden: { opacity: 0, y: 30 },
-            visible: {
-              opacity: 1,
-              y: 0,
-              transition: { delay: 0.3, duration: 0.5 },
-            },
-          }}
-          initial="hidden"
-          animate="visible"
-          onAnimationComplete={() => setStepsVisible(true)}
-        >
-          <form
-            className="flex flex-col sm:flex-row bg-black/60 rounded-xl shadow-xl md:items-center gap-2 p-4"
-            onSubmit={handleSubmit}
-          >
-            <p className="text-white font-roboto-condensed text-lg font-bold shrink-0">
-              Book your MINI
-            </p>
-
-            {/* Location Select */}
-            <div className="md:flex-1">
-              {isTouch ? (
-                <div className="relative">
-                  {/* <NativeSelect
+              {/* Location Select */}
+              <div className="md:flex-1">
+                {isTouch ? (
+                  <div className="relative">
+                    {/* <NativeSelect
                     aria-label="Location"
                     data={[
                       {
@@ -340,139 +344,140 @@ export const HeroSection = () => {
                       },
                     }}
                   /> */}
-                  <NativeSelect
-                    aria-label="Location"
-                    // placeholder-опция + группы как в твоём select
-                    data={[
-                      {
-                        value: "",
-                        label: "Select location",
-                        disabled: true,
-                        hidden: true,
-                      } as any,
-                      ...(groupedData as any), // [{ group, items: [{ value, label }] }]
-                    ]}
-                    value={
-                      buildSelectValue(selectedCountry, locationFilter) ?? ""
-                    }
-                    onChange={(e) => {
-                      const val = e.currentTarget.value || null;
-                      const parsed = parseSelectValue(val);
+                    <NativeSelect
+                      aria-label="Location"
+                      // placeholder-опция + группы как в твоём select
+                      data={[
+                        {
+                          value: "",
+                          label: "Select location",
+                          disabled: true,
+                          hidden: true,
+                        } as any,
+                        ...(groupedData as any), // [{ group, items: [{ value, label }] }]
+                      ]}
+                      value={
+                        buildSelectValue(selectedCountry, locationFilter) ?? ""
+                      }
+                      onChange={(e) => {
+                        const val = e.currentTarget.value || null;
+                        const parsed = parseSelectValue(val);
+                        setSelectedCountry(parsed.countryId);
+                        setLocationFilter(parsed.locationName);
+                        if (parsed.locationName) setPickerVisible(true); // открыть календарь только при реальном выборе
+                      }}
+                      // Стилизуем под твой input
+                      variant="unstyled"
+                      className={`h-12 w-full rounded-md border border-gray-600 bg-white/90 outline-0 px-1 ${
+                        locationFilter ? "text-black" : "text-neutral-500"
+                      }`}
+                      styles={{
+                        input: {
+                          height: "3rem", // 48px
+                          lineHeight: "3rem",
+                          paddingLeft: "10px",
+                          fontSize: "16px",
+                          fontFamily: "Montserrat",
+                        },
+                      }}
+                      // Крестик очистки справа (виден только когда есть значение)
+                      rightSection={
+                        locationFilter ? (
+                          <button
+                            type="button"
+                            aria-label="Clear location"
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setSelectedCountry(null);
+                              setLocationFilter("");
+                            }}
+                            className="rounded px-2 py-1 text-sm text-gray-600 hover:bg-gray-100"
+                          >
+                            ✕
+                          </button>
+                        ) : null
+                      }
+                      rightSectionPointerEvents="all"
+                    />
+                  </div>
+                ) : (
+                  <Select
+                    data={groupedData as any}
+                    searchable
+                    nothingFoundMessage="No locations"
+                    clearable
+                    value={buildSelectValue(selectedCountry, locationFilter)}
+                    onChange={(val) => {
+                      const parsed = parseSelectValue(val ?? null);
                       setSelectedCountry(parsed.countryId);
                       setLocationFilter(parsed.locationName);
-                      if (parsed.locationName) setPickerVisible(true); // открыть календарь только при реальном выборе
+                      if (parsed.locationName) setPickerVisible(true);
                     }}
-                    // Стилизуем под твой input
+                    comboboxProps={{
+                      transitionProps: { transition: "pop", duration: 200 },
+                      dropdownPadding: 2,
+                      offset: 10,
+                    }}
+                    withScrollArea={false}
                     variant="unstyled"
-                    className={`h-12 w-full rounded-md border border-gray-600 bg-white/90 outline-0 px-1 ${
-                      locationFilter ? "text-black" : "text-neutral-500"
-                    }`}
+                    className="h-12 border border-gray-600 bg-white rounded-md content-center"
+                    placeholder="Select location"
+                    clearButtonProps={{
+                      onMouseDown: (e: React.MouseEvent) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setSelectedCountry(null);
+                        setLocationFilter("");
+                      },
+                    }}
                     styles={{
                       input: {
-                        height: "3rem", // 48px
-                        lineHeight: "3rem",
                         paddingLeft: "10px",
                         fontSize: "16px",
                         fontFamily: "Montserrat",
                       },
+                      dropdown: { maxHeight: 200, overflowY: "auto" },
                     }}
-                    // Крестик очистки справа (виден только когда есть значение)
-                    rightSection={
-                      locationFilter ? (
-                        <button
-                          type="button"
-                          aria-label="Clear location"
-                          onMouseDown={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            setSelectedCountry(null);
-                            setLocationFilter("");
-                          }}
-                          className="rounded px-2 py-1 text-sm text-gray-600 hover:bg-gray-100"
-                        >
-                          ✕
-                        </button>
-                      ) : null
-                    }
-                    rightSectionPointerEvents="all"
                   />
-                </div>
-              ) : (
-                <Select
-                  data={groupedData as any}
-                  searchable
-                  nothingFoundMessage="No locations"
-                  clearable
-                  value={buildSelectValue(selectedCountry, locationFilter)}
-                  onChange={(val) => {
-                    const parsed = parseSelectValue(val ?? null);
-                    setSelectedCountry(parsed.countryId);
-                    setLocationFilter(parsed.locationName);
-                    if (parsed.locationName) setPickerVisible(true);
-                  }}
-                  comboboxProps={{
-                    transitionProps: { transition: "pop", duration: 200 },
-                    dropdownPadding: 2,
-                    offset: 10,
-                  }}
-                  withScrollArea={false}
-                  variant="unstyled"
-                  className="h-12 border border-gray-600 bg-white rounded-md content-center"
-                  placeholder="Select location"
-                  clearButtonProps={{
-                    onMouseDown: (e: React.MouseEvent) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      setSelectedCountry(null);
-                      setLocationFilter("");
-                    },
-                  }}
-                  styles={{
-                    input: {
-                      paddingLeft: "10px",
-                      fontSize: "16px",
-                      fontFamily: "Montserrat",
-                    },
-                    dropdown: { maxHeight: 200, overflowY: "auto" },
-                  }}
-                />
-              )}
-            </div>
+                )}
+              </div>
 
-            {/* Dates input */}
-            <input
-              type="text"
-              value={
-                start && end
-                  ? `${new Date(start).toLocaleDateString()} → ${new Date(
-                      end
-                    ).toLocaleDateString()}`
-                  : ""
-              }
-              placeholder="Dates"
-              aria-label="Dates"
-              readOnly
-              onClick={() => locationFilter && setPickerVisible(true)}
-              className={`h-12 flex-1 font-montserrat rounded-md border bg-white border-gray-600 py-3 px-3 text-sm text-black focus:outline-none placeholder-neutral-600 ${
-                !locationFilter
-                  ? "bg-neutral-50 cursor-not-allowed"
-                  : "cursor-pointer"
-              }`}
-            />
+              {/* Dates input */}
+              <input
+                type="text"
+                value={
+                  start && end
+                    ? `${new Date(start).toLocaleDateString()} → ${new Date(
+                        end
+                      ).toLocaleDateString()}`
+                    : ""
+                }
+                placeholder="Dates"
+                aria-label="Dates"
+                readOnly
+                onClick={() => locationFilter && setPickerVisible(true)}
+                className={`h-12 flex-1 font-montserrat rounded-md border bg-white border-gray-600 py-3 px-3 text-sm text-black focus:outline-none placeholder-neutral-600 ${
+                  !locationFilter
+                    ? "bg-neutral-50 cursor-not-allowed"
+                    : "cursor-pointer"
+                }`}
+              />
 
-            <button
-              type="submit"
-              disabled={!locationFilter || !start || !end || !selectedCountry}
-              className={`h-12 rounded-md px-6 tracking-[0.04em] font-medium ${
-                !locationFilter || !start || !end || !selectedCountry
-                  ? "bg-black/60 text-white cursor-not-allowed"
-                  : "bg-black/80 text-white hover:bg-black/85 cursor-pointer"
-              }`}
-            >
-              Book
-            </button>
-          </form>
-        </motion.div>
+              <button
+                type="submit"
+                disabled={!locationFilter || !start || !end || !selectedCountry}
+                className={`h-12 rounded-md px-6 tracking-[0.04em] font-medium ${
+                  !locationFilter || !start || !end || !selectedCountry
+                    ? "bg-black/60 text-white cursor-not-allowed"
+                    : "bg-black/80 text-white hover:bg-black/85 cursor-pointer"
+                }`}
+              >
+                Book
+              </button>
+            </form>
+          </motion.div>
+        </div>
       </div>
 
       {/* Date picker modal / panel */}
