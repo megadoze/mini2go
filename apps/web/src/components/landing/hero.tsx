@@ -180,7 +180,7 @@ export const HeroSection = () => {
   };
 
   return (
-    <section className="relative flex flex-col min-h-lvh md:min-h-svh lg:min-h-dvh overflow-y-auto">
+    <section className="relative flex flex-col min-h-lvh  lg:min-h-dvh overflow-y-auto">
       {/* Background (обрезаем эффекты по краям) */}
       <div className="absolute inset-0 z-0 overflow-hidden">
         <div
