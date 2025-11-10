@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { startOfDay } from "date-fns";
 import { useRouter } from "next/navigation";
 import { NativeSelect, Select } from "@mantine/core";
+import { useMediaQuery } from "@mantine/hooks";
 import { motion, AnimatePresence } from "framer-motion";
 import RentalDateTimePicker from "@/components/RentalDateTimePicker";
 import {
@@ -12,8 +13,10 @@ import {
 } from "@/services/geo.service";
 import Link from "next/link";
 
+const mainBanner = "/img/main2.webp";
+
 export const HeroSection = () => {
-  const mainBanner = "/img/main2.webp";
+  const matches = useMediaQuery("(max-width: 56.25em)");
 
   const router = useRouter();
 
@@ -31,14 +34,14 @@ export const HeroSection = () => {
   >([]);
 
   const [stepsVisible, setStepsVisible] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
+  // const [isMobile, setIsMobile] = useState(false);
 
-  useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth <= 1024); // md breakpoint
-    checkMobile();
-    window.addEventListener("resize", checkMobile);
-    return () => window.removeEventListener("resize", checkMobile);
-  }, []);
+  // useEffect(() => {
+  //   const checkMobile = () => setIsMobile(window.innerWidth <= 1024); // md breakpoint
+  //   checkMobile();
+  //   window.addEventListener("resize", checkMobile);
+  //   return () => window.removeEventListener("resize", checkMobile);
+  // }, []);
 
   // Получение стран
   useEffect(() => {
@@ -303,7 +306,7 @@ export const HeroSection = () => {
 
           {/* Mantine Select (grouped by country -> locations) */}
           <div className="md:flex-1">
-            {isMobile ? (
+            {matches ? (
               // На мобилке используем нативный селект — лучше UX и системный picker
               <NativeSelect
                 aria-label="Location"
@@ -443,7 +446,7 @@ export const HeroSection = () => {
 
       {/* Date picker modal / panel (unchanged) */}
       {pickerVisible &&
-        (isMobile ? (
+        (matches ? (
           // мобильный — простой div, без анимации
           <div
             className="fixed inset-0 flex items-center justify-center z-999  bg-white"
