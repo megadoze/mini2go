@@ -235,7 +235,17 @@ export const HeroSection = () => {
         </div>
       </div>
 
-      <div className="relative w-full max-w-4xl px-4 z-20 mt-auto mb-[max(16px,env(safe-area-inset-bottom))] md:sticky md:bottom-10 md:self-center flex flex-col gap-4">
+      <div
+        className="
+    w-full max-w-4xl px-4 z-20
+    mt-auto
+    sticky
+    bottom-[max(16px,env(safe-area-inset-bottom))]
+    md:bottom-6
+    self-center
+    flex flex-col
+  "
+      >
         {/* Steps */}
         {stepsVisible && (
           <motion.div
@@ -296,7 +306,7 @@ export const HeroSection = () => {
             <div className="md:flex-1">
               {isTouch ? (
                 <div className="relative">
-                  <NativeSelect
+                  {/* <NativeSelect
                     aria-label="Location"
                     data={[
                       {
@@ -329,24 +339,63 @@ export const HeroSection = () => {
                         WebkitAppearance: "menulist",
                       },
                     }}
+                  /> */}
+                  <NativeSelect
+                    aria-label="Location"
+                    // placeholder-опция + группы как в твоём select
+                    data={[
+                      {
+                        value: "",
+                        label: "Select location",
+                        disabled: true,
+                        hidden: true,
+                      } as any,
+                      ...(groupedData as any), // [{ group, items: [{ value, label }] }]
+                    ]}
+                    value={
+                      buildSelectValue(selectedCountry, locationFilter) ?? ""
+                    }
+                    onChange={(e) => {
+                      const val = e.currentTarget.value || null;
+                      const parsed = parseSelectValue(val);
+                      setSelectedCountry(parsed.countryId);
+                      setLocationFilter(parsed.locationName);
+                      if (parsed.locationName) setPickerVisible(true); // открыть календарь только при реальном выборе
+                    }}
+                    // Стилизуем под твой input
+                    variant="unstyled"
+                    className={`h-12 w-full rounded-md border border-gray-600 bg-white/90 outline-0 px-1 ${
+                      locationFilter ? "text-black" : "text-neutral-500"
+                    }`}
+                    styles={{
+                      input: {
+                        height: "3rem", // 48px
+                        lineHeight: "3rem",
+                        paddingLeft: "10px",
+                        fontSize: "16px",
+                        fontFamily: "Montserrat",
+                      },
+                    }}
+                    // Крестик очистки справа (виден только когда есть значение)
+                    rightSection={
+                      locationFilter ? (
+                        <button
+                          type="button"
+                          aria-label="Clear location"
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setSelectedCountry(null);
+                            setLocationFilter("");
+                          }}
+                          className="rounded px-2 py-1 text-sm text-gray-600 hover:bg-gray-100"
+                        >
+                          ✕
+                        </button>
+                      ) : null
+                    }
+                    rightSectionPointerEvents="all"
                   />
-                  {locationFilter && (
-                    <button
-                      type="button"
-                      aria-label="Clear location"
-                      onMouseDown={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                      }}
-                      onClick={() => {
-                        setSelectedCountry(null);
-                        setLocationFilter("");
-                      }}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 rounded px-2 py-1 text-sm text-gray-600 hover:bg-gray-100"
-                    >
-                      ✕
-                    </button>
-                  )}
                 </div>
               ) : (
                 <Select
