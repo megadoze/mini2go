@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { startOfDay } from "date-fns";
 import { useRouter } from "next/navigation";
-import { Select } from "@mantine/core";
+import { NativeSelect, Select } from "@mantine/core";
 import { motion, AnimatePresence } from "framer-motion";
 import RentalDateTimePicker from "@/components/RentalDateTimePicker";
 import {
@@ -34,7 +34,7 @@ export const HeroSection = () => {
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth <= 800); // md breakpoint
+    const checkMobile = () => setIsMobile(window.innerWidth < 1024); // md breakpoint
     checkMobile();
     window.addEventListener("resize", checkMobile);
     return () => window.removeEventListener("resize", checkMobile);
@@ -196,14 +196,14 @@ export const HeroSection = () => {
       {/* Background */}
       <div
         aria-hidden
-        className="absolute inset-0 z-0 bg-center bg-cover saturate-70 contrast-90 blur-[0px]"
+        className="absolute inset-0 z-0 bg-center bg-cover saturate-80 blur-[1px]"
         style={{ backgroundImage: `url(${mainBanner})` }}
       />
-      <div className="absolute inset-0 z-0 bg-linear-to-b from-black/20 from-10% via-black/50 to-100% to-black/20" />
+      <div className="absolute inset-0 z-0 bg-linear-to-b from-black/20 from-10% via-black/40 to-100% to-black/10" />
 
       {/* Content */}
-      <div className="flex justify-center relative z-10 w-full px-4 sm:px-6 lg:px-10 pb-52 md:pb-20">
-        <div className=" flex flex-col items-center text-center max-w-4xl  pb-4">
+      <div className="flex justify-center relative z-10 w-full px-4 sm:px-6 lg:px-10 pb-52 md:pb-40">
+        <div className=" flex flex-col items-center text-center max-w-4xl pb-4">
           <motion.h1
             className=" font-roboto-condensed font-bold tracking-[0.01em] leading-tight text-5xl sm:text-5xl lg:text-7xl text-shadow  px-2 py-3 rounded w-dvw md:w-fit"
             initial={{ opacity: 0, y: -20 }}
@@ -305,44 +305,60 @@ export const HeroSection = () => {
           <div className="md:flex-1">
             {isMobile ? (
               // На мобилке используем нативный селект — лучше UX и системный picker
-              <select
+              <NativeSelect
                 aria-label="Location"
+                // placeholder-опция + группы как в твоём select
+                data={[
+                  {
+                    value: "",
+                    label: "Select location",
+                    disabled: true,
+                    hidden: true,
+                  } as any,
+                  ...(groupedData as any), // [{ group, items: [{ value, label }] }]
+                ]}
                 value={buildSelectValue(selectedCountry, locationFilter) ?? ""}
                 onChange={(e) => {
-                  const val = e.target.value || null;
+                  const val = e.currentTarget.value || null;
                   const parsed = parseSelectValue(val);
                   setSelectedCountry(parsed.countryId);
                   setLocationFilter(parsed.locationName);
-                  // Открыть календарь только если реально выбрали локацию (не очистили)
-                  if (parsed.locationName) setPickerVisible(true);
+                  if (parsed.locationName) setPickerVisible(true); // открыть календарь только при реальном выборе
                 }}
-                className={`w-full h-12 rounded-md  border-gray-600 px-3 text-sm bg-white/90 outline-0 ${
+                // Стилизуем под твой input
+                variant="unstyled"
+                className={`h-12 w-full rounded-md border border-gray-600 bg-white/90 outline-0 px-1 ${
                   locationFilter ? "text-black" : "text-neutral-500"
                 }`}
-                // На мобильных браузерах placeholder option будет служить как "clear"
-              >
-                {/* Placeholder / empty option — служит как 'очистить' */}
-                <option
-                  className=" font-light text-gray-200"
-                  value=""
-                  disabled
-                  hidden
-                >
-                  Select location
-                </option>
-
-                {/* Группы с optgroup */}
-                {groupedData.map((g) => (
-                  <optgroup label={g.group} key={g.group}>
-                    {g.items.map((it) => (
-                      <option value={it.value} key={it.value}>
-                        {/* Показываем "Location — Country" или только locationName, на твой выбор */}
-                        {it.label}
-                      </option>
-                    ))}
-                  </optgroup>
-                ))}
-              </select>
+                styles={{
+                  input: {
+                    height: "3rem", // 48px
+                    lineHeight: "3rem",
+                    paddingLeft: "10px",
+                    fontSize: "16px",
+                    fontFamily: "Montserrat",
+                  },
+                }}
+                // Крестик очистки справа (виден только когда есть значение)
+                rightSection={
+                  locationFilter ? (
+                    <button
+                      type="button"
+                      aria-label="Clear location"
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setSelectedCountry(null);
+                        setLocationFilter("");
+                      }}
+                      className="rounded px-2 py-1 text-sm text-gray-600 hover:bg-gray-100"
+                    >
+                      ✕
+                    </button>
+                  ) : null
+                }
+                rightSectionPointerEvents="all"
+              />
             ) : (
               // Десктоп: Mantine Select — с контролем ширины дропдауна и flip middleware
               <Select
