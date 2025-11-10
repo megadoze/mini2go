@@ -302,13 +302,15 @@ export const HeroSection = () => {
                 <div className="relative">
                   <NativeSelect
                     aria-label="Location"
+                    // placeholder-опция + группы как в твоём select
                     data={[
                       {
                         value: "",
                         label: "Select location",
                         disabled: true,
+                        hidden: true,
                       } as any,
-                      ...(groupedData as any),
+                      ...(groupedData as any), // [{ group, items: [{ value, label }] }]
                     ]}
                     value={
                       buildSelectValue(selectedCountry, locationFilter) ?? ""
@@ -318,39 +320,42 @@ export const HeroSection = () => {
                       const parsed = parseSelectValue(val);
                       setSelectedCountry(parsed.countryId);
                       setLocationFilter(parsed.locationName);
-                      if (parsed.locationName) setPickerVisible(true);
+                      if (parsed.locationName) setPickerVisible(true); // открыть календарь только при реальном выборе
                     }}
+                    // Стилизуем под твой input
                     variant="unstyled"
-                    className={`h-12 w-full rounded-md border border-gray-600 bg-white/90 outline-0 px-3 ${
+                    className={`h-12 w-full rounded-md border border-gray-600 bg-white/90 outline-0 px-1 ${
                       locationFilter ? "text-black" : "text-neutral-500"
                     }`}
                     styles={{
                       input: {
-                        height: "3rem",
+                        height: "3rem", // 48px
                         lineHeight: "3rem",
                         paddingLeft: "10px",
                         fontSize: "16px",
-                        WebkitAppearance: "menulist",
+                        fontFamily: "Montserrat",
                       },
                     }}
+                    // Крестик очистки справа (виден только когда есть значение)
+                    rightSection={
+                      locationFilter ? (
+                        <button
+                          type="button"
+                          aria-label="Clear location"
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setSelectedCountry(null);
+                            setLocationFilter("");
+                          }}
+                          className="rounded px-2 py-1 text-sm text-gray-600 hover:bg-gray-100"
+                        >
+                          ✕
+                        </button>
+                      ) : null
+                    }
+                    rightSectionPointerEvents="all"
                   />
-                  {locationFilter && (
-                    <button
-                      type="button"
-                      aria-label="Clear location"
-                      onMouseDown={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                      }}
-                      onClick={() => {
-                        setSelectedCountry(null);
-                        setLocationFilter("");
-                      }}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 rounded px-2 py-1 text-sm text-gray-600 hover:bg-gray-100"
-                    >
-                      ✕
-                    </button>
-                  )}
                 </div>
               ) : (
                 <Select
