@@ -11,7 +11,7 @@ export function MiniWorld() {
           <h2 className="text-3xl sm:text-4xl lg:text-6xl font-oleo-script font-extrabold tracking-wide">
             MINI World
           </h2>
-          <p className="pt-4 text-lg md:text-2xl text-neutral-600 font-roboto-condensed">
+          <p className="pt-1 md:pt-2 text-lg md:text-2xl text-neutral-600 font-roboto-condensed">
             News, stories and technologies - everything about MINI and around
             it.
           </p>
