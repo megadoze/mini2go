@@ -97,18 +97,18 @@ export const NAV = [
 
 export const CAR_CARDS = [
   {
-    title: "Cooper",
-    subtitle: "Urban go-kart feel",
-    price: "from €89/day",
-    img: "/img/one.png",
-    href: "/cars?model=cooper-3d",
-  },
-  {
     title: "Cabrio",
     subtitle: "Silent & zippy",
     price: "from €99/day",
     img: "/img/cabrio.png",
     href: "/cars?model=electric",
+  },
+  {
+    title: "Cooper",
+    subtitle: "Urban go-kart feel",
+    price: "from €89/day",
+    img: "/img/one.png",
+    href: "/cars?model=cooper-3d",
   },
   {
     title: "Countryman",
@@ -141,13 +141,13 @@ export const VIDEO_TEASERS = [
     src: "/videos/mini-cabrio.mp4",
     poster: "/img/minicabrioposter.webp",
   },
-    {
+  {
     title: "MINI Cooper Aceman",
     description: "The feeling of a go-kart with an open roof, 2+2 seats",
     fuel: "Gasoline",
     src: "/videos/mini-aceman.mp4",
     poster: "/img/aceman-poster.webp",
-  }
+  },
 ] as const;
 
 export const WELCOME_FEATURES = [
