@@ -360,16 +360,16 @@ export default function RentalDateTimePicker({
     }
 
     const classes = [
-      "relative h-10 my-1 w-full flex items-center justify-center text-sm select-none ",
+      "relative h-10 my-1 w-full flex items-center justify-center text-sm select-none font-roboto-condensed",
       !inCurrent ? "text-gray-400" : "",
       disabled ? "opacity-40 cursor-not-allowed" : "cursor-pointer",
-      inRange ? "bg-green-100/20 border-y-2 border-green-300" : "",
-      isSingle ? "border-green-300 rounded-full border-2 border-green-300" : "",
+      inRange ? "bg-teal-100/20 border-y-2 border-teal-300" : "",
+      isSingle ? "border-teal-300 rounded-full border-2 border-teal-300" : "",
       isStart && !isEnd
-        ? "border border-2 border-green-300 rounded-l-full border-r-0 pr-[2px]"
+        ? "border border-2 border-teal-300 rounded-l-full border-r-0 pr-[2px]"
         : "",
       isEnd && !isStart
-        ? " border-2 border-green-300 rounded-r-full border-l-0 pl-[2px]"
+        ? " border-2 border-teal-300 rounded-r-full border-l-0 pl-[2px]"
         : "",
     ].join(" ");
 
@@ -390,7 +390,9 @@ export default function RentalDateTimePicker({
         }}
         className={classes}
       >
-        <span className={isStart || isEnd ? "font-medium text-green-900" : ""}>
+        <span
+          className={isStart || isEnd ? "font-medium text-emerald-900" : ""}
+        >
           {format(d, "d", { locale })}
         </span>
       </div>
@@ -451,8 +453,10 @@ export default function RentalDateTimePicker({
       <div className=" mt-2 grid sm:grid-cols-2 gap-3">
         <div className="rounded-xl border border-gray-200 p-2">
           <div className=" flex justify-between">
-            <div className="text-xs text-gray-500">Pick Up</div>
-            <div className="mt-1 text-sm font-medium min-h-5">
+            <div className="text-xs text-gray-500 font-roboto-condensed">
+              Pick Up
+            </div>
+            <div className="mt-1 text-sm font-medium min-h-5 font-roboto-condensed">
               {tempRange.startAt
                 ? format(tempRange.startAt, "d MMM, HH:mm", { locale })
                 : "—"}
@@ -467,7 +471,7 @@ export default function RentalDateTimePicker({
                 step={1}
                 value={startIdx}
                 onChange={setStartIdx}
-                color="#4ade80"
+                color="oklch(77.7% 0.152 181.912)"
                 size="sm"
                 radius="xl"
                 thumbSize={25}
@@ -480,8 +484,10 @@ export default function RentalDateTimePicker({
 
         <div className="rounded-xl border border-gray-200 p-2">
           <div className=" flex justify-between">
-            <div className="text-xs text-gray-500">Drop Off</div>
-            <div className="mt-1 text-sm font-medium min-h-5">
+            <div className="text-xs text-gray-500 font-roboto-condensed">
+              Drop Off
+            </div>
+            <div className="mt-1 text-sm font-medium min-h-5 font-roboto-condensed">
               {tempRange.endAt
                 ? format(tempRange.endAt, "d MMM, HH:mm", { locale })
                 : "—"}
@@ -496,7 +502,7 @@ export default function RentalDateTimePicker({
                 step={1}
                 value={endIdx}
                 onChange={setEndIdx}
-                color="#4ade80"
+                color="oklch(77.7% 0.152 181.912)"
                 size="sm"
                 radius="xl"
                 thumbSize={25}
@@ -515,7 +521,7 @@ export default function RentalDateTimePicker({
         <div className="flex items-center justify-between">
           <div>
             <button
-              className=" px-4 py-2 border rounded-xl hover:bg-gray-100 cursor-pointer"
+              className=" px-4 py-2 border border-black/50 rounded-xl hover:bg-gray-100 cursor-pointer font-roboto-condensed!"
               onClick={() => {
                 commit(value);
                 setTempRange(value);
@@ -528,13 +534,13 @@ export default function RentalDateTimePicker({
 
           <div className="py-2 flex items-center gap-2">
             <button
-              className="px-3 py-2 rounded-xl border border-gray-200 hover:bg-gray-50 cursor-pointer"
+              className="px-3 py-2 rounded-xl border border-gray-200 hover:bg-gray-50 cursor-pointer font-roboto-condensed!"
               onClick={() => setTempRange(value)}
             >
               Reset
             </button>
             <button
-              className="px-4 py-2 rounded-xl bg-black text-white disabled:opacity-50 cursor-pointer"
+              className="px-4 py-2 rounded-xl bg-black text-white disabled:opacity-50 cursor-pointer font-roboto-condensed!"
               disabled={!tempRange.startAt || !tempRange.endAt || rangeBlocked}
               onClick={() => commit()}
             >
