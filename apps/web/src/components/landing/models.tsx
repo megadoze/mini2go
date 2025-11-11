@@ -136,8 +136,7 @@ export const ModelsSection = () => {
             Which one will it be today?
           </h2>
           <p className="pt-4 md:pt-6 text-lg md:text-2xl text-neutral-600 font-roboto-condensed">
-            Our rental stations offer you a wide selection of models and are
-            happy to fulfil your individual wishes.
+            The road is calling — choose your MINI.
           </p>
         </div>
 

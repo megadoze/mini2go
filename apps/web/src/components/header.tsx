@@ -34,7 +34,7 @@ export const HeaderSection = ({
         <div className="w-14 md:w-20">
           <Link
             href="/"
-            className="flex flex-col items-center shrink-0 font-roboto uppercase font-bold "
+            className="flex flex-col items-center shrink-0 font-montserrat uppercase font-bold "
           >
             <img
               src={color === "white" ? `/icons/logow.png` : `/icons/logo.png`}
