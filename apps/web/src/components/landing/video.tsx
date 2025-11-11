@@ -275,7 +275,7 @@ export const VideoSection = () => {
                 key={i}
                 className="snap-start shrink-0 w-[82vw] max-w-[420px] touch-manipulation"
               >
-                <div className="relative aspect-9/16 overflow-hidden rounded-2xl ring-1 ring-black/10 bg-black">
+                <div className="relative aspect-9/16 overflow-hidden rounded-2xl ring-1 ring-black/10 bg-black/60">
                   <video
                     ref={setMobileRef(i)}
                     className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ${
@@ -344,7 +344,7 @@ export const VideoSection = () => {
 
                   {/* затемнение */}
                   <div
-                    className={`pointer-events-none absolute inset-0 z-10 bg-black/25 transition-opacity duration-200 ${
+                    className={`pointer-events-none absolute inset-0 z-10 bg-black/15 transition-opacity duration-200 ${
                       mounted && mobileActive === i
                         ? "opacity-0"
                         : "opacity-100"
@@ -426,7 +426,7 @@ export const VideoSection = () => {
                   />
 
                   <div
-                    className={`pointer-events-none absolute inset-0 z-10 bg-black/35 transition-opacity duration-200 ${
+                    className={`pointer-events-none absolute inset-0 z-10 bg-black/15 transition-opacity duration-200 ${
                       mounted && hoveredStory === 0
                         ? "opacity-0"
                         : "opacity-100"
@@ -501,7 +501,7 @@ export const VideoSection = () => {
                   />
 
                   <div
-                    className={`pointer-events-none absolute inset-0 z-10 bg-black/35 transition-opacity duration-200 ${
+                    className={`pointer-events-none absolute inset-0 z-10 bg-black/15 transition-opacity duration-200 ${
                       mounted && hoveredStory === 2
                         ? "opacity-0"
                         : "opacity-100"
@@ -579,7 +579,7 @@ export const VideoSection = () => {
                   />
 
                   <div
-                    className={`pointer-events-none absolute inset-0 z-10 bg-black/35 transition-opacity duration-200 ${
+                    className={`pointer-events-none absolute inset-0 z-10 bg-black/15 transition-opacity duration-200 ${
                       mounted && hoveredStory === 1
                         ? "opacity-0"
                         : "opacity-100"

@@ -13,7 +13,7 @@ import {
 } from "@/services/geo.service";
 import Link from "next/link";
 
-const mainBanner = "/img/main4.webp";
+const mainBanner = "/img/main6.webp";
 
 export const HeroSection = () => {
   // Показываем NativeSelect на любом тач-устройстве (в т.ч. планшеты в landscape)
@@ -209,7 +209,7 @@ export const HeroSection = () => {
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0, transition: { duration: 0.5 } }}
           >
-            <span className="bg-linear-to-r from-violet-400 to-emerald-500 bg-clip-text text-transparent">
+            <span className="bg-linear-to-r from-violet-400 to-teal-500 bg-clip-text text-transparent">
               It’s time to drive MINI
             </span>
           </motion.h1>
