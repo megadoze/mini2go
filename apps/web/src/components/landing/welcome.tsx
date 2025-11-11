@@ -28,7 +28,7 @@ export const WelcomeSection = () => {
                 {/* КАРТИНКА (ширина как у видео-карточек) */}
                 <div className="flex justify-center px-4 md:px-0">
                   <div className=" w-full md:max-w-[420px] md:w-[340px] lg:w-[380px]">
-                    <div className="relative aspect-square md:aspect-9/16 overflow-hidden rounded-2xl ring-1 ring-black/10 bg-black">
+                    <div className="relative aspect-square overflow-hidden rounded-2xl">
                       <img
                         src={item.img}
                         alt={item.alt}
@@ -42,11 +42,11 @@ export const WelcomeSection = () => {
 
                 {/* ТЕКСТ (ровно та же ширина, отцентрирован) */}
                 <div className="mt-4 md:mt-0 flex justify-center">
-                  <div className="w-[82vw] max-w-[420px] md:w-[340px] lg:w-[380px]">
-                    <h3 className="text-2xl md:text-3xl font-boogaloo tracking-wide font-semibold text-black">
+                  <div className="w-[82vw] max-w-[420px] md:w-[340px] lg:w-[380px] text-center md:text-left">
+                    <h3 className="text-2xl md:text-2xl font-roboto-condensed tracking-wide font-semibold text-black">
                       {item.title}
                     </h3>
-                    <p className="mt-3 font-roboto-condensed text-stone-600 text-lg lg:text-xl">
+                    <p className="mt-2 text-stone-600 text-lg lg:text-lg">
                       {item.text}
                     </p>
                   </div>

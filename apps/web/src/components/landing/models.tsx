@@ -135,7 +135,7 @@ export const ModelsSection = () => {
           <h2 className="text-3xl sm:text-4xl lg:text-6xl font-oleo-script font-extrabold tracking-wide">
             Which one will it be today?
           </h2>
-          <p className="pt-4 md:pt-6 text-lg md:text-2xl text-neutral-600 font-roboto-condensed">
+          <p className="pt-4 text-lg md:text-2xl text-neutral-600 font-roboto-condensed">
             The road is calling — choose your MINI.
           </p>
         </div>
@@ -188,15 +188,16 @@ export const ModelsSection = () => {
               </a>
             ))}
           </div>
-
-          <button
-            type="button"
-            aria-label="Previous"
-            onClick={() => scrollToSlide(activeSlide - 1)}
-            className="hidden absolute left-3 sm:left-6 top-1/2 -translate-y-1/2 z-10 rounded-full bg-black text-white h-10 w-10 md:flex items-center justify-center opacity-20 hover:opacity-80 transition duration-300"
-          >
-            ‹
-          </button>
+          {activeSlide !== 0 && (
+            <button
+              type="button"
+              aria-label="Previous"
+              onClick={() => scrollToSlide(activeSlide - 1)}
+              className="hidden absolute left-3 sm:left-6 top-1/2 -translate-y-1/2 z-10 rounded-full bg-black text-white h-10 w-10 md:flex items-center justify-center opacity-20 hover:opacity-80 transition duration-300"
+            >
+              ‹
+            </button>
+          )}
           <button
             type="button"
             aria-label="Next"
@@ -205,19 +206,6 @@ export const ModelsSection = () => {
           >
             ›
           </button>
-
-          {/* <div className="mt-0 flex justify-center gap-2">
-            {CAR_CARDS.map((_, i) => (
-              <button
-                key={i}
-                aria-label={`Go to slide ${i + 1}`}
-                onClick={() => scrollToSlide(i)}
-                className={`h-1.5 w-1.5 rounded-full ${
-                  i === activeSlide ? "bg-black" : "bg-black/30"
-                }`}
-              />
-            ))}
-          </div> */}
         </div>
       </div>
     </section>
