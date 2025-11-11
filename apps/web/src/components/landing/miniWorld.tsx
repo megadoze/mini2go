@@ -8,7 +8,7 @@ export function MiniWorld() {
     <section id="mini-world" className="bg-white">
       <div className="w-full max-w-[1200px] mx-auto px-[3vw] pt-24 pb-6">
         <div className="text-center">
-          <h2 className="text-3xl sm:text-4xl lg:text-6xl font-pacifico font-extrabold tracking-wide">
+          <h2 className="text-3xl sm:text-4xl lg:text-6xl font-oleo-script font-extrabold tracking-wide">
             MINI World
           </h2>
           <p className="pt-4 text-lg md:text-2xl text-neutral-600 font-roboto-condensed">
@@ -35,7 +35,7 @@ export function MiniWorld() {
                       loading="lazy"
                       decoding="async"
                     />
-                    <span className="absolute left-3 top-3 z-10 inline-flex items-center rounded-full bg-white/90 px-2.5 py-1 text-xs font-semibold text-black font-poppins">
+                    <span className="absolute left-3 top-3 z-10 inline-flex items-center rounded-full bg-white/90 px-2.5 py-1 text-xs font-semibold text-black font-roboto-condensed">
                       {p.tag}
                     </span>
                   </div>
@@ -91,7 +91,7 @@ export function MiniWorld() {
                   sizes="100vw"
                 />
 
-                <span className="absolute left-3 top-3 z-10 inline-flex items-center rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-semibold text-black font-poppins">
+                <span className="absolute left-3 top-3 z-10 inline-flex items-center rounded-full bg-white/90 px-2.5 py-1 text-[12px] font-semibold text-black font-roboto-condensed">
                   {p.tag}
                 </span>
               </div>

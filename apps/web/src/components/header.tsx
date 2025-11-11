@@ -85,20 +85,20 @@ export const HeaderSection = ({
                 key={item.label}
                 className=" hover:bg-neutral-100 rounded-md transition duration-300 ease-in-out py-1"
               >
-                <a
+                <Link
                   href={item.href}
-                  className="flex items-center justify-between py-3 text-black font-robotoCondensed px-4"
+                  className="flex items-center justify-between py-3 text-black font-roboto-condensed px-4"
                   onClick={() => handleMenuOpen(false)}
                 >
                   <p>{item.label}</p>
                   <ChevronRightIcon className=" w-6 text-neutral-500" />
-                </a>
+                </Link>
               </li>
             ))}
           </ul>
           <div className="mt-8">
             <button
-              className="w-full rounded-xl ring-1 ring-black/80 px-4 py-3 text-base hover:ring-black/50"
+              className="w-full font-roboto-condensed rounded-xl ring-1 ring-black/80 px-4 py-3 text-base hover:ring-black/50"
               onClick={() => handleMenuOpen(false)}
             >
               Log In

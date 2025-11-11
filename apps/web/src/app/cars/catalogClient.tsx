@@ -1371,7 +1371,7 @@ function CatalogCardGlass({
       <div className="p-4 sm:p-5 flex flex-col gap-4 flex-1">
         <Link href={href} className="flex items-start justify-between gap-4">
           <div className="min-w-0">
-            <h2 className="text-lg font-semibold leading-snug text-zinc-900 line-clamp-1">
+            <h2 className="text-xl font-roboto-condensed font-semibold leading-snug text-zinc-900 line-clamp-1">
               {highlight ? highlightMatch(title, highlight) : title}
             </h2>
             <div className="text-xs text-zinc-600 line-clamp-1">
@@ -1384,15 +1384,15 @@ function CatalogCardGlass({
           </div>
 
           <div className="text-right shrink-0">
-            <div className="text-zinc-900 text-base font-semibold leading-none">
+            <div className="text-zinc-900 text-xl font-boogaloo font-semibold leading-none">
               {displayDayPrice.toFixed(0)} {currency}
-              <span className="text-zinc-500 font-normal text-[11px]">
+              <span className="text-zinc-500 font-normal text-[20px]">
                 /day
               </span>
             </div>
 
             {haveDates && displayTotal > 0 ? (
-              <div className="text-[11px] text-zinc-500 leading-snug mt-1">
+              <div className="text-[14px] font-roboto-condensed text-zinc-500 leading-snug mt-1">
                 ≈ {displayTotal.toFixed(0)} {currency} /{" "}
                 {(() => {
                   const s = new Date(start);
@@ -1492,7 +1492,7 @@ function BottomStickyBar({
   return (
     <div className="fixed inset-x-0 bottom-0 bg-white/70 backdrop-blur supports-backdrop-filter:bg-white/40 border-t border-gray-200/60">
       <div className="mx-auto max-w-7xl px-4 md:px-6 py-3 flex items-center justify-between gap-3">
-        <div className="flex flex-col sm:flex-row sm:items-baseline sm:gap-2 min-w-0 max-w-[68vw] sm:max-w-none text-sm sm:text-lg md:text-xl font-semibold">
+        <div className="flex flex-col sm:flex-row sm:items-baseline sm:gap-2 min-w-0 max-w-[68vw] sm:max-w-none text-sm sm:text-lg md:text-xl font-semibold font-roboto-condensed">
           {!start ? (
             <p>Select dates</p>
           ) : (
@@ -1508,7 +1508,7 @@ function BottomStickyBar({
         <div className="flex items-center justify-end gap-2 sm:gap-3">
           <button
             onClick={changePickerStatus}
-            className="rounded-xl px-3 h-10 md:px-5 md:h-12 text-sm font-medium text-neutral-800 bg-white/40 backdrop-blur supports-backdrop-filter:bg-white/20 border border-neutral-600/50 shadow-[0_8px_20px_rgba(0,0,0,0.05)] hover:bg-white/60 hover:border-neutral-900 hover:shadow-[0_16px_32px_rgba(0,0,0,0.08)] transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-neutral-900/20 focus:ring-offset-1 focus:ring-offset-white cursor-pointer"
+            className="font-roboto-condensed! rounded-xl px-3 h-10 md:px-5 md:h-12 text-sm font-medium text-neutral-800 bg-white/40 backdrop-blur supports-backdrop-filter:bg-white/20 border border-neutral-600/50 shadow-[0_8px_20px_rgba(0,0,0,0.05)] hover:bg-white/60 hover:border-neutral-900 hover:shadow-[0_16px_32px_rgba(0,0,0,0.08)] transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-neutral-900/20 focus:ring-offset-1 focus:ring-offset-white cursor-pointer"
           >
             Change
           </button>

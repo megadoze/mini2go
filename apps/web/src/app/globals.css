@@ -13,11 +13,10 @@
 }
 
 @theme {
-  --font-poppins: Poppins, sans-serif;
-  --font-montserrat: Montserrat, ui-sans-serif, system-ui;
+  --font-montserrat: Montserrat, ui-sans-serif, sans-serif, system-ui;
   --font-roboto-condensed: Roboto_Condensed, sans-serif;
-  --font-pacifico: Pacifico, sans-serif;
   --font-boogaloo: Boogaloo, sans-serif;
+  --font-oleo-script: Oleo_Script, sans-serif;
 }
 
 @layer base {

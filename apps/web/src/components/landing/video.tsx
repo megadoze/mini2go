@@ -256,7 +256,7 @@ export const VideoSection = () => {
     <section id="mini-stories" className="relative bg-white">
       <div className="px-4 sm:px-6 lg:px-10">
         <div className="text-center">
-          <h2 className="text-3xl sm:text-4xl lg:text-6xl font-pacifico font-bold text-black">
+          <h2 className="text-3xl sm:text-4xl lg:text-6xl font-oleo-script font-bold text-black">
             Your MINI adventure starts now.
           </h2>
           <p className="pt-4 text-lg md:text-2xl text-neutral-600 font-roboto-condensed">
@@ -354,7 +354,7 @@ export const VideoSection = () => {
                   {/* title */}
                   <div className="pointer-events-none absolute top-0 left-0 right-0 z-10 p-3">
                     <span
-                      className={`inline-block px-2 py-1 text-white/90 transition-opacity duration-200 bg-linear-to-r from-zinc-800/50 to-neutral-400/0 rounded-lg ${
+                      className={`font-roboto-condensed inline-block px-2 py-1 text-white/90 transition-opacity duration-200 bg-linear-to-r from-zinc-800/50 to-neutral-400/0 rounded-lg ${
                         mounted && mobileActive === i
                           ? "opacity-90"
                           : "opacity-100"
@@ -435,7 +435,7 @@ export const VideoSection = () => {
 
                   <div className="pointer-events-none absolute top-0 left-0 right-0 z-20 p-4">
                     <span
-                      className={`inline-block px-2 py-1 text-white/90 transition-opacity duration-200 bg-linear-to-r from-zinc-900/50 to-neutral-400/0 rounded-lg ${
+                      className={`font-roboto-condensed inline-block px-2 py-1 text-white/90 transition-opacity duration-200 bg-linear-to-r from-zinc-900/50 to-neutral-400/0 rounded-lg ${
                         mounted && hoveredStory === 0
                           ? "opacity-90"
                           : "opacity-100"
@@ -510,7 +510,7 @@ export const VideoSection = () => {
 
                   <div className="pointer-events-none absolute top-0 left-0 right-0 z-20 p-4">
                     <span
-                      className={`inline-block px-2 py-1 text-white/90 transition-opacity duration-200 bg-linear-to-r from-zinc-900/50 to-neutral-400/0 rounded-lg ${
+                      className={`font-roboto-condensed inline-block px-2 py-1 text-white/90 transition-opacity duration-200 bg-linear-to-r from-zinc-900/50 to-neutral-400/0 rounded-lg ${
                         mounted && hoveredStory === 2
                           ? "opacity-90"
                           : "opacity-100"
@@ -588,7 +588,7 @@ export const VideoSection = () => {
 
                   <div className="pointer-events-none absolute top-0 left-0 right-0 z-20 p-4">
                     <span
-                      className={`inline-block px-2 py-1 text-white/90 transition-opacity duration-200 bg-linear-to-r from-zinc-900/50 to-neutral-400/0 rounded-lg ${
+                      className={`font-roboto-condensed inline-block px-2 py-1 text-white/90 transition-opacity duration-200 bg-linear-to-r from-zinc-900/50 to-neutral-400/0 rounded-lg ${
                         mounted && hoveredStory === 1
                           ? "opacity-90"
                           : "opacity-100"

@@ -7,9 +7,16 @@ import { AppProviders } from "./providers";
 import {
   Boogaloo,
   Montserrat,
-  Pacifico,
+  Oleo_Script,
   Roboto_Condensed,
 } from "next/font/google";
+
+const oleo = Oleo_Script({
+  subsets: ["latin"],
+  weight: ["400", "700"],
+  variable: "--font-oleo-script",
+  display: "swap",
+});
 
 const robotoCondensed = Roboto_Condensed({
   subsets: ["latin"],
@@ -22,13 +29,6 @@ const montserrat = Montserrat({
   subsets: ["latin"],
   weight: ["400", "600", "700"],
   variable: "--font-montserrat",
-  display: "swap",
-});
-
-const pacifico = Pacifico({
-  subsets: ["latin"],
-  weight: ["400"],
-  variable: "--font-pacifico",
   display: "swap",
 });
 
@@ -57,13 +57,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html
-      lang="en"
-      {...mantineHtmlProps}
-      className={`${robotoCondensed.variable} ${montserrat.variable} ${pacifico.variable} ${boogaloo.variable}`}
-    >
+    <html lang="en" {...mantineHtmlProps}>
       <body
-        className={`${robotoCondensed.className} ${montserrat.className} ${pacifico.variable} ${boogaloo.variable}`}
+        className={`${montserrat.className} ${robotoCondensed.variable} ${boogaloo.variable} ${oleo.variable}`}
       >
         <AppProviders>{children}</AppProviders>
       </body>
