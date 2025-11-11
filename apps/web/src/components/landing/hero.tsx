@@ -13,7 +13,7 @@ import {
 } from "@/services/geo.service";
 import Link from "next/link";
 
-const mainBanner = "/img/main2.webp";
+const mainBanner = "/img/main4.webp";
 
 export const HeroSection = () => {
   // Показываем NativeSelect на любом тач-устройстве (в т.ч. планшеты в landscape)
@@ -195,17 +195,17 @@ export const HeroSection = () => {
       <div className="absolute inset-0 z-0 overflow-hidden">
         <div
           aria-hidden
-          className="absolute inset-0 bg-center bg-cover saturate-80 blur-[1px]"
+          className="absolute inset-0 bg-center bg-cover saturate-90 blur-[1px]"
           style={{ backgroundImage: `url(${mainBanner})` }}
         />
-        <div className="absolute inset-0 bg-linear-to-b from-black/20 from-10% via-black/40 to-black/10" />
+        <div className="absolute inset-0 bg-linear-to-b from-black/20 from-0% via-black/30 via-30% to-black/20" />
       </div>
 
       {/* Content */}
       <div className="flex justify-center relative z-10 w-full px-4 sm:px-6 lg:px-10 py-6 md:py-10 mt-32">
         <div className="flex flex-col items-center text-center max-w-4xl">
           <motion.h1
-            className="font-roboto-condensed font-bold tracking-[0.01em] leading-tight text-5xl sm:text-5xl lg:text-7xl text-shadow px-2 pt-3 rounded w-auto max-w-full"
+            className="font-roboto-condensed font-bold tracking-[0.01em] leading-tight text-5xl sm:text-5xl lg:text-7xl px-2 pt-3 rounded w-auto max-w-full"
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0, transition: { duration: 0.5 } }}
           >
