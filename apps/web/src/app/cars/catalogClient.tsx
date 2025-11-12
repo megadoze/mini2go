@@ -1491,8 +1491,8 @@ function BottomStickyBar({
       : `${timing.hours}h`;
   return (
     <div className="fixed inset-x-0 bottom-0 bg-white/70 backdrop-blur supports-backdrop-filter:bg-white/40 border-t border-gray-200/60">
-      <div className="mx-auto max-w-7xl px-4 md:px-6 py-3 flex items-center justify-between gap-3">
-        <div className="flex flex-col sm:flex-row sm:items-baseline sm:gap-2 min-w-0 max-w-[68vw] sm:max-w-none text-sm sm:text-lg md:text-xl font-semibold font-roboto-condensed">
+      <div className="font-roboto-condensed! mx-auto max-w-7xl px-4 md:px-6 py-3 flex items-center justify-between gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-baseline sm:gap-2 min-w-0 max-w-[68vw] sm:max-w-none text-sm sm:text-lg md:text-xl font-semibold">
           {!start ? (
             <p>Select dates</p>
           ) : (
@@ -1508,7 +1508,7 @@ function BottomStickyBar({
         <div className="flex items-center justify-end gap-2 sm:gap-3">
           <button
             onClick={changePickerStatus}
-            className="font-roboto-condensed! rounded-xl px-3 h-10 md:px-5 md:h-12 text-sm font-medium text-neutral-800 bg-white/40 backdrop-blur supports-backdrop-filter:bg-white/20 border border-neutral-600/50 shadow-[0_8px_20px_rgba(0,0,0,0.05)] hover:bg-white/60 hover:border-neutral-900 hover:shadow-[0_16px_32px_rgba(0,0,0,0.08)] transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-neutral-900/20 focus:ring-offset-1 focus:ring-offset-white cursor-pointer"
+            className=" rounded-xl px-3 h-10 md:px-5 md:h-12 text-sm font-medium text-neutral-800 bg-white/40 backdrop-blur supports-backdrop-filter:bg-white/20 border border-neutral-600/50 shadow-[0_8px_20px_rgba(0,0,0,0.05)] hover:bg-white/60 hover:border-neutral-900 hover:shadow-[0_16px_32px_rgba(0,0,0,0.08)] transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-neutral-900/20 focus:ring-offset-1 focus:ring-offset-white cursor-pointer"
           >
             Change
           </button>
