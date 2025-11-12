@@ -338,7 +338,7 @@ export default function ClientCarLanding({
             <div className="mt-6 flex items-center gap-4 font-roboto-condensed">
               <button
                 onClick={goToRequest}
-                className="rounded-full bg-black text-white px-8 py-3 text-sm font-medium hover:bg-neutral-900"
+                className="rounded-full bg-black/85 text-white px-8 py-3 text-sm font-medium hover:bg-black/90 cursor-pointer"
               >
                 Book
               </button>
