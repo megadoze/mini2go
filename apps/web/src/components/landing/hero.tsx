@@ -423,6 +423,7 @@ export const HeroSection = () => {
                       paddingLeft: "10px",
                       fontSize: "16px",
                       fontFamily: "var(--font-roboto-condensed)",
+                      cursor: "pointer"
                     },
                     dropdown: { maxHeight: 200, overflowY: "auto" },
                   }}
