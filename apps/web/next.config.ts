@@ -9,6 +9,10 @@ const nextConfig: NextConfig = {
     };
     return config;
   },
+
+  images: {
+    qualities: [75, 90], // ✅ разрешаем 90
+  },
 };
 
 export default nextConfig;
