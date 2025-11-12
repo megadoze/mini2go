@@ -44,7 +44,7 @@ export function MiniWorld() {
                     <h3 className="text-lg font-roboto-condensed font-semibold text-black line-clamp-2">
                       {p.title}
                     </h3>
-                    <p className="mt-2 font-montserrat text-sm text-black/70 line-clamp-3">
+                    <p className="mt-2 text-black/70 line-clamp-3">
                       {p.excerpt}
                     </p>
 
