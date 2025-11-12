@@ -435,7 +435,7 @@ export const HeroSection = () => {
               className={`h-12 rounded-md px-6 tracking-[0.04em] font-roboto-condensed! font-medium ${
                 !locationFilter || !start || !end || !selectedCountry
                   ? "bg-black/80 text-white cursor-not-allowed"
-                  : "bg-black/80 text-white hover:bg-black/85 cursor-pointer"
+                  : "bg-black/85 text-white hover:bg-black/90 cursor-pointer"
               }`}
             >
               Book
