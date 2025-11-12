@@ -211,7 +211,7 @@ export const HeroSection = () => {
       <div className="relative z-10 w-full px-4 sm:px-6 lg:px-10 py-6 md:py-10 mt-20 md:mt-32 flex justify-center">
         <div className="flex flex-col items-center text-center max-w-4xl relative z-10">
           <motion.h1
-            className="font-roboto-condensed font-extrabold  tracking-[0.01em] text-[clamp(2rem,6vw,4.5rem)] leading-[0.95] px-2 pt-3 w-auto max-w-full "
+            className="font-roboto-condensed font-extrabold  tracking-[0.01em] text-[clamp(3rem,6vw,4.5rem)] leading-[0.99] px-2 pt-3 w-auto max-w-full "
             initial={{ opacity: 0, y: -18 }}
             animate={{ opacity: 1, y: 0, transition: { duration: 0.55 } }}
           >
@@ -224,7 +224,7 @@ export const HeroSection = () => {
           </motion.h1>
 
           <motion.p
-            className="mt-4 text-white text-shadow-md font-boogaloo text-[clamp(1rem,2.4vw,1.75rem)] leading-8 md:leading-[1.45] max-w-3xl px-3"
+            className="mt-4 text-white text-shadow-md font-boogaloo text-[clamp(1.4rem,2.4vw,1.75rem)] leading-8 md:leading-[1.45] max-w-3xl px-3"
             initial={{ opacity: 0 }}
             animate={{
               opacity: 1,
