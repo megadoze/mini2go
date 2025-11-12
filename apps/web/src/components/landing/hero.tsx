@@ -12,8 +12,8 @@ import {
   fetchLocationsByCountry,
 } from "@/services/geo.service";
 import Link from "next/link";
-
-const mainBanner = "/img/main6.webp";
+import Image from "next/image";
+import mainBanner from "/public/img/main6.webp";
 
 export const HeroSection = () => {
   // Показываем NativeSelect на любом тач-устройстве (в т.ч. планшеты в landscape)
@@ -193,55 +193,77 @@ export const HeroSection = () => {
     <section className="relative flex flex-col min-h-svh overflow-hidden">
       {/* Background (обрезаем эффекты по краям) */}
       <div className="absolute inset-0 z-0 overflow-hidden">
-        <div
-          aria-hidden
-          className="absolute inset-0 bg-center bg-cover saturate-90 blur-[1px]"
-          style={{ backgroundImage: `url(${mainBanner})` }}
+        <Image
+          src={mainBanner}
+          alt="" // декоративный фон — пустой alt
+          fill
+          priority
+          quality={90}
+          placeholder="blur" // LQIP — Next сгенерировал blurDataURL
+          aria-hidden={true}
+          className="object-cover object-center saturate-90 blur-[0.9px] select-none"
+          sizes="100vw"
         />
-        <div className="absolute inset-0 bg-linear-to-b from-black/20 from-0% via-black/30 via-30% to-black/20" />
+        <div className="absolute inset-0 bg-linear-to-b from-black/20 via-black/30 to-black/20" />
       </div>
 
       {/* Content */}
-      <div className="flex justify-center relative z-10 w-full px-4 sm:px-6 lg:px-10 py-6 md:py-10 mt-32">
-        <div className="flex flex-col items-center text-center max-w-4xl">
+      <div className="relative z-10 w-full px-4 sm:px-6 lg:px-10 py-6 md:py-10 mt-20 md:mt-32 flex justify-center">
+        <div className="flex flex-col items-center text-center max-w-4xl relative z-10">
           <motion.h1
-            className="font-roboto-condensed font-bold tracking-[0.01em] leading-tight text-5xl sm:text-5xl lg:text-7xl px-2 pt-3 rounded w-auto max-w-full"
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0, transition: { duration: 0.5 } }}
+            className="font-roboto-condensed font-extrabold  tracking-[0.01em] text-[clamp(2rem,6vw,4.5rem)] leading-[0.95] px-2 pt-3 w-auto max-w-full "
+            initial={{ opacity: 0, y: -18 }}
+            animate={{ opacity: 1, y: 0, transition: { duration: 0.55 } }}
           >
-            <span className="bg-linear-to-r from-violet-400 to-emerald-400 bg-clip-text text-transparent">
-              It’s time to drive MINI
+            <span
+              className="bg-linear-to-r from-violet-400 to-emerald-400 bg-clip-text text-transparent"
+              style={{ WebkitBackgroundClip: "text" }}
+            >
+              It’s time to drive <span className="uppercase">MINI</span>
             </span>
           </motion.h1>
 
           <motion.p
-            className="text-white font-medium md:font-bold font-boogaloo text-2xl lg:text-2xl max-w-3xl px-3 md:w-fit"
+            className="mt-4 text-white text-shadow-md font-boogaloo text-[clamp(1rem,2.4vw,1.75rem)] leading-8 md:leading-[1.45] max-w-3xl px-3"
             initial={{ opacity: 0 }}
-            animate={{ opacity: 1, transition: { delay: 0.2 } }}
+            animate={{
+              opacity: 1,
+              transition: { delay: 0.22, duration: 0.45 },
+            }}
           >
-            <span className="px-2 leading-8 tracking-wide">
-              Life’s too short for boring cars. Rent MINI — reach the stars.
-              {/* Life’s too short for boring cars — rent MINI and reach the stars. */}
+            <span className="block px-0 tracking-wide ">
+              Life’s too short for boring cars.{" "}
+              <span className="font-semibold">
+                Rent MINI — reach the stars.
+              </span>
             </span>
           </motion.p>
 
           <motion.div
-            className="hidden mt-10 md:flex flex-wrap items-center gap-3"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0, transition: { delay: 0.4 } }}
+            className="mt-8 flex flex-wrap items-center gap-3"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{
+              opacity: 1,
+              y: 0,
+              transition: { delay: 0.38, duration: 0.45 },
+            }}
           >
             <Link
               href="/cars"
-              className="inline-flex items-center justify-center rounded-full bg-white text-black px-5 py-2.5 font-roboto-condensed font-semibold hover:bg-white/90 focus:outline-none focus:ring-4 focus:ring-white/30 transition"
+              className="bg-[#ffcf00] hover:bg-[#ffd633] text-black
+ inline-flex items-center justify-center rounded-full  px-5 py-2.5 font-roboto-condensed font-semibold focus:outline-none focus:ring-4 focus:ring-white/30 transition"
+              aria-label="Book your MINI"
             >
               Book MINI now
             </Link>
-            <a
+
+            <Link
               href="#mehr"
-              className="inline-flex items-center justify-center rounded-full ring-1 ring-white/40 px-5 py-2.5 font-roboto-condensed font-semibold hover:ring-white/70 bg-black/20 text-white focus:outline-none focus:ring-4 focus:ring-white/30 transition"
+              className="bg-transparent hover:bg-white/10 inline-flex items-center justify-center rounded-full ring-1 ring-white/30 px-4 py-2.5 font-roboto-condensed font-semibold hover:ring-white/60  text-white focus:outline-none focus:ring-4 focus:ring-white/30 transition"
+              aria-label="More about MINI Drive"
             >
               More
-            </a>
+            </Link>
           </motion.div>
         </div>
       </div>
@@ -298,14 +320,14 @@ export const HeroSection = () => {
 
           {/* Form — без fixed/sticky/relative — просто как раньше */}
           <form
-            className="flex flex-col sm:flex-row text-black bg-white rounded-xl shadow-xl md:items-center gap-2 p-4"
+            className="flex flex-col font-roboto-condensed sm:flex-row text-black bg-white rounded-xl shadow-xl md:items-center gap-2 p-4"
             onSubmit={handleSubmit}
           >
             <p className=" font-roboto-condensed text-lg font-bold shrink-0">
               Book your MINI
             </p>
 
-            {/* Location Select (оставляю твою логику isTouch → NativeSelect/Select) */}
+            {/* Location Select */}
             <div className="md:flex-1">
               {isTouch ? (
                 <div className="relative">
@@ -342,7 +364,7 @@ export const HeroSection = () => {
                         lineHeight: "3rem",
                         paddingLeft: "10px",
                         fontSize: "16px",
-                        fontFamily: "Montserrat",
+                        fontFamily: "var(--font-roboto-condensed)",
                       },
                     }}
                     // Крестик очистки справа (виден только когда есть значение)
@@ -400,7 +422,7 @@ export const HeroSection = () => {
                     input: {
                       paddingLeft: "10px",
                       fontSize: "16px",
-                      fontFamily: "Montserrat",
+                      fontFamily: "var(--font-roboto-condensed)",
                     },
                     dropdown: { maxHeight: 200, overflowY: "auto" },
                   }}
@@ -410,6 +432,7 @@ export const HeroSection = () => {
 
             {/* Dates input */}
             <input
+              id="dates"
               type="text"
               value={
                 start && end
@@ -432,7 +455,7 @@ export const HeroSection = () => {
             <button
               type="submit"
               disabled={!locationFilter || !start || !end || !selectedCountry}
-              className={`h-12 rounded-md px-6 tracking-[0.04em] font-roboto-condensed! font-medium ${
+              className={`h-12 rounded-md px-6 tracking-[0.04em] font-medium ${
                 !locationFilter || !start || !end || !selectedCountry
                   ? "bg-black/80 text-white cursor-not-allowed"
                   : "bg-black/85 text-white hover:bg-black/90 cursor-pointer"

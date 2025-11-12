@@ -52,7 +52,7 @@ export const VIDEO_TEASERS = [
     description: "The feeling of a go-kart with an open roof, 2+2 seats",
     fuel: "Gasoline",
     src: "/videos/mini-cabrio.mp4",
-    poster: "/img/minicabrioposter.webp",
+    poster: "/img/minicabrioposter2.webp",
   },
   {
     title: "MINI Cooper Aceman",

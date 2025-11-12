@@ -1018,7 +1018,7 @@ export default function CatalogClient() {
             <button
               type="button"
               onClick={resetFilters}
-              className="p-2 rounded hover:bg-gray-100 active:bg-gray-200 transition"
+              className="p-2 rounded hover:bg-gray-100 active:bg-gray-200 transition cursor-pointer"
               aria-label="Сбросить фильтры"
               title="Сбросить фильтры"
             >
