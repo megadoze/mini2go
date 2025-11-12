@@ -281,7 +281,7 @@ export default function ClientCarLanding({
           </button>
         </div>
 
-        <div className="mx-auto max-w-5xl px-4 grid grid-cols-1 md:-mt-12">
+        <div className="mx-auto max-w-5xl px-4 grid grid-cols-1 mt-4 md:-mt-12">
           <div className="overflow-hidden">
             <div className="relative">
               {hero ? (
@@ -331,7 +331,7 @@ export default function ClientCarLanding({
               }`}
             </div>
 
-            <p className="pt-2 md:pt-4 text-lg md:text-xl text-neutral-800">
+            <p className="pt-2 md:pt-4 md:text-xl text-neutral-800">
               An icon of urban driving. Light, maneuverable, and practical.
             </p>
 
