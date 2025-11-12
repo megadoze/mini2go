@@ -630,7 +630,7 @@ function Fact({
   value?: string | number | null;
 }) {
   return (
-    <div className="rounded-2xl border p-4 text-center">
+    <div className="rounded-2xl  p-4 text-center">
       <div className="text-4xl font-bold">{value ?? "—"}</div>
       <div className="text-xs text-neutral-500 uppercase tracking-wide pt-1">
         {label}
