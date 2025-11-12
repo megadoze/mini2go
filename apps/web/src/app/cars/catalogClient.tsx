@@ -37,7 +37,6 @@ import type { Country } from "@/types/country";
 import type { Location } from "@/types/location";
 import { HeaderSection } from "@/components/header";
 import { getSupabaseClient } from "@/lib/supabase";
-import { markInternalNavigation } from "@/lib/internalNav";
 
 function cn(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
@@ -946,10 +945,6 @@ export default function CatalogClient() {
     (brand: string, model: string, carId: string) => {
       const brandSlug = slugify(brand || "car");
       const modelSlug = slugify(model || carId.slice(0, 6));
-      sessionStorage.setItem(
-        "from",
-        window.location.pathname + window.location.search
-      );
       router.push(
         `/catalog/${brandSlug}/${modelSlug}/${carId}?start=${encodeURIComponent(
           start

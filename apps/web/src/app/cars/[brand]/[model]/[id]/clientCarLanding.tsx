@@ -8,10 +8,6 @@ import { HeaderSection } from "@/components/header";
 import { WELCOME_FEATURES } from "@/constants/carOptions";
 import RentalDateTimePicker from "@/components/RentalDateTimePicker";
 import { startOfDay } from "date-fns";
-import {
-  consumeInternalNavigation,
-  markInternalNavigation,
-} from "@/lib/internalNav";
 
 /** Компонент получает serverCar через проп — никакого fetch внутри */
 export default function ClientCarLanding({
@@ -28,8 +24,6 @@ export default function ClientCarLanding({
   const updateQuery = useSyncQuery();
 
   const [menuOpen, setMenuOpen] = useState(false);
-
-  const [canShowBack, setCanShowBack] = useState(false);
 
   const [loading] = useState(false); // сервер дал данные — не нужен локальный fetch
   const [error] = useState<string | null>(null);
@@ -65,39 +59,6 @@ export default function ClientCarLanding({
     update();
     mq.addEventListener("change", update);
     return () => mq.removeEventListener("change", update);
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    // сначала проверим, помечали ли переход как внутренний
-    const from = consumeInternalNavigation();
-    if (from) {
-      setCanShowBack(true);
-      return;
-    }
-
-    // fallback: показываем только если есть история > 1 или same-origin referrer
-    const hasHistory = window.history.length > 1;
-
-    let sameOriginRef = false;
-    try {
-      const ref = document.referrer;
-      if (ref) {
-        const refUrl = new URL(ref);
-        sameOriginRef = refUrl.origin === window.location.origin;
-      }
-    } catch (e) {
-      sameOriginRef = false;
-    }
-
-    setCanShowBack(hasHistory || sameOriginRef);
-  }, []);
-
-  useEffect(() => {
-    const from = sessionStorage.getItem("from");
-    // можно удалить, если не нужен дальше
-    sessionStorage.removeItem("from");
   }, []);
 
   // intersection observer для sticky nav
@@ -235,23 +196,11 @@ export default function ClientCarLanding({
 
   const goToRequest = () => {
     if (!car) return;
-    markInternalNavigation(
-      window.location.pathname + (window.location.search || "")
-    );
     router.push(
       `/catalog/${car.id}/request?start=${encodeURIComponent(
         start
       )}&end=${encodeURIComponent(end)}`
     );
-  };
-
-  const handleBack = () => {
-    // если history.length > 1 — используем back, иначе переходим на каталог
-    if (typeof window !== "undefined" && window.history.length > 1) {
-      router.back();
-    } else {
-      router.push("/catalog"); // или любой fallback
-    }
   };
 
   if (loading)
@@ -324,14 +273,12 @@ export default function ClientCarLanding({
 
       <section id="overview" className="scroll-mt-24">
         <div className="sticky top-20 z-50 ml-4 md:ml-10 font-roboto-condensed">
-          {canShowBack ? (
-            <button
-              onClick={handleBack}
-              className="inline-flex items-center gap-2 rounded-full bg-white/90 backdrop-blur px-3 py-1.5 text-xs font-medium text-gray-700 shadow hover:bg-white cursor-pointer"
-            >
-              <ArrowLeftIcon className="h-4 w-4" /> Back
-            </button>
-          ) : null}
+          <button
+            onClick={() => router.back()}
+            className="inline-flex items-center gap-2 rounded-full bg-white/90 backdrop-blur px-3 py-1.5 text-xs font-medium text-gray-700 shadow hover:bg-white cursor-pointer"
+          >
+            <ArrowLeftIcon className="h-4 w-4" /> Back
+          </button>
         </div>
 
         <div className="mx-auto max-w-5xl px-4 grid grid-cols-1 md:-mt-12">
