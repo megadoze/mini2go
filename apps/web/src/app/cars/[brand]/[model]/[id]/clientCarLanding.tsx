@@ -275,7 +275,7 @@ export default function ClientCarLanding({
         <div className="sticky top-20 z-50 ml-4 md:ml-10 font-roboto-condensed">
           <button
             onClick={() => router.back()}
-            className="inline-flex items-center gap-2 rounded-full bg-white/90 backdrop-blur px-3 py-1.5 text-xs font-medium text-gray-700 shadow hover:bg-white cursor-pointer"
+            className="inline-flex items-center gap-2 rounded-full bg-white/90 backdrop-blur px-3 py-1.5 text-sm md:text-xs font-medium text-gray-700 shadow hover:bg-white cursor-pointer"
           >
             <ArrowLeftIcon className="h-4 w-4" /> Back
           </button>
