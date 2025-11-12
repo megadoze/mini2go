@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeftIcon } from "@heroicons/react/24/outline";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { CarWithRelations } from "@/types/carWithRelations";
 import { HeaderSection } from "@/components/header";
 import { WELCOME_FEATURES } from "@/constants/carOptions";
+import RentalDateTimePicker from "@/components/RentalDateTimePicker";
+import { startOfDay } from "date-fns";
 
 /** Компонент получает serverCar через проп — никакого fetch внутри */
 export default function ClientCarLanding({
@@ -13,19 +15,31 @@ export default function ClientCarLanding({
 }: {
   serverCar: CarWithRelations;
 }) {
+  const searchParams = useSearchParams();
+
   const car = serverCar;
 
-  const [menuOpen, setMenuOpen] = useState(false);
-
   const router = useRouter();
+
+  const updateQuery = useSyncQuery();
+
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const [loading] = useState(false); // сервер дал данные — не нужен локальный fetch
   const [error] = useState<string | null>(null);
 
-  const [showNav, setShowNav] = useState(false);
+  // даты
+  const [start, setStart] = useState(searchParams.get("start") ?? "");
+  const [end, setEnd] = useState(searchParams.get("end") ?? "");
 
-  const start = "2025-11-10T08:00";
-  const end = "2025-11-12T08:00";
+  // показ календаря
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerVisible, setPickerVisible] = useState(false);
+
+  // десктоп/мобила
+  const [isMobile, setIsMobile] = useState(false);
+
+  const [showNav, setShowNav] = useState(false);
 
   const sections = ["overview", "highlights", "services"] as const;
   type SectionId = (typeof sections)[number];
@@ -36,6 +50,16 @@ export default function ClientCarLanding({
   const ratiosRef = useRef<Record<string, number>>({});
   const programmaticRef = useRef(false);
   const scrollStopTimer = useRef<number | null>(null);
+
+  // мобилка
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const mq = window.matchMedia("(max-width: 639px)");
+    const update = () => setIsMobile(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
 
   // intersection observer для sticky nav
   useEffect(() => {
@@ -140,6 +164,36 @@ export default function ClientCarLanding({
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  // блок скролла на пикере
+  useEffect(() => {
+    if (pickerOpen) {
+      const prev = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+      return () => {
+        document.body.style.overflow = prev;
+      };
+    }
+  }, [pickerOpen]);
+
+  const pickerDisabledIntervals = useMemo(() => {
+    return []; // никаких disabled intervals на уровне списка
+  }, []);
+
+  // календарь теперь ничего не режет
+  const handleCalendarChange = (next: {
+    startAt: Date | null;
+    endAt: Date | null;
+  }) => {
+    const startIso = next.startAt ? next.startAt.toISOString() : "";
+    const endIso = next.endAt ? next.endAt.toISOString() : "";
+
+    setStart(startIso);
+    setEnd(endIso);
+
+    // сразу синхронизируем URL (замена, чтобы не плодить history)
+    updateQuery({ start: startIso || null, end: endIso || null });
+  };
+
   const goToRequest = () => {
     if (!car) return;
     router.push(
@@ -157,6 +211,13 @@ export default function ClientCarLanding({
         {error || "Авто не найдено"}
       </div>
     );
+
+  const closePicker = () => {
+    setPickerOpen(false);
+    setTimeout(() => {
+      setPickerVisible(false);
+    }, 200);
+  };
 
   return (
     <div className="min-h-screen bg-white text-neutral-900">
@@ -220,12 +281,10 @@ export default function ClientCarLanding({
           </button>
         </div>
 
-        <div className="mx-auto max-w-5xl px-4 grid grid-cols-1 mt-8 md:mt-0">
+        <div className="mx-auto max-w-5xl px-4 grid grid-cols-1 md:-mt-12">
           <div className="overflow-hidden">
             <div className="relative">
               {hero ? (
-                // можно заменить на next/image при желании
-                // <Image ... /> — но тогда серверный рендер учтёт <Image>
                 <img
                   src={hero}
                   alt={title}
@@ -262,7 +321,7 @@ export default function ClientCarLanding({
           </div>
 
           <header className="flex flex-col items-center text-center -mt-5 md:-mt-20 z-10">
-            <h1 className="text-3xl sm:text-4xl lg:text-6xl font-roboto-condensed tracking-wide font-bold text-black">
+            <h1 className="text-3xl sm:text-4xl lg:text-6xl font-roboto-condensed font-bold text-black">
               {title}
             </h1>
 
@@ -320,7 +379,7 @@ export default function ClientCarLanding({
             <h2 className="text-3xl sm:text-4xl lg:text-6xl font-oleo-script font-bold text-black">
               Highlights
             </h2>
-            <p className="pt-2 text-lg md:text-xl text-stone-600">
+            <p className="pt-1 md:pt-2 text-lg md:text-2xl text-neutral-600 font-roboto-condensed">
               Small formats — big fun. Choose, book, drive.
             </p>
           </div>
@@ -375,7 +434,7 @@ export default function ClientCarLanding({
             <h2 className="text-3xl sm:text-4xl lg:text-6xl font-oleo-script font-bold text-black">
               Inclusive services
             </h2>
-            <p className="pt-2 text-lg md:text-xl text-stone-600 font-roboto">
+            <p className="pt-1 md:pt-2 text-lg md:text-2xl text-neutral-600 font-roboto-condensed">
               What do we provide when you rent a MINI.
             </p>
           </div>
@@ -407,22 +466,6 @@ export default function ClientCarLanding({
         </div>
       </section>
 
-      {/* <section id="services" className="bg-white scroll-mt-24">
-        <div className="px-[3vw] sm:px-6 lg:px-10 pt-10 mb-10">
-          <div className="text-center">
-            <h2 className="text-3xl sm:text-4xl lg:text-6xl font-robotoCondensed font-bold text-black">
-              Inclusive services
-            </h2>
-            <p className="pt-4 text-lg md:text-xl text-stone-600 font-roboto">
-              What do we provide when you rent a MINI.
-            </p>
-          </div>
-          <div className="mt-10 w-full max-w-[1200px] mx-auto flex flex-wrap justify-center gap-6 md:gap-8">
-      
-          </div>
-        </div>
-      </section> */}
-
       <div className="mb-36 md:mb-24" />
 
       <BookingBar
@@ -431,7 +474,51 @@ export default function ClientCarLanding({
         end={end}
         days={days}
         onProceed={goToRequest}
+        changePickerStatus={() => {
+          setPickerVisible(true);
+          requestAnimationFrame(() => {
+            setPickerOpen(true);
+          });
+        }}
       />
+      {pickerVisible && (
+        <div
+          className={cn(
+            "fixed inset-0 flex items-center justify-center z-999 transition-opacity duration-200",
+            isMobile ? "bg-transparent" : "bg-black/40",
+            pickerOpen ? "opacity-100" : "opacity-0"
+          )}
+          onClick={isMobile ? undefined : closePicker}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div
+            className={cn(
+              isMobile
+                ? "w-full h-full flex flex-col justify-end"
+                : "bg-white sm:rounded-2xl overflow-hidden rounded-none shadow-xl w-full h-full sm:w-[680px] sm:h-fit flex flex-col",
+              "transform transition-transform duration-200",
+              pickerOpen ? "translate-y-0" : "translate-y-3"
+            )}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <RentalDateTimePicker
+              value={{
+                startAt: start ? new Date(start) : null,
+                endAt: end ? new Date(end) : null,
+              }}
+              onChange={(next) => {
+                handleCalendarChange(next);
+                closePicker();
+              }}
+              minuteStep={30}
+              minDate={startOfDay(new Date())}
+              disabledIntervals={pickerDisabledIntervals}
+              mobileStartOpen
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -444,14 +531,15 @@ function BookingBar({
   end,
   days,
   onProceed,
+  changePickerStatus,
 }: {
   car: CarWithRelations;
   start: string;
   end: string;
   days: number;
   onProceed: () => void;
+  changePickerStatus: () => void;
 }) {
-  const router = useRouter();
   const total = Math.max(1, days) * (car.price || 0);
 
   return (
@@ -493,13 +581,7 @@ function BookingBar({
 
         <div className="flex items-center justify-end gap-2 md:gap-3 font-roboto-condensed">
           <button
-            onClick={() =>
-              router.push(
-                `/catalog/${car.id}/availability?start=${encodeURIComponent(
-                  start
-                )}&end=${encodeURIComponent(end)}`
-              )
-            }
+            onClick={changePickerStatus}
             className="rounded-xl px-3 h-10 md:px-5 md:h-12 text-sm font-medium text-neutral-600 bg-white/40 backdrop-blur border border-neutral-600/50 shadow transition-all duration-200"
           >
             Change
@@ -803,3 +885,59 @@ const MINIMUM_REQS = [
     ),
   },
 ];
+
+function useSyncQuery() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const updateQuery = useCallback(
+    (patch: Record<string, string | null>) => {
+      // Берём актуальные params из useSearchParams (если оно доступно),
+      // иначе — из window.location.search (в fallback-режиме).
+      const base =
+        typeof window !== "undefined"
+          ? searchParams?.toString()
+            ? searchParams.toString()
+            : window.location.search.replace(/^\?/, "")
+          : searchParams?.toString() ?? "";
+
+      const params = new URLSearchParams(base);
+
+      Object.entries(patch).forEach(([k, v]) => {
+        if (v == null || v === "") params.delete(k);
+        else params.set(k, v);
+      });
+
+      const qs = params.toString();
+      const href = qs ? `${pathname}?${qs}` : pathname;
+
+      // Первично пробуем через router.replace (чтобы Next знал о навигации)
+      try {
+        router.replace(href);
+      } catch (err) {
+        console.warn("[updateQuery] router.replace failed:", err);
+      }
+
+      // Маленький таймаут: если URL в адресной строке не поменялся — делаем прямой history.replaceState
+      // Это гарантирует, что параметр появится в query независимо от гонок.
+      setTimeout(() => {
+        if (typeof window === "undefined") return;
+        const current =
+          window.location.pathname + (window.location.search || "");
+        if (current !== href) {
+          console.debug("[updateQuery] fallback history.replaceState ->", {
+            from: current,
+            to: href,
+          });
+          window.history.replaceState({}, "", href);
+        } else {
+          console.debug("[updateQuery] router already applied href");
+        }
+      }, 50);
+    },
+    [router, pathname, searchParams]
+  );
+
+  return updateQuery;
+}

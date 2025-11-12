@@ -1,4 +1,3 @@
-import React from "react";
 import { notFound } from "next/navigation";
 import ClientCarLanding from "./clientCarLanding"; // client component (use client внутри)
 import type { CarWithRelations } from "@/types/carWithRelations";
