@@ -209,7 +209,7 @@ export const HeroSection = () => {
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0, transition: { duration: 0.5 } }}
           >
-            <span className="bg-linear-to-r from-violet-400 to-teal-500 bg-clip-text text-transparent">
+            <span className="bg-linear-to-r from-violet-400 to-emerald-400 bg-clip-text text-transparent">
               It’s time to drive MINI
             </span>
           </motion.h1>

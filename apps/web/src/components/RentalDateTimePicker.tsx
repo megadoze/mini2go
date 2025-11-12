@@ -363,13 +363,15 @@ export default function RentalDateTimePicker({
       "relative h-10 my-1 w-full flex items-center justify-center text-sm select-none font-roboto-condensed",
       !inCurrent ? "text-gray-400" : "",
       disabled ? "opacity-40 cursor-not-allowed" : "cursor-pointer",
-      inRange ? "bg-teal-100/20 border-y-2 border-teal-300" : "",
-      isSingle ? "border-teal-300 rounded-full border-2 border-teal-300" : "",
+      inRange ? "bg-emerald-100/20 border-y-2 border-emerald-300" : "",
+      isSingle
+        ? "border-emerald-300 rounded-full border-2 border-emerald-300"
+        : "",
       isStart && !isEnd
-        ? "border border-2 border-teal-300 rounded-l-full border-r-0 pr-[2px]"
+        ? "border border-2 border-emerald-300 rounded-l-full border-r-0 pr-[2px]"
         : "",
       isEnd && !isStart
-        ? " border-2 border-teal-300 rounded-r-full border-l-0 pl-[2px]"
+        ? " border-2 border-emerald-300 rounded-r-full border-l-0 pl-[2px]"
         : "",
     ].join(" ");
 
@@ -471,7 +473,7 @@ export default function RentalDateTimePicker({
                 step={1}
                 value={startIdx}
                 onChange={setStartIdx}
-                color="oklch(77.7% 0.152 181.912)"
+                color="oklch(76.5% 0.177 163.223)"
                 size="sm"
                 radius="xl"
                 thumbSize={25}
@@ -502,7 +504,7 @@ export default function RentalDateTimePicker({
                 step={1}
                 value={endIdx}
                 onChange={setEndIdx}
-                color="oklch(77.7% 0.152 181.912)"
+                color="oklch(76.5% 0.177 163.223)"
                 size="sm"
                 radius="xl"
                 thumbSize={25}
