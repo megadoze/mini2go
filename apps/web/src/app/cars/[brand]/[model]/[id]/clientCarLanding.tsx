@@ -325,7 +325,7 @@ export default function ClientCarLanding({
               {title}
             </h1>
 
-            <div className="mt-2 md:mt-4 rounded-md py-1 px-2 bg-zinc-100 font-light text-sm md:text-base text-gray-800">
+            <div className="mt-2 md:mt-3 rounded-md py-1 px-2 bg-zinc-100 font-light text-sm md:text-base text-gray-800">
               {`${car.bodyType ?? "—"} · ${car.fuelType ?? "—"} · ${
                 car.transmission ?? "—"
               }`}
@@ -335,7 +335,7 @@ export default function ClientCarLanding({
               An icon of urban driving. Light, maneuverable, and practical.
             </p>
 
-            <div className="mt-6 flex items-center gap-4 font-roboto-condensed">
+            <div className="mt-5 md:mt-6 flex items-center gap-4 font-roboto-condensed">
               <button
                 onClick={goToRequest}
                 className="rounded-full bg-black/85 text-white px-8 py-3 text-sm font-medium hover:bg-black/90 cursor-pointer"
@@ -348,7 +348,7 @@ export default function ClientCarLanding({
       </section>
 
       <section>
-        <div className="mx-auto max-w-5xl px-4 pt-10">
+        <div className="mx-auto max-w-5xl px-4 pt-8">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 font-roboto-condensed">
             <Fact
               label="price/day"
