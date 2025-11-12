@@ -1482,9 +1482,8 @@ function BottomStickyBar({
   };
   changePickerStatus: () => void;
 }) {
-  const rangeLabel = `${formatDateTimeForLabel(
-    start
-  )} → ${formatDateTimeForLabel(end)}`;
+  const startDate = formatDateTimeForLabel(start);
+  const endDate = formatDateTimeForLabel(end);
   const durationLabel =
     timing.days > 0
       ? `${timing.days}d${timing.restHours ? ` ${timing.restHours}h` : ""}`
@@ -1496,9 +1495,22 @@ function BottomStickyBar({
           {!start ? (
             <p>Select dates</p>
           ) : (
-            <div className="leading-tight truncate">
-              <span className="text-neutral-900">{rangeLabel}</span>
-              <span className="text-neutral-600 shrink-0">
+            <div className="flex items-center leading-tight truncate">
+              <div className="flex items-center gap-2">
+                <p className="m-0">{startDate}</p>
+
+                {/* стрелка — центрируем внутри flex */}
+                <span
+                  aria-hidden
+                  className="inline-flex items-center justify-center h-5 w-5 text-sm text-neutral-900"
+                >
+                  →
+                </span>
+
+                <p className="m-0">{endDate}</p>
+              </div>
+
+              <span className="text-neutral-600 shrink-0 ml-3">
                 <span className="inline"> • </span>
                 {durationLabel}
               </span>
