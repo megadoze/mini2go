@@ -152,17 +152,17 @@ export default function ClientCarLanding({
   }, []);
 
   // programmatic unlock (для smooth scroll)
-  useEffect(() => {
-    const onScroll = () => {
-      if (!(programmaticRef.current as boolean)) return;
-      if (scrollStopTimer.current) window.clearTimeout(scrollStopTimer.current);
-      scrollStopTimer.current = window.setTimeout(() => {
-        programmaticRef.current = false;
-      }, 120);
-    };
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
+  // useEffect(() => {
+  //   const onScroll = () => {
+  //     if (!(programmaticRef.current as boolean)) return;
+  //     if (scrollStopTimer.current) window.clearTimeout(scrollStopTimer.current);
+  //     scrollStopTimer.current = window.setTimeout(() => {
+  //       programmaticRef.current = false;
+  //     }, 120);
+  //   };
+  //   window.addEventListener("scroll", onScroll, { passive: true });
+  //   return () => window.removeEventListener("scroll", onScroll);
+  // }, []);
 
   // блок скролла на пикере
   useEffect(() => {
@@ -350,13 +350,37 @@ export default function ClientCarLanding({
       <section>
         <div className="mx-auto max-w-5xl px-4 pt-8">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 font-roboto-condensed">
-            <Fact
+            {/* <Fact
               label="price/day"
               value={`${(car.price ?? 0).toFixed(0)} EUR`}
+            /> */}
+            <CountUp
+              end={Number(car.price ?? 0)}
+              duration={600}
+              formatter={(n) => `${Math.round(n)} EUR`}
+              label="price/day"
             />
-            <Fact label="Mileage/day" value={`${car.includeMileage} km`} />
-            <Fact label="Seats" value={car.seats ?? "—"} />
-            <Fact label="Doors" value={car.doors ?? "—"} />
+            {/* <Fact label="Mileage/day" value={`${car.includeMileage} km`} /> */}
+            <CountUp
+              end={Number(car.includeMileage ?? 0)}
+              duration={600}
+              formatter={(n) => `${Math.round(n)} km`}
+              label="mileage/day"
+            />
+            {/* <Fact label="Seats" value={car.seats ?? "—"} /> */}
+            <CountUp
+              end={Number(car.seats ?? 0)}
+              duration={600}
+              formatter={(n) => `${Math.round(n)} seats`}
+              label="seats"
+            />
+            {/* <Fact label="Doors" value={car.doors ?? "—"} /> */}
+            <CountUp
+              end={Number(car.doors ?? 0)}
+              duration={600}
+              formatter={(n) => `${Math.round(n)} doors`}
+              label="doors"
+            />
           </div>
         </div>
       </section>
@@ -622,23 +646,6 @@ function ArrowRightMini() {
   );
 }
 
-function Fact({
-  label,
-  value,
-}: {
-  label: string;
-  value?: string | number | null;
-}) {
-  return (
-    <div className="rounded-2xl  p-4 text-center">
-      <div className="text-4xl font-bold">{value ?? "—"}</div>
-      <div className="text-xs text-neutral-500 uppercase tracking-wide pt-1">
-        {label}
-      </div>
-    </div>
-  );
-}
-
 function labelFor(s: string) {
   switch (s) {
     case "overview":
@@ -893,8 +900,6 @@ function useSyncQuery() {
 
   const updateQuery = useCallback(
     (patch: Record<string, string | null>) => {
-      // Берём актуальные params из useSearchParams (если оно доступно),
-      // иначе — из window.location.search (в fallback-режиме).
       const base =
         typeof window !== "undefined"
           ? searchParams?.toString()
@@ -919,8 +924,6 @@ function useSyncQuery() {
         console.warn("[updateQuery] router.replace failed:", err);
       }
 
-      // Маленький таймаут: если URL в адресной строке не поменялся — делаем прямой history.replaceState
-      // Это гарантирует, что параметр появится в query независимо от гонок.
       setTimeout(() => {
         if (typeof window === "undefined") return;
         const current =
@@ -940,4 +943,73 @@ function useSyncQuery() {
   );
 
   return updateQuery;
+}
+
+export function CountUp({
+  end,
+  duration = 1000,
+  formatter,
+  label,
+}: {
+  end: number;
+  duration?: number;
+  formatter?: (n: number) => string;
+  label: string;
+}) {
+  const [value, setValue] = useState(0);
+  const [started, setStarted] = useState(false);
+  const elRef = useRef<HTMLDivElement | null>(null);
+  const frame = useRef<number | null>(null);
+
+  useEffect(() => {
+    const el = elRef.current;
+    if (!el) return;
+
+    // ⚡️ Настраиваем rootMargin с учётом нижнего меню (например, 150px высоты)
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        // Запускаем только если элемент реально полностью виден
+        if (entry.intersectionRatio > 0.6 && !started) {
+          setStarted(true);
+        }
+      },
+      {
+        threshold: [0, 0.5, 1],
+        rootMargin: "0px 0px -50px 0px", // 🔥 ВАЖНО — отступ снизу
+      }
+    );
+
+    observer.observe(el);
+    return () => {
+      observer.disconnect();
+      if (frame.current) cancelAnimationFrame(frame.current);
+    };
+  }, [started]);
+
+  useEffect(() => {
+    if (!started) return;
+    const startValue = 0;
+    const startTime = performance.now();
+
+    const animate = (time: number) => {
+      const progress = Math.min((time - startTime) / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3); // easeOutCubic
+      const current = startValue + (end - startValue) * eased;
+      setValue(current);
+      if (progress < 1) frame.current = requestAnimationFrame(animate);
+    };
+
+    frame.current = requestAnimationFrame(animate);
+  }, [started, end, duration]);
+
+  return (
+    <div ref={elRef} className="rounded-2xl p-4 text-center">
+      <div className="text-4xl md:text-6xl font-bold">
+        {formatter ? formatter(value) : Math.round(value)}
+      </div>
+      <div className="text-xs text-neutral-500 uppercase tracking-wide pt-1">
+        {label}
+      </div>
+    </div>
+  );
 }
