@@ -606,14 +606,14 @@ function BookingBar({
         <div className="flex items-center justify-end gap-2 md:gap-3 font-roboto-condensed">
           <button
             onClick={changePickerStatus}
-            className="rounded-xl px-3 h-10 md:px-5 md:h-12 text-sm font-medium text-neutral-600 bg-white/40 backdrop-blur border border-neutral-600/50 shadow transition-all duration-200"
+            className="rounded-xl px-3 h-10 md:px-5 md:h-12 text-sm font-medium text-neutral-600 bg-white/40 backdrop-blur border border-neutral-600/50 shadow transition-all duration-200 cursor-pointer"
           >
             Change
           </button>
 
           <button
             onClick={onProceed}
-            className="rounded-xl px-3 h-10 md:px-5 md:h-12 text-sm font-medium text-neutral-900 bg-white/40 backdrop-blur border border-neutral-600/60 shadow transition-all duration-200 flex items-center gap-1"
+            className="rounded-xl px-3 h-10 md:px-5 md:h-12 text-sm font-medium text-neutral-900 bg-white/40 backdrop-blur border border-neutral-600/60 shadow transition-all duration-200 flex items-center gap-1 cursor-pointer"
           >
             <span>Book</span>
             <ArrowRightMini />
