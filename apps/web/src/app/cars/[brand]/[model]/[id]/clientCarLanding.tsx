@@ -281,7 +281,7 @@ export default function ClientCarLanding({
           </button>
         </div>
 
-        <div className="mx-auto max-w-5xl px-4 grid grid-cols-1 mt-4 md:-mt-10">
+        <div className="mx-auto max-w-5xl px-4 grid grid-cols-1 mt-4 md:-mt-8">
           <div className="overflow-hidden">
             <div className="relative">
               {hero ? (
