@@ -946,12 +946,14 @@ export default function CatalogClient() {
       const brandSlug = slugify(brand || "car");
       const modelSlug = slugify(model || carId.slice(0, 6));
       router.push(
-        `/catalog/${brandSlug}/${modelSlug}/${carId}?start=${encodeURIComponent(
+        `/cars/${brandSlug}/${modelSlug}/${carId}?start=${encodeURIComponent(
           start
-        )}&end=${encodeURIComponent(end)}`
+        )}&end=${encodeURIComponent(
+          end
+        )}&location=${locationFilter}&country=${countryId}`
       );
     },
-    [router, start, end]
+    [router, start, end, locationFilter, countryId]
   );
 
   const resetFilters = () => {
@@ -1194,6 +1196,8 @@ export default function CatalogClient() {
                         car={car}
                         start={start}
                         end={end}
+                        location={locationFilter}
+                        country={countryId || ""}
                         ownerSettings={settingsByOwner[car.ownerId!] ?? null}
                         onBook={() =>
                           goToCar(
@@ -1285,6 +1289,8 @@ function CatalogCardGlass({
   car,
   start,
   end,
+  location,
+  country,
   ownerSettings,
   onBook,
   highlight = "",
@@ -1293,6 +1299,8 @@ function CatalogCardGlass({
   car: CarWithRelations;
   start: string;
   end: string;
+  location: string;
+  country: string;
   ownerSettings: OwnerSettings | null;
   onBook: () => void;
   highlight?: string;
@@ -1342,7 +1350,9 @@ function CatalogCardGlass({
   const modelSlug = slugify(model);
   const href = `/cars/${brandSlug}/${modelSlug}/${
     car.id
-  }?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`;
+  }?start=${encodeURIComponent(start)}&end=${encodeURIComponent(
+    end
+  )}&location=${location}&country=${country}`;
 
   return (
     <li
@@ -1424,7 +1434,7 @@ function CatalogCardGlass({
         <button
           onClick={onBook}
           className={cn(
-            "w-full rounded-xl bg-white/40 backdrop-blur supports-backdrop-filter:bg-white/20",
+            "w-full rounded-xl bg-white/40 backdrop-blur supports-backdrop-filter:bg-white/20 cursor-pointer",
             "px-4 py-3 md:py-4 text-center",
             "border border-neutral-600/60",
             "shadow-[0_12px_24px_rgba(0,0,0,0.06)]",
