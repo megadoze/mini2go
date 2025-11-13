@@ -1113,68 +1113,102 @@ function BookingDrawer({
                 {/* pb to avoid mobile sticky */}
                 <div className="space-y-4">
                   {/* Options card */}
+                  {/* Options card — motion switches */}
                   <div className="rounded-2xl overflow-hidden bg-white border border-gray-100 ring-1 ring-black/5 p-4">
                     <div className="text-xs text-neutral-500">Options</div>
                     <div className="mt-3 grid grid-cols-1 gap-3">
-                      <label className="flex items-center justify-between">
-                        <div>
-                          <div className="font-medium">Exterior wash</div>
-                          <div className="text-xs text-neutral-500">
-                            Quick wash before pickup
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <div className="text-sm">{OPTION_PRICES.wash}€</div>
-                          <input
-                            aria-label="Exterior wash"
-                            type="checkbox"
-                            checked={wash}
-                            onChange={(e) => setWash(e.target.checked)}
-                          />
-                        </div>
-                      </label>
+                      {/** -- reusable switch renderer -- */}
+                      {[
+                        {
+                          key: "wash",
+                          label: "Exterior wash",
+                          desc: "Quick wash before pickup",
+                          price: OPTION_PRICES.wash,
+                          checked: wash,
+                          onToggle: () => setWash((s) => !s),
+                        },
+                        {
+                          key: "unlimited",
+                          label: "Unlimited mileage",
+                          desc: "Per day charge",
+                          price: `${OPTION_PRICES.unlimited}€/day`,
+                          checked: unlimited,
+                          onToggle: () => setUnlimited((s) => !s),
+                        },
+                        {
+                          key: "delivery",
+                          label: "Delivery",
+                          desc: "Delivery to your address",
+                          price: OPTION_PRICES.delivery,
+                          checked: delivery,
+                          onToggle: () => setDelivery((s) => !s),
+                        },
+                      ].map(
+                        ({ key, label, desc, price, checked, onToggle }) => (
+                          <div
+                            key={key}
+                            className="flex items-center justify-between"
+                          >
+                            <div>
+                              <div className="font-medium">{label}</div>
+                              <div className="text-xs text-neutral-500">
+                                {desc}
+                              </div>
+                            </div>
 
-                      <label className="flex items-center justify-between">
-                        <div>
-                          <div className="font-medium">Unlimited mileage</div>
-                          <div className="text-xs text-neutral-500">
-                            Per day charge
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <div className="text-sm">
-                            {OPTION_PRICES.unlimited}€/day
-                          </div>
-                          <input
-                            aria-label="Unlimited mileage"
-                            type="checkbox"
-                            checked={unlimited}
-                            onChange={(e) => setUnlimited(e.target.checked)}
-                          />
-                        </div>
-                      </label>
+                            <div className="flex items-center gap-3">
+                              <div className="text-sm">{price}</div>
 
-                      <label className="flex items-center justify-between">
-                        <div>
-                          <div className="font-medium">Delivery</div>
-                          <div className="text-xs text-neutral-500">
-                            Delivery to your address
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <div className="text-sm">
-                            {OPTION_PRICES.delivery}€
-                          </div>
-                          <input
-                            aria-label="Delivery"
-                            type="checkbox"
-                            checked={delivery}
-                            onChange={(e) => setDelivery(e.target.checked)}
-                          />
-                        </div>
-                      </label>
+                              <button
+                                type="button"
+                                role="switch"
+                                aria-checked={checked}
+                                tabIndex={0}
+                                onClick={onToggle}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter" || e.key === " ") {
+                                    e.preventDefault();
+                                    onToggle();
+                                  }
+                                }}
+                                className="relative inline-flex h-6 w-10 items-center rounded-full focus:outline-none"
+                              >
+                                {/* background (animated via style) */}
+                                <motion.span
+                                  aria-hidden
+                                  className="absolute inset-0 rounded-full"
+                                  initial={false}
+                                  animate={{
+                                    backgroundColor: checked
+                                      ? "#000000"
+                                      : "#e5e7eb",
+                                  }}
+                                  transition={{
+                                    type: "spring",
+                                    stiffness: 400,
+                                    damping: 30,
+                                  }}
+                                  style={{ pointerEvents: "none" }}
+                                />
 
-                      {/* delivery address inline */}
+                                {/* knob */}
+                                <motion.span
+                                  className="relative inline-block h-4 w-4 ml-1 rounded-full bg-white shadow"
+                                  initial={false}
+                                  animate={{ x: checked ? 16 : 0 }}
+                                  transition={{
+                                    type: "spring",
+                                    stiffness: 500,
+                                    damping: 28,
+                                  }}
+                                />
+                              </button>
+                            </div>
+                          </div>
+                        )
+                      )}
+
+                      {/* delivery address unchanged */}
                       {delivery && (
                         <div className="mt-2">
                           <input
