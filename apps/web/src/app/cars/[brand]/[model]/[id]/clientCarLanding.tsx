@@ -1,6 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { ArrowLeftIcon } from "@heroicons/react/24/outline";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { CarWithRelations } from "@/types/carWithRelations";
@@ -9,6 +15,55 @@ import { WELCOME_FEATURES } from "@/constants/carOptions";
 import RentalDateTimePicker from "@/components/RentalDateTimePicker";
 import { startOfDay } from "date-fns";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
+import dynamic from "next/dynamic";
+import "mapbox-gl/dist/mapbox-gl.css";
+
+/// вместо import("react-map-gl") — используем под-путь mapbox (как у тебя было ранее)
+const Map = dynamic(() => import("react-map-gl/mapbox").then((m) => m.Map), {
+  ssr: false,
+}) as any;
+
+const Marker = dynamic(
+  () => import("react-map-gl/mapbox").then((m) => m.Marker),
+  { ssr: false }
+) as any;
+
+const FullscreenControl = dynamic(
+  () => import("react-map-gl/mapbox").then((m) => m.FullscreenControl),
+  { ssr: false }
+) as any;
+
+const ScaleControl = dynamic(
+  () => import("react-map-gl/mapbox").then((m) => m.ScaleControl),
+  { ssr: false }
+) as any;
+
+const NavigationControl = dynamic(
+  () => import("react-map-gl/mapbox").then((m) => m.NavigationControl),
+  { ssr: false }
+) as any;
+
+const GeolocateControl = dynamic(
+  () => import("react-map-gl/mapbox").then((m) => m.GeolocateControl),
+  { ssr: false }
+) as any;
+
+// динамический импорт AddressAutofill — тоже только на клиенте
+const AddressAutofill = dynamic(
+  () =>
+    import("@mapbox/search-js-react").then((mod) => {
+      return (mod as any).AddressAutofill ?? (mod as any).default ?? null;
+    }),
+  { ssr: false }
+) as unknown as React.FC<any>;
+
+import Pin from "@/components/pin"; // если у тебя есть аналог
+import { fetchAddressFromCoords } from "@/services/geo.service"; // или свой сервис
+// если у тебя есть сервисы для получения extras/bookings/pricing — импортируй их:
+import { fetchCarExtras } from "@/services/car.service";
+import { fetchBookingsByCarId } from "@/services/calendar.service";
+import { fetchPricingRules } from "@/services/pricing.service";
+import Link from "next/link";
 
 /** Компонент получает serverCar через проп — никакого fetch внутри */
 export default function ClientCarLanding({
@@ -17,16 +72,12 @@ export default function ClientCarLanding({
   serverCar: CarWithRelations;
 }) {
   const searchParams = useSearchParams();
-
   const car = serverCar;
-
   const router = useRouter();
-
   const updateQuery = useSyncQuery();
 
   const [menuOpen, setMenuOpen] = useState(false);
-
-  const [loading] = useState(false); // сервер дал данные — не нужен локальный fetch
+  const [loading] = useState(false);
   const [error] = useState<string | null>(null);
 
   // даты
@@ -42,6 +93,8 @@ export default function ClientCarLanding({
 
   const [showNav, setShowNav] = useState(false);
 
+  const shouldReduceMotion = useReducedMotion();
+
   // DRAWER
   const [drawerOpen, setDrawerOpen] = useState(false);
 
@@ -53,7 +106,6 @@ export default function ClientCarLanding({
   const navRef = useRef<HTMLDivElement | null>(null);
   const ratiosRef = useRef<Record<string, number>>({});
   const programmaticRef = useRef(false);
-  const scrollStopTimer = useRef<number | null>(null);
 
   // мобилка
   useEffect(() => {
@@ -104,21 +156,14 @@ export default function ClientCarLanding({
     els.forEach((el) => observerRef.current!.observe(el));
     return () => observerRef.current?.disconnect();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // привязываем один раз — данные статичны
+  }, []);
 
   // медиа
   const photos = useMemo(() => (car?.photos || []).filter(Boolean), [car]);
   const hero = photos[0];
   const videoPoster = photos[1] || "/images/aceman2.webp";
 
-  console.log(car);
-
-  const modelObj =
-    // если у тебя реально model — используем его
-    (car as any).model ??
-    // иначе если есть models (у тебя именно так) — используем его
-    (car as any).models ??
-    undefined;
+  const modelObj = (car as any).model ?? (car as any).models ?? undefined;
 
   const brand = modelObj?.brands?.name;
   const model = modelObj?.name;
@@ -231,7 +276,7 @@ export default function ClientCarLanding({
       />
       <nav
         ref={navRef}
-        className={`sticky top-0 z-60 bg-white/80 backdrop-blur print:hidden transition-all duration-300 ${
+        className={`sticky top-0 z-20 bg-white/80 backdrop-blur print:hidden transition-all duration-300 ${
           showNav
             ? "opacity-100 translate-y-0"
             : "opacity-0 -translate-y-2 pointer-events-none"
@@ -256,6 +301,9 @@ export default function ClientCarLanding({
                       headerH -
                       8;
                     window.scrollTo({ top, behavior: "smooth" });
+                    setTimeout(() => {
+                      programmaticRef.current = false;
+                    }, 700);
                   }
                 }}
                 className={`relative pb-2 whitespace-nowrap transition-colors ${
@@ -353,31 +401,24 @@ export default function ClientCarLanding({
       <section>
         <div className="mx-auto max-w-5xl px-4 pt-8">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 font-roboto-condensed">
-            {/* <Fact
-              label="price/day"
-              value={`${(car.price ?? 0).toFixed(0)} EUR`}
-            /> */}
             <CountUp
               end={Number(car.price ?? 0)}
               duration={600}
               formatter={(n) => `${Math.round(n)} EUR`}
               label="price/day"
             />
-            {/* <Fact label="Mileage/day" value={`${car.includeMileage} km`} /> */}
             <CountUp
               end={Number(car.includeMileage ?? 0)}
               duration={600}
               formatter={(n) => `${Math.round(n)} km`}
               label="mileage/day"
             />
-            {/* <Fact label="Seats" value={car.seats ?? "—"} /> */}
             <CountUp
               end={Number(car.seats ?? 0)}
               duration={600}
               formatter={(n) => `${Math.round(n)} seats`}
               label="seats"
             />
-            {/* <Fact label="Doors" value={car.doors ?? "—"} /> */}
             <CountUp
               end={Number(car.doors ?? 0)}
               duration={600}
@@ -421,7 +462,6 @@ export default function ClientCarLanding({
                     reversed ? "md:flex-row-reverse" : ""
                   }`}
                 >
-                  {/* IMAGE */}
                   <div className="flex justify-center px-4 md:px-0">
                     <div className="w-full md:max-w-[420px] md:w-[340px] lg:w-[380px]">
                       <div className="relative aspect-square overflow-hidden rounded-2xl">
@@ -436,7 +476,6 @@ export default function ClientCarLanding({
                     </div>
                   </div>
 
-                  {/* TEXT */}
                   <div className="mt-4 md:mt-0 flex justify-center">
                     <div className="w-[82vw] max-w-[420px] md:w-[340px] lg:w-[380px]">
                       <h3 className="text-2xl md:text-2xl font-roboto-condensed font-semibold text-black">
@@ -550,22 +589,31 @@ export default function ClientCarLanding({
       )}
 
       {/* BOOKING DRAWER */}
-      <BookingDrawer
-        open={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
-        car={car}
-        start={start}
-        end={end}
-        days={days}
-        isMobile={isMobile}
-        onConfirm={(opts) => {
-          // передаём опции в следующую страницу
-          goToRequest(opts);
-        }}
-        onChangeDates={(value) => {
-          handleCalendarChange(value);
-        }}
-      />
+      <AnimatePresence>
+        {drawerOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: shouldReduceMotion ? 0 : 0.18 }}
+            className="fixed inset-0 z-50"
+          >
+            <BookingDrawer
+              key="booking-drawer"
+              open={drawerOpen}
+              onClose={() => setDrawerOpen(false)}
+              car={car}
+              start={start}
+              end={end}
+              days={days}
+              isMobile={isMobile}
+              onConfirm={(opts) => {
+                goToRequest(opts);
+              }}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -657,7 +705,6 @@ function BookingDrawer({
   end,
   days,
   onConfirm,
-  onChangeDates,
   isMobile,
 }: {
   open: boolean;
@@ -667,25 +714,52 @@ function BookingDrawer({
   end: string;
   days: number;
   onConfirm: (opts: Record<string, string | number | boolean | string>) => void;
-  onChangeDates: (val: { startAt: Date | null; endAt: Date | null }) => void;
   isMobile: boolean;
 }) {
-  const OPTION_PRICES = {
-    wash: 15,
-    unlimited: 10,
-    delivery: 30,
-  } as const;
-
-  const ACCEPTED_VERSION = "v1.0";
-
   const shouldReduceMotion = useReducedMotion();
+  const ACCEPTED_VERSION = "v1.0";
+  const isLocked = false;
+  const cardCls =
+    "rounded-2xl bg-white shadow-sm border border-gray-200 px-4 py-4 sm:px-5 sm:py-5";
 
-  const [wash, setWash] = useState(false);
-  const [unlimited, setUnlimited] = useState(false);
-  const [delivery, setDelivery] = useState(false);
+  const modelObj = (car as any).model ?? (car as any).models ?? undefined;
+
+  const brand = modelObj?.brands?.name;
+  const model = modelObj?.name;
+  const title = `${brand ?? ""} ${model ?? ""}`.trim();
+
+  // server-driven
+  const [extras, setExtras] = useState<
+    Array<{
+      id: string;
+      title: string;
+      price: number;
+      price_type?: string;
+      inactive?: boolean;
+    }>
+  >([]);
+  const [disabledIntervals, setDisabledIntervals] = useState<
+    Array<{ start: Date; end: Date }>
+  >([]);
+  const [pricingRules, setPricingRules] = useState<any[]>([]);
+  const [loadingRemote, setLoadingRemote] = useState(false);
+
+  // dynamic selections
+  const [pickedExtras, setPickedExtras] = useState<string[]>([]);
+  const [delivery, setDelivery] = useState<"car_address" | "by_address">(
+    "car_address"
+  );
   const [deliveryAddress, setDeliveryAddress] = useState("");
+  const [deliveryLat, setDeliveryLat] = useState<number | null>(null);
+  const [deliveryLong, setDeliveryLong] = useState<number | null>(null);
 
-  // DRIVER fields
+  // country / city for delivery (used in UI)
+  const [deliveryCountry, setDeliveryCountry] = useState<string>("");
+  const [deliveryCity, setDeliveryCity] = useState<string>("");
+
+  const [deliveryFeeValue, setDeliveryFeeValue] = useState<number>(0);
+
+  // driver fields (kept from original)
   const [driverName, setDriverName] = useState("");
   const [driverDob, setDriverDob] = useState<string | null>(null);
   const [driverLicense, setDriverLicense] = useState("");
@@ -695,7 +769,7 @@ function BookingDrawer({
   const [driverPhone, setDriverPhone] = useState("");
   const [driverEmail, setDriverEmail] = useState("");
 
-  // license file / dropzone
+  // upload/license
   const [licenseFile, setLicenseFile] = useState<File | null>(null);
   const [licensePreview, setLicensePreview] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
@@ -708,14 +782,98 @@ function BookingDrawer({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
 
-  // refs/focus
+  // refs + UI
   const panelRef = useRef<HTMLDivElement | null>(null);
-  const formRef = useRef<HTMLDivElement | null>(null);
   const firstFocusRef = useRef<HTMLInputElement | null>(null);
   const lastFocusRef = useRef<HTMLButtonElement | null>(null);
+  const mapRef = useRef<any>(null);
 
-  // hero
-  const hero = (car?.photos || []).filter(Boolean)[0] ?? "/images/aceman2.webp";
+  // map view state (initial from car)
+  const toNum = (v: unknown, fallback: number | null = 50.45): number | null =>
+    Number.isFinite(Number(v)) ? Number(v) : fallback;
+  const initialLat = toNum(car?.lat, 50.45);
+  const initialLng = toNum(car?.long, 30.52);
+  const [mapView, setMapView] = useState<any>({
+    latitude: initialLat,
+    longitude: initialLng,
+    zoom: 12,
+    bearing: 0,
+    pitch: 0,
+    padding: { top: 0, bottom: 0, left: 0, right: 0 },
+  });
+
+  // client-only flag (to prevent using window on server)
+  const [isClient, setIsClient] = useState(false);
+  useEffect(() => setIsClient(typeof window !== "undefined"), []);
+
+  // prefill delivery when opening (if car has lat/long)
+  useEffect(() => {
+    if (!open) return;
+    (async () => {
+      setLoadingRemote(true);
+      try {
+        const [extrasRes, bookingsRes, pricingRes] = await Promise.all([
+          typeof fetchCarExtras === "function"
+            ? fetchCarExtras(String(car.id))
+            : fetch(`/api/cars/${car.id}/extras`).then((r) => r.json()),
+          typeof fetchBookingsByCarId === "function"
+            ? fetchBookingsByCarId(String(car.id))
+            : fetch(`/api/cars/${car.id}/bookings`).then((r) => r.json()),
+          typeof fetchPricingRules === "function"
+            ? fetchPricingRules(String(car.id))
+            : fetch(`/api/pricing-rules/${car.id}`).then((r) => r.json()),
+        ]);
+
+        const normalized = (extrasRes ?? []).map((ex: any) => ({
+          id: String(
+            ex.extra_id ?? ex.id ?? ex.meta?.id ?? ex.meta?.extra_id ?? ex.key
+          ),
+          title:
+            ex.meta?.title ??
+            ex.meta?.name ??
+            ex.title ??
+            ex.name ??
+            String(ex.extra_id ?? ex.id ?? "extra"),
+          price: Number(ex.price ?? ex.meta?.price ?? 0),
+          price_type:
+            ex.price_type ??
+            ex.meta?.price_type ??
+            (ex.price_per_day ? "per_day" : "per_trip"),
+          inactive:
+            ex.is_available === false || ex.meta?.is_available === false,
+        }));
+        setExtras(normalized);
+
+        const intervals =
+          (bookingsRes ?? [])
+            .filter((b: any) => !String(b.status ?? "").startsWith("canceled"))
+            .map((b: any) => ({
+              start: new Date(b.start_at),
+              end: new Date(b.end_at),
+            })) ?? [];
+        setDisabledIntervals(intervals);
+
+        setPricingRules(pricingRes ?? []);
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error("BookingDrawer load error", err);
+      } finally {
+        setLoadingRemote(false);
+
+        // prefill delivery coords/fee if car has coords and fee defined
+        if (
+          (car?.lat != null || car?.long != null) &&
+          delivery === "car_address"
+        ) {
+          setDeliveryLat(toNum(car?.lat, null));
+          setDeliveryLong(toNum(car?.long, null));
+          if ((car as any)?.deliveryFee)
+            setDeliveryFeeValue(Number((car as any).deliveryFee));
+        }
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, car?.id]);
 
   // block scroll while open
   useEffect(() => {
@@ -745,39 +903,32 @@ function BookingDrawer({
     };
   }, [open]);
 
-  // prefill
+  // reset UI when drawer opens
   useEffect(() => {
     if (!open) return;
-    try {
-      const possible = (window as any).__USER__;
-      if (possible) {
-        if (possible.name) setDriverName(possible.name);
-        if (possible.email) setDriverEmail(possible.email);
-        if (possible.phone) setDriverPhone(possible.phone);
-        if (possible.license) setDriverLicense(possible.license);
-      }
-    } catch {}
-  }, [open]);
-
-  // reset on open
-  useEffect(() => {
-    if (!open) return;
-    setWash(false);
-    setUnlimited(false);
-    setDelivery(false);
+    setPickedExtras([]);
+    // оставляем delivery выбор, но очищаем адрес
     setDeliveryAddress("");
-    setErrors({});
+    setDeliveryLat(null);
+    setDeliveryLong(null);
     setLicenseFile(null);
     setLicensePreview(null);
+    setUploadProgress(null);
+    setUploadedUrl(null);
     setAcceptedTerms(false);
     setAcceptedTs(null);
     setSubmitting(false);
-    setUploadProgress(null);
-    setUploadedUrl(null);
-    requestAnimationFrame(() => firstFocusRef.current?.focus());
+    setErrors({});
+    requestAnimationFrame(() => {
+      try {
+        firstFocusRef.current?.focus?.({ preventScroll: true });
+      } catch {
+        firstFocusRef.current?.focus?.();
+      }
+    });
   }, [open]);
 
-  // preview + mock upload
+  // upload preview mock (as в оригинале)
   useEffect(() => {
     if (!licenseFile) {
       setLicensePreview(null);
@@ -785,16 +936,13 @@ function BookingDrawer({
       setUploadedUrl(null);
       return;
     }
-
     const url = URL.createObjectURL(licenseFile);
     setLicensePreview(url);
-
     let cancelled = false;
     (async () => {
       setUploadProgress(0);
       for (let i = 1; i <= 20; i++) {
         if (cancelled) return;
-        // small delay to show progress
         // eslint-disable-next-line no-await-in-loop
         await new Promise((r) => setTimeout(r, 60));
         setUploadProgress(Math.round((i / 20) * 100));
@@ -803,33 +951,38 @@ function BookingDrawer({
       setUploadedUrl(`/uploads/${Date.now()}_${licenseFile.name}`);
       setUploadProgress(100);
     })();
-
     return () => {
       cancelled = true;
       URL.revokeObjectURL(url);
     };
   }, [licenseFile]);
 
-  useEffect(() => {
-    if (uploadedUrl) {
-      setErrors((prev) => {
-        const next = { ...prev };
-        if (next.driverLicenseFile) delete next.driverLicenseFile;
-        return next;
-      });
-    }
-  }, [uploadedUrl]);
+  // helper — compute billable days (same as bookingEditor)
+  const billableDaysForExtras = useMemo(() => {
+    if (!start || !end) return 1;
+    const s = new Date(start).getTime();
+    const e = new Date(end).getTime();
+    const minutes = Math.max(0, Math.ceil((e - s) / (1000 * 60)));
+    return Math.max(1, Math.ceil(minutes / (24 * 60)));
+  }, [start, end]);
 
-  const optionsTotal = useMemo(() => {
-    const perDay = unlimited ? OPTION_PRICES.unlimited * Math.max(1, days) : 0;
-    const flat =
-      (wash ? OPTION_PRICES.wash : 0) + (delivery ? OPTION_PRICES.delivery : 0);
-    return perDay + flat;
-  }, [wash, unlimited, delivery, days]);
+  const extrasTotal = useMemo(() => {
+    return pickedExtras.reduce((sum, id) => {
+      const ex = extras.find((x) => x.id === id);
+      if (!ex) return sum;
+      const mult = ex.price_type === "per_day" ? billableDaysForExtras : 1;
+      return sum + Number(ex.price || 0) * mult;
+    }, 0);
+  }, [pickedExtras, extras, billableDaysForExtras]);
 
-  const baseTotal = Math.max(1, days) * (car.price || 0);
-  const grandTotal = baseTotal + optionsTotal;
+  const baseTotal =
+    Math.round(Math.max(1, days) * (car.price || 0) * 100) / 100;
+  const deliveryFee =
+    delivery === "by_address" ? Number(deliveryFeeValue || 0) : 0;
+  const optionsTotal = Math.round((extrasTotal + deliveryFee) * 100) / 100;
+  const grandTotal = Math.round((baseTotal + optionsTotal) * 100) / 100;
 
+  // validation (simplified, взято из BookingDrawer/Editor)
   function isValidEmail(value: string) {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
   }
@@ -847,9 +1000,9 @@ function BookingDrawer({
     if (!acceptedTerms) e.acceptedTerms = "You must accept Terms & Conditions";
     if (licenseFile && (!uploadedUrl || (uploadProgress ?? 0) < 100)) {
       e.driverLicenseFile =
-        "License upload in progress. Please wait until it completes.";
+        "License upload in progress. Wait until it completes.";
     }
-    if (delivery && !deliveryAddress.trim())
+    if (delivery === "by_address" && !deliveryAddress.trim())
       e.deliveryAddress = "Enter delivery address";
     setErrors(e);
     return Object.keys(e).length === 0;
@@ -866,24 +1019,6 @@ function BookingDrawer({
     deliveryAddress,
   ]);
 
-  // focus trap
-  const onKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key !== "Tab") return;
-    const focusable = panelRef.current?.querySelectorAll<HTMLElement>(
-      "a[href], button:not([disabled]), textarea, input, select"
-    );
-    if (!focusable || focusable.length === 0) return;
-    const first = focusable[0];
-    const last = focusable[focusable.length - 1];
-    if (e.shiftKey && document.activeElement === first) {
-      e.preventDefault();
-      (last as HTMLElement).focus();
-    } else if (!e.shiftKey && document.activeElement === last) {
-      e.preventDefault();
-      (first as HTMLElement).focus();
-    }
-  };
-
   const canSubmit =
     driverName.trim().length > 1 &&
     driverLicense.trim().length > 2 &&
@@ -891,7 +1026,7 @@ function BookingDrawer({
     isValidEmail(driverEmail) &&
     acceptedTerms &&
     !(licenseFile && (!uploadedUrl || (uploadProgress ?? 0) < 100)) &&
-    (!delivery || deliveryAddress.trim().length > 0);
+    (!(delivery === "by_address") || deliveryAddress.trim().length > 0);
 
   const handleConfirm = async () => {
     if (submitting) return;
@@ -899,11 +1034,12 @@ function BookingDrawer({
     if (!ok) return;
     setSubmitting(true);
     try {
-      const opts = {
-        wash: wash ? 1 : 0,
-        unlimited: unlimited ? 1 : 0,
-        delivery: delivery ? 1 : 0,
-        delivery_address: delivery ? deliveryAddress.trim() : "",
+      const opts: Record<string, string | number | boolean> = {
+        extras: pickedExtras.join(","),
+        delivery: delivery === "by_address" ? 1 : 0,
+        delivery_address: delivery === "by_address" ? deliveryAddress : "",
+        delivery_lat: delivery === "by_address" ? deliveryLat ?? "" : "",
+        delivery_long: delivery === "by_address" ? deliveryLong ?? "" : "",
         driver_name: driverName.trim(),
         driver_dob: driverDob ? new Date(driverDob).toISOString() : "",
         driver_license: driverLicense.trim(),
@@ -916,18 +1052,20 @@ function BookingDrawer({
         accepted_terms: acceptedTerms ? 1 : 0,
         accepted_ts: acceptedTs ?? new Date().toISOString(),
         accepted_version: ACCEPTED_VERSION,
-      } as Record<string, string | number>;
+        price_total: grandTotal,
+      };
       await Promise.resolve(onConfirm(opts));
       onClose();
     } catch (err) {
+      // eslint-disable-next-line no-console
       console.error("Booking failed", err);
-      setErrors((prev) => ({ ...prev, submit: "Booking failed. Try again." }));
+      setErrors((p) => ({ ...p, submit: "Booking failed. Try again." }));
     } finally {
       setSubmitting(false);
     }
   };
 
-  // dropzone handlers
+  // dropzone handlers (как раньше)
   const handleFiles = (f: File | null) => {
     if (!f) return;
     setLicenseFile(f);
@@ -954,11 +1092,127 @@ function BookingDrawer({
     setDragActive(false);
   };
 
-  const modelObj = (car as any).model ?? (car as any).models ?? undefined;
+  // map + AddressAutofill handlers (reuse logic из bookingEditor)
+  const onAddressRetrieve = async (res: any) => {
+    const f = res?.features?.[0];
+    const coords = f?.geometry?.coordinates as [number, number] | undefined;
+    if (!coords) return;
+    const [lng, lat] = coords;
+    setDeliveryLat(lat);
+    setDeliveryLong(lng);
+    const fallback = f?.properties?.full_address || f?.place_name || "";
+    try {
+      const addr = await fetchAddressFromCoords(lat, lng);
+      setDeliveryAddress(addr?.address || fallback);
+      setDeliveryCountry(addr?.country || "");
+      setDeliveryCity(addr?.city || "");
+    } catch {
+      setDeliveryAddress(fallback);
+      setDeliveryCountry("");
+      setDeliveryCity("");
+    }
+    setMapView((prev: any) => ({
+      ...prev,
+      latitude: lat,
+      longitude: lng,
+      zoom: Math.max(prev.zoom, 13),
+    }));
+    try {
+      mapRef.current?.flyTo?.({
+        center: [lng, lat],
+        zoom: Math.max(mapView.zoom ?? 13, 14),
+        essential: true,
+      });
+    } catch {}
+  };
+
+  // autofill user location into delivery address when delivery === 'by_address' and address empty
+  useEffect(() => {
+    if (!isClient) return;
+    if (delivery !== "by_address") return;
+    if (deliveryAddress && deliveryAddress.trim()) return;
+
+    let cancelled = false;
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        async (pos) => {
+          if (cancelled) return;
+          try {
+            const lat = pos.coords.latitude;
+            const lng = pos.coords.longitude;
+            setDeliveryLat(lat);
+            setDeliveryLong(lng);
+            setMapView((prev: any) => ({
+              ...prev,
+              latitude: lat,
+              longitude: lng,
+              zoom: Math.max(prev.zoom ?? 12, 13),
+            }));
+            try {
+              const addr = await fetchAddressFromCoords(lat, lng);
+              if (!cancelled && addr) {
+                setDeliveryAddress(addr.address || "");
+                setDeliveryCountry(addr.country || "");
+                setDeliveryCity(addr.city || "");
+              }
+            } catch {}
+          } catch {}
+        },
+        () => {},
+        { maximumAge: 1000 * 60 * 10, timeout: 5000 }
+      );
+    }
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [delivery, isClient]);
+
+  const declineDays = (d: number) => (d === 1 ? "day" : "days");
+
+  // helpers for UI timeline & progress
+  const computeDurationPretty = (s?: string | null, e?: string | null) => {
+    if (!s || !e) return "—";
+    const ss = new Date(s);
+    const ee = new Date(e);
+    const totalMin = Math.max(
+      0,
+      Math.round((ee.getTime() - ss.getTime()) / 60000)
+    );
+    const d = Math.floor(totalMin / 1440);
+    const h = Math.floor((totalMin % 1440) / 60);
+    const m = totalMin % 60;
+    const parts: string[] = [];
+    if (d) parts.push(`${d}d`);
+    if (h) parts.push(`${h}h`);
+    if (m) parts.push(`${m}m`);
+    return parts.length ? parts.join(" ") : "0m";
+  };
+
+  const computeTripProgress = (s?: string | null, e?: string | null) => {
+    if (!s || !e) return 0;
+    const ss = new Date(s).getTime();
+    const ee = new Date(e).getTime();
+    const now = Date.now();
+    if (now <= ss) return 0;
+    if (now >= ee) return 100;
+    return Math.max(
+      0,
+      Math.min(100, Math.round(((now - ss) / (ee - ss)) * 100))
+    );
+  };
+
+  const isBetweenNow = (s?: string | null, e?: string | null) => {
+    if (!s || !e) return false;
+    const ss = new Date(s).getTime();
+    const ee = new Date(e).getTime();
+    const now = Date.now();
+    return now >= ss && now < ee;
+  };
 
   return (
     <div
-      className={`fixed inset-0 z-60 pointer-events-none transition-all ${
+      className={`fixed inset-0 z-999 pointer-events-none transition-all ${
         open ? "opacity-100" : "opacity-0"
       }`}
       aria-hidden={!open}
@@ -969,29 +1223,31 @@ function BookingDrawer({
           open ? "opacity-100 pointer-events-auto" : "opacity-0"
         }`}
       />
-
-      <aside
-        className={`pointer-events-auto fixed right-0 top-0 h-full w-full sm:w-[920px] bg-white shadow-2xl transform transition-transform ${
-          open ? "translate-x-0" : "translate-x-full"
-        }`}
+      <motion.aside
+        initial={{ x: "100%", opacity: 0 }}
+        animate={open ? { x: "0%", opacity: 1 } : { x: "100%", opacity: 0 }}
+        exit={{ x: "100%", opacity: 0 }}
+        transition={
+          shouldReduceMotion
+            ? { duration: 0 }
+            : {
+                x: { type: "tween", duration: 0.45, ease: [0.22, 0.8, 0.2, 1] },
+                opacity: { duration: 0.15 },
+              }
+        }
+        className="pointer-events-auto fixed right-0 top-0 h-full w-full sm:w-[920px] bg-white shadow-2xl"
         role="dialog"
         aria-modal="true"
         onClick={(e) => e.stopPropagation()}
       >
         <div
           ref={panelRef}
-          onKeyDown={onKeyDown}
-          className="p-4 sm:p-6 h-full flex flex-col overflow-auto md:overflow-hidden"
+          className="px-4 sm:px-6 h-full flex flex-col overflow-auto md:overflow-hidden"
         >
-          <div className="flex items-center justify-between mb-3">
-            <div>
-              <div className="text-lg font-semibold">Confirm booking</div>
-              <div className="text-sm text-neutral-500">
-                {modelObj?.brands?.name ?? ""} {modelObj?.name ?? ""}{" "}
-                {car.year ?? ""}
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
+          {/* Header */}
+          <div className="flex items-center justify-between mb-3 mt-2">
+            <div className="text-lg font-semibold">Confirm booking</div>
+            <div className="flex items-center">
               <button
                 onClick={onClose}
                 className="text-sm text-neutral-600 px-3 py-2 rounded-md hover:bg-neutral-100"
@@ -1002,259 +1258,420 @@ function BookingDrawer({
             </div>
           </div>
 
-          {/* layout */}
           <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 h-full">
-            {/* LEFT: sticky summary with framer-motion animation */}
-            <AnimatePresence initial={false}>
-              {open && (
-                <motion.div
-                  key="booking-summary"
-                  initial={{ opacity: 0, x: -56, scale: 0.995 }}
-                  animate={{ opacity: 1, x: 0, scale: 1 }}
-                  exit={{ opacity: 0, x: -10, scale: 0.995 }}
-                  transition={
-                    shouldReduceMotion
-                      ? { duration: 0 }
-                      : { duration: 0.55, ease: [0.22, 1, 0.36, 1] } // мягкая easeOut
-                  }
-                  layout
-                  whileHover={shouldReduceMotion ? undefined : { scale: 1.01 }}
-                  className="relative md:flex-none md:w-[360px]"
-                >
-                  <div className="md:sticky md:top-0 md:space-y-4 md:max-h-[calc(100vh-6rem)]">
-                    <div className="relative rounded-2xl overflow-hidden bg-white border border-gray-100 ring-1 ring-black/5 isolate">
-                      <div className="aspect-16/10 bg-gray-50">
-                        <img
-                          src={hero}
-                          alt={modelObj?.name ?? "car"}
-                          className="h-full w-full object-cover"
-                        />
+            {/* LEFT: summary ( точно как в BookingEditor ) */}
+            <div className="relative md:flex-none md:w-[360px]">
+              <div className="md:sticky md:top-6 md:space-y-4 md:max-h-[calc(100vh-6rem)]">
+                {/* Car card */}
+                <section className="rounded-2xl bg-white shadow-sm ring-1 ring-gray-200 p-4 sm:p-5">
+                  <div className="aspect-video w-full overflow-hidden rounded-xl h-40 object-cover bg-gray-100">
+                    {car?.photos?.[0] ? (
+                      <img
+                        src={car.photos[0]}
+                        className="h-full w-full object-cover"
+                        alt="Car"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center text-sm text-gray-400">
+                        no photo
                       </div>
+                    )}
+                  </div>
 
-                      <div className="p-4">
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <div className="text-sm text-neutral-500">From</div>
-                            <div className="text-2xl font-semibold">
-                              {modelObj?.brands?.name ?? ""}{" "}
-                              {modelObj?.name ?? ""}
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <div className="text-xs text-neutral-500">
-                              Per day
-                            </div>
-                            <div className="text-2xl font-bold">
-                              {(car.price || 0).toFixed(0)}€
-                            </div>
-                          </div>
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900">
+                      {title} {car?.year}
+                    </p>
+                    {car?.licensePlate ? (
+                      <p className="mt-1 inline-flex items-center rounded-md border border-gray-300 bg-gray-50 px-1.5 py-0.5 text-[10px] font-mono text-gray-700 shadow-sm ring-1 ring-white/50">
+                        {car.licensePlate}
+                      </p>
+                    ) : null}
+                  </div>
+                </section>
+
+                {/* Trip timeline */}
+                <section className="mt-4 rounded-2xl bg-white shadow-sm ring-1 ring-gray-200 px-4 py-4 sm:px-5 sm:py-5">
+                  <div>
+                    <div className="flex flex-col">
+                      <span className="text-[11px] uppercase font-semibold tracking-wide text-gray-900">
+                        Rental period
+                      </span>
+                      <span className="text-sm font-medium text-gray-900">
+                        {start && end
+                          ? `${new Date(start).toLocaleString()} — ${new Date(
+                              end
+                            ).toLocaleString()}`
+                          : "Select start and end"}
+                      </span>
+                    </div>
+
+                    <div className="mt-1 text-sm text-gray-700">
+                      <span className="text-gray-600">Duration: </span>
+                      <span className="font-medium">
+                        {computeDurationPretty(start, end)}
+                      </span>
+                    </div>
+
+                    {isBetweenNow(start, end) && (
+                      <div className="mt-4">
+                        <div className="h-2.5 w-full overflow-hidden rounded-full border border-gray-200 bg-gray-100">
+                          <div
+                            className="h-full bg-green-500/90 transition-[width] duration-500 ease-out"
+                            style={{
+                              width: `${computeTripProgress(start, end)}%`,
+                            }}
+                            role="progressbar"
+                            aria-valuenow={computeTripProgress(start, end)}
+                            aria-valuemin={0}
+                            aria-valuemax={100}
+                          />
                         </div>
-
-                        <div className="mt-3 text-sm text-neutral-600">
-                          <div>
-                            <strong>Pick-up:</strong>{" "}
-                            {start ? new Date(start).toLocaleString() : "—"}
-                          </div>
-                          <div>
-                            <strong>Return:</strong>{" "}
-                            {end ? new Date(end).toLocaleString() : "—"}
-                          </div>
+                        <div className="mt-1 text-right text-[11px] font-medium text-gray-700">
+                          {computeTripProgress(start, end)}%
                         </div>
+                      </div>
+                    )}
+                  </div>
+                </section>
 
-                        <div className="mt-4 border-t pt-3">
-                          <div className="flex items-center justify-between text-sm">
-                            <div>
-                              Base ({days} {declineDays(days)})
-                            </div>
-                            <div>{baseTotal.toFixed(0)}€</div>
-                          </div>
-                          <div className="mt-2 flex items-center justify-between text-sm">
-                            <div>Options</div>
-                            <div>{optionsTotal.toFixed(0)}€</div>
-                          </div>
+                {/* Trip summary */}
+                <section className="mt-4 rounded-2xl bg-white shadow-sm ring-1 ring-gray-200 p-4 sm:p-5 text-sm">
+                  <div className="mb-4">
+                    <p className="text-[11px] uppercase tracking-wide text-gray-900 font-semibold">
+                      Trip summary
+                    </p>
+                  </div>
 
-                          {delivery && deliveryAddress.trim() ? (
-                            <div className="mt-3 text-sm text-neutral-600">
-                              <div className="mt-2">
-                                <strong>Delivery to:</strong>
-                              </div>
-                              <div className="mt-1 text-sm text-neutral-800">
-                                {deliveryAddress}
-                              </div>
-                            </div>
-                          ) : null}
-
-                          <div className="mt-3 border-t pt-3">
-                            <div className="flex items-center justify-between">
-                              <div className="text-sm text-neutral-500">
-                                Total
-                              </div>
-                              <div className="text-xl font-semibold">
-                                {grandTotal.toFixed(0)}€
-                              </div>
-                            </div>
-                          </div>
-                        </div>
+                  <div className="space-y-2 text-gray-700">
+                    <div className="flex items-start justify-between">
+                      <div className="flex flex-col">
+                        <span className="text-gray-600 text-sm">
+                          Price per day
+                        </span>
+                      </div>
+                      <div className="text-right">
+                        <span className="block font-medium text-gray-900">
+                          {Number(car?.price || 0).toFixed(2)}€
+                        </span>
                       </div>
                     </div>
 
-                    <div className="text-center text-xs text-neutral-500">
-                      Need help? Call us 24/7 at{" "}
-                      <strong>+44 20 1234 5678</strong>
+                    <div className="flex items-start justify-between">
+                      <span className="text-gray-600 text-sm">
+                        Rental subtotal
+                      </span>
+                      <span className="font-medium text-gray-900">
+                        {baseTotal.toFixed(2)}€
+                      </span>
+                    </div>
+
+                    {deliveryFee > 0 && (
+                      <div className="flex items-start justify-between">
+                        <span className="text-gray-600 text-sm">Delivery</span>
+                        <span className="font-medium text-gray-900">
+                          {deliveryFee.toFixed(2)}€
+                        </span>
+                      </div>
+                    )}
+
+                    {extrasTotal > 0 && (
+                      <div className="flex items-start justify-between">
+                        <span className="text-gray-600 text-sm">Extras</span>
+                        <span className="font-medium text-gray-900">
+                          {extrasTotal.toFixed(2)}€
+                        </span>
+                      </div>
+                    )}
+
+                    <div className="border-t border-dashed border-gray-300 pt-1" />
+
+                    <div className="flex items-start justify-between">
+                      <span className="font-semibold text-gray-900">Total</span>
+                      <span className="text-base font-semibold text-gray-900">
+                        {grandTotal.toFixed(2)}€
+                      </span>
+                    </div>
+
+                    <div className="flex items-start justify-between text-gray-900">
+                      <span>Deposit</span>
+                      <span>{car.deposit}€</span>
                     </div>
                   </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+                </section>
+              </div>
+            </div>
 
-            {/* RIGHT: form (scrollable) */}
+            {/* RIGHT: form */}
             <div className="flex-1">
               <div className="h-full pb-32 pr-2 md:overflow-y-scroll">
-                {/* pb to avoid mobile sticky */}
                 <div className="space-y-4">
-                  {/* Options card */}
-                  {/* Options card — motion switches */}
-                  <div className="rounded-2xl overflow-hidden bg-white border border-gray-100 ring-1 ring-black/5 p-4">
-                    <div className="text-xs text-neutral-500">Options</div>
-                    <div className="mt-3 grid grid-cols-1 gap-3">
-                      {/** -- reusable switch renderer -- */}
-                      {[
-                        {
-                          key: "wash",
-                          label: "Exterior wash",
-                          desc: "Quick wash before pickup",
-                          price: OPTION_PRICES.wash,
-                          checked: wash,
-                          onToggle: () => setWash((s) => !s),
-                        },
-                        {
-                          key: "unlimited",
-                          label: "Unlimited mileage",
-                          desc: "Per day charge",
-                          price: `${OPTION_PRICES.unlimited}€/day`,
-                          checked: unlimited,
-                          onToggle: () => setUnlimited((s) => !s),
-                        },
-                        {
-                          key: "delivery",
-                          label: "Delivery",
-                          desc: "Delivery to your address",
-                          price: OPTION_PRICES.delivery,
-                          checked: delivery,
-                          onToggle: () => setDelivery((s) => !s),
-                        },
-                      ].map(
-                        ({ key, label, desc, price, checked, onToggle }) => (
+                  {/* Options (Extras) — как в BookingEditor */}
+                  <section className={cardCls}>
+                    <div className="font-semibold text-xs text-gray-900">
+                      Extras
+                    </div>
+                    <p className="mt-1 text-sm text-gray-500">
+                      Additional services & fees
+                    </p>
+
+                    <div className="mt-4 space-y-2">
+                      {loadingRemote ? (
+                        <div className="text-sm text-gray-500">Loading…</div>
+                      ) : (
+                        extras.map((ex) => (
                           <div
-                            key={key}
-                            className="flex items-center justify-between"
+                            key={ex.id}
+                            className="flex items-start justify-between rounded-lg border border-gray-200 bg-gray-50/50 px-3 py-2 shadow-sm"
                           >
-                            <div>
-                              <div className="font-medium">{label}</div>
-                              <div className="text-xs text-neutral-500">
-                                {desc}
+                            <label className="flex-1 flex items-start gap-3 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={pickedExtras.includes(ex.id)}
+                                onChange={(e) => {
+                                  const checked = e.currentTarget.checked;
+                                  if (checked)
+                                    setPickedExtras((p) => [...p, ex.id]);
+                                  else
+                                    setPickedExtras((p) =>
+                                      p.filter((x) => x !== ex.id)
+                                    );
+                                }}
+                                className="mt-1 h-4 w-4"
+                                disabled={isLocked}
+                              />
+                              <div
+                                className={`${ex.inactive ? "opacity-70" : ""}`}
+                              >
+                                <div className="font-medium text-sm text-gray-800">
+                                  {ex.title}
+                                </div>
+                                <div className="text-xs text-gray-500">
+                                  {ex.price}€
+                                  {ex.price_type === "per_day" ? " / day" : ""}
+                                  {ex.inactive ? " (no longer offered)" : ""}
+                                </div>
                               </div>
-                            </div>
+                            </label>
 
                             <div className="flex items-center gap-3">
-                              <div className="text-sm">{price}</div>
-
-                              <button
-                                type="button"
-                                role="switch"
-                                aria-checked={checked}
-                                tabIndex={0}
-                                onClick={onToggle}
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter" || e.key === " ") {
-                                    e.preventDefault();
-                                    onToggle();
-                                  }
-                                }}
-                                className="relative inline-flex h-6 w-10 items-center rounded-full focus:outline-none"
-                              >
-                                {/* background (animated via style) */}
-                                <motion.span
-                                  aria-hidden
-                                  className="absolute inset-0 rounded-full"
-                                  initial={false}
-                                  animate={{
-                                    backgroundColor: checked
-                                      ? "#000000"
-                                      : "#e5e7eb",
-                                  }}
-                                  transition={{
-                                    type: "spring",
-                                    stiffness: 400,
-                                    damping: 30,
-                                  }}
-                                  style={{ pointerEvents: "none" }}
-                                />
-
-                                {/* knob */}
-                                <motion.span
-                                  className="relative inline-block h-4 w-4 ml-1 rounded-full bg-white shadow"
-                                  initial={false}
-                                  animate={{ x: checked ? 16 : 0 }}
-                                  transition={{
-                                    type: "spring",
-                                    stiffness: 500,
-                                    damping: 28,
-                                  }}
-                                />
-                              </button>
+                              <div className="text-sm font-medium">
+                                {ex.price}€
+                              </div>
                             </div>
                           </div>
-                        )
+                        ))
                       )}
+                    </div>
+                  </section>
 
-                      {/* delivery address unchanged */}
-                      {delivery && (
-                        <div className="mt-2">
-                          <input
-                            value={deliveryAddress}
-                            onChange={(e) => setDeliveryAddress(e.target.value)}
-                            placeholder="Delivery address *"
-                            className={`w-full rounded-md border px-3 py-2 ${
-                              errors.deliveryAddress
-                                ? "ring-1 ring-red-400"
-                                : ""
+                  {/* Delivery block (как в BookingEditor) */}
+                  <section className={cardCls}>
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <h3 className="font-semibold text-xs text-gray-900">
+                          Delivery
+                        </h3>
+                        <p className="mt-1 text-xs text-gray-500">
+                          {delivery === "by_address"
+                            ? "Delivery to customer's address"
+                            : "Pickup at car address"}
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-4">
+                        <div className="text-sm font-semibold">
+                          {(deliveryFeeValue || 0).toFixed(2)}€
+                        </div>
+
+                        <button
+                          type="button"
+                          role="switch"
+                          aria-checked={delivery === "by_address"}
+                          onClick={() =>
+                            setDelivery((d) =>
+                              d === "by_address" ? "car_address" : "by_address"
+                            )
+                          }
+                          className="relative inline-flex h-6 w-10 items-center rounded-full focus:outline-none"
+                          disabled={isLocked}
+                        >
+                          <span
+                            aria-hidden
+                            className={`absolute inset-0 rounded-full transition-colors duration-200 ${
+                              delivery === "by_address"
+                                ? "bg-black"
+                                : "bg-gray-200"
                             }`}
                           />
+                          <span
+                            className={`relative inline-block h-4 w-4 ml-1 rounded-full bg-white shadow transform transition-transform duration-200 ${
+                              delivery === "by_address"
+                                ? "translate-x-4"
+                                : "translate-x-0"
+                            }`}
+                          />
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="mt-3 text-xs text-gray-500">
+                      If delivery is turned on, we will deliver the car to the
+                      address you enter below.
+                    </div>
+                  </section>
+
+                  {/* Map + Address (only when delivery === 'by_address') */}
+                  {delivery === "by_address" && (
+                    <div className="mt-4 space-y-4">
+                      <div className="h-60 overflow-hidden rounded-xl border border-gray-100 shadow-sm">
+                        <Map
+                          ref={mapRef}
+                          {...mapView}
+                          onMove={(e: { viewState: any }) =>
+                            setMapView(e.viewState as any)
+                          }
+                          style={{ width: "100%", height: "100%" }}
+                          mapStyle="mapbox://styles/megadoze/cldamjew5003701p5mbqrrwkc"
+                          mapboxAccessToken={
+                            process.env.NEXT_PUBLIC_MAPBOX_TOKEN ??
+                            (typeof import.meta !== "undefined"
+                              ? (import.meta as any).env?.VITE_MAPBOX_TOKEN
+                              : undefined)
+                          }
+                          interactive={!isLocked}
+                        >
+                          <Marker
+                            longitude={deliveryLong ?? car?.long ?? initialLng}
+                            latitude={deliveryLat ?? car?.lat ?? initialLat}
+                            draggable={!isLocked}
+                            onDragEnd={async (e: {
+                              lngLat: { lat: any; lng: any };
+                            }) => {
+                              const { lat, lng } = e.lngLat;
+                              setDeliveryLat(lat);
+                              setDeliveryLong(lng);
+                              setMapView((prev: any) => ({
+                                ...prev,
+                                latitude: lat,
+                                longitude: lng,
+                                zoom: Math.max(prev.zoom ?? 12, 13),
+                              }));
+                              try {
+                                const addr = await fetchAddressFromCoords(
+                                  lat,
+                                  lng
+                                );
+                                if (addr) {
+                                  setDeliveryAddress(addr.address || "");
+                                  setDeliveryCountry(addr.country || "");
+                                  setDeliveryCity(addr.city || "");
+                                }
+                              } catch {}
+                            }}
+                          >
+                            <Pin />
+                          </Marker>
+
+                          <GeolocateControl
+                            trackUserLocation
+                            showUserHeading
+                            onGeolocate={async (pos: { coords: { latitude: any; longitude: any; }; }) => {
+                              if (isLocked) return;
+                              const lat = pos.coords.latitude;
+                              const lng = pos.coords.longitude;
+                              setDeliveryLat(lat);
+                              setDeliveryLong(lng);
+                              setMapView((prev: any) => ({
+                                ...prev,
+                                latitude: lat,
+                                longitude: lng,
+                                zoom: Math.max(prev.zoom ?? 12, 13),
+                              }));
+                              try {
+                                const addr = await fetchAddressFromCoords(
+                                  lat,
+                                  lng
+                                );
+                                if (addr) {
+                                  setDeliveryAddress(addr.address || "");
+                                  setDeliveryCountry(addr.country || "");
+                                  setDeliveryCity(addr.city || "");
+                                }
+                              } catch {}
+                            }}
+                          />
+
+                          <NavigationControl />
+                          <ScaleControl />
+                          <FullscreenControl />
+                        </Map>
+
+                        {/* Address input */}
+                        <div className="mt-3">
+                          <AddressAutofill
+                            accessToken={process.env.NEXT_PUBLIC_MAPBOX_TOKEN}
+                            onRetrieve={onAddressRetrieve}
+                          >
+                            <input
+                              name="delivery-address"
+                              id="delivery-address"
+                              type="text"
+                              value={deliveryAddress}
+                              onChange={(e) =>
+                                setDeliveryAddress(e.target.value)
+                              }
+                              placeholder="Enter delivery address"
+                              autoComplete="address-line1"
+                              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-gray-600 focus:outline-none"
+                              disabled={isLocked}
+                            />
+                          </AddressAutofill>
+
+                          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-600 pt-2">
+                            <p>
+                              <span className="text-gray-500">Country: </span>
+                              <span className="font-semibold text-gray-800">
+                                {deliveryCountry || "—"}
+                              </span>
+                            </p>
+                            <p>
+                              <span className="text-gray-500">City: </span>
+                              <span className="font-semibold text-gray-800">
+                                {deliveryCity || "—"}
+                              </span>
+                            </p>
+                          </div>
+
                           {errors.deliveryAddress && (
-                            <div className="text-xs text-red-500 mt-1">
+                            <div className="mt-2 text-xs text-red-500">
                               {errors.deliveryAddress}
                             </div>
                           )}
                         </div>
-                      )}
+                      </div>
                     </div>
-                  </div>
+                  )}
 
-                  {/* Driver card */}
-                  <div className="rounded-2xl overflow-hidden bg-white border border-gray-100 ring-1 ring-black/5 p-4">
-                    <div className="text-xs text-neutral-500">Driver</div>
+                  {/* Driver card (как в BookingEditor) */}
+                  <section className={cardCls}>
+                    <div className="font-semibold text-xs text-gray-900">
+                      Driver
+                    </div>
                     <div className="mt-3 grid grid-cols-1 gap-3">
                       <input
                         ref={firstFocusRef}
                         value={driverName}
                         onChange={(e) => setDriverName(e.target.value)}
-                        placeholder="Full name *"
-                        aria-required
-                        aria-invalid={!!errors.driverName}
-                        className={`w-full rounded-md border px-3 py-2 transition-shadow focus:shadow-md ${
+                        placeholder="Full name"
+                        className={`w-full rounded-md border border-gray-300 px-3 py-2 ${
                           errors.driverName ? "ring-1 ring-red-400" : ""
                         }`}
                       />
-                      {errors.driverName && (
-                        <div className="text-xs text-red-500">
-                          {errors.driverName}
-                        </div>
-                      )}
 
                       <div className="grid grid-cols-2 gap-2">
                         <div>
-                          <label className="text-xs text-neutral-500">
+                          <label className="text-xs text-gray-500">
                             Date of birth (DOB)
                           </label>
                           <input
@@ -1263,12 +1680,11 @@ function BookingDrawer({
                             onChange={(e) =>
                               setDriverDob(e.target.value || null)
                             }
-                            aria-label="Date of birth"
-                            className="w-full rounded-md border px-3 py-2"
+                            className="w-full rounded-md border border-gray-300  px-3 py-2"
                           />
                         </div>
                         <div>
-                          <label className="text-xs text-neutral-500">
+                          <label className="text-xs text-gray-500">
                             License expiry date
                           </label>
                           <input
@@ -1277,8 +1693,7 @@ function BookingDrawer({
                             onChange={(e) =>
                               setDriverLicenseExpiry(e.target.value || null)
                             }
-                            aria-label="License expiry date"
-                            className="w-full rounded-md border px-3 py-2"
+                            className="w-full rounded-md border border-gray-300  px-3 py-2"
                           />
                         </div>
                       </div>
@@ -1287,61 +1702,36 @@ function BookingDrawer({
                         value={driverLicense}
                         onChange={(e) => setDriverLicense(e.target.value)}
                         placeholder="Driver license number *"
-                        aria-required
-                        aria-invalid={!!errors.driverLicense}
-                        className={`w-full rounded-md border px-3 py-2 ${
+                        className={`w-full rounded-md border border-gray-300  px-3 py-2 ${
                           errors.driverLicense ? "ring-1 ring-red-400" : ""
                         }`}
                       />
-                      {errors.driverLicense && (
-                        <div className="text-xs text-red-500">
-                          {errors.driverLicense}
-                        </div>
-                      )}
 
                       <div className="grid grid-cols-2 gap-2">
                         <input
                           value={driverPhone}
                           onChange={(e) => setDriverPhone(e.target.value)}
                           placeholder="Phone *"
-                          aria-required
-                          aria-invalid={!!errors.driverPhone}
-                          className={`w-full rounded-md border px-3 py-2 ${
+                          className={`w-full rounded-md border border-gray-300  px-3 py-2 ${
                             errors.driverPhone ? "ring-1 ring-red-400" : ""
                           }`}
                         />
                         <input
                           value={driverEmail}
-                          onChange={(e) => {
-                            setDriverEmail(e.target.value);
-                            if (errors.driverEmail)
-                              setErrors((p) => {
-                                const n = { ...p };
-                                delete n.driverEmail;
-                                return n;
-                              });
-                          }}
+                          onChange={(e) => setDriverEmail(e.target.value)}
                           placeholder="Email *"
                           type="email"
-                          aria-required
-                          aria-invalid={!!errors.driverEmail}
-                          className={`w-full rounded-md border px-3 py-2 ${
+                          className={`w-full rounded-md border border-gray-300  px-3 py-2 ${
                             errors.driverEmail ? "ring-1 ring-red-400" : ""
                           }`}
                         />
                       </div>
-                      {errors.driverEmail && (
-                        <div className="text-xs text-red-500">
-                          {errors.driverEmail}
-                        </div>
-                      )}
 
-                      {/* drag & drop upload */}
+                      {/* Upload */}
                       <div>
-                        <label className="text-xs text-neutral-500">
+                        <label className="text-xs text-gray-500">
                           Upload driver license (photo)
                         </label>
-
                         <div
                           onDrop={onDrop}
                           onDragOver={onDragOver}
@@ -1351,42 +1741,40 @@ function BookingDrawer({
                           } border p-3 bg-white`}
                         >
                           <div className="flex-1">
-                            <div className="text-sm text-neutral-700">
-                              {licensePreview ? (
-                                <div className="flex items-center gap-3">
-                                  <img
-                                    src={licensePreview}
-                                    alt="preview"
-                                    className="h-12 w-16 object-cover rounded-md"
-                                  />
-                                  <div>
-                                    <div className="font-medium">
-                                      {licenseFile?.name}
-                                    </div>
-                                    <div className="text-xs text-neutral-500">
-                                      {licenseFile?.size
-                                        ? Math.round(licenseFile.size / 1024)
-                                        : ""}{" "}
-                                      KB
-                                    </div>
+                            {licensePreview ? (
+                              <div className="flex items-center gap-3">
+                                <img
+                                  src={licensePreview}
+                                  alt="preview"
+                                  className="h-12 w-16 object-cover rounded-md"
+                                />
+                                <div>
+                                  <div className="font-medium">
+                                    {licenseFile?.name}
+                                  </div>
+                                  <div className="text-xs text-gray-500">
+                                    {licenseFile?.size
+                                      ? Math.round(licenseFile.size / 1024)
+                                      : ""}{" "}
+                                    KB
                                   </div>
                                 </div>
-                              ) : (
-                                <div className="text-sm text-neutral-500">
-                                  Drag & drop file here, or{" "}
-                                  <label className="underline cursor-pointer">
-                                    <input
-                                      type="file"
-                                      className="hidden"
-                                      onChange={(e) =>
-                                        handleFiles(e.target.files?.[0] ?? null)
-                                      }
-                                    />
-                                    select file
-                                  </label>
-                                </div>
-                              )}
-                            </div>
+                              </div>
+                            ) : (
+                              <div className="text-sm text-gray-500">
+                                Drag & drop file here, or{" "}
+                                <label className="underline cursor-pointer">
+                                  <input
+                                    type="file"
+                                    className="hidden"
+                                    onChange={(e) =>
+                                      handleFiles(e.target.files?.[0] ?? null)
+                                    }
+                                  />
+                                  select file
+                                </label>
+                              </div>
+                            )}
 
                             {uploadProgress != null && (
                               <div
@@ -1394,7 +1782,7 @@ function BookingDrawer({
                                 aria-live="polite"
                                 className="mb-2 mt-2"
                               >
-                                <div className="text-xs text-neutral-500">
+                                <div className="text-xs text-gray-500">
                                   Upload: {uploadProgress}%
                                 </div>
                                 <div className="w-full bg-gray-100 rounded-full h-2 mt-1">
@@ -1407,7 +1795,7 @@ function BookingDrawer({
                             )}
 
                             {uploadedUrl && (
-                              <div className="text-xs text-neutral-500 mt-2">
+                              <div className="text-xs text-gray-500 mt-2">
                                 Uploaded: {uploadedUrl}
                               </div>
                             )}
@@ -1435,11 +1823,11 @@ function BookingDrawer({
                         </div>
                       </div>
                     </div>
-                  </div>
+                  </section>
 
-                  {/* terms */}
-                  <div className="rounded-2xl overflow-hidden bg-white border border-gray-100 ring-1 ring-black/5 p-4">
-                    <label className="flex items-start gap-3">
+                  {/* Terms */}
+                  <section className={cardCls}>
+                    <label className="flex items-center gap-3">
                       <input
                         id="terms"
                         type="checkbox"
@@ -1453,23 +1841,23 @@ function BookingDrawer({
                       />
                       <div className="text-sm">
                         I agree to the{" "}
-                        <a
+                        <Link
                           href="/rental-terms.pdf"
                           target="_blank"
                           rel="noreferrer"
-                          className="underline"
+                          className="underline text-emerald-600"
                         >
                           Terms & Conditions
-                        </a>{" "}
+                        </Link>{" "}
                         and{" "}
-                        <a
+                        <Link
                           href="/privacy"
                           target="_blank"
                           rel="noreferrer"
-                          className="underline"
+                          className="underline text-emerald-600"
                         >
                           Privacy Policy
-                        </a>
+                        </Link>
                         .
                         {errors.acceptedTerms && (
                           <div className="text-xs text-red-500">
@@ -1478,9 +1866,9 @@ function BookingDrawer({
                         )}
                       </div>
                     </label>
-                  </div>
+                  </section>
 
-                  {/* desktop action row - only button (no duplicate total) */}
+                  {/* desktop action row (как в BookingEditor) */}
                   <div className="hidden sm:flex items-center justify-center gap-3">
                     <button
                       ref={lastFocusRef}
@@ -1492,36 +1880,13 @@ function BookingDrawer({
                           : "bg-black text-white"
                       }`}
                     >
-                      {submitting ? (
-                        <>
-                          <svg
-                            className="h-4 w-4 animate-spin"
-                            xmlns="http://www.w3.org/2000/svg"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                          >
-                            <circle
-                              className="opacity-25"
-                              cx="12"
-                              cy="12"
-                              r="10"
-                              stroke="currentColor"
-                              strokeWidth="4"
-                            />
-                            <path
-                              className="opacity-75"
-                              fill="currentColor"
-                              d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-                            />
-                          </svg>
-                          <span>Booking…</span>
-                        </>
-                      ) : (
-                        <>Book — {grandTotal.toFixed(0)}€</>
-                      )}
+                      {submitting
+                        ? "Booking…"
+                        : `Book — ${grandTotal.toFixed(0)}€`}
                     </button>
                   </div>
 
+                  {/* errors / hints */}
                   {!canSubmit && !submitting && (
                     <div className="mt-2 text-center text-xs text-red-500">
                       Please fill required fields and accept Terms. If you
@@ -1556,38 +1921,12 @@ function BookingDrawer({
                     : "bg-black text-white"
                 }`}
               >
-                {submitting ? (
-                  <>
-                    <svg
-                      className="h-4 w-4 animate-spin"
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                    >
-                      <circle
-                        className="opacity-25"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                      />
-                      <path
-                        className="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-                      />
-                    </svg>
-                    <span>Booking…</span>
-                  </>
-                ) : (
-                  <>Book</>
-                )}
+                {submitting ? "Booking…" : "Book"}
               </button>
             </div>
           </div>
         </div>
-      </aside>
+      </motion.aside>
     </div>
   );
 }
@@ -1885,7 +2224,6 @@ function useSyncQuery() {
       const qs = params.toString();
       const href = qs ? `${pathname}?${qs}` : pathname;
 
-      // Первично пробуем через router.replace (чтобы Next знал о навигации)
       try {
         router.replace(href);
       } catch (err) {
@@ -1897,13 +2235,7 @@ function useSyncQuery() {
         const current =
           window.location.pathname + (window.location.search || "");
         if (current !== href) {
-          console.debug("[updateQuery] fallback history.replaceState ->", {
-            from: current,
-            to: href,
-          });
           window.history.replaceState({}, "", href);
-        } else {
-          console.debug("[updateQuery] router already applied href");
         }
       }, 50);
     },
@@ -1933,17 +2265,15 @@ export function CountUp({
     const el = elRef.current;
     if (!el) return;
 
-    // ⚡️ Настраиваем rootMargin с учётом нижнего меню (например, 150px высоты)
     const observer = new IntersectionObserver(
       ([entry]) => {
-        // Запускаем только если элемент реально полностью виден
         if (entry.intersectionRatio > 0.6 && !started) {
           setStarted(true);
         }
       },
       {
         threshold: [0, 0.5, 1],
-        rootMargin: "0px 0px -50px 0px", // 🔥 ВАЖНО — отступ снизу
+        rootMargin: "0px 0px -50px 0px",
       }
     );
 
@@ -1961,7 +2291,7 @@ export function CountUp({
 
     const animate = (time: number) => {
       const progress = Math.min((time - startTime) / duration, 1);
-      const eased = 1 - Math.pow(1 - progress, 3); // easeOutCubic
+      const eased = 1 - Math.pow(1 - progress, 3);
       const current = startValue + (end - startValue) * eased;
       setValue(current);
       if (progress < 1) frame.current = requestAnimationFrame(animate);
