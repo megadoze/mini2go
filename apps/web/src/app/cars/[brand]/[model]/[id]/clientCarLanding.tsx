@@ -7,7 +7,10 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { ArrowLeftIcon } from "@heroicons/react/24/outline";
+import {
+  ArrowLeftIcon,
+  CalendarDateRangeIcon,
+} from "@heroicons/react/24/outline";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { CarWithRelations } from "@/types/carWithRelations";
 import { HeaderSection } from "@/components/header";
@@ -50,12 +53,9 @@ const GeolocateControl = dynamic(
 
 // динамический импорт AddressAutofill — тоже только на клиенте
 const AddressAutofill = dynamic(
-  () =>
-    import("@mapbox/search-js-react").then((mod) => {
-      return (mod as any).AddressAutofill ?? (mod as any).default ?? null;
-    }),
+  () => import("@mapbox/search-js-react").then((mod) => mod.AddressAutofill),
   { ssr: false }
-) as unknown as React.FC<any>;
+);
 
 import Pin from "@/components/pin"; // если у тебя есть аналог
 import { fetchAddressFromCoords } from "@/services/geo.service"; // или свой сервис
@@ -64,6 +64,7 @@ import { fetchCarExtras } from "@/services/car.service";
 import { fetchBookingsByCarId } from "@/services/calendar.service";
 import { fetchPricingRules } from "@/services/pricing.service";
 import Link from "next/link";
+import { Select } from "@mantine/core";
 
 /** Компонент получает serverCar через проп — никакого fetch внутри */
 export default function ClientCarLanding({
@@ -738,6 +739,7 @@ function BookingDrawer({
       inactive?: boolean;
     }>
   >([]);
+
   const [disabledIntervals, setDisabledIntervals] = useState<
     Array<{ start: Date; end: Date }>
   >([]);
@@ -749,6 +751,7 @@ function BookingDrawer({
   const [delivery, setDelivery] = useState<"car_address" | "by_address">(
     "car_address"
   );
+
   const [deliveryAddress, setDeliveryAddress] = useState("");
   const [deliveryLat, setDeliveryLat] = useState<number | null>(null);
   const [deliveryLong, setDeliveryLong] = useState<number | null>(null);
@@ -788,9 +791,40 @@ function BookingDrawer({
   const lastFocusRef = useRef<HTMLButtonElement | null>(null);
   const mapRef = useRef<any>(null);
 
+  // Delivery
+  type DeliveryOption = "car_address" | "by_address";
+  const deliveryEnabled = Boolean((car as any)?.isDelivery);
+
+  const deliveryOptions = useMemo(() => {
+    const opts = [
+      {
+        value: "car_address",
+        label: `Pickup at car address${
+          (car as any)?.address ? ` (${(car as any).address})` : ""
+        }`,
+      },
+    ];
+    if (deliveryEnabled || delivery === "by_address") {
+      opts.push({
+        value: "by_address",
+        label: "Delivery to customer's address",
+      });
+    }
+    return opts;
+  }, [deliveryEnabled, delivery, car]);
+
+  const mapboxToken =
+    process.env.NEXT_PUBLIC_MAPBOX_TOKEN ??
+    (typeof import.meta !== "undefined"
+      ? (import.meta as any).env?.VITE_MAPBOX_TOKEN
+      : undefined);
+
   // map view state (initial from car)
   const toNum = (v: unknown, fallback: number | null = 50.45): number | null =>
     Number.isFinite(Number(v)) ? Number(v) : fallback;
+  // const toNum = (v: unknown, fallback = 50.45) =>
+  //   Number.isFinite(Number(v as any)) ? Number(v as any) : fallback;
+
   const initialLat = toNum(car?.lat, 50.45);
   const initialLng = toNum(car?.long, 30.52);
   const [mapView, setMapView] = useState<any>({
@@ -1189,30 +1223,26 @@ function BookingDrawer({
     return parts.length ? parts.join(" ") : "0m";
   };
 
-  const computeTripProgress = (s?: string | null, e?: string | null) => {
-    if (!s || !e) return 0;
-    const ss = new Date(s).getTime();
-    const ee = new Date(e).getTime();
-    const now = Date.now();
-    if (now <= ss) return 0;
-    if (now >= ee) return 100;
-    return Math.max(
-      0,
-      Math.min(100, Math.round(((now - ss) / (ee - ss)) * 100))
-    );
-  };
+  function formatDateTimeForLabel(dt: string) {
+    if (!dt) return "—";
+    try {
+      const d = new Date(dt);
+      const dd = String(d.getDate()).padStart(2, "0");
+      const mm = String(d.getMonth() + 1).padStart(2, "0");
+      const hh = String(d.getHours()).padStart(2, "0");
+      const min = String(d.getMinutes()).padStart(2, "0");
+      return `${dd}.${mm}, ${hh}:${min}`;
+    } catch {
+      return dt;
+    }
+  }
 
-  const isBetweenNow = (s?: string | null, e?: string | null) => {
-    if (!s || !e) return false;
-    const ss = new Date(s).getTime();
-    const ee = new Date(e).getTime();
-    const now = Date.now();
-    return now >= ss && now < ee;
-  };
+  const startDate = formatDateTimeForLabel(start);
+  const endDate = formatDateTimeForLabel(end);
 
   return (
     <div
-      className={`fixed inset-0 z-999 pointer-events-none transition-all ${
+      className={`fixed inset-0 z-50 pointer-events-none transition-all ${
         open ? "opacity-100" : "opacity-0"
       }`}
       aria-hidden={!open}
@@ -1242,15 +1272,15 @@ function BookingDrawer({
       >
         <div
           ref={panelRef}
-          className="px-4 sm:px-6 h-full flex flex-col overflow-auto md:overflow-hidden"
+          className="px-4 sm:px-0 h-full flex flex-col overflow-auto md:overflow-hidden"
         >
           {/* Header */}
-          <div className="flex items-center justify-between mb-3 mt-2">
+          <div className="flex items-center justify-between md:px-4 mb-3 mt-2">
             <div className="text-lg font-semibold">Confirm booking</div>
             <div className="flex items-center">
               <button
                 onClick={onClose}
-                className="text-sm text-neutral-600 px-3 py-2 rounded-md hover:bg-neutral-100"
+                className="text-sm! text-neutral-600 px-2 py-1 border border-neutral-200 rounded-md hover:bg-neutral-100/60 cursor-pointer"
                 disabled={submitting}
               >
                 Close
@@ -1259,8 +1289,8 @@ function BookingDrawer({
           </div>
 
           <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 h-full">
-            {/* LEFT: summary ( точно как в BookingEditor ) */}
-            <div className="relative md:flex-none md:w-[360px]">
+            {/* LEFT: summary */}
+            <div className="relative md:flex-none md:w-[360px] md:pl-4">
               <div className="md:sticky md:top-6 md:space-y-4 md:max-h-[calc(100vh-6rem)]">
                 {/* Car card */}
                 <section className="rounded-2xl bg-white shadow-sm ring-1 ring-gray-200 p-4 sm:p-5">
@@ -1279,11 +1309,11 @@ function BookingDrawer({
                   </div>
 
                   <div>
-                    <p className="text-sm font-semibold text-gray-900">
+                    <p className=" font-roboto-condensed md:text-lg font-medium text-gray-900">
                       {title} {car?.year}
                     </p>
                     {car?.licensePlate ? (
-                      <p className="mt-1 inline-flex items-center rounded-md border border-gray-300 bg-gray-50 px-1.5 py-0.5 text-[10px] font-mono text-gray-700 shadow-sm ring-1 ring-white/50">
+                      <p className="mt-1 inline-flex items-center rounded-md border border-gray-300 bg-gray-50 px-1.5 py-0.5 text-xs font-mono text-gray-700 shadow-sm ring-1 ring-white/50">
                         {car.licensePlate}
                       </p>
                     ) : null}
@@ -1294,16 +1324,15 @@ function BookingDrawer({
                 <section className="mt-4 rounded-2xl bg-white shadow-sm ring-1 ring-gray-200 px-4 py-4 sm:px-5 sm:py-5">
                   <div>
                     <div className="flex flex-col">
-                      <span className="text-[11px] uppercase font-semibold tracking-wide text-gray-900">
+                      <span className="text-xs uppercase font-semibold tracking-wide text-gray-900">
                         Rental period
                       </span>
-                      <span className="text-sm font-medium text-gray-900">
-                        {start && end
-                          ? `${new Date(start).toLocaleString()} — ${new Date(
-                              end
-                            ).toLocaleString()}`
-                          : "Select start and end"}
-                      </span>
+                      <div className="flex items-center gap-1 pt-1">
+                        <CalendarDateRangeIcon className="size-4" />
+                        <span className="text-sm font-medium text-gray-900">
+                          {`${startDate} — ${endDate}`}
+                        </span>
+                      </div>
                     </div>
 
                     <div className="mt-1 text-sm text-gray-700">
@@ -1312,33 +1341,13 @@ function BookingDrawer({
                         {computeDurationPretty(start, end)}
                       </span>
                     </div>
-
-                    {isBetweenNow(start, end) && (
-                      <div className="mt-4">
-                        <div className="h-2.5 w-full overflow-hidden rounded-full border border-gray-200 bg-gray-100">
-                          <div
-                            className="h-full bg-green-500/90 transition-[width] duration-500 ease-out"
-                            style={{
-                              width: `${computeTripProgress(start, end)}%`,
-                            }}
-                            role="progressbar"
-                            aria-valuenow={computeTripProgress(start, end)}
-                            aria-valuemin={0}
-                            aria-valuemax={100}
-                          />
-                        </div>
-                        <div className="mt-1 text-right text-[11px] font-medium text-gray-700">
-                          {computeTripProgress(start, end)}%
-                        </div>
-                      </div>
-                    )}
                   </div>
                 </section>
 
                 {/* Trip summary */}
                 <section className="mt-4 rounded-2xl bg-white shadow-sm ring-1 ring-gray-200 p-4 sm:p-5 text-sm">
                   <div className="mb-4">
-                    <p className="text-[11px] uppercase tracking-wide text-gray-900 font-semibold">
+                    <p className="text-xs uppercase tracking-wide text-gray-900 font-semibold">
                       Trip summary
                     </p>
                   </div>
@@ -1395,7 +1404,7 @@ function BookingDrawer({
 
                     <div className="flex items-start justify-between text-gray-900">
                       <span>Deposit</span>
-                      <span>{car.deposit}€</span>
+                      <span>{car.deposit.toFixed(2)}€</span>
                     </div>
                   </div>
                 </section>
@@ -1404,11 +1413,11 @@ function BookingDrawer({
 
             {/* RIGHT: form */}
             <div className="flex-1">
-              <div className="h-full pb-32 pr-2 md:overflow-y-scroll">
-                <div className="space-y-4">
+              <div className="h-full pb-32 md:overflow-y-scroll">
+                <div className="space-y-4 md:pr-4">
                   {/* Options (Extras) — как в BookingEditor */}
                   <section className={cardCls}>
-                    <div className="font-semibold text-xs text-gray-900">
+                    <div className="font-semibold text-xs text-gray-900 uppercase">
                       Extras
                     </div>
                     <p className="mt-1 text-sm text-gray-500">
@@ -1422,7 +1431,7 @@ function BookingDrawer({
                         extras.map((ex) => (
                           <div
                             key={ex.id}
-                            className="flex items-start justify-between rounded-lg border border-gray-200 bg-gray-50/50 px-3 py-2 shadow-sm"
+                            className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50/50 px-3 py-2 shadow-sm"
                           >
                             <label className="flex-1 flex items-start gap-3 cursor-pointer">
                               <input
@@ -1447,8 +1456,10 @@ function BookingDrawer({
                                   {ex.title}
                                 </div>
                                 <div className="text-xs text-gray-500">
-                                  {ex.price}€
-                                  {ex.price_type === "per_day" ? " / day" : ""}
+                                  {/* {ex.price}€ */}
+                                  {ex.price_type === "per_day"
+                                    ? "(per day)"
+                                    : "(per rental)"}
                                   {ex.inactive ? " (no longer offered)" : ""}
                                 </div>
                               </div>
@@ -1465,154 +1476,221 @@ function BookingDrawer({
                     </div>
                   </section>
 
-                  {/* Delivery block (как в BookingEditor) */}
-                  <section className={cardCls}>
+                  {/* DELIVERY selector */}
+                  <section className="mt-4 rounded-2xl bg-white shadow-sm border border-gray-200 px-4 py-4 sm:px-5 sm:py-5">
+                    {/* header */}
                     <div className="flex items-start justify-between">
                       <div>
-                        <h3 className="font-semibold text-xs text-gray-900">
+                        <h2 className="text-xs font-semibold text-gray-900 uppercase">
                           Delivery
-                        </h3>
+                        </h2>
                         <p className="mt-1 text-xs text-gray-500">
-                          {delivery === "by_address"
-                            ? "Delivery to customer's address"
-                            : "Pickup at car address"}
+                          Pickup or drop-off location
                         </p>
                       </div>
+                    </div>
 
-                      <div className="flex items-center gap-4">
-                        <div className="text-sm font-semibold">
-                          {(deliveryFeeValue || 0).toFixed(2)}€
-                        </div>
+                    {/* select + fee */}
+                    <div className="mt-4 space-y-2">
+                      <Select
+                        value={delivery}
+                        onChange={async (e) => {
+                          const next =
+                            (e as "car_address" | "by_address") ??
+                            "car_address";
+                          setDelivery(next);
 
-                        <button
-                          type="button"
-                          role="switch"
-                          aria-checked={delivery === "by_address"}
-                          onClick={() =>
-                            setDelivery((d) =>
-                              d === "by_address" ? "car_address" : "by_address"
-                            )
+                          if (next === "car_address") {
+                            // reset fee when picking up at car address
+                            setDeliveryFeeValue(0);
+                            return;
                           }
-                          className="relative inline-flex h-6 w-10 items-center rounded-full focus:outline-none"
-                          disabled={isLocked}
-                        >
-                          <span
-                            aria-hidden
-                            className={`absolute inset-0 rounded-full transition-colors duration-200 ${
-                              delivery === "by_address"
-                                ? "bg-black"
-                                : "bg-gray-200"
-                            }`}
-                          />
-                          <span
-                            className={`relative inline-block h-4 w-4 ml-1 rounded-full bg-white shadow transform transition-transform duration-200 ${
-                              delivery === "by_address"
-                                ? "translate-x-4"
-                                : "translate-x-0"
-                            }`}
-                          />
-                        </button>
+
+                          // next === "by_address"
+                          if (
+                            !deliveryFeeValue &&
+                            (car as any)?.deliveryFee != null
+                          ) {
+                            setDeliveryFeeValue(
+                              Number((car as any).deliveryFee)
+                            );
+                          }
+
+                          // автоподстановка адреса/координат если пусто
+                          if (
+                            !deliveryAddress &&
+                            car?.lat != null &&
+                            car?.long != null
+                          ) {
+                            const lat = Number(car.lat);
+                            const lng = Number(car.long);
+                            setDeliveryLat(lat);
+                            setDeliveryLong(lng);
+
+                            try {
+                              const addr = await fetchAddressFromCoords(
+                                lat,
+                                lng
+                              );
+                              setDeliveryAddress(
+                                addr?.address || (car as any)?.address || ""
+                              );
+                              setDeliveryCountry(addr?.country || "");
+                              setDeliveryCity(addr?.city || "");
+                            } catch {
+                              setDeliveryAddress((car as any)?.address || "");
+                              setDeliveryCountry("");
+                              setDeliveryCity("");
+                            }
+
+                            // сдвинуть карту и плавно перелететь
+                            setMapView((prev: any) => ({
+                              ...prev,
+                              latitude: lat,
+                              longitude: lng,
+                              zoom: 13,
+                            }));
+                            try {
+                              mapRef.current?.flyTo?.({
+                                center: [lng, lat],
+                                zoom: 13,
+                                essential: true,
+                              });
+                            } catch {}
+                          }
+                        }}
+                        data={deliveryOptions}
+                        radius="md"
+                        disabled={isLocked}
+                      />
+
+                      <div className="text-[11px] text-gray-600">
+                        Delivery fee:&nbsp;
+                        <b className="text-gray-800">
+                          {(delivery === "by_address"
+                            ? deliveryFeeValue
+                            : 0
+                          ).toFixed(2)}
+                          €
+                        </b>
                       </div>
                     </div>
 
-                    <div className="mt-3 text-xs text-gray-500">
-                      If delivery is turned on, we will deliver the car to the
-                      address you enter below.
-                    </div>
-                  </section>
-
-                  {/* Map + Address (only when delivery === 'by_address') */}
-                  {delivery === "by_address" && (
-                    <div className="mt-4 space-y-4">
-                      <div className="h-60 overflow-hidden rounded-xl border border-gray-100 shadow-sm">
-                        <Map
-                          ref={mapRef}
-                          {...mapView}
-                          onMove={(e: { viewState: any }) =>
-                            setMapView(e.viewState as any)
-                          }
-                          style={{ width: "100%", height: "100%" }}
-                          mapStyle="mapbox://styles/megadoze/cldamjew5003701p5mbqrrwkc"
-                          mapboxAccessToken={
-                            process.env.NEXT_PUBLIC_MAPBOX_TOKEN ??
-                            (typeof import.meta !== "undefined"
-                              ? (import.meta as any).env?.VITE_MAPBOX_TOKEN
-                              : undefined)
-                          }
-                          interactive={!isLocked}
-                        >
-                          <Marker
-                            longitude={deliveryLong ?? car?.long ?? initialLng}
-                            latitude={deliveryLat ?? car?.lat ?? initialLat}
-                            draggable={!isLocked}
-                            onDragEnd={async (e: {
-                              lngLat: { lat: any; lng: any };
-                            }) => {
-                              const { lat, lng } = e.lngLat;
-                              setDeliveryLat(lat);
-                              setDeliveryLong(lng);
-                              setMapView((prev: any) => ({
-                                ...prev,
-                                latitude: lat,
-                                longitude: lng,
-                                zoom: Math.max(prev.zoom ?? 12, 13),
-                              }));
-                              try {
-                                const addr = await fetchAddressFromCoords(
-                                  lat,
-                                  lng
-                                );
-                                if (addr) {
-                                  setDeliveryAddress(addr.address || "");
-                                  setDeliveryCountry(addr.country || "");
-                                  setDeliveryCity(addr.city || "");
-                                }
-                              } catch {}
-                            }}
+                    {/* map + address only if delivery by_address */}
+                    {delivery === "by_address" && (
+                      <div
+                        className={`mt-4 space-y-4 ${
+                          isLocked ? "opacity-60" : ""
+                        }`}
+                      >
+                        {/* MAP CARD */}
+                        <div className="h-60 overflow-hidden rounded-xl border border-gray-100 shadow-sm ring-1 ring-gray-100">
+                          <Map
+                            ref={mapRef}
+                            {...mapView}
+                            onMove={(e: any) => setMapView(e.viewState)}
+                            style={{ width: "100%", height: "100%" }}
+                            mapStyle="mapbox://styles/megadoze/cldamjew5003701p5mbqrrwkc"
+                            mapboxAccessToken={mapboxToken}
+                            interactive={!isLocked}
                           >
-                            <Pin />
-                          </Marker>
+                            <Marker
+                              longitude={
+                                deliveryLong ?? car?.long ?? initialLng
+                              }
+                              latitude={deliveryLat ?? car?.lat ?? initialLat}
+                              draggable={!isLocked}
+                              onDragEnd={async (e: any) => {
+                                const { lat, lng } = e.lngLat;
+                                setDeliveryLat(lat);
+                                setDeliveryLong(lng);
+                                setMapView((prev: any) => ({
+                                  ...prev,
+                                  latitude: lat,
+                                  longitude: lng,
+                                  zoom: Math.max(prev.zoom ?? 12, 13),
+                                }));
 
-                          <GeolocateControl
-                            trackUserLocation
-                            showUserHeading
-                            onGeolocate={async (pos: { coords: { latitude: any; longitude: any; }; }) => {
-                              if (isLocked) return;
-                              const lat = pos.coords.latitude;
-                              const lng = pos.coords.longitude;
-                              setDeliveryLat(lat);
-                              setDeliveryLong(lng);
-                              setMapView((prev: any) => ({
-                                ...prev,
-                                latitude: lat,
-                                longitude: lng,
-                                zoom: Math.max(prev.zoom ?? 12, 13),
-                              }));
-                              try {
-                                const addr = await fetchAddressFromCoords(
-                                  lat,
-                                  lng
-                                );
-                                if (addr) {
-                                  setDeliveryAddress(addr.address || "");
-                                  setDeliveryCountry(addr.country || "");
-                                  setDeliveryCity(addr.city || "");
+                                try {
+                                  const addr = await fetchAddressFromCoords(
+                                    lat,
+                                    lng
+                                  );
+                                  if (addr) {
+                                    setDeliveryAddress(addr.address || "");
+                                    setDeliveryCountry(addr.country || "");
+                                    setDeliveryCity(addr.city || "");
+                                  }
+                                } catch {}
+                              }}
+                            >
+                              <Pin />
+                            </Marker>
+
+                            <GeolocateControl
+                              trackUserLocation
+                              showUserHeading
+                              onGeolocate={async (pos: any) => {
+                                if (isLocked) return;
+                                const lat = pos.coords.latitude;
+                                const lng = pos.coords.longitude;
+                                setDeliveryLat(lat);
+                                setDeliveryLong(lng);
+                                setMapView((prev: any) => ({
+                                  ...prev,
+                                  latitude: lat,
+                                  longitude: lng,
+                                  zoom: Math.max(prev.zoom ?? 12, 13),
+                                }));
+                                try {
+                                  const addr = await fetchAddressFromCoords(
+                                    lat,
+                                    lng
+                                  );
+                                  if (addr) {
+                                    setDeliveryAddress(addr.address || "");
+                                    setDeliveryCountry(addr.country || "");
+                                    setDeliveryCity(addr.city || "");
+                                  }
+                                } catch {}
+                                try {
+                                  mapRef.current?.flyTo?.({
+                                    center: [lng, lat],
+                                    zoom: Math.max(mapView.zoom ?? 13, 13),
+                                    essential: true,
+                                  });
+                                } catch {}
+                              }}
+                            />
+
+                            <NavigationControl />
+                            <ScaleControl />
+                            <FullscreenControl />
+                          </Map>
+                        </div>
+
+                        {/* ADDRESS INPUT + meta */}
+                        <div className="space-y-2">
+                          {mapboxToken ? (
+                            <AddressAutofill
+                              accessToken={mapboxToken}
+                              onRetrieve={onAddressRetrieve}
+                            >
+                              <input
+                                name="delivery-address"
+                                id="delivery-address"
+                                type="text"
+                                value={deliveryAddress}
+                                onChange={(e) =>
+                                  setDeliveryAddress(e.target.value)
                                 }
-                              } catch {}
-                            }}
-                          />
-
-                          <NavigationControl />
-                          <ScaleControl />
-                          <FullscreenControl />
-                        </Map>
-
-                        {/* Address input */}
-                        <div className="mt-3">
-                          <AddressAutofill
-                            accessToken={process.env.NEXT_PUBLIC_MAPBOX_TOKEN}
-                            onRetrieve={onAddressRetrieve}
-                          >
+                                placeholder="Enter delivery address"
+                                autoComplete="address-line1"
+                                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm! text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-gray-600 focus:outline-none"
+                                disabled={isLocked}
+                              />
+                            </AddressAutofill>
+                          ) : (
                             <input
                               name="delivery-address"
                               id="delivery-address"
@@ -1626,7 +1704,7 @@ function BookingDrawer({
                               className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-gray-600 focus:outline-none"
                               disabled={isLocked}
                             />
-                          </AddressAutofill>
+                          )}
 
                           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-600 pt-2">
                             <p>
@@ -1650,12 +1728,12 @@ function BookingDrawer({
                           )}
                         </div>
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </section>
 
-                  {/* Driver card (как в BookingEditor) */}
+                  {/* Driver card */}
                   <section className={cardCls}>
-                    <div className="font-semibold text-xs text-gray-900">
+                    <div className="font-semibold text-xs text-gray-900 uppercase">
                       Driver
                     </div>
                     <div className="mt-3 grid grid-cols-1 gap-3">
@@ -1663,8 +1741,8 @@ function BookingDrawer({
                         ref={firstFocusRef}
                         value={driverName}
                         onChange={(e) => setDriverName(e.target.value)}
-                        placeholder="Full name"
-                        className={`w-full rounded-md border border-gray-300 px-3 py-2 ${
+                        placeholder="Full name *"
+                        className={`w-full rounded-md border border-gray-300 px-3 py-2 outline-emerald-200 ${
                           errors.driverName ? "ring-1 ring-red-400" : ""
                         }`}
                       />
@@ -1680,7 +1758,7 @@ function BookingDrawer({
                             onChange={(e) =>
                               setDriverDob(e.target.value || null)
                             }
-                            className="w-full rounded-md border border-gray-300  px-3 py-2"
+                            className="w-full rounded-md border border-gray-300 px-3 py-2 outline-emerald-200 "
                           />
                         </div>
                         <div>
@@ -1693,7 +1771,7 @@ function BookingDrawer({
                             onChange={(e) =>
                               setDriverLicenseExpiry(e.target.value || null)
                             }
-                            className="w-full rounded-md border border-gray-300  px-3 py-2"
+                            className="w-full rounded-md border border-gray-300 px-3 py-2 outline-emerald-200"
                           />
                         </div>
                       </div>
@@ -1702,7 +1780,7 @@ function BookingDrawer({
                         value={driverLicense}
                         onChange={(e) => setDriverLicense(e.target.value)}
                         placeholder="Driver license number *"
-                        className={`w-full rounded-md border border-gray-300  px-3 py-2 ${
+                        className={`w-full rounded-md border border-gray-300  px-3 py-2 outline-emerald-200 ${
                           errors.driverLicense ? "ring-1 ring-red-400" : ""
                         }`}
                       />
@@ -1712,7 +1790,7 @@ function BookingDrawer({
                           value={driverPhone}
                           onChange={(e) => setDriverPhone(e.target.value)}
                           placeholder="Phone *"
-                          className={`w-full rounded-md border border-gray-300  px-3 py-2 ${
+                          className={`w-full rounded-md border border-gray-300 px-3 py-2 outline-emerald-200 ${
                             errors.driverPhone ? "ring-1 ring-red-400" : ""
                           }`}
                         />
@@ -1721,7 +1799,7 @@ function BookingDrawer({
                           onChange={(e) => setDriverEmail(e.target.value)}
                           placeholder="Email *"
                           type="email"
-                          className={`w-full rounded-md border border-gray-300  px-3 py-2 ${
+                          className={`w-full rounded-md border border-gray-300 px-3 py-2 outline-emerald-200 ${
                             errors.driverEmail ? "ring-1 ring-red-400" : ""
                           }`}
                         />
@@ -1824,7 +1902,6 @@ function BookingDrawer({
                       </div>
                     </div>
                   </section>
-
                   {/* Terms */}
                   <section className={cardCls}>
                     <label className="flex items-center gap-3">
@@ -1845,7 +1922,7 @@ function BookingDrawer({
                           href="/rental-terms.pdf"
                           target="_blank"
                           rel="noreferrer"
-                          className="underline text-emerald-600"
+                          className="underline text-emerald-500"
                         >
                           Terms & Conditions
                         </Link>{" "}
@@ -1854,7 +1931,7 @@ function BookingDrawer({
                           href="/privacy"
                           target="_blank"
                           rel="noreferrer"
-                          className="underline text-emerald-600"
+                          className="underline text-emerald-500"
                         >
                           Privacy Policy
                         </Link>
@@ -1867,14 +1944,13 @@ function BookingDrawer({
                       </div>
                     </label>
                   </section>
-
                   {/* desktop action row (как в BookingEditor) */}
                   <div className="hidden sm:flex items-center justify-center gap-3">
                     <button
                       ref={lastFocusRef}
                       onClick={handleConfirm}
                       disabled={!canSubmit || submitting}
-                      className={`rounded-xl py-3 px-5 font-medium transition-all flex items-center justify-center gap-3 w-full ${
+                      className={`rounded-xl py-3 px-5 font-medium transition-all flex items-center justify-center gap-3 w-full cursor-pointer ${
                         !canSubmit || submitting
                           ? "bg-gray-100 text-gray-800 cursor-not-allowed"
                           : "bg-black text-white"
@@ -1885,7 +1961,6 @@ function BookingDrawer({
                         : `Book — ${grandTotal.toFixed(0)}€`}
                     </button>
                   </div>
-
                   {/* errors / hints */}
                   {!canSubmit && !submitting && (
                     <div className="mt-2 text-center text-xs text-red-500">
@@ -1906,22 +1981,17 @@ function BookingDrawer({
           {/* MOBILE sticky bar */}
           <div className="sm:hidden fixed left-0 right-0 bottom-0 z-50 border-gray-100 bg-white border-t p-3">
             <div className="mx-auto max-w-3xl flex items-center justify-between gap-3 font-roboto-condensed">
-              <div>
-                <div className="text-xs text-neutral-500">Total</div>
-                <div className="text-xl font-semibold">
-                  {grandTotal.toFixed(0)}€
-                </div>
-              </div>
               <button
+                ref={lastFocusRef}
                 onClick={handleConfirm}
                 disabled={!canSubmit || submitting}
-                className={`ml-2 rounded-xl py-2 px-4 font-medium transition-all flex items-center gap-2 ${
+                className={`rounded-xl py-3 px-5 font-medium transition-all flex items-center justify-center gap-3 w-full cursor-pointer ${
                   !canSubmit || submitting
                     ? "bg-gray-100 text-gray-800 cursor-not-allowed"
                     : "bg-black text-white"
                 }`}
               >
-                {submitting ? "Booking…" : "Book"}
+                {submitting ? "Booking…" : `Book — ${grandTotal.toFixed(0)}€`}
               </button>
             </div>
           </div>

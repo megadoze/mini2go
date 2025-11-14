@@ -1578,6 +1578,7 @@ function formatDateTimeForLabel(dt: string) {
     return dt;
   }
 }
+
 function useSyncQuery() {
   const router = useRouter();
   const pathname = usePathname();
