@@ -1,4 +1,3 @@
-// <тот же импорт, без изменений>
 import React, { useMemo, useState, useEffect } from "react";
 import {
   addDays,
@@ -35,14 +34,22 @@ export type DisabledInterval = { start: Date; end: Date };
 export type RentalDateTimePickerProps = {
   value: DateRange;
   onChange: (next: DateRange) => void;
-  minuteStep?: 5 | 10 | 15 | 20 | 30 | 60; // default 30
-  minDate?: Date; // earliest selectable date
-  maxDate?: Date; // latest selectable date
-  disabledIntervals?: DisabledInterval[]; // booked/blocked ranges
-  initialMonth?: Date; // month to show at mount
-  locale?: Locale; // date-fns locale, defaults ru
+  minuteStep?: 5 | 10 | 15 | 20 | 30 | 60;
+  minDate?: Date;
+  maxDate?: Date;
+  disabledIntervals?: DisabledInterval[];
+  initialMonth?: Date;
+  locale?: Locale;
   className?: string;
   mobileStartOpen?: boolean;
+
+  /** НОВОЕ: рабочее время в минутах от 00:00 */
+  openTimeMinutes?: number; // например 480 для 08:00
+  closeTimeMinutes?: number; // например 1230 для 20:30
+
+  /** НОВОЕ: минимальный и максимальный срок аренды (в днях) */
+  minRentDays?: number;
+  maxRentDays?: number;
 };
 
 function roundUpToStep(d: Date, step: number) {
@@ -65,36 +72,46 @@ function isDateDisabled(d: Date, minDate?: Date, maxDate?: Date) {
   return false;
 }
 
-function isInDisabledIntervals(d: Date, intervals: DisabledInterval[] = []) {
-  return intervals.some((iv) => {
-    return d >= iv.start && d <= iv.end;
-  });
-}
-
 function overlaps(aStart: Date, aEnd: Date, bStart: Date, bEnd: Date) {
-  return aStart <= bEnd && bStart <= aEnd; // это норм для времени
+  // строгое пересечение: касание концов НЕ считается пересечением
+  return aStart < bEnd && bStart < aEnd;
 }
 
-function firstBlockingIntervalBetween(
-  a: Date,
-  b: Date,
-  intervals: DisabledInterval[]
-) {
-  const s = a < b ? a : b;
-  const e = a < b ? b : a;
-  let found: { start: Date; end: Date } | null = null;
+// вернуть все блокировки, которые пересекают указанный день (startOfDay..endOfDay)
+function intervalsForDay(day: Date, intervals: DisabledInterval[] = []) {
+  const s = startOfDay(day);
+  const e = endOfDay(day);
+  return intervals.filter((iv) => overlaps(s, e, iv.start, iv.end));
+}
 
+// найти ближайшую блокировку слева (то есть с end < dayEnd), возвращает самую правую такую
+function nearestLeftInterval(day: Date, intervals: DisabledInterval[] = []) {
+  const dayStart = startOfDay(day);
+  let cand: DisabledInterval | null = null;
   for (const iv of intervals) {
-    const ivS = iv.start;
-    const ivE = iv.end;
-    if (overlaps(s, e, ivS, ivE)) {
-      // берём самую раннюю блокировку
-      if (!found || ivS < found.start) {
-        found = { start: ivS, end: ivE };
-      }
+    if (iv.end.getTime() <= dayStart.getTime()) {
+      if (!cand || iv.end.getTime() > cand.end.getTime()) cand = iv;
     }
   }
-  return found;
+  return cand;
+}
+
+// найти ближайшую блокировку справа (то есть с start > dayStart), возвращает самую левую такую
+function nearestRightInterval(day: Date, intervals: DisabledInterval[] = []) {
+  const dayEnd = endOfDay(day);
+  let cand: DisabledInterval | null = null;
+  for (const iv of intervals) {
+    if (iv.start.getTime() >= dayEnd.getTime()) {
+      if (!cand || iv.start.getTime() < cand.start.getTime()) cand = iv;
+    }
+  }
+  return cand;
+}
+
+// конвертация времени в индекс (0..timeStepsPerDay-1) — у тебя уже есть timeToIdx / idxToTime,
+// но для границ может пригодиться функция clampIndexFromTime
+function timeToIdxClamped(d: Date, step: number, stepsPerDay: number) {
+  return Math.min(stepsPerDay - 1, Math.max(0, timeToIdx(d, step)));
 }
 
 function idxToTime(base: Date, idx: number, step: number) {
@@ -111,6 +128,165 @@ function timeToIdx(d: Date, step: number) {
   return Math.floor(minutes / step);
 }
 
+function buildTimeOnDay(day: Date, totalMinutes: number) {
+  const h = Math.floor(totalMinutes / 60);
+  const m = totalMinutes % 60;
+  const withH = setHours(startOfDay(day), h);
+  return setMinutes(withH, m);
+}
+
+function formatDayHint(
+  kind: "start" | "end",
+  day: Date | null,
+  intervals: DisabledInterval[] = [],
+  openTimeMinutes?: number,
+  closeTimeMinutes?: number,
+  minuteStep: number = 30,
+  locale?: Locale
+) {
+  if (!day) return "";
+
+  // рабочее окно на этот день
+  const workStart =
+    typeof openTimeMinutes === "number"
+      ? buildTimeOnDay(day, openTimeMinutes)
+      : startOfDay(day);
+
+  const workEnd =
+    typeof closeTimeMinutes === "number"
+      ? buildTimeOnDay(day, closeTimeMinutes)
+      : endOfDay(day);
+
+  // все блокировки в этот день
+  const sameDayIntervals = intervalsForDay(day, intervals);
+
+  // если нет блокировок — весь рабочий день свободен
+  if (sameDayIntervals.length === 0) {
+    const fromStr = format(workStart, "HH:mm", { locale });
+    const toStr = format(workEnd, "HH:mm", { locale });
+
+    return kind === "start"
+      ? `Можно забрать с ${fromStr} до ${toStr}`
+      : `Можно вернуть с ${fromStr} до ${toStr}`;
+  }
+
+  // найдём минимальное начало и максимальный конец брони в этот день
+  let earliestStart = sameDayIntervals[0].start;
+  let latestEnd = sameDayIntervals[0].end;
+
+  for (const iv of sameDayIntervals) {
+    if (iv.start < earliestStart) earliestStart = iv.start;
+    if (iv.end > latestEnd) latestEnd = iv.end;
+  }
+
+  if (kind === "start") {
+    // для старта важно: когда освободится после последней брони
+    const from = latestEnd > workStart ? latestEnd : workStart;
+
+    if (from >= workEnd) {
+      return "В этот день нет свободного времени для начала аренды";
+    }
+
+    const fromStr = format(from, "HH:mm", { locale });
+    const toStr = format(workEnd, "HH:mm", { locale });
+
+    return `Можно забрать с ${fromStr} до ${toStr}`;
+  } else {
+    // для окончания важно: до первой брони в этот день
+    const to = earliestStart < workEnd ? earliestStart : workEnd;
+
+    if (to <= workStart) {
+      return "В этот день нет свободного времени для окончания аренды";
+    }
+
+    const fromStr = format(workStart, "HH:mm", { locale });
+    const toStr = format(to, "HH:mm", { locale });
+
+    return `Можно вернуть с ${fromStr} до ${toStr}`;
+  }
+}
+
+// есть ли на дне свободное окно между open/close, не попадающее в блокировки
+function isDayFullyBlocked(
+  day: Date,
+  intervals: DisabledInterval[] = [],
+  openTimeMinutes?: number,
+  closeTimeMinutes?: number,
+  minuteStep: number = 30
+) {
+  // 🔥 НОВОЕ: если это сегодня и время уже позже окончания бронирования — день считаем полностью заблокированным
+  if (typeof closeTimeMinutes === "number" && isSameDay(day, new Date())) {
+    const now = new Date();
+    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+
+    if (nowMinutes >= closeTimeMinutes) {
+      return true;
+    }
+  }
+
+  const workStart =
+    typeof openTimeMinutes === "number"
+      ? buildTimeOnDay(day, openTimeMinutes)
+      : startOfDay(day);
+
+  const workEnd =
+    typeof closeTimeMinutes === "number"
+      ? buildTimeOnDay(day, closeTimeMinutes)
+      : endOfDay(day);
+
+  if (workEnd <= workStart) return false; // некорректный диапазон — считаем, что день не полностью забит
+
+  // пересечения блокировок с рабочим временем
+  const overlapsInWork = intervals
+    .map((iv) => {
+      const s = iv.start > workStart ? iv.start : workStart;
+      const e = iv.end < workEnd ? iv.end : workEnd;
+      if (e <= s) return null;
+      return { start: s, end: e };
+    })
+    .filter(Boolean) as DisabledInterval[];
+
+  if (overlapsInWork.length === 0) return false; // вообще нет блокировок в рабочее время — точно не полностью забит
+
+  // мержим блокировки
+  const sorted = overlapsInWork.sort(
+    (a, b) => a.start.getTime() - b.start.getTime()
+  );
+  const merged: DisabledInterval[] = [];
+  for (const iv of sorted) {
+    if (!merged.length) {
+      merged.push({ ...iv });
+    } else {
+      const last = merged[merged.length - 1];
+      if (iv.start <= last.end) {
+        if (iv.end > last.end) last.end = iv.end;
+      } else {
+        merged.push({ ...iv });
+      }
+    }
+  }
+
+  // ищем свободное окно длиной хотя бы minuteStep
+  const minFreeMs = minuteStep * 60_000;
+  let cursor = workStart;
+
+  for (const iv of merged) {
+    if (iv.start.getTime() - cursor.getTime() >= minFreeMs) {
+      // есть «дырка» между cursor и iv.start
+      return false; // значит день НЕ полностью заблокирован
+    }
+    if (iv.end > cursor) cursor = iv.end;
+  }
+
+  // проверяем хвост после последней блокировки
+  if (workEnd.getTime() - cursor.getTime() >= minFreeMs) {
+    return false;
+  }
+
+  // свободного окна нет — день полностью заблокирован
+  return true;
+}
+
 export default function RentalDateTimePicker({
   value,
   onChange,
@@ -122,6 +298,10 @@ export default function RentalDateTimePicker({
   locale,
   className,
   mobileStartOpen,
+  openTimeMinutes,
+  closeTimeMinutes,
+  minRentDays,
+  maxRentDays,
 }: RentalDateTimePickerProps) {
   const today = startOfDay(new Date());
   const effectiveMinDate = minDate ?? today;
@@ -167,85 +347,238 @@ export default function RentalDateTimePicker({
 
   function handleDayClick(day: Date) {
     if (isDateDisabled(day, effectiveMinDate, maxDate)) return;
-    if (isInDisabledIntervals(day, disabledIntervals)) return;
 
-    const { startAt, endAt } = tempRange;
-
-    // default time to use for end if startAt absent
-    const defaultHour = 10;
-    const defaultMinute = 0;
-
-    // 1) Начинаем новый диапазон
-    if (!startAt || (startAt && endAt)) {
-      let nextStart = day;
-
-      // переносим часы из предыдущего value.startAt (если был)
-      if (value.startAt) {
-        const h = value.startAt.getHours();
-        const m = value.startAt.getMinutes();
-        nextStart = setMinutes(setHours(day, h), m);
-      } else if (isSameDay(day, new Date())) {
-        // если клик по сегодняшнему дню — не раньше «сейчас» по шагу
-        nextStart = roundUpToStep(new Date(), minuteStep);
-      } else {
-        // для даты в будущем без существующего time — ставим локальную default (10:00)
-        nextStart = setMinutes(setHours(day, defaultHour), defaultMinute);
-      }
-
-      setTempRange({ startAt: nextStart, endAt: null });
+    // день кликается только если в рабочем окне open/close есть свободное окно
+    if (
+      isDayFullyBlocked(
+        day,
+        disabledIntervals,
+        openTimeMinutes,
+        closeTimeMinutes,
+        minuteStep
+      )
+    ) {
       return;
     }
 
-    // 2) Выбираем конец
-    // determine which time to apply to end:
-    let endHour = defaultHour;
-    let endMinute = defaultMinute;
-    if (tempRange.startAt) {
-      endHour = tempRange.startAt.getHours();
-      endMinute = tempRange.startAt.getMinutes();
-    } else if (value.startAt) {
-      endHour = value.startAt.getHours();
-      endMinute = value.startAt.getMinutes();
+    const { startAt, endAt } = tempRange;
+
+    // базовое время по умолчанию
+    const defaultHour =
+      typeof openTimeMinutes === "number"
+        ? Math.floor(openTimeMinutes / 60)
+        : 10;
+
+    const defaultMinute =
+      typeof openTimeMinutes === "number" ? openTimeMinutes % 60 : 0;
+
+    // рабочее окно для произвольного дня
+    const getWorkBoundsForDay = (d: Date) => {
+      const workStart =
+        typeof openTimeMinutes === "number"
+          ? buildTimeOnDay(d, openTimeMinutes)
+          : startOfDay(d);
+
+      const workEnd =
+        typeof closeTimeMinutes === "number"
+          ? buildTimeOnDay(d, closeTimeMinutes)
+          : endOfDay(d);
+
+      return { workStart, workEnd };
+    };
+
+    // --- 1) ПЕРВЫЙ КЛИК — ВЫБОР СТАРТА ---
+    if (!startAt || (startAt && endAt)) {
+      let candidate: Date;
+
+      if (value.startAt) {
+        const h = value.startAt.getHours();
+        const m = value.startAt.getMinutes();
+        candidate = setMinutes(setHours(day, h), m);
+      } else if (isSameDay(day, new Date())) {
+        candidate = roundUpToStep(new Date(), minuteStep);
+      } else {
+        candidate = setMinutes(setHours(day, defaultHour), defaultMinute);
+      }
+
+      const { workStart, workEnd } = getWorkBoundsForDay(day);
+      const sameDayIntervals = intervalsForDay(day, disabledIntervals);
+
+      if (sameDayIntervals.length > 0) {
+        // есть частичные блокировки — стартуем после последней
+        let latestEnd = sameDayIntervals[0].end;
+        for (const iv of sameDayIntervals) {
+          if (iv.end > latestEnd) latestEnd = iv.end;
+        }
+
+        let from = latestEnd > workStart ? latestEnd : workStart;
+
+        if (isSameDay(day, new Date())) {
+          const nowStep = roundUpToStep(new Date(), minuteStep);
+          if (nowStep > from) from = nowStep;
+        }
+
+        candidate = roundUpToStep(from, minuteStep);
+      } else {
+        // без блокировок — в пределах рабочего окна + «не раньше сейчас»
+        if (candidate < workStart) candidate = workStart;
+
+        if (isSameDay(day, new Date())) {
+          const nowStep = roundUpToStep(new Date(), minuteStep);
+          if (candidate < nowStep) candidate = nowStep;
+        }
+
+        candidate = roundUpToStep(candidate, minuteStep);
+      }
+
+      // защита от ухода за конец рабочего дня
+      if (candidate >= workEnd) {
+        candidate = new Date(workEnd.getTime() - minuteStep * 60_000);
+      }
+
+      setTempRange({ startAt: candidate, endAt: null });
+      return;
     }
 
-    // helper to create day with chosen hour/minutes
-    const dayWithTime = (srcDay: Date) =>
-      setMinutes(setHours(srcDay, endHour), endMinute);
+    // --- 2) ВТОРОЙ КЛИК — ВЫБОР КОНЦА ---
+    const baseTime = tempRange.startAt ?? value.startAt ?? new Date();
+    const baseHour = baseTime.getHours();
+    const baseMinute = baseTime.getMinutes();
 
-    if (isBefore(day, startOfDay(startAt))) {
-      // Клик назад относительно старта
-      const block = firstBlockingIntervalBetween(
-        day,
-        startAt,
-        disabledIntervals
-      );
-      if (block) {
-        const clampedStartRaw = new Date(block.end.getTime() + 1);
-        // preserve time from clampedStartRaw but ensure it matches chosen hour/minute
-        const clampedStart = dayWithTime(clampedStartRaw);
-        setTempRange({ startAt: clampedStart, endAt: dayWithTime(startAt) });
+    const withBaseTime = (d: Date) =>
+      setMinutes(setHours(d, baseHour), baseMinute);
+
+    const startDay = startOfDay(startAt);
+    const clickDay = startOfDay(day);
+
+    // если кликнули ЛЕВЕЕ старта — считаем, что это новый старт
+    if (isBefore(clickDay, startDay)) {
+      const newStart = withBaseTime(clickDay);
+
+      const { workStart, workEnd } = getWorkBoundsForDay(clickDay);
+      const sameDayIntervals = intervalsForDay(clickDay, disabledIntervals);
+      let candidate = newStart;
+
+      if (sameDayIntervals.length > 0) {
+        let latestEnd = sameDayIntervals[0].end;
+        for (const iv of sameDayIntervals) {
+          if (iv.end > latestEnd) latestEnd = iv.end;
+        }
+        let from = latestEnd > workStart ? latestEnd : workStart;
+
+        if (isSameDay(clickDay, new Date())) {
+          const nowStep = roundUpToStep(new Date(), minuteStep);
+          if (nowStep > from) from = nowStep;
+        }
+
+        candidate = roundUpToStep(from, minuteStep);
       } else {
-        setTempRange({
-          startAt: dayWithTime(day),
-          endAt: dayWithTime(startAt),
-        });
+        if (candidate < workStart) candidate = workStart;
+        if (isSameDay(clickDay, new Date())) {
+          const nowStep = roundUpToStep(new Date(), minuteStep);
+          if (candidate < nowStep) candidate = nowStep;
+        }
+        candidate = roundUpToStep(candidate, minuteStep);
       }
+
+      if (candidate >= workEnd) {
+        candidate = new Date(workEnd.getTime() - minuteStep * 60_000);
+      }
+
+      setTempRange({ startAt: candidate, endAt: null });
+      return;
+    }
+
+    // здесь гарантированно clickDay >= startDay, идём только вперёд
+    let fromDay = startDay;
+    let toDay = clickDay;
+
+    // ищем первый полностью заблокированный день между fromDay и toDay
+    let limitDay = toDay;
+    for (let d = addDays(fromDay, 1); !isAfter(d, toDay); d = addDays(d, 1)) {
+      if (
+        isDayFullyBlocked(
+          d,
+          disabledIntervals,
+          openTimeMinutes,
+          closeTimeMinutes,
+          minuteStep
+        )
+      ) {
+        limitDay = addDays(d, -1); // обрываемся на день до блокировки
+        break;
+      }
+    }
+
+    if (isBefore(limitDay, fromDay)) {
+      return;
+    }
+
+    const finalStart = withBaseTime(fromDay);
+
+    // --- НОВОЕ: двигаем КОНЕЧНОЕ время в доступное окно, если день частично занят ---
+    const { workStart: endWorkStart, workEnd: endWorkEnd } =
+      getWorkBoundsForDay(limitDay);
+    const sameDayEndIntervals = intervalsForDay(limitDay, disabledIntervals);
+
+    let finalEnd = withBaseTime(limitDay);
+
+    if (sameDayEndIntervals.length > 0) {
+      // для конца важно: ДО первой брони
+      let earliestStart = sameDayEndIntervals[0].start;
+      for (const iv of sameDayEndIntervals) {
+        if (iv.start < earliestStart) earliestStart = iv.start;
+      }
+
+      let to = earliestStart < endWorkEnd ? earliestStart : endWorkEnd;
+
+      // clamp по рабочему дню
+      if (finalEnd > to) finalEnd = to;
+      if (finalEnd < endWorkStart) finalEnd = endWorkStart;
+
+      // не раньше старта
+      if (finalEnd < finalStart) finalEnd = finalStart;
+
+      // не в прошлом для сегодняшнего дня
+      if (isSameDay(limitDay, new Date())) {
+        const nowStep = roundUpToStep(new Date(), minuteStep);
+        if (finalEnd < nowStep) finalEnd = nowStep;
+      }
+
+      // привязка к шагу вниз (чтобы не улететь за to)
+      const idx = timeToIdx(finalEnd, minuteStep);
+      finalEnd = idxToTime(limitDay, idx, minuteStep);
     } else {
-      // Клик вперёд
-      const block = firstBlockingIntervalBetween(
-        startAt,
-        day,
-        disabledIntervals
-      );
-      if (block) {
-        const clampedEndRaw = new Date(block.start.getTime() - 1);
-        const clampedEnd = dayWithTime(clampedEndRaw);
-        setTempRange({ startAt: startAt, endAt: clampedEnd });
-      } else {
-        setTempRange({ startAt, endAt: dayWithTime(day) });
+      // день без блокировок, но всё равно уважаем рабочие границы и старт
+      if (finalEnd < endWorkStart) finalEnd = endWorkStart;
+      if (finalEnd > endWorkEnd) finalEnd = endWorkEnd;
+      if (finalEnd < finalStart) finalEnd = finalStart;
+
+      if (isSameDay(limitDay, new Date())) {
+        const nowStep = roundUpToStep(new Date(), minuteStep);
+        if (finalEnd < nowStep) finalEnd = nowStep;
       }
+
+      const idx = timeToIdx(finalEnd, minuteStep);
+      finalEnd = idxToTime(limitDay, idx, minuteStep);
     }
+
+    setTempRange({ startAt: finalStart, endAt: finalEnd });
   }
+
+  const oneDayMs = 24 * 60 * 60 * 1000;
+
+  const hasFullRange = !!(tempRange.startAt && tempRange.endAt);
+
+  const rentDurationDays =
+    hasFullRange && tempRange.startAt && tempRange.endAt
+      ? (tempRange.endAt.getTime() - tempRange.startAt.getTime()) / oneDayMs
+      : 0;
+
+  const violatesMinMax =
+    hasFullRange &&
+    ((typeof minRentDays === "number" && rentDurationDays < minRentDays) ||
+      (typeof maxRentDays === "number" && rentDurationDays > maxRentDays));
 
   function commit(next?: DateRange) {
     const nowStep = roundUpToStep(new Date(), minuteStep);
@@ -260,28 +593,196 @@ export default function RentalDateTimePicker({
   // --- Time slider helpers
   const timeStepsPerDay = Math.floor((24 * 60) / minuteStep);
 
-  const startIdx = useMemo(() => {
-    if (!tempRange.startAt) return 20; // 10:00 default
+  // индексы (0..steps-1), соответствующие open/close
+  const dayOpenIdx = useMemo(() => {
+    if (typeof openTimeMinutes !== "number") return 0;
     return Math.min(
+      timeStepsPerDay - 1,
+      Math.max(0, Math.floor(openTimeMinutes / minuteStep))
+    );
+  }, [openTimeMinutes, minuteStep, timeStepsPerDay]);
+
+  const dayCloseIdx = useMemo(() => {
+    if (typeof closeTimeMinutes !== "number") return timeStepsPerDay - 1;
+    // closeTime — момент закрытия, поэтому берём последний индекс, попадающий < closeTime
+    return Math.min(
+      timeStepsPerDay - 1,
+      Math.max(0, Math.ceil(closeTimeMinutes / minuteStep) - 1)
+    );
+  }, [closeTimeMinutes, minuteStep, timeStepsPerDay]);
+
+  const { startAt, endAt } = tempRange;
+
+  const allowedTimeBounds = useMemo(() => {
+    const steps = timeStepsPerDay;
+
+    let startMin = dayOpenIdx;
+    let startMax = dayCloseIdx;
+    let endMin = dayOpenIdx;
+    let endMax = dayCloseIdx;
+
+    if (startAt) {
+      const day = startAt;
+      const left = nearestLeftInterval(day, disabledIntervals);
+      const right = nearestRightInterval(day, disabledIntervals);
+
+      if (left) {
+        const allowedFrom = new Date(left.end.getTime() + 60_000);
+        if (isSameDay(allowedFrom, day)) {
+          startMin = Math.max(
+            startMin,
+            timeToIdxClamped(allowedFrom, minuteStep, steps)
+          );
+        }
+      }
+
+      if (right) {
+        const allowedTo = new Date(right.start.getTime() - 60_000);
+        if (isSameDay(allowedTo, day)) {
+          startMax = Math.min(
+            startMax,
+            timeToIdxClamped(allowedTo, minuteStep, steps)
+          );
+        }
+      }
+    }
+
+    if (endAt) {
+      const day = endAt;
+      const left = nearestLeftInterval(day, disabledIntervals);
+      const right = nearestRightInterval(day, disabledIntervals);
+
+      if (left) {
+        const allowedFrom = new Date(left.end.getTime() + 60_000);
+        if (isSameDay(allowedFrom, day)) {
+          endMin = Math.max(
+            endMin,
+            timeToIdxClamped(allowedFrom, minuteStep, steps)
+          );
+        }
+      }
+
+      if (right) {
+        const allowedTo = new Date(right.start.getTime() - 60_000);
+        if (isSameDay(allowedTo, day)) {
+          endMax = Math.min(
+            endMax,
+            timeToIdxClamped(allowedTo, minuteStep, steps)
+          );
+        }
+      }
+    }
+
+    if (startMin > startMax) startMin = Math.max(dayOpenIdx, startMax);
+    if (endMin > endMax) endMin = Math.max(dayOpenIdx, endMax);
+
+    return { startMin, startMax, endMin, endMax };
+  }, [
+    startAt, // <= простые зависимости
+    endAt,
+    disabledIntervals,
+    minuteStep,
+    timeStepsPerDay,
+    dayOpenIdx,
+    dayCloseIdx,
+  ]);
+
+  const startIdx = useMemo(() => {
+    if (!tempRange.startAt) return Math.max(0, allowedTimeBounds.startMin);
+    const raw = Math.min(
       timeStepsPerDay - 1,
       timeToIdx(tempRange.startAt, minuteStep)
     );
-  }, [minuteStep, tempRange.startAt, timeStepsPerDay]);
+    return Math.min(
+      Math.max(raw, allowedTimeBounds.startMin),
+      allowedTimeBounds.startMax
+    );
+  }, [minuteStep, tempRange.startAt, timeStepsPerDay, allowedTimeBounds]);
 
   const endIdx = useMemo(() => {
-    if (!tempRange.endAt) return 40; // 20:00 default
-    return Math.min(
+    if (!tempRange.endAt)
+      return Math.min(timeStepsPerDay - 1, allowedTimeBounds.endMax);
+    const raw = Math.min(
       timeStepsPerDay - 1,
       timeToIdx(tempRange.endAt, minuteStep)
     );
-  }, [minuteStep, tempRange.endAt, timeStepsPerDay]);
+    return Math.min(
+      Math.max(raw, allowedTimeBounds.endMin),
+      allowedTimeBounds.endMax
+    );
+  }, [minuteStep, tempRange.endAt, timeStepsPerDay, allowedTimeBounds]);
+
+  useEffect(() => {
+    if (!startAt) return;
+
+    const rawIdx = Math.min(
+      timeStepsPerDay - 1,
+      timeToIdx(startAt, minuteStep)
+    );
+
+    const clampedIdx = Math.min(
+      allowedTimeBounds.startMax,
+      Math.max(allowedTimeBounds.startMin, rawIdx)
+    );
+
+    if (clampedIdx !== rawIdx) {
+      const snapped = idxToTime(startAt, clampedIdx, minuteStep);
+
+      if (snapped.getTime() !== startAt.getTime()) {
+        setTimeout(() => {
+          setTempRange((prev) =>
+            prev.startAt ? { ...prev, startAt: snapped } : prev
+          );
+        }, 0);
+      }
+    }
+  }, [
+    startAt,
+    allowedTimeBounds.startMin,
+    allowedTimeBounds.startMax,
+    minuteStep,
+    timeStepsPerDay,
+  ]);
+
+  // --- НОВОЕ: автосдвиг endAt в доступное окно, если день частично занят
+  useEffect(() => {
+    if (!endAt) return;
+
+    const rawIdx = Math.min(timeStepsPerDay - 1, timeToIdx(endAt, minuteStep));
+
+    const clampedIdx = Math.min(
+      allowedTimeBounds.endMax,
+      Math.max(allowedTimeBounds.endMin, rawIdx)
+    );
+
+    if (clampedIdx !== rawIdx) {
+      const snapped = idxToTime(endAt, clampedIdx, minuteStep);
+
+      if (snapped.getTime() !== endAt.getTime()) {
+        setTimeout(() => {
+          setTempRange((prev) =>
+            prev.endAt ? { ...prev, endAt: snapped } : prev
+          );
+        }, 0);
+      }
+    }
+  }, [
+    endAt,
+    allowedTimeBounds.endMin,
+    allowedTimeBounds.endMax,
+    minuteStep,
+    timeStepsPerDay,
+  ]);
 
   function setStartIdx(idx: number) {
     if (!tempRange.startAt) return;
+    // clamp to allowed bounds
+    const clampedIdx = Math.min(
+      Math.max(idx, allowedTimeBounds.startMin),
+      allowedTimeBounds.startMax
+    );
     const base = tempRange.startAt;
-
-    let next = idxToTime(base, idx, minuteStep);
-    // если выбран сегодня — не даём уйти раньше «сейчас»
+    let next = idxToTime(base, clampedIdx, minuteStep);
     if (isSameDay(base, new Date())) {
       const nowStep = roundUpToStep(new Date(), minuteStep);
       if (next < nowStep) next = nowStep;
@@ -291,9 +792,12 @@ export default function RentalDateTimePicker({
 
   function setEndIdx(idx: number) {
     if (!tempRange.endAt) return;
+    const clampedIdx = Math.min(
+      Math.max(idx, allowedTimeBounds.endMin),
+      allowedTimeBounds.endMax
+    );
     const base = tempRange.endAt;
-
-    let next = idxToTime(base, idx, minuteStep);
+    let next = idxToTime(base, clampedIdx, minuteStep);
     if (isSameDay(base, new Date())) {
       const nowStep = roundUpToStep(new Date(), minuteStep);
       if (next < nowStep) next = nowStep;
@@ -334,27 +838,72 @@ export default function RentalDateTimePicker({
   // --- Render helpers (DayCell, CalendarGrid) — оставлены без изменений ---
   const DayCell: React.FC<{ d: Date }> = ({ d }) => {
     const inCurrent = isSameMonth(d, currentMonth);
+
+    const fullyBlocked = isDayFullyBlocked(
+      d,
+      disabledIntervals,
+      openTimeMinutes,
+      closeTimeMinutes,
+      minuteStep
+    );
+
+    const dayIntervals = intervalsForDay(d, disabledIntervals);
+    const hasPartial = dayIntervals.length > 0 && !fullyBlocked; // есть блокировки, но день не полностью забит
+
     const disabled =
-      isDateDisabled(d, effectiveMinDate, maxDate) ||
-      isInDisabledIntervals(d, disabledIntervals);
+      isDateDisabled(d, effectiveMinDate, maxDate) || fullyBlocked;
+
     const isStart = tempRange.startAt && isSameDay(d, tempRange.startAt);
     const isEnd = tempRange.endAt && isSameDay(d, tempRange.endAt);
     const isSingle = Boolean(isStart && isEnd);
 
     let inRange = false;
+
     if (tempRange.startAt && tempRange.endAt) {
       inRange = isWithinInterval(d, {
         start: startOfDay(tempRange.startAt),
         end: endOfDay(tempRange.endAt),
       });
     } else if (canHover && tempRange.startAt && hoverDay) {
-      const s = startOfDay(tempRange.startAt);
-      const h = startOfDay(hoverDay);
-      if (!isBefore(h, s)) {
-        const block = firstBlockingIntervalBetween(s, h, disabledIntervals);
-        const limit = block ? addDays(block.start, -1) : h;
-        if (!isBefore(limit, s)) {
-          inRange = isWithinInterval(d, { start: s, end: limit });
+      const sDay = startOfDay(tempRange.startAt);
+      const hDay = startOfDay(hoverDay);
+
+      // если навели на тот же день или левее — НИКАКОГО шлейфа назад, только стартовый день
+      if (!isAfter(hDay, sDay)) {
+        inRange = isSameDay(d, sDay);
+      } else {
+        // === ДВИЖЕНИЕ ВПРАВО ОТ СТАРТА ===
+        const rangeStart = sDay;
+        let rangeEnd = hDay;
+
+        for (
+          let cur = addDays(sDay, 1);
+          !isAfter(cur, hDay);
+          cur = addDays(cur, 1)
+        ) {
+          if (
+            isDayFullyBlocked(
+              cur,
+              disabledIntervals,
+              openTimeMinutes,
+              closeTimeMinutes,
+              minuteStep
+            )
+          ) {
+            // обрываемся на день ДО первой заблокированной
+            rangeEnd = addDays(cur, -1);
+            break;
+          }
+        }
+
+        if (!isBefore(rangeEnd, rangeStart)) {
+          inRange = isWithinInterval(d, {
+            start: rangeStart,
+            end: rangeEnd,
+          });
+        } else {
+          // всё отрезали — остаётся только стартовый день
+          inRange = isSameDay(d, sDay);
         }
       }
     }
@@ -363,7 +912,7 @@ export default function RentalDateTimePicker({
       "relative h-10 my-1 w-full flex items-center justify-center text-sm select-none font-roboto-condensed",
       !inCurrent ? "text-gray-400" : "",
       disabled ? "opacity-40 cursor-not-allowed" : "cursor-pointer",
-      inRange ? "bg-emerald-100/20 border-y-2 border-emerald-300" : "",
+      inRange ? "bg-emerald-50/60 border-y-2 border-emerald-300" : "",
       isSingle
         ? "border-emerald-300 rounded-full border-2 border-emerald-300"
         : "",
@@ -397,6 +946,9 @@ export default function RentalDateTimePicker({
         >
           {format(d, "d", { locale })}
         </span>
+        {hasPartial && !disabled && !isStart && !isEnd && (
+          <span className="absolute bottom-1 h-1.5 w-1.5 rounded-full bg-emerald-300" />
+        )}
       </div>
     );
   };
@@ -468,8 +1020,8 @@ export default function RentalDateTimePicker({
           {tempRange.startAt && (
             <div className="my-3">
               <Slider
-                min={0}
-                max={timeStepsPerDay - 1}
+                min={allowedTimeBounds.startMin}
+                max={allowedTimeBounds.startMax}
                 step={1}
                 value={startIdx}
                 onChange={setStartIdx}
@@ -480,6 +1032,27 @@ export default function RentalDateTimePicker({
                 className="w-full"
                 label={null}
               />
+            </div>
+          )}
+          {tempRange.startAt && (
+            <div className="mt-1 text-xs text-gray-700 font-roboto-condensed">
+              {tempRange.startAt && (
+                <div className="mt-1 text-xs text-gray-700 font-roboto-condensed">
+                  {tempRange.startAt && (
+                    <div className="mt-1 text-xs text-gray-700 font-roboto-condensed">
+                      {formatDayHint(
+                        "start",
+                        tempRange.startAt,
+                        disabledIntervals,
+                        openTimeMinutes,
+                        closeTimeMinutes,
+                        minuteStep,
+                        locale
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -499,8 +1072,8 @@ export default function RentalDateTimePicker({
           {tempRange.endAt && (
             <div className="my-3">
               <Slider
-                min={0}
-                max={timeStepsPerDay - 1}
+                min={allowedTimeBounds.endMin}
+                max={allowedTimeBounds.endMax}
                 step={1}
                 value={endIdx}
                 onChange={setEndIdx}
@@ -513,13 +1086,37 @@ export default function RentalDateTimePicker({
               />
             </div>
           )}
+          {tempRange.endAt && (
+            <div className="mt-1 text-xs text-gray-700 font-roboto-condensed">
+              {tempRange.endAt && (
+                <div className="mt-1 text-xs text-gray-700 font-roboto-condensed">
+                  {formatDayHint(
+                    "end",
+                    tempRange.endAt,
+                    disabledIntervals,
+                    openTimeMinutes,
+                    closeTimeMinutes,
+                    minuteStep,
+                    locale
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
       <div>
         <div className="text-xs text-red-500 min-h-4">
-          {rangeBlocked ? "Выбранный диапазон пересекается с блокировками" : ""}
+          {violatesMinMax && minRentDays && maxRentDays
+            ? `Допустимый срок аренды: от ${minRentDays} до ${maxRentDays} дней`
+            : violatesMinMax && minRentDays
+            ? `Минимальный срок аренды: ${minRentDays} дней`
+            : violatesMinMax && maxRentDays
+            ? `Максимальный срок аренды: ${maxRentDays} дней`
+            : ""}
         </div>
+
         <div className="flex items-center justify-between">
           <div>
             <button
@@ -543,7 +1140,12 @@ export default function RentalDateTimePicker({
             </button>
             <button
               className="px-4 py-2 rounded-xl bg-black text-white disabled:opacity-50 cursor-pointer font-roboto-condensed!"
-              disabled={!tempRange.startAt || !tempRange.endAt || rangeBlocked}
+              disabled={
+                !tempRange.startAt ||
+                !tempRange.endAt ||
+                rangeBlocked ||
+                violatesMinMax
+              }
               onClick={() => commit()}
             >
               Apply

@@ -498,6 +498,8 @@ export default function CatalogClient() {
       return;
     }
 
+    let alive = true;
+
     // debounce short bursts (100ms)
     availabilityDebounceRef.current = window.setTimeout(() => {
       // increment requestId
@@ -516,7 +518,6 @@ export default function CatalogClient() {
           time: Date.now(),
         });
 
-      let alive = true;
       (async () => {
         try {
           const carBuffers = filteredCars.map((car) => {
@@ -628,6 +629,10 @@ export default function CatalogClient() {
       // cleanup marker not strictly needed here but keep pattern
       return () => {
         alive = false;
+        if (availabilityDebounceRef.current) {
+          window.clearTimeout(availabilityDebounceRef.current);
+          availabilityDebounceRef.current = null;
+        }
       };
     }, 100); // debounce 100ms
     // eslint-disable-next-line react-hooks/exhaustive-deps
