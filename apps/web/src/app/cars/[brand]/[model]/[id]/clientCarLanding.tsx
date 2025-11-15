@@ -21,7 +21,6 @@ import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import dynamic from "next/dynamic";
 import "mapbox-gl/dist/mapbox-gl.css";
 
-/// вместо import("react-map-gl") — используем под-путь mapbox (как у тебя было ранее)
 const Map = dynamic(() => import("react-map-gl/mapbox").then((m) => m.Map), {
   ssr: false,
 }) as any;
@@ -59,12 +58,13 @@ const AddressAutofill = dynamic(
 
 import Pin from "@/components/pin"; // если у тебя есть аналог
 import { fetchAddressFromCoords } from "@/services/geo.service"; // или свой сервис
-// если у тебя есть сервисы для получения extras/bookings/pricing — импортируй их:
 import { fetchCarExtras } from "@/services/car.service";
 import { fetchBookingsByCarId } from "@/services/calendar.service";
 import { fetchPricingRules } from "@/services/pricing.service";
 import Link from "next/link";
 import { Select } from "@mantine/core";
+import { getGlobalSettings } from "@/services/settings.service";
+import { CarExtraWithMeta } from "@/types/carExtra";
 
 /** Компонент получает serverCar через проп — никакого fetch внутри */
 export default function ClientCarLanding({
@@ -84,6 +84,14 @@ export default function ClientCarLanding({
   // даты
   const [start, setStart] = useState(searchParams.get("start") ?? "");
   const [end, setEnd] = useState(searchParams.get("end") ?? "");
+
+  // в ClientCarLanding (родитель)
+  const [extrasData, setExtrasData] = useState<any[]>([]);
+  const [bookingsData, setBookingsData] = useState<any[]>([]);
+  const [pricingRulesData, setPricingRulesData] = useState<any[]>([]);
+  const [globalSettings, setGlobalSettings] = useState<any>(null);
+  
+  const [loadingRemote, setLoadingRemote] = useState(false);
 
   // показ календаря
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -159,6 +167,66 @@ export default function ClientCarLanding({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  function normalizeExtras(raw: any[]): CarExtraWithMeta[] {
+    return (raw ?? []).map((ex: any) => {
+      const id = String(ex.extra_id ?? ex.id ?? ex.meta?.id ?? ex.key ?? "");
+      const price = Number(ex.price ?? ex.meta?.price ?? 0);
+      const meta = ex.meta ?? {
+        price_type: ex.price_type ?? (ex.price_per_day ? "per_day" : undefined),
+        name: ex.meta?.name ?? ex.title ?? ex.name ?? "",
+      };
+      const title = ex.title ?? ex.meta?.name ?? ex.name ?? "";
+      return {
+        extra_id: id,
+        title,
+        price,
+        meta,
+        is_available:
+          ex.is_available ?? ex.is_available === false
+            ? ex.is_available
+            : undefined,
+      };
+    });
+  }
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoadingRemote(true);
+      try {
+        const [extrasRes, bookingsRes, pricingRes, globalRes] =
+          await Promise.all([
+            typeof fetchCarExtras === "function"
+              ? fetchCarExtras(String(car.id))
+              : fetch(`/api/cars/${car.id}/extras`).then((r) => r.json()),
+            typeof fetchBookingsByCarId === "function"
+              ? fetchBookingsByCarId(String(car.id))
+              : fetch(`/api/cars/${car.id}/bookings`).then((r) => r.json()),
+            typeof fetchPricingRules === "function"
+              ? fetchPricingRules(String(car.id))
+              : fetch(`/api/pricing-rules/${car.id}`).then((r) => r.json()),
+            typeof getGlobalSettings === "function"
+              ? getGlobalSettings(String(car.ownerId))
+              : fetch(`/api/global-settings`)
+                  .then((r) => r.json())
+                  .catch(() => null),
+          ]);
+        if (cancelled) return;
+        setExtrasData(normalizeExtras(extrasRes ?? []));
+        setBookingsData(bookingsRes ?? []);
+        setPricingRulesData(pricingRes ?? []);
+        setGlobalSettings(globalRes ?? null);
+      } catch (err) {
+        console.error("ClientCarLanding load error", err);
+      } finally {
+        if (!cancelled) setLoadingRemote(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [car?.id]);
+
   // медиа
   const photos = useMemo(() => (car?.photos || []).filter(Boolean), [car]);
   const hero = photos[0];
@@ -203,6 +271,7 @@ export default function ClientCarLanding({
     return d;
   }, [start, end]);
 
+  // навигационное меню вверху страницы
   useEffect(() => {
     const onScroll = () => setShowNav(window.scrollY > 120);
     onScroll();
@@ -611,6 +680,8 @@ export default function ClientCarLanding({
               onConfirm={(opts) => {
                 goToRequest(opts);
               }}
+              extras={extrasData}
+              loadingRemote={loadingRemote}
             />
           </motion.div>
         )}
@@ -698,6 +769,21 @@ function BookingBar({
   );
 }
 
+type BookingDrawerProps = {
+  open: boolean;
+  onClose: () => void;
+  car: CarWithRelations;
+  start: string;
+  end: string;
+  days: number;
+  onConfirm: (
+    opts: Record<string, string | number | boolean | string>
+  ) => Promise<void> | void;
+  isMobile: boolean;
+  extras: CarExtraWithMeta[];
+  loadingRemote?: boolean;
+};
+
 function BookingDrawer({
   open,
   onClose,
@@ -707,19 +793,13 @@ function BookingDrawer({
   days,
   onConfirm,
   isMobile,
-}: {
-  open: boolean;
-  onClose: () => void;
-  car: CarWithRelations;
-  start: string;
-  end: string;
-  days: number;
-  onConfirm: (opts: Record<string, string | number | boolean | string>) => void;
-  isMobile: boolean;
-}) {
+  extras,
+  loadingRemote,
+}: BookingDrawerProps) {
   const shouldReduceMotion = useReducedMotion();
   const ACCEPTED_VERSION = "v1.0";
   const isLocked = false;
+
   const cardCls =
     "rounded-2xl bg-white shadow-sm border border-gray-200 px-4 py-4 sm:px-5 sm:py-5";
 
@@ -729,40 +809,17 @@ function BookingDrawer({
   const model = modelObj?.name;
   const title = `${brand ?? ""} ${model ?? ""}`.trim();
 
-  // server-driven
-  const [extras, setExtras] = useState<
-    Array<{
-      id: string;
-      title: string;
-      price: number;
-      price_type?: string;
-      inactive?: boolean;
-    }>
-  >([]);
-
-  const [disabledIntervals, setDisabledIntervals] = useState<
-    Array<{ start: Date; end: Date }>
-  >([]);
-  const [pricingRules, setPricingRules] = useState<any[]>([]);
-  const [loadingRemote, setLoadingRemote] = useState(false);
-
-  // dynamic selections
+  // локальные поля — как у тебя
   const [pickedExtras, setPickedExtras] = useState<string[]>([]);
   const [delivery, setDelivery] = useState<"car_address" | "by_address">(
     "car_address"
   );
-
   const [deliveryAddress, setDeliveryAddress] = useState("");
   const [deliveryLat, setDeliveryLat] = useState<number | null>(null);
   const [deliveryLong, setDeliveryLong] = useState<number | null>(null);
-
-  // country / city for delivery (used in UI)
-  const [deliveryCountry, setDeliveryCountry] = useState<string>("");
-  const [deliveryCity, setDeliveryCity] = useState<string>("");
-
+  const [deliveryCountry, setDeliveryCountry] = useState("");
+  const [deliveryCity, setDeliveryCity] = useState("");
   const [deliveryFeeValue, setDeliveryFeeValue] = useState<number>(0);
-
-  // driver fields (kept from original)
   const [driverName, setDriverName] = useState("");
   const [driverDob, setDriverDob] = useState<string | null>(null);
   const [driverLicense, setDriverLicense] = useState("");
@@ -771,6 +828,10 @@ function BookingDrawer({
   );
   const [driverPhone, setDriverPhone] = useState("");
   const [driverEmail, setDriverEmail] = useState("");
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [submitting, setSubmitting] = useState(false);
 
   // upload/license
   const [licenseFile, setLicenseFile] = useState<File | null>(null);
@@ -779,11 +840,7 @@ function BookingDrawer({
   const [uploadedUrl, setUploadedUrl] = useState<string | null>(null);
   const [dragActive, setDragActive] = useState(false);
 
-  // terms/errors/submitting
-  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [acceptedTs, setAcceptedTs] = useState<string | null>(null);
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [submitting, setSubmitting] = useState(false);
 
   // refs + UI
   const panelRef = useRef<HTMLDivElement | null>(null);
@@ -792,7 +849,6 @@ function BookingDrawer({
   const mapRef = useRef<any>(null);
 
   // Delivery
-  type DeliveryOption = "car_address" | "by_address";
   const deliveryEnabled = Boolean((car as any)?.isDelivery);
 
   const deliveryOptions = useMemo(() => {
@@ -822,8 +878,6 @@ function BookingDrawer({
   // map view state (initial from car)
   const toNum = (v: unknown, fallback: number | null = 50.45): number | null =>
     Number.isFinite(Number(v)) ? Number(v) : fallback;
-  // const toNum = (v: unknown, fallback = 50.45) =>
-  //   Number.isFinite(Number(v as any)) ? Number(v as any) : fallback;
 
   const initialLat = toNum(car?.lat, 50.45);
   const initialLng = toNum(car?.long, 30.52);
@@ -839,75 +893,6 @@ function BookingDrawer({
   // client-only flag (to prevent using window on server)
   const [isClient, setIsClient] = useState(false);
   useEffect(() => setIsClient(typeof window !== "undefined"), []);
-
-  // prefill delivery when opening (if car has lat/long)
-  useEffect(() => {
-    if (!open) return;
-    (async () => {
-      setLoadingRemote(true);
-      try {
-        const [extrasRes, bookingsRes, pricingRes] = await Promise.all([
-          typeof fetchCarExtras === "function"
-            ? fetchCarExtras(String(car.id))
-            : fetch(`/api/cars/${car.id}/extras`).then((r) => r.json()),
-          typeof fetchBookingsByCarId === "function"
-            ? fetchBookingsByCarId(String(car.id))
-            : fetch(`/api/cars/${car.id}/bookings`).then((r) => r.json()),
-          typeof fetchPricingRules === "function"
-            ? fetchPricingRules(String(car.id))
-            : fetch(`/api/pricing-rules/${car.id}`).then((r) => r.json()),
-        ]);
-
-        const normalized = (extrasRes ?? []).map((ex: any) => ({
-          id: String(
-            ex.extra_id ?? ex.id ?? ex.meta?.id ?? ex.meta?.extra_id ?? ex.key
-          ),
-          title:
-            ex.meta?.title ??
-            ex.meta?.name ??
-            ex.title ??
-            ex.name ??
-            String(ex.extra_id ?? ex.id ?? "extra"),
-          price: Number(ex.price ?? ex.meta?.price ?? 0),
-          price_type:
-            ex.price_type ??
-            ex.meta?.price_type ??
-            (ex.price_per_day ? "per_day" : "per_trip"),
-          inactive:
-            ex.is_available === false || ex.meta?.is_available === false,
-        }));
-        setExtras(normalized);
-
-        const intervals =
-          (bookingsRes ?? [])
-            .filter((b: any) => !String(b.status ?? "").startsWith("canceled"))
-            .map((b: any) => ({
-              start: new Date(b.start_at),
-              end: new Date(b.end_at),
-            })) ?? [];
-        setDisabledIntervals(intervals);
-
-        setPricingRules(pricingRes ?? []);
-      } catch (err) {
-        // eslint-disable-next-line no-console
-        console.error("BookingDrawer load error", err);
-      } finally {
-        setLoadingRemote(false);
-
-        // prefill delivery coords/fee if car has coords and fee defined
-        if (
-          (car?.lat != null || car?.long != null) &&
-          delivery === "car_address"
-        ) {
-          setDeliveryLat(toNum(car?.lat, null));
-          setDeliveryLong(toNum(car?.long, null));
-          if ((car as any)?.deliveryFee)
-            setDeliveryFeeValue(Number((car as any).deliveryFee));
-        }
-      }
-    })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, car?.id]);
 
   // block scroll while open
   useEffect(() => {
@@ -1002,9 +987,10 @@ function BookingDrawer({
 
   const extrasTotal = useMemo(() => {
     return pickedExtras.reduce((sum, id) => {
-      const ex = extras.find((x) => x.id === id);
+      const ex = extras.find((x) => x.extra_id === id);
       if (!ex) return sum;
-      const mult = ex.price_type === "per_day" ? billableDaysForExtras : 1;
+      const mult =
+        ex.meta?.price_type === "per_day" ? billableDaysForExtras : 1;
       return sum + Number(ex.price || 0) * mult;
     }, 0);
   }, [pickedExtras, extras, billableDaysForExtras]);
@@ -1275,7 +1261,7 @@ function BookingDrawer({
           className="px-4 sm:px-0 h-full flex flex-col overflow-auto md:overflow-hidden"
         >
           {/* Header */}
-          <div className="flex items-center justify-between md:px-4 mb-3 mt-2">
+          <div className="flex items-center justify-between md:px-6 mb-3 mt-2">
             <div className="text-lg font-semibold">Confirm booking</div>
             <div className="flex items-center">
               <button
@@ -1290,7 +1276,7 @@ function BookingDrawer({
 
           <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 h-full">
             {/* LEFT: summary */}
-            <div className="relative md:flex-none md:w-[360px] md:pl-4">
+            <div className="relative md:flex-none md:w-[360px] md:pl-6">
               <div className="md:sticky md:top-6 md:space-y-4 md:max-h-[calc(100vh-6rem)]">
                 {/* Car card */}
                 <section className="rounded-2xl bg-white shadow-sm ring-1 ring-gray-200 p-4 sm:p-5">
@@ -1309,7 +1295,7 @@ function BookingDrawer({
                   </div>
 
                   <div>
-                    <p className=" font-roboto-condensed md:text-lg font-medium text-gray-900">
+                    <p className="font-semibold text-gray-900">
                       {title} {car?.year}
                     </p>
                     {car?.licensePlate ? (
@@ -1414,8 +1400,8 @@ function BookingDrawer({
             {/* RIGHT: form */}
             <div className="flex-1">
               <div className="h-full pb-32 md:overflow-y-scroll">
-                <div className="space-y-4 md:pr-4">
-                  {/* Options (Extras) — как в BookingEditor */}
+                <div className="space-y-4 md:pr-6">
+                  {/* Options (Extras) */}
                   <section className={cardCls}>
                     <div className="font-semibold text-xs text-gray-900 uppercase">
                       Extras
@@ -1430,37 +1416,33 @@ function BookingDrawer({
                       ) : (
                         extras.map((ex) => (
                           <div
-                            key={ex.id}
+                            key={ex.extra_id}
                             className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50/50 px-3 py-2 shadow-sm"
                           >
                             <label className="flex-1 flex items-start gap-3 cursor-pointer">
                               <input
                                 type="checkbox"
-                                checked={pickedExtras.includes(ex.id)}
+                                checked={pickedExtras.includes(ex.extra_id)}
                                 onChange={(e) => {
                                   const checked = e.currentTarget.checked;
                                   if (checked)
-                                    setPickedExtras((p) => [...p, ex.id]);
+                                    setPickedExtras((p) => [...p, ex.extra_id]);
                                   else
                                     setPickedExtras((p) =>
-                                      p.filter((x) => x !== ex.id)
+                                      p.filter((x) => x !== ex.extra_id)
                                     );
                                 }}
                                 className="mt-1 h-4 w-4"
                                 disabled={isLocked}
                               />
-                              <div
-                                className={`${ex.inactive ? "opacity-70" : ""}`}
-                              >
+                              <div>
                                 <div className="font-medium text-sm text-gray-800">
-                                  {ex.title}
+                                  {ex.meta?.name}
                                 </div>
                                 <div className="text-xs text-gray-500">
-                                  {/* {ex.price}€ */}
-                                  {ex.price_type === "per_day"
+                                  {ex.meta?.price_type === "per_day"
                                     ? "(per day)"
                                     : "(per rental)"}
-                                  {ex.inactive ? " (no longer offered)" : ""}
                                 </div>
                               </div>
                             </label>
