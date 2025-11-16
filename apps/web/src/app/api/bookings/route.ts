@@ -6,6 +6,7 @@ type DriverPayload = {
   name: string;
   dob: string | null;
   licenseNumber: string;
+  licenseIssue: string | null;
   licenseExpiry: string | null;
   phone: string;
   email: string;
@@ -105,6 +106,7 @@ export async function POST(req: NextRequest) {
       name: String(raw.driver?.name ?? "").trim(),
       dob: raw.driver?.dob ?? null,
       licenseNumber: String(raw.driver?.licenseNumber ?? "").trim(),
+      licenseIssue: raw.driver?.licenseIssue ?? null,
       licenseExpiry: raw.driver?.licenseExpiry ?? null,
       phone: String(raw.driver?.phone ?? "").trim(),
       email: String(raw.driver?.email ?? "")
@@ -162,6 +164,11 @@ export async function POST(req: NextRequest) {
       if (!existingProfile.driver_license_number && driver.licenseNumber) {
         update.driver_license_number = driver.licenseNumber;
       }
+      if (!existingProfile.driver_license_issue && driver.licenseIssue) {
+        update.driver_license_issue = new Date(
+          driver.licenseIssue
+        ).toISOString();
+      }
       if (!existingProfile.driver_license_expiry && driver.licenseExpiry) {
         update.driver_license_expiry = new Date(
           driver.licenseExpiry
@@ -199,6 +206,9 @@ export async function POST(req: NextRequest) {
         age,
         driver_dob: driver.dob ? new Date(driver.dob).toISOString() : null,
         driver_license_number: driver.licenseNumber || null,
+        driver_license_issue: driver.licenseIssue
+          ? new Date(driver.licenseIssue).toISOString()
+          : null,
         driver_license_expiry: driver.licenseExpiry
           ? new Date(driver.licenseExpiry).toISOString()
           : null,

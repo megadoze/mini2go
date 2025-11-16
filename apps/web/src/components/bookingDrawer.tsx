@@ -5,7 +5,7 @@ import { Select } from "@mantine/core";
 import { CarExtraWithMeta } from "@/types/carExtra";
 import { CarWithRelations } from "@/types/carWithRelations";
 import { motion, useReducedMotion } from "framer-motion";
-import { CalendarDateRangeIcon } from "@heroicons/react/24/outline";
+import { CalendarDateRangeIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { uploadDriverLicenseFile } from "@/services/uploadDriverLicense";
 
 import dynamic from "next/dynamic";
@@ -48,6 +48,7 @@ const AddressAutofill = dynamic(
 
 import Pin from "@/components/pin"; // если у тебя есть аналог
 import { fetchAddressFromCoords } from "@/services/geo.service"; // или свой сервис
+import { ClockIcon } from "@heroicons/react/24/solid";
 
 type BookingDrawerProps = {
   open: boolean;
@@ -57,7 +58,7 @@ type BookingDrawerProps = {
   end: string;
   days: number;
   onConfirm: (
-    opts: Record<string, string | number | boolean | string>
+    opts: Record<string, string | number | boolean>
   ) => Promise<void> | void;
   isMobile: boolean;
   extras: CarExtraWithMeta[];
@@ -72,6 +73,8 @@ type BookingDrawerProps = {
     discountApplied?: number;
   } | null;
   currency: string;
+  driverAge: string;
+  drivingExperience: string;
 };
 
 export function BookingDrawer({
@@ -87,6 +90,8 @@ export function BookingDrawer({
   loadingRemote,
   pricingResult,
   currency,
+  driverAge,
+  drivingExperience,
 }: BookingDrawerProps) {
   const shouldReduceMotion = useReducedMotion();
   const ACCEPTED_VERSION = "v1.0";
@@ -115,6 +120,9 @@ export function BookingDrawer({
   const [driverName, setDriverName] = useState("");
   const [driverDob, setDriverDob] = useState<string | null>(null);
   const [driverLicense, setDriverLicense] = useState("");
+  const [driverLicenseIssue, setDriverLicenseIssue] = useState<string | null>(
+    null
+  );
   const [driverLicenseExpiry, setDriverLicenseExpiry] = useState<string | null>(
     null
   );
@@ -123,13 +131,23 @@ export function BookingDrawer({
   const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // helper: очистить ошибку по конкретному полю
+  const clearError = (field: string) => {
+    setErrors((prev) => {
+      if (!prev[field]) return prev;
+      const { [field]: _removed, ...rest } = prev;
+      return rest;
+    });
+  };
+
+  const hasErrors = Object.keys(errors).length > 0;
+
   const [submitting, setSubmitting] = useState(false);
 
   // upload/license
   const [licenseFile, setLicenseFile] = useState<File | null>(null);
   const [licensePreview, setLicensePreview] = useState<string | null>(null);
-  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
-  const [uploadedUrl, setUploadedUrl] = useState<string | null>(null);
   const [dragActive, setDragActive] = useState(false);
 
   const [acceptedTs, setAcceptedTs] = useState<string | null>(null);
@@ -224,8 +242,6 @@ export function BookingDrawer({
     setDeliveryLong(null);
     setLicenseFile(null);
     setLicensePreview(null);
-    setUploadProgress(null);
-    setUploadedUrl(null);
     setAcceptedTerms(false);
     setAcceptedTs(null);
     setSubmitting(false);
@@ -274,106 +290,241 @@ export function BookingDrawer({
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
   }
 
+  const MIN_DRIVER_AGE = Number(driverAge);
+  const MIN_DRIVING_EXPERIENCE = Number(drivingExperience);
+  const MIN_LICENSE_VALIDITY_MONTHS = 6;
+
   const validate = useCallback(() => {
     const e: Record<string, string> = {};
-    if (!driverName.trim() || driverName.trim().length < 2)
-      e.driverName = "Please enter full name";
-    if (!driverLicense.trim() || driverLicense.trim().length < 3)
-      e.driverLicense = "Enter license number";
-    if (!driverPhone.trim() || driverPhone.trim().length < 6)
-      e.driverPhone = "Enter phone number";
-    if (!driverEmail.trim() || !isValidEmail(driverEmail))
-      e.driverEmail = "Enter a valid email address";
-    if (!acceptedTerms) e.acceptedTerms = "You must accept Terms & Conditions";
-    if (licenseFile && (!uploadedUrl || (uploadProgress ?? 0) < 100)) {
-      e.driverLicenseFile =
-        "License upload in progress. Wait until it completes.";
+
+    // ✅ FULL NAME: Имя и Фамилия, минимум по 2 символа
+    const nameTrimmed = driverName.trim();
+    if (!nameTrimmed) {
+      e.driverName = "Please enter your first and last name";
+    } else {
+      const parts = nameTrimmed.split(/\s+/);
+      if (parts.length < 2) {
+        e.driverName = "Please enter first and last name";
+      } else {
+        const first = parts[0];
+        const last = parts[parts.length - 1];
+        if (first.length < 2 || last.length < 2) {
+          e.driverName =
+            "First and last name must be at least 2 characters each";
+        }
+      }
     }
-    if (delivery === "by_address" && !deliveryAddress.trim())
+
+    // ✅ DOB
+    if (!driverDob) {
+      e.driverDob = "Please enter your date of birth";
+    } else {
+      const dobDate = new Date(driverDob);
+      if (Number.isNaN(dobDate.getTime())) {
+        e.driverDob = "Invalid date of birth";
+      } else {
+        const today = new Date();
+        // обнуляем время, чтобы сравнивать только даты
+        today.setHours(0, 0, 0, 0);
+
+        if (dobDate > today) {
+          e.driverDob = "Date of birth cannot be in the future";
+        } else {
+          const ageDiffMs = today.getTime() - dobDate.getTime();
+          const age = Math.floor(ageDiffMs / (1000 * 60 * 60 * 24 * 365.25));
+          if (age < MIN_DRIVER_AGE) {
+            e.driverDob = `Driver must be at least ${MIN_DRIVER_AGE} years old`;
+          }
+        }
+      }
+    }
+
+    // ✅ LICENSE NUMBER
+    const licenseTrimmed = driverLicense.trim();
+    const licenseCore = licenseTrimmed.replace(/[\s-]/g, ""); // убираем пробелы и дефисы
+
+    if (!licenseCore) {
+      e.driverLicense = "Enter license number";
+    } else if (licenseCore.length < 6) {
+      e.driverLicense = "License number seems too short";
+    }
+
+    // ✅ LICENSE ISSUE DATE → СТАЖ
+    if (!driverLicenseIssue) {
+      e.driverLicenseIssue = "Please enter license issue date";
+    } else {
+      const issue = new Date(driverLicenseIssue);
+      if (Number.isNaN(issue.getTime())) {
+        e.driverLicenseIssue = "Invalid license issue date";
+      } else {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        // не в будущем
+        if (issue > today) {
+          e.driverLicenseIssue = "License issue date cannot be in the future";
+        }
+
+        // не раньше даты рождения
+        if (driverDob) {
+          const dobDate = new Date(driverDob);
+          if (!Number.isNaN(dobDate.getTime()) && issue < dobDate) {
+            e.driverLicenseIssue =
+              "License issue date cannot be earlier than date of birth";
+          }
+        }
+
+        // стаж
+        const experienceYears =
+          (today.getTime() - issue.getTime()) / (1000 * 60 * 60 * 24 * 365.25);
+        if (experienceYears < MIN_DRIVING_EXPERIENCE) {
+          e.driverLicenseIssue = `Driving experience must be at least ${MIN_DRIVING_EXPERIENCE} years`;
+        }
+
+        // опционально: лицензия должна быть выдана до начала аренды
+        if (start) {
+          const rentalStart = new Date(start);
+          if (!Number.isNaN(rentalStart.getTime()) && issue > rentalStart) {
+            e.driverLicenseIssue =
+              "License must be issued before the rental starts";
+          }
+        }
+      }
+    }
+
+    // ✅ LICENSE EXPIRY — минимум 6 месяцев от сегодня и покрывать аренду
+    if (!driverLicenseExpiry) {
+      e.driverLicenseExpiry = "Please enter license expiry date";
+    } else {
+      const expDate = new Date(driverLicenseExpiry);
+      if (Number.isNaN(expDate.getTime())) {
+        e.driverLicenseExpiry = "Invalid expiry date";
+      } else {
+        // "нормализуем" сегодняшнюю дату
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        // дата, когда права должны быть действительны минимум
+        const minValid = new Date(today);
+        minValid.setMonth(minValid.getMonth() + MIN_LICENSE_VALIDITY_MONTHS);
+
+        // базовое требование: не просрочены уже сейчас
+        if (expDate < today) {
+          e.driverLicenseExpiry = "Driver license is already expired";
+        } else {
+          // требование: не меньше 6 месяцев от сегодня
+          if (expDate < minValid) {
+            e.driverLicenseExpiry = `Driver license must be valid at least ${MIN_LICENSE_VALIDITY_MONTHS} months from today`;
+          }
+
+          // плюс: должны покрывать период аренды (если есть end)
+          if (end) {
+            const rentalEnd = new Date(end);
+            if (!Number.isNaN(rentalEnd.getTime())) {
+              rentalEnd.setHours(0, 0, 0, 0);
+              if (expDate < rentalEnd) {
+                e.driverLicenseExpiry =
+                  "License must be valid for the entire rental period";
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // ✅ PHONE
+    const phoneTrimmed = driverPhone.trim();
+    const phoneCore = phoneTrimmed.replace(/[\s-]/g, ""); // убираем пробелы и дефисы
+
+    if (!phoneCore) {
+      e.driverPhone = "Enter phone number";
+    } else if (phoneCore.length < 7) {
+      e.driverPhone = "Phone number seems too short";
+    }
+
+    // ✅ EMAIL
+    if (!driverEmail.trim() || !isValidEmail(driverEmail)) {
+      e.driverEmail = "Enter a valid email address";
+    }
+
+    // ✅ TERMS
+    if (!acceptedTerms) {
+      e.acceptedTerms = "You must accept Terms & Conditions";
+    }
+
+    // ✅ LICENSE FILE (1 MB лимит)
+    if (!licenseFile) {
+      e.driverLicenseFile = "Please upload a photo/scan of your driver license";
+    } else if (licenseFile) {
+      const allowedTypes = ["image/jpeg", "image/png", "application/pdf"];
+      if (!allowedTypes.includes(licenseFile.type)) {
+        e.driverLicenseFile =
+          "Unsupported file type. Please upload JPG, PNG or PDF.";
+      }
+      const maxSizeMb = 1;
+      if (licenseFile.size > maxSizeMb * 1024 * 1024) {
+        e.driverLicenseFile = `File is too large. Max ${maxSizeMb}MB.`;
+      }
+    }
+
+    // ✅ DELIVERY ADDRESS (если доставка)
+    if (delivery === "by_address" && !deliveryAddress.trim()) {
       e.deliveryAddress = "Enter delivery address";
+    }
+
     setErrors(e);
     return Object.keys(e).length === 0;
   }, [
     driverName,
+    driverDob,
     driverLicense,
+    driverLicenseIssue,
+    driverLicenseExpiry,
     driverPhone,
     driverEmail,
     acceptedTerms,
     licenseFile,
-    uploadedUrl,
-    uploadProgress,
     delivery,
     deliveryAddress,
+    MIN_DRIVER_AGE,
+    MIN_DRIVING_EXPERIENCE,
+    start,
+    end,
   ]);
-
-  const canSubmit =
-    driverName.trim().length > 1 &&
-    driverLicense.trim().length > 2 &&
-    driverPhone.trim().length > 5 &&
-    isValidEmail(driverEmail) &&
-    acceptedTerms &&
-    !(licenseFile && (!uploadedUrl || (uploadProgress ?? 0) < 100)) &&
-    (!(delivery === "by_address") || deliveryAddress.trim().length > 0);
 
   useEffect(() => {
     if (!licenseFile) {
       setLicensePreview(null);
-      setUploadProgress(null);
-      setUploadedUrl(null);
       return;
     }
 
     const url = URL.createObjectURL(licenseFile);
     setLicensePreview(url);
 
-    let cancelled = false;
-
-    (async () => {
-      try {
-        setUploadProgress(0);
-
-        // псевдо-прогресс (красиво)
-        let fakeProgress = 0;
-        const interval = setInterval(() => {
-          fakeProgress = Math.min(fakeProgress + 5, 90);
-          setUploadProgress(fakeProgress);
-        }, 120);
-
-        const { storagePath } = await uploadDriverLicenseFile(licenseFile);
-
-        if (cancelled) {
-          clearInterval(interval);
-          return;
-        }
-
-        clearInterval(interval);
-        setUploadProgress(100);
-
-        setUploadedUrl(storagePath);
-      } catch (err) {
-        if (!cancelled) {
-          setUploadProgress(null);
-          setUploadedUrl(null);
-          setErrors((prev) => ({
-            ...prev,
-            driverLicenseFile: "License upload failed. Try again.",
-          }));
-        }
-      }
-    })();
-
     return () => {
-      cancelled = true;
       URL.revokeObjectURL(url);
     };
   }, [licenseFile]);
 
   const handleConfirm = async () => {
     if (submitting) return;
+
     const ok = validate();
     if (!ok) return;
+
     setSubmitting(true);
     try {
+      // 1. Показываем превью прав
+
+      // 1) Загружаем права, если есть файл
+      let storagePath: string | null = null;
+
+      if (licenseFile) {
+        const res = await uploadDriverLicenseFile(licenseFile);
+        storagePath = res.storagePath;
+      }
+
+      // 2. Собираем payload для onConfirm с уже готовым URL
       const opts: Record<string, string | number | boolean> = {
         extras: pickedExtras.join(","),
         delivery: delivery === "by_address" ? 1 : 0,
@@ -383,13 +534,16 @@ export function BookingDrawer({
         driver_name: driverName.trim(),
         driver_dob: driverDob ? new Date(driverDob).toISOString() : "",
         driver_license: driverLicense.trim(),
+        driver_license_issue: driverLicenseIssue
+          ? new Date(driverLicenseIssue).toISOString()
+          : "",
         driver_license_expiry: driverLicenseExpiry
           ? new Date(driverLicenseExpiry).toISOString()
           : "",
         driver_phone: driverPhone.trim(),
         driver_email: driverEmail.trim(),
         driver_license_file_name: licenseFile ? licenseFile.name : "",
-        driver_license_file_url: uploadedUrl ?? "",
+        driver_license_file_url: storagePath ?? "",
         accepted_terms: acceptedTerms ? 1 : 0,
         accepted_ts: acceptedTs ?? new Date().toISOString(),
         accepted_version: ACCEPTED_VERSION,
@@ -401,7 +555,11 @@ export function BookingDrawer({
       onClose();
     } catch (err) {
       console.error("Booking failed", err);
-      setErrors((p) => ({ ...p, submit: "Booking failed. Try again." }));
+      setErrors((p) => ({
+        ...p,
+        driverLicenseFile: "License upload failed. Try again.",
+        submit: "Booking failed. Try again.",
+      }));
     } finally {
       setSubmitting(false);
     }
@@ -411,12 +569,7 @@ export function BookingDrawer({
   const handleFiles = (f: File | null) => {
     if (!f) return;
     setLicenseFile(f);
-    setUploadedUrl(null);
-    setErrors((prev) => {
-      const next = { ...prev };
-      delete next.driverLicenseFile;
-      return next;
-    });
+    clearError("driverLicenseFile");
   };
 
   const onDrop = (e: React.DragEvent) => {
@@ -579,29 +732,31 @@ export function BookingDrawer({
       >
         <div
           ref={panelRef}
-          className="px-4 sm:px-0 h-full flex flex-col overflow-auto md:overflow-hidden"
+          className="px-0 h-full flex flex-col overflow-auto md:overflow-hidden"
         >
           {/* Header */}
-          <div className="flex items-center justify-between md:px-6 mb-3 mt-2">
-            <div className="text-lg font-semibold">Confirm booking</div>
+          <div className="flex items-center justify-between px-4 md:px-6 py-2 mb-4 md:mb-5 bg-black text-white/95">
+            <div className="text-lg md:text-xl font-roboto-condensed font-medium">
+              Confirm booking
+            </div>
             <div className="flex items-center">
               <button
                 onClick={onClose}
-                className="text-sm! text-neutral-600 px-2 py-1 border border-neutral-200 rounded-md hover:bg-neutral-100/60 cursor-pointer"
+                className=" bg-white/10 hover:bg-white/15 rounded-xs p-1 cursor-pointer"
                 disabled={submitting}
               >
-                Close
+                <XMarkIcon className="size-5 " />
               </button>
             </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 h-full">
+          <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 h-full px-4 md:px-0">
             {/* LEFT: summary */}
             <div className="relative md:flex-none md:w-[360px] md:pl-6">
               <div className="md:sticky md:top-6 md:space-y-4 md:max-h-[calc(100vh-6rem)]">
                 {/* Car card */}
                 <section className="rounded-2xl bg-white shadow-sm ring-1 ring-gray-200 p-4 sm:p-5">
-                  <div className="aspect-video w-full overflow-hidden rounded-xl h-40 object-cover bg-gray-100">
+                  <div className="aspect-video w-full overflow-hidden rounded-xl h-40 object-cover">
                     {car?.photos?.[0] ? (
                       <img
                         src={car.photos[0]}
@@ -619,11 +774,6 @@ export function BookingDrawer({
                     <p className="font-semibold text-gray-900">
                       {title} {car?.year}
                     </p>
-                    {car?.licensePlate ? (
-                      <p className="mt-1 inline-flex items-center rounded-md border border-gray-300 bg-gray-50 px-1.5 py-0.5 text-xs font-mono text-gray-700 shadow-sm ring-1 ring-white/50">
-                        {car.licensePlate}
-                      </p>
-                    ) : null}
                   </div>
                 </section>
 
@@ -737,7 +887,7 @@ export function BookingDrawer({
 
             {/* RIGHT: form */}
             <div className="flex-1">
-              <div className="h-full pb-32 md:overflow-y-scroll">
+              <div className="h-full pb-18 md:pb-20 md:overflow-y-scroll">
                 <div className="space-y-4 md:pr-6">
                   {/* Options (Extras) */}
                   <section className={cardCls}>
@@ -1016,9 +1166,10 @@ export function BookingDrawer({
                               id="delivery-address"
                               type="text"
                               value={deliveryAddress}
-                              onChange={(e) =>
-                                setDeliveryAddress(e.target.value)
-                              }
+                              onChange={(e) => {
+                                setDeliveryAddress(e.target.value);
+                                clearError("deliveryAddress");
+                              }}
                               placeholder="Enter delivery address"
                               autoComplete="address-line1"
                               className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-gray-600 focus:outline-none"
@@ -1060,75 +1211,157 @@ export function BookingDrawer({
                       <input
                         ref={firstFocusRef}
                         value={driverName}
-                        onChange={(e) => setDriverName(e.target.value)}
+                        onChange={(e) => {
+                          setDriverName(e.target.value);
+                          clearError("driverName");
+                        }}
                         placeholder="Full name *"
                         className={`w-full rounded-md border border-gray-300 px-3 py-2 outline-emerald-200 ${
-                          errors.driverName ? "ring-1 ring-red-400" : ""
+                          errors.driverName ? "border-red-400" : ""
                         }`}
                       />
+                      {errors.driverName && (
+                        <p className=" text-xs text-red-500 -mt-2">
+                          {errors.driverName}
+                        </p>
+                      )}
 
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className="grid grid-cols-3 gap-2 items-end">
                         <div>
                           <label className="text-xs text-gray-500">
-                            Date of birth (DOB)
+                            Date of birth
                           </label>
                           <input
                             type="date"
                             value={driverDob ?? ""}
-                            onChange={(e) =>
-                              setDriverDob(e.target.value || null)
-                            }
-                            className="w-full rounded-md border border-gray-300 px-3 py-2 outline-emerald-200 "
+                            onChange={(e) => {
+                              setDriverDob(e.target.value || null);
+                              clearError("driverDob");
+                            }}
+                            className={`w-full rounded-md border px-3 py-2 outline-emerald-200 ${
+                              errors.driverDob
+                                ? "border-red-400"
+                                : "border-gray-300"
+                            }`}
                           />
+                          {errors.driverDob && (
+                            <div className="mt-1 text-xs text-red-500">
+                              {errors.driverDob}
+                            </div>
+                          )}
                         </div>
+
                         <div>
                           <label className="text-xs text-gray-500">
-                            License expiry date
+                            License issue date
+                          </label>
+                          <input
+                            type="date"
+                            value={driverLicenseIssue ?? ""}
+                            onChange={(e) => {
+                              setDriverLicenseIssue(e.target.value || null);
+                              clearError("driverLicenseIssue");
+                            }}
+                            className={`w-full rounded-md border px-3 py-2 outline-emerald-200 ${
+                              errors.driverLicenseIssue
+                                ? "border-red-400"
+                                : "border-gray-300"
+                            }`}
+                          />
+                          {errors.driverLicenseIssue && (
+                            <div className="mt-1 text-xs text-red-500">
+                              {errors.driverLicenseIssue}
+                            </div>
+                          )}
+                        </div>
+
+                        <div>
+                          <label className="text-xs text-gray-500">
+                            License exp date
                           </label>
                           <input
                             type="date"
                             value={driverLicenseExpiry ?? ""}
-                            onChange={(e) =>
-                              setDriverLicenseExpiry(e.target.value || null)
-                            }
-                            className="w-full rounded-md border border-gray-300 px-3 py-2 outline-emerald-200"
+                            onChange={(e) => {
+                              setDriverLicenseExpiry(e.target.value || null);
+                              clearError("driverLicenseExpiry");
+                            }}
+                            className={`w-full rounded-md border px-3 py-2 outline-emerald-200 ${
+                              errors.driverLicenseExpiry
+                                ? "border-red-400"
+                                : "border-gray-300"
+                            }`}
                           />
+                          {errors.driverLicenseExpiry && (
+                            <div className="mt-1 text-xs text-red-500">
+                              {errors.driverLicenseExpiry}
+                            </div>
+                          )}
                         </div>
                       </div>
 
                       <input
                         value={driverLicense}
-                        onChange={(e) => setDriverLicense(e.target.value)}
+                        onChange={(e) => {
+                          setDriverLicense(e.target.value);
+                          clearError("driverLicense");
+                        }}
                         placeholder="Driver license number *"
-                        className={`w-full rounded-md border border-gray-300  px-3 py-2 outline-emerald-200 ${
-                          errors.driverLicense ? "ring-1 ring-red-400" : ""
+                        className={`w-full rounded-md border border-gray-300 px-3 py-2 outline-emerald-200 placeholder:normal-case uppercase ${
+                          errors.driverLicense ? "border-red-400" : ""
                         }`}
                       />
+                      {errors.driverLicense && (
+                        <p className="-mt-2 text-xs text-red-500">
+                          {errors.driverLicense}
+                        </p>
+                      )}
 
                       <div className="grid grid-cols-2 gap-2">
-                        <input
-                          value={driverPhone}
-                          onChange={(e) => setDriverPhone(e.target.value)}
-                          placeholder="Phone *"
-                          className={`w-full rounded-md border border-gray-300 px-3 py-2 outline-emerald-200 ${
-                            errors.driverPhone ? "ring-1 ring-red-400" : ""
-                          }`}
-                        />
-                        <input
-                          value={driverEmail}
-                          onChange={(e) => setDriverEmail(e.target.value)}
-                          placeholder="Email *"
-                          type="email"
-                          className={`w-full rounded-md border border-gray-300 px-3 py-2 outline-emerald-200 ${
-                            errors.driverEmail ? "ring-1 ring-red-400" : ""
-                          }`}
-                        />
+                        <div>
+                          <input
+                            value={driverPhone}
+                            onChange={(e) => {
+                              setDriverPhone(e.target.value);
+                              clearError("driverPhone");
+                            }}
+                            placeholder="Phone *"
+                            className={`w-full rounded-md border border-gray-300 px-3 py-2 outline-emerald-200 ${
+                              errors.driverPhone ? "border-red-400" : ""
+                            }`}
+                          />
+                          {errors.driverPhone && (
+                            <p className="mt-1 text-xs text-red-500">
+                              {errors.driverPhone}
+                            </p>
+                          )}
+                        </div>
+
+                        <div>
+                          <input
+                            value={driverEmail}
+                            onChange={(e) => {
+                              setDriverEmail(e.target.value);
+                              clearError("driverEmail");
+                            }}
+                            placeholder="Email *"
+                            type="email"
+                            className={`w-full rounded-md border border-gray-300 px-3 py-2 outline-emerald-200 ${
+                              errors.driverEmail ? "border-red-400" : ""
+                            }`}
+                          />
+                          {errors.driverEmail && (
+                            <p className="mt-1 text-xs text-red-500">
+                              {errors.driverEmail}
+                            </p>
+                          )}
+                        </div>
                       </div>
 
                       {/* Upload */}
                       <div>
                         <label className="text-xs text-gray-500">
-                          Upload driver license (photo)
+                          Upload driver license (jpeg, png, pdf - 1Mb max)
                         </label>
                         <div
                           onDrop={onDrop}
@@ -1174,29 +1407,6 @@ export function BookingDrawer({
                               </div>
                             )}
 
-                            {uploadProgress != null && (
-                              <div
-                                role="status"
-                                aria-live="polite"
-                                className="mb-2 mt-2"
-                              >
-                                <div className="text-xs text-gray-500">
-                                  Upload: {uploadProgress}%
-                                </div>
-                                <div className="w-full bg-gray-100 rounded-full h-2 mt-1">
-                                  <div
-                                    style={{ width: `${uploadProgress}%` }}
-                                    className="h-2 rounded-full bg-black"
-                                  />
-                                </div>
-                              </div>
-                            )}
-
-                            {uploadedUrl && (
-                              <div className="text-xs text-gray-500 mt-2">
-                                Uploaded: {uploadedUrl}
-                              </div>
-                            )}
                             {errors.driverLicenseFile && (
                               <div className="text-xs text-red-500 mt-2">
                                 {errors.driverLicenseFile}
@@ -1210,10 +1420,8 @@ export function BookingDrawer({
                               onClick={() => {
                                 setLicenseFile(null);
                                 setLicensePreview(null);
-                                setUploadProgress(null);
-                                setUploadedUrl(null);
                               }}
-                              className="text-xs text-red-500 px-2 py-1 rounded-md hover:bg-red-50"
+                              className="text-xs text-red-500 px-2 py-1 rounded-md hover:bg-red-50 cursor-pointer"
                             >
                               Remove
                             </button>
@@ -1231,9 +1439,12 @@ export function BookingDrawer({
                         checked={acceptedTerms}
                         onChange={(e) => {
                           setAcceptedTerms(e.target.checked);
-                          if (e.target.checked)
+                          if (e.target.checked) {
                             setAcceptedTs(new Date().toISOString());
-                          else setAcceptedTs(null);
+                            clearError("acceptedTerms");
+                          } else {
+                            setAcceptedTs(null);
+                          }
                         }}
                       />
                       <div className="text-sm">
@@ -1269,9 +1480,9 @@ export function BookingDrawer({
                     <button
                       ref={lastFocusRef}
                       onClick={handleConfirm}
-                      disabled={!canSubmit || submitting}
+                      disabled={submitting}
                       className={`rounded-xl py-3 px-5 font-medium transition-all flex items-center justify-center gap-3 w-full cursor-pointer ${
-                        !canSubmit || submitting
+                        submitting
                           ? "bg-gray-100 text-gray-800 cursor-not-allowed"
                           : "bg-black text-white"
                       }`}
@@ -1282,12 +1493,13 @@ export function BookingDrawer({
                     </button>
                   </div>
                   {/* errors / hints */}
-                  {!canSubmit && !submitting && (
+                  {hasErrors && !submitting && (
                     <div className="mt-2 text-center text-xs text-red-500">
-                      Please fill required fields and accept Terms. If you
-                      uploaded license — wait until upload finishes.
+                      Please check highlighted fields — some information is
+                      missing or incorrect.
                     </div>
                   )}
+
                   {errors.submit && (
                     <div className="mt-2 text-center text-xs text-red-500">
                       {errors.submit}
@@ -1304,9 +1516,9 @@ export function BookingDrawer({
               <button
                 ref={lastFocusRef}
                 onClick={handleConfirm}
-                disabled={!canSubmit || submitting}
+                disabled={submitting}
                 className={`rounded-xl py-3 px-5 font-medium transition-all flex items-center justify-center gap-3 w-full cursor-pointer ${
-                  !canSubmit || submitting
+                  submitting
                     ? "bg-gray-100 text-gray-800 cursor-not-allowed"
                     : "bg-black text-white"
                 }`}
@@ -1316,6 +1528,14 @@ export function BookingDrawer({
             </div>
           </div>
         </div>
+        {submitting && (
+          <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/10">
+            <div className="flex items-center gap-3 rounded-xl bg-white px-4 py-3 shadow-lg text-sm text-gray-800">
+              <div className="h-4 w-4 animate-spin rounded-full border border-gray-300 border-t-black" />
+              <span>Booking your car…</span>
+            </div>
+          </div>
+        )}
       </motion.aside>
     </div>
   );

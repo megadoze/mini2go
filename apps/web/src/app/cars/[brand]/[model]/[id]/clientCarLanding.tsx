@@ -309,6 +309,14 @@ export default function ClientCarLanding({
   // валюта
   const effectiveCurrency = car.currency ?? globalSettings?.currency ?? "EUR";
 
+  // минимальный возраст водителя
+  const effectiveAgeRenters =
+    car.ageRenters ?? globalSettings?.ageRenters ?? undefined;
+
+  // минимальный стаж водителя
+  const effectiveMinDriverLicense =
+    car.minDriverLicense ?? globalSettings?.minDriverLicense ?? undefined;
+
   // EUR -> €
   const normalizeCurrency = getCurrencySymbol(effectiveCurrency);
 
@@ -582,6 +590,9 @@ export default function ClientCarLanding({
       name: String(opts.driver_name ?? ""),
       dob: opts.driver_dob ? String(opts.driver_dob) : null,
       licenseNumber: String(opts.driver_license ?? ""),
+      licenseIssue: opts.driver_license_issue
+        ? String(opts.driver_license_issue)
+        : null,
       licenseExpiry: opts.driver_license_expiry
         ? String(opts.driver_license_expiry)
         : null,
@@ -1017,6 +1028,8 @@ export default function ClientCarLanding({
               loadingRemote={loadingRemote}
               pricingResult={pricingResult}
               currency={normalizeCurrency}
+              driverAge={effectiveAgeRenters}
+              drivingExperience={effectiveMinDriverLicense}
             />
           </motion.div>
         )}
