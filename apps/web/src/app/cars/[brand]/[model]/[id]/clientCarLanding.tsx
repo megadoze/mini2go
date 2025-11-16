@@ -20,8 +20,8 @@ import {
   PricingRule,
   SeasonalRate,
 } from "@/hooks/useFinalPriceHourly";
-import { BookingBar } from "./bookingBar";
-import { BookingDrawer } from "./bookingDrawer";
+import { BookingBar } from "../../../../../components/bookingBar";
+import { BookingDrawer } from "../../../../../components/bookingDrawer";
 import { MINIMUM_REQS } from "@/constants/minimumReqs";
 import { CountUp } from "@/utils/countUp";
 import { useSyncQuery } from "@/utils/useSyncQuery";
@@ -50,8 +50,6 @@ export default function ClientCarLanding({
   const [bookingsData, setBookingsData] = useState<any[]>([]);
   const [pricingRulesData, setPricingRulesData] = useState<any[]>([]);
   const [globalSettings, setGlobalSettings] = useState<any>(null);
-
-  console.log(globalSettings);
 
   const [loadingRemote, setLoadingRemote] = useState(false);
 
@@ -248,7 +246,7 @@ export default function ClientCarLanding({
     return () => {
       cancelled = true;
     };
-  }, [car?.id]);
+  }, [car.id, car.ownerId]);
 
   // медиа
   const photos = useMemo(() => (car?.photos || []).filter(Boolean), [car]);
@@ -306,6 +304,11 @@ export default function ClientCarLanding({
 
   // валюта
   const effectiveCurrency = car.currency ?? globalSettings?.currency ?? "EUR";
+
+  function overlaps(aStart: Date, aEnd: Date, bStart: Date, bEnd: Date) {
+    // строгое пересечение (как в пикере)
+    return aStart < bEnd && bStart < aEnd;
+  }
 
   const pickerBookings = useMemo(() => {
     if (!Array.isArray(bookingsData) || bookingsData.length === 0) return [];
@@ -387,6 +390,32 @@ export default function ClientCarLanding({
     return merged;
   }, [bookingsData, effectiveIntervalBetweenBookings]);
 
+  useEffect(() => {
+    if (!start || !end || pickerBookings.length === 0) return;
+
+    const startAt = new Date(start);
+    const endAt = new Date(end);
+
+    // если даты кривые
+    if (isNaN(startAt.getTime()) || isNaN(endAt.getTime())) {
+      setStart("");
+      setEnd("");
+      updateQuery({ start: null, end: null });
+      return;
+    }
+
+    const intersectsExisting = pickerBookings.some((iv) =>
+      overlaps(startAt, endAt, iv.start, iv.end)
+    );
+
+    if (intersectsExisting) {
+      // старый диапазон теперь конфликтует с бронями — сбрасываем
+      setStart("");
+      setEnd("");
+      updateQuery({ start: null, end: null });
+    }
+  }, [start, end, pickerBookings, updateQuery]);
+
   const days = useMemo(() => {
     if (!start || !end) return 1;
     const s = new Date(start).getTime();
@@ -439,6 +468,176 @@ export default function ClientCarLanding({
     }
 
     router.push(`/catalog/${car.id}/request?${params.toString()}`);
+  };
+
+  // внутри ClientCarLanding
+
+  const handleBookingConfirm = async (
+    opts: Record<string, string | number | boolean>
+  ) => {
+    if (!car || !start || !end) {
+      throw new Error("Missing car or dates");
+    }
+
+    // 1) idшники экстрас из строки "a,b,c" → string[]
+    const extraIds =
+      typeof opts.extras === "string"
+        ? (opts.extras as string)
+            .split(",")
+            .map((x) => x.trim())
+            .filter(Boolean)
+        : [];
+
+    const deliveryIsByAddress = Number(opts.delivery ?? 0) === 1;
+
+    // 2) валюта и депозит (car → globalSettings → дефолт)
+    const currency =
+      (car as any).currency ??
+      (globalSettings?.currency as string | undefined) ??
+      "EUR";
+
+    const deposit = Number(
+      (car as any).deposit ??
+        (globalSettings?.defaultDeposit as number | undefined) ??
+        0
+    );
+
+    // 3) базовая цена за день — из car
+    const pricePerDay = Number(car.price ?? 0);
+
+    // 4) тотал (grandTotal) из Drawer
+    const priceTotal =
+      typeof opts.price_total === "number"
+        ? (opts.price_total as number)
+        : Number(opts.price_total ?? 0);
+
+    // 5) доставка
+    const deliveryFee = deliveryIsByAddress
+      ? Number(
+          (opts.delivery_fee as number | undefined) ??
+            (car as any).deliveryFee ??
+            globalSettings?.deliveryFee ??
+            0
+        )
+      : 0;
+
+    // 6) сколько дней брать для экстрас
+    // можно использовать pricingResult.days если есть, иначе пересчитываем по датам
+    const billableDays =
+      (pricingResult?.days && pricingResult.days > 0
+        ? pricingResult.days
+        : (() => {
+            const sMs = new Date(start).getTime();
+            const eMs = new Date(end).getTime();
+            const diffDays = (eMs - sMs) / (1000 * 60 * 60 * 24);
+            return Math.max(1, Math.ceil(diffDays));
+          })()) || 1;
+
+    // 7) Собираем подробные extras из extraIds + extrasData
+    const extrasDetailed =
+      extraIds.length === 0
+        ? []
+        : (extraIds
+            .map((id) => {
+              const ex = (extrasData as any[]).find(
+                (e) => String(e.extra_id) === id
+              );
+              if (!ex) return null;
+
+              const price = Number(ex.price ?? 0);
+              const priceType: "per_day" | "per_rental" =
+                ex.meta?.price_type === "per_day" ? "per_day" : "per_rental";
+
+              const qty = 1; // если потом добавишь количество — рассчитаем здесь
+              const multiplier = priceType === "per_day" ? billableDays : 1;
+              const total = price * qty * multiplier;
+
+              return {
+                extraId: String(ex.extra_id),
+                title: ex.title || ex.meta?.name || "",
+                price,
+                priceType,
+                qty,
+                total,
+              };
+            })
+            .filter(Boolean) as Array<{
+            extraId: string;
+            title: string;
+            price: number;
+            priceType: "per_day" | "per_rental";
+            qty: number;
+            total: number;
+          }>);
+
+    // 8) Собираем driver для API (под нашу zod-схему: licenseFileName, не url)
+    const driver = {
+      name: String(opts.driver_name ?? ""),
+      dob: opts.driver_dob ? String(opts.driver_dob) : null,
+      licenseNumber: String(opts.driver_license ?? ""),
+      licenseExpiry: opts.driver_license_expiry
+        ? String(opts.driver_license_expiry)
+        : null,
+      phone: String(opts.driver_phone ?? ""),
+      email: String(opts.driver_email ?? ""),
+      licenseFileName: String(opts.driver_license_file_name ?? "") || null,
+      licenseFileUrl:
+        typeof opts.driver_license_file_url === "string" &&
+        opts.driver_license_file_url
+          ? String(opts.driver_license_file_url)
+          : null,
+    };
+
+    const payload = {
+      carId: String(car.id),
+      start,
+      end,
+      pricePerDay,
+      priceTotal,
+      currency,
+      deposit,
+
+      deliveryType: deliveryIsByAddress ? "by_address" : "car_address",
+      deliveryFee,
+      deliveryAddress: deliveryIsByAddress
+        ? String(opts.delivery_address ?? "")
+        : "",
+      deliveryLat:
+        deliveryIsByAddress && opts.delivery_lat
+          ? Number(opts.delivery_lat)
+          : null,
+      deliveryLong:
+        deliveryIsByAddress && opts.delivery_long
+          ? Number(opts.delivery_long)
+          : null,
+
+      extras: extrasDetailed,
+      driver,
+    };
+
+    const res = await fetch("/api/bookings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      let data: any = {};
+      try {
+        data = await res.json();
+      } catch {
+        // ignore
+      }
+      console.error("Booking API error", data);
+      throw new Error(data?.error || "Booking failed");
+    }
+
+    const data = await res.json();
+
+    // здесь потом можешь редиректить на "спасибо"
+    router.push(`/thank-you?booking=${data.bookingId}`);
+
+    return data;
   };
 
   if (loading)
@@ -803,9 +1002,7 @@ export default function ClientCarLanding({
               end={end}
               days={days}
               isMobile={isMobile}
-              onConfirm={(opts) => {
-                goToRequest(opts);
-              }}
+              onConfirm={handleBookingConfirm}
               extras={extrasData}
               loadingRemote={loadingRemote}
               pricingResult={pricingResult}

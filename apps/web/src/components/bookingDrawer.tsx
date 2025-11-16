@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Select } from "@mantine/core";
@@ -5,6 +6,7 @@ import { CarExtraWithMeta } from "@/types/carExtra";
 import { CarWithRelations } from "@/types/carWithRelations";
 import { motion, useReducedMotion } from "framer-motion";
 import { CalendarDateRangeIcon } from "@heroicons/react/24/outline";
+import { uploadDriverLicenseFile } from "@/services/uploadDriverLicense";
 
 import dynamic from "next/dynamic";
 import "mapbox-gl/dist/mapbox-gl.css";
@@ -235,35 +237,6 @@ export function BookingDrawer({
     });
   }, [open]);
 
-  // upload preview mock (as в оригинале)
-  useEffect(() => {
-    if (!licenseFile) {
-      setLicensePreview(null);
-      setUploadProgress(null);
-      setUploadedUrl(null);
-      return;
-    }
-    const url = URL.createObjectURL(licenseFile);
-    setLicensePreview(url);
-    let cancelled = false;
-    (async () => {
-      setUploadProgress(0);
-      for (let i = 1; i <= 20; i++) {
-        if (cancelled) return;
-        // eslint-disable-next-line no-await-in-loop
-        await new Promise((r) => setTimeout(r, 60));
-        setUploadProgress(Math.round((i / 20) * 100));
-      }
-      if (cancelled) return;
-      setUploadedUrl(`/uploads/${Date.now()}_${licenseFile.name}`);
-      setUploadProgress(100);
-    })();
-    return () => {
-      cancelled = true;
-      URL.revokeObjectURL(url);
-    };
-  }, [licenseFile]);
-
   // helper — compute billable days (same as bookingEditor)
   const billableDaysForExtras = useMemo(() => {
     if (!start || !end) return 1;
@@ -338,6 +311,60 @@ export function BookingDrawer({
     !(licenseFile && (!uploadedUrl || (uploadProgress ?? 0) < 100)) &&
     (!(delivery === "by_address") || deliveryAddress.trim().length > 0);
 
+  useEffect(() => {
+    if (!licenseFile) {
+      setLicensePreview(null);
+      setUploadProgress(null);
+      setUploadedUrl(null);
+      return;
+    }
+
+    const url = URL.createObjectURL(licenseFile);
+    setLicensePreview(url);
+
+    let cancelled = false;
+
+    (async () => {
+      try {
+        setUploadProgress(0);
+
+        // псевдо-прогресс (красиво)
+        let fakeProgress = 0;
+        const interval = setInterval(() => {
+          fakeProgress = Math.min(fakeProgress + 5, 90);
+          setUploadProgress(fakeProgress);
+        }, 120);
+
+        const { storagePath } = await uploadDriverLicenseFile(licenseFile);
+
+        if (cancelled) {
+          clearInterval(interval);
+          return;
+        }
+
+        clearInterval(interval);
+        setUploadProgress(100);
+
+        // ВАЖНО: ТУТ НЕ ЛИНК А ПУТЬ В storage
+        setUploadedUrl(storagePath);
+      } catch (err) {
+        if (!cancelled) {
+          setUploadProgress(null);
+          setUploadedUrl(null);
+          setErrors((prev) => ({
+            ...prev,
+            driverLicenseFile: "License upload failed. Try again.",
+          }));
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      URL.revokeObjectURL(url);
+    };
+  }, [licenseFile]);
+
   const handleConfirm = async () => {
     if (submitting) return;
     const ok = validate();
@@ -359,15 +386,17 @@ export function BookingDrawer({
         driver_phone: driverPhone.trim(),
         driver_email: driverEmail.trim(),
         driver_license_file_name: licenseFile ? licenseFile.name : "",
+        driver_license_file_url: uploadedUrl ?? "",
         accepted_terms: acceptedTerms ? 1 : 0,
         accepted_ts: acceptedTs ?? new Date().toISOString(),
         accepted_version: ACCEPTED_VERSION,
         price_total: grandTotal,
+        delivery_fee: deliveryFee,
       };
+
       await Promise.resolve(onConfirm(opts));
       onClose();
     } catch (err) {
-      // eslint-disable-next-line no-console
       console.error("Booking failed", err);
       setErrors((p) => ({ ...p, submit: "Booking failed. Try again." }));
     } finally {
@@ -375,7 +404,7 @@ export function BookingDrawer({
     }
   };
 
-  // dropzone handlers (как раньше)
+  // dropzone handlers
   const handleFiles = (f: File | null) => {
     if (!f) return;
     setLicenseFile(f);
@@ -386,6 +415,7 @@ export function BookingDrawer({
       return next;
     });
   };
+
   const onDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setDragActive(false);
@@ -1096,7 +1126,7 @@ export function BookingDrawer({
                           onDrop={onDrop}
                           onDragOver={onDragOver}
                           onDragLeave={onDragLeave}
-                          className={`mt-2 flex items-center gap-3 rounded-md border-dashed ${
+                          className={`mt-2 flex flex-col items-center gap-3 rounded-md border-dashed ${
                             dragActive ? "border-black" : "border-gray-200"
                           } border p-3 bg-white`}
                         >

@@ -184,25 +184,25 @@ function formatDayHint(
     const from = latestEnd > workStart ? latestEnd : workStart;
 
     if (from >= workEnd) {
-      return "В этот день нет свободного времени для начала аренды";
+      return "There is no available time to start the rental on this day.";
     }
 
     const fromStr = format(from, "HH:mm", { locale });
     const toStr = format(workEnd, "HH:mm", { locale });
 
-    return `Можно забрать с ${fromStr} до ${toStr}`;
+    return `You can pick up from ${fromStr} to ${toStr}`;
   } else {
     // для окончания важно: до первой брони в этот день
     const to = earliestStart < workEnd ? earliestStart : workEnd;
 
     if (to <= workStart) {
-      return "В этот день нет свободного времени для окончания аренды";
+      return "There is no free time to end the rental on this day.";
     }
 
     const fromStr = format(workStart, "HH:mm", { locale });
     const toStr = format(to, "HH:mm", { locale });
 
-    return `Можно вернуть с ${fromStr} до ${toStr}`;
+    return `Can be returned from ${fromStr} to ${toStr}`;
   }
 }
 
@@ -490,8 +490,8 @@ export default function RentalDateTimePicker({
     }
 
     // здесь гарантированно clickDay >= startDay, идём только вперёд
-    let fromDay = startDay;
-    let toDay = clickDay;
+    const fromDay = startDay;
+    const toDay = clickDay;
 
     // ищем первый полностью заблокированный день между fromDay и toDay
     let limitDay = toDay;
@@ -530,7 +530,7 @@ export default function RentalDateTimePicker({
         if (iv.start < earliestStart) earliestStart = iv.start;
       }
 
-      let to = earliestStart < endWorkEnd ? earliestStart : endWorkEnd;
+      const to = earliestStart < endWorkEnd ? earliestStart : endWorkEnd;
 
       // clamp по рабочему дню
       if (finalEnd > to) finalEnd = to;
@@ -957,19 +957,19 @@ export default function RentalDateTimePicker({
     <div className="rounded-2xl border-gray-200 p-3 shadow-sm overflow-hidden">
       <div className="flex items-center justify-between">
         <button
-          className="p-2 rounded-xl hover:bg-gray-100"
+          className="p-2 rounded-xl hover:bg-gray-100 cursor-pointer"
           onClick={() => setCurrentMonth((m) => addMonths(m, -1))}
-          aria-label="Предыдущий месяц"
+          aria-label="Prev month"
         >
           <ChevronLeftIcon className=" size-4" />
         </button>
-        <div className="font-medium">
+        <div className="font-medium font-roboto-condensed">
           {format(currentMonth, "LLLL yyyy", { locale })}
         </div>
         <button
-          className="p-2 rounded-xl hover:bg-gray-100"
+          className="p-2 rounded-xl hover:bg-gray-100 cursor-pointer"
           onClick={() => setCurrentMonth((m) => addMonths(m, 1))}
-          aria-label="Следующий месяц"
+          aria-label="Next month"
         >
           <ChevronRightIcon className=" size-4" />
         </button>
@@ -1034,7 +1034,7 @@ export default function RentalDateTimePicker({
               />
             </div>
           )}
-          {tempRange.startAt && (
+          {tempRange.startAt && disabledIntervals.length > 0 && (
             <div className="mt-1 text-xs text-gray-700 font-roboto-condensed">
               {tempRange.startAt && (
                 <div className="mt-1 text-xs text-gray-700 font-roboto-condensed">
@@ -1086,7 +1086,7 @@ export default function RentalDateTimePicker({
               />
             </div>
           )}
-          {tempRange.endAt && (
+          {tempRange.endAt && disabledIntervals.length > 0 && (
             <div className="mt-1 text-xs text-gray-700 font-roboto-condensed">
               {tempRange.endAt && (
                 <div className="mt-1 text-xs text-gray-700 font-roboto-condensed">
@@ -1109,11 +1109,11 @@ export default function RentalDateTimePicker({
       <div>
         <div className="text-xs text-red-500 min-h-4">
           {violatesMinMax && minRentDays && maxRentDays
-            ? `Допустимый срок аренды: от ${minRentDays} до ${maxRentDays} дней`
+            ? `Acceptable rental period: from ${minRentDays} to ${maxRentDays} days`
             : violatesMinMax && minRentDays
-            ? `Минимальный срок аренды: ${minRentDays} дней`
+            ? `Minimum rental period: ${minRentDays} days`
             : violatesMinMax && maxRentDays
-            ? `Максимальный срок аренды: ${maxRentDays} дней`
+            ? `Maximum rental period: ${maxRentDays} days`
             : ""}
         </div>
 
