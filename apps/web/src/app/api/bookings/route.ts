@@ -1,6 +1,6 @@
 // app/api/bookings/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseServer } from "@/lib/supabaseServer"; // поправь путь, если у тебя другой
+import { supabaseServer } from "@/lib/supabaseServer";
 
 type DriverPayload = {
   name: string;
@@ -11,6 +11,15 @@ type DriverPayload = {
   email: string;
   licenseFileName: string | null;
   licenseFileUrl: string | null;
+};
+
+type BookingExtraClient = {
+  extraId: string;
+  title?: string;
+  qty?: number;
+  price: number;
+  total: number;
+  priceType?: string | null;
 };
 
 type BookingPayload = {
@@ -28,7 +37,7 @@ type BookingPayload = {
   deliveryLat: number | null;
   deliveryLong: number | null;
 
-  extras: string[]; // IDs допов
+  extras: BookingExtraClient[];
   driver: DriverPayload;
 };
 
@@ -67,8 +76,31 @@ export async function POST(req: NextRequest) {
     const deliveryType: "car_address" | "by_address" =
       raw.deliveryType === "by_address" ? "by_address" : "car_address";
 
-    const extras = Array.isArray(raw.extras) ? raw.extras : [];
+    // ---------- EXTRAS: нормализуем то, что пришло с клиента ----------
+    const extrasRaw = Array.isArray(raw.extras) ? raw.extras : [];
 
+    const bookingExtras: BookingExtraClient[] = extrasRaw
+      .map((ex: any) => {
+        if (!ex || typeof ex !== "object") return null;
+        if (!ex.extraId) return null;
+
+        const price = Number(ex.price ?? 0);
+        const total = Number(ex.total ?? 0);
+
+        if (Number.isNaN(price) || Number.isNaN(total)) return null;
+
+        return {
+          extraId: String(ex.extraId),
+          title: ex.title ?? "",
+          qty: typeof ex.qty === "number" ? ex.qty : 1,
+          price,
+          total,
+          priceType: ex.priceType ?? null,
+        } as BookingExtraClient;
+      })
+      .filter((ex): ex is BookingExtraClient => !!ex);
+
+    // ---------- DRIVER ----------
     const driver: DriverPayload = {
       name: String(raw.driver?.name ?? "").trim(),
       dob: raw.driver?.dob ?? null,
@@ -94,7 +126,6 @@ export async function POST(req: NextRequest) {
     const age = calcAge(driver.dob);
     let profileId: string | null = null;
 
-    // ищем по email (и/или телефону — если хочешь, можно добавить or)
     const { data: existingProfiles, error: profileSelectError } =
       await supabaseServer
         .from("profiles")
@@ -113,7 +144,6 @@ export async function POST(req: NextRequest) {
     const existingProfile = existingProfiles?.[0] ?? null;
 
     if (existingProfile) {
-      // обновляем только пустые поля, чтобы не затирать то, что уже ввёл юзер в кабинете
       const update: Record<string, any> = {};
 
       if (!existingProfile.full_name && driver.name) {
@@ -137,7 +167,7 @@ export async function POST(req: NextRequest) {
           driver.licenseExpiry
         ).toISOString();
       }
-      if (!existingProfile.driver_license_file_url && driver.licenseFileName) {
+      if (!existingProfile.driver_license_file_url && driver.licenseFileUrl) {
         update.driver_license_file_url = driver.licenseFileUrl;
       }
 
@@ -162,10 +192,9 @@ export async function POST(req: NextRequest) {
         profileId = existingProfile.id;
       }
     } else {
-      // создаём новый профиль
       const insertProfile: Record<string, any> = {
         full_name: driver.name || null,
-        email: driver.email, // NOT NULL + UNIQUE
+        email: driver.email,
         phone: driver.phone || null,
         age,
         driver_dob: driver.dob ? new Date(driver.dob).toISOString() : null,
@@ -175,7 +204,6 @@ export async function POST(req: NextRequest) {
           : null,
         driver_license_file_url: driver.licenseFileUrl || null,
 
-        // ВАЖНО: явно false
         is_admin: false,
         is_host: false,
         status: "active",
@@ -213,7 +241,7 @@ export async function POST(req: NextRequest) {
     const { data: booking, error: bookingError } = await supabaseServer
       .from("bookings")
       .insert({
-        user_id: profileId, // <-- теперь заполняем
+        user_id: profileId,
         car_id: raw.carId,
         start_at: startAt.toISOString(),
         end_at: endAt.toISOString(),
@@ -226,9 +254,8 @@ export async function POST(req: NextRequest) {
         delivery_address: raw.deliveryAddress || null,
         delivery_lat: raw.deliveryLat,
         delivery_long: raw.deliveryLong,
-
-        status: "onApproval", // <- как ты и хотел
-        mark: "booking", // <- а не JSON с драйвером
+        status: "onApproval",
+        mark: "booking",
       })
       .select()
       .single();
@@ -243,18 +270,15 @@ export async function POST(req: NextRequest) {
 
     // ---------- 3. СОХРАНЯЕМ EXTRAS В booking_extras ----------
 
-    if (extras.length > 0) {
-      // минимальный вариант: просто пишем extra_id, qty=1, price/total=0
-      // если хочешь подтягивать реальные price/title с сервера —
-      // можно здесь сделать SELECT из таблицы extras по этим id.
-      const toInsert = extras.map((extraId) => ({
+    if (bookingExtras.length > 0) {
+      const toInsert = bookingExtras.map((ex) => ({
         booking_id: booking.id,
-        extra_id: extraId,
-        title: null,
-        qty: 1,
-        price: 0,
-        total: 0,
-        price_type: null,
+        extra_id: ex.extraId,
+        title: ex.title ?? "",
+        qty: ex.qty ?? 1,
+        price: ex.price,
+        total: ex.total,
+        price_type: ex.priceType ?? null,
       }));
 
       const { error: extrasError } = await supabaseServer
@@ -263,7 +287,7 @@ export async function POST(req: NextRequest) {
 
       if (extrasError) {
         console.error("booking_extras insert error", extrasError);
-        // бронь уже есть — поэтому не откатываем, просто логируем и отдаём ок
+        // бронь уже есть — не заваливаем запрос
       }
     }
 

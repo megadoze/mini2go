@@ -71,6 +71,7 @@ type BookingDrawerProps = {
     avgPerDay?: number;
     discountApplied?: number;
   } | null;
+  currency: string;
 };
 
 export function BookingDrawer({
@@ -85,6 +86,7 @@ export function BookingDrawer({
   extras,
   loadingRemote,
   pricingResult,
+  currency,
 }: BookingDrawerProps) {
   const shouldReduceMotion = useReducedMotion();
   const ACCEPTED_VERSION = "v1.0";
@@ -256,6 +258,8 @@ export function BookingDrawer({
     }, 0);
   }, [pickedExtras, extras, billableDaysForExtras]);
 
+  const isDiscount = pricingResult?.discountApplied || "";
+
   const baseTotal =
     pricingResult?.total ??
     Math.round(Math.max(1, days) * (car.price || 0) * 100) / 100;
@@ -345,7 +349,6 @@ export function BookingDrawer({
         clearInterval(interval);
         setUploadProgress(100);
 
-        // ВАЖНО: ТУТ НЕ ЛИНК А ПУТЬ В storage
         setUploadedUrl(storagePath);
       } catch (err) {
         if (!cancelled) {
@@ -665,29 +668,32 @@ export function BookingDrawer({
                       </div>
                       <div className="text-right">
                         <span className="block font-medium text-gray-900">
-                          {Number(car?.price || 0).toFixed(2)}€
+                          {Number(car?.price || 0).toFixed(2)} {currency}
                         </span>
                       </div>
                     </div>
-                    <div className="flex items-start justify-between -mt-2 text-emerald-500">
-                      <div className="flex flex-col">
-                        <span className="text-sm">
-                          {pricingResult?.discountApplied}% with discount
-                        </span>
+                    {isDiscount && (
+                      <div className="flex items-start justify-between -mt-2 text-emerald-500">
+                        <div className="flex flex-col">
+                          <span className="text-sm">
+                            {pricingResult?.discountApplied}% with discount
+                          </span>
+                        </div>
+                        <div className="text-right">
+                          <span className="block font-medium">
+                            {Number(pricingResult?.avgPerDay || 0).toFixed(2)}{" "}
+                            {currency}
+                          </span>
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <span className="block font-medium">
-                          {Number(pricingResult?.avgPerDay || 0).toFixed(2)}€
-                        </span>
-                      </div>
-                    </div>
+                    )}
 
                     <div className="flex items-start justify-between">
                       <span className="text-gray-600 text-sm">
                         Rental subtotal
                       </span>
                       <span className="font-medium text-gray-900">
-                        {baseTotal.toFixed(2)}€
+                        {baseTotal.toFixed(2)} {currency}
                       </span>
                     </div>
 
@@ -695,7 +701,7 @@ export function BookingDrawer({
                       <div className="flex items-start justify-between">
                         <span className="text-gray-600 text-sm">Delivery</span>
                         <span className="font-medium text-gray-900">
-                          {deliveryFee.toFixed(2)}€
+                          {deliveryFee.toFixed(2)} {currency}
                         </span>
                       </div>
                     )}
@@ -704,7 +710,7 @@ export function BookingDrawer({
                       <div className="flex items-start justify-between">
                         <span className="text-gray-600 text-sm">Extras</span>
                         <span className="font-medium text-gray-900">
-                          {extrasTotal.toFixed(2)}€
+                          {extrasTotal.toFixed(2)} {currency}
                         </span>
                       </div>
                     )}
@@ -714,13 +720,15 @@ export function BookingDrawer({
                     <div className="flex items-start justify-between">
                       <span className="font-semibold text-gray-900">Total</span>
                       <span className="text-base font-semibold text-gray-900">
-                        {grandTotal.toFixed(2)}€
+                        {grandTotal.toFixed(2)} {currency}
                       </span>
                     </div>
 
                     <div className="flex items-start justify-between text-gray-900">
                       <span>Deposit</span>
-                      <span>{car.deposit.toFixed(2)}€</span>
+                      <span>
+                        {car.deposit.toFixed(2)} {currency}
+                      </span>
                     </div>
                   </div>
                 </section>

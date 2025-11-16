@@ -36,6 +36,8 @@ export function BookingBar({
   changePickerStatus,
   openDrawer,
   pricingResult,
+  currency,
+  disabled,
 }: {
   car: CarWithRelations;
   start: string;
@@ -53,6 +55,8 @@ export function BookingBar({
     avgPerDay?: number;
     discountApplied?: number;
   } | null;
+  currency: string;
+  disabled: boolean;
 }) {
   return (
     <div
@@ -63,7 +67,8 @@ export function BookingBar({
         <div className="flex items-center gap-4 md:gap-10 text-center font-semibold font-roboto-condensed">
           <div className="text-left">
             <div className="text-2xl md:text-4xl leading-none text-neutral-900">
-              {pricingResult?.total.toFixed(0)}€
+              {pricingResult ? pricingResult?.total.toFixed(0) : car.price}
+              {currency}
             </div>
             <div className="text-[11px] md:text-xs text-neutral-500 leading-snug">
               for {days} {declineDays(days)}
@@ -102,6 +107,7 @@ export function BookingBar({
           <button
             onClick={openDrawer}
             className="rounded-xl px-3 h-10 md:px-5 md:h-12 text-sm font-medium text-neutral-900 bg-white/40 backdrop-blur border border-neutral-600/60 shadow transition-all duration-200 flex items-center gap-1 cursor-pointer"
+            disabled={disabled}
           >
             <span>Book</span>
             <ArrowRightMini />

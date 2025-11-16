@@ -26,6 +26,7 @@ import { MINIMUM_REQS } from "@/constants/minimumReqs";
 import { CountUp } from "@/utils/countUp";
 import { useSyncQuery } from "@/utils/useSyncQuery";
 import { LazyAutoplayVideo } from "@/utils/lazyAutoplayVideo";
+import { getCurrencySymbol } from "@/utils/currency";
 
 /** Компонент получает serverCar через проп — никакого fetch внутри */
 export default function ClientCarLanding({
@@ -45,6 +46,8 @@ export default function ClientCarLanding({
   // даты
   const [start, setStart] = useState(searchParams.get("start") ?? "");
   const [end, setEnd] = useState(searchParams.get("end") ?? "");
+
+  const canBook = Boolean(start && end);
 
   const [extrasData, setExtrasData] = useState<any[]>([]);
   const [bookingsData, setBookingsData] = useState<any[]>([]);
@@ -68,6 +71,7 @@ export default function ClientCarLanding({
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   const sections = ["overview", "highlights", "services"] as const;
+
   type SectionId = (typeof sections)[number];
 
   const [active, setActive] = useState<SectionId>("overview");
@@ -304,6 +308,9 @@ export default function ClientCarLanding({
 
   // валюта
   const effectiveCurrency = car.currency ?? globalSettings?.currency ?? "EUR";
+
+  // EUR -> €
+  const normalizeCurrency = getCurrencySymbol(effectiveCurrency);
 
   function overlaps(aStart: Date, aEnd: Date, bStart: Date, bEnd: Date) {
     // строгое пересечение (как в пикере)
@@ -779,6 +786,7 @@ export default function ClientCarLanding({
               <button
                 onClick={() => setDrawerOpen(true)}
                 className="rounded-full bg-black/85 text-white px-8 py-3 text-sm font-medium hover:bg-black/90 cursor-pointer"
+                disabled={!canBook}
               >
                 Book
               </button>
@@ -937,6 +945,8 @@ export default function ClientCarLanding({
         }}
         openDrawer={() => setDrawerOpen(true)}
         pricingResult={pricingResult}
+        currency={normalizeCurrency}
+        disabled={!canBook}
       />
 
       {pickerVisible && (
@@ -1006,6 +1016,7 @@ export default function ClientCarLanding({
               extras={extrasData}
               loadingRemote={loadingRemote}
               pricingResult={pricingResult}
+              currency={normalizeCurrency}
             />
           </motion.div>
         )}

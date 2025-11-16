@@ -166,8 +166,8 @@ function formatDayHint(
     const toStr = format(workEnd, "HH:mm", { locale });
 
     return kind === "start"
-      ? `Можно забрать с ${fromStr} до ${toStr}`
-      : `Можно вернуть с ${fromStr} до ${toStr}`;
+      ? `Can be picked up from ${fromStr} to ${toStr}`
+      : `Can be returned from ${fromStr} to ${toStr}`;
   }
 
   // найдём минимальное начало и максимальный конец брони в этот день

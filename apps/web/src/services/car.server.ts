@@ -1,4 +1,3 @@
-// apps/web/src/services/car.server.ts
 import { supabaseServer } from "@/lib/supabaseServer";
 import { toCamelCar } from "./helpers";
 
