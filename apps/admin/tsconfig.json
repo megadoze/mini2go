@@ -12,10 +12,10 @@
     "baseUrl": ".",
     "paths": {
       "@/*": [
-        "src/*",
+        "./src/*"
       ],
       "@types/react": [
-        "./node_modules/@types/react",
+        "./node_modules/@types/react"
       ],
       "@shared/*": [
         "../../shared/*"

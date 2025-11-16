@@ -15,7 +15,10 @@ import Pin from "@/components/pin";
 import { updateCar } from "@/services/car.service";
 import { useCarContext } from "@/context/carContext";
 import { toast } from "sonner";
-import { fetchAddressFromCoords } from "../../../services/geo.service";
+import {
+  ensureCountryAndLocationExist,
+  fetchAddressFromCoords,
+} from "../../../services/geo.service";
 
 type MapboxFeature = {
   place_type?: string[];
@@ -162,7 +165,6 @@ function Parking() {
     if (!feature?.geometry?.coordinates) return;
 
     const [longitude, latitude] = feature.geometry.coordinates;
-    console.log(longitude, latitude);
 
     // const full_address = data.features[0].properties.full_address;
     const full_address =
@@ -180,6 +182,9 @@ function Parking() {
     setFullAddress(full_address);
     setAddress(full_address);
   };
+
+  console.log("LocalCoords", coords);
+  console.log("fullAddress", fullAddress);
 
   // Меняем адрес вручную
   // const handleChangeAddress = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -203,12 +208,23 @@ function Parking() {
     try {
       if (!carId) return null;
 
+      const addr = await fetchAddressFromCoords(
+        coords.latitude,
+        coords.longitude
+      );
+
+      const locationId = await ensureCountryAndLocationExist(
+        addr?.country,
+        addr?.city
+      );
+
       await updateCar(carId, {
         address: fullAddress,
         lat: coords.latitude,
         long: coords.longitude,
         pickupInfo: info.pickupInfo,
         returnInfo: info.returnInfo,
+        locationId: locationId,
       });
 
       setCoords({ latitude: coords.latitude, longitude: coords.longitude });
