@@ -1254,101 +1254,112 @@ export function BookingDrawer({
                         </p>
                       )}
 
-                      <div className="grid md:grid-cols-3 gap-y-2">
-                        {/* DOB */}
-                        <div className="order-1 md:pr-2">
-                          <label className="text-xs text-gray-500">
-                            Date of birth
-                          </label>
-                          <input
-                            type="date"
-                            value={driverDob ?? ""}
-                            onChange={(e) => {
-                              setDriverDob(e.target.value || null);
-                              clearError("driverDob");
-                            }}
-                            className={`w-full rounded-md border px-2 py-2 outline-emerald-200 text-xs ${
-                              errors.driverDob
-                                ? "border-red-400"
-                                : "border-gray-300"
-                            }`}
-                          />
-                          {errors.driverDob && (
-                            <div className="mt-1 text-xs text-red-500">
-                              {errors.driverDob}
-                            </div>
-                          )}
+                      <div className="flex flex-col gap-y-2">
+                        {/* Row 1: DOB + License number */}
+                        <div className="flex flex-col md:flex-row md:gap-x-2">
+                          {/* Date of birth */}
+                          <div className="w-full md:w-1/2">
+                            <label className="text-xs text-gray-500">
+                              Date of birth
+                            </label>
+                            <input
+                              type="date"
+                              value={driverDob ?? ""}
+                              onChange={(e) => {
+                                setDriverDob(e.target.value || null);
+                                clearError("driverDob");
+                              }}
+                              className={`w-full rounded-md border px-2 py-2 outline-emerald-200 text-xs ${
+                                errors.driverDob
+                                  ? "border-red-400"
+                                  : "border-gray-300"
+                              }`}
+                            />
+                            {errors.driverDob && (
+                              <div className="mt-1 text-xs text-red-500">
+                                {errors.driverDob}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Driver license number */}
+                          <div className="w-full md:w-1/2 mt-2 md:mt-0">
+                            <label className="text-xs text-gray-500">
+                              Driver license number
+                            </label>
+                            <input
+                              value={driverLicense}
+                              onChange={(e) => {
+                                setDriverLicense(e.target.value);
+                                clearError("driverLicense");
+                              }}
+                              placeholder="Driver license number *"
+                              className={`w-full rounded-md border px-2 py-2 outline-emerald-200 placeholder:normal-case uppercase ${
+                                errors.driverLicense
+                                  ? "border-red-400"
+                                  : "border-gray-300"
+                              }`}
+                            />
+                            {errors.driverLicense && (
+                              <p className="-mt-2 text-xs text-red-500">
+                                {errors.driverLicense}
+                              </p>
+                            )}
+                          </div>
                         </div>
 
-                        {/* License number — сразу после DOB на мобиле, но ниже дат на десктопе */}
-                        <div className="order-2 md:order-4 md:col-span-3 mt-2">
-                          <input
-                            value={driverLicense}
-                            onChange={(e) => {
-                              setDriverLicense(e.target.value);
-                              clearError("driverLicense");
-                            }}
-                            placeholder="Driver license number *"
-                            className={`w-full rounded-md border border-gray-300 px-2 py-2 outline-emerald-200 placeholder:normal-case uppercase ${
-                              errors.driverLicense ? "border-red-400" : ""
-                            }`}
-                          />
-                          {errors.driverLicense && (
-                            <p className="-mt-2 text-xs text-red-500">
-                              {errors.driverLicense}
-                            </p>
-                          )}
-                        </div>
+                        {/* Row 2: License issue + License expire */}
+                        <div className="flex flex-col md:flex-row md:gap-x-2">
+                          {/* License issue date */}
+                          <div className="w-full md:w-1/2">
+                            <label className="text-xs text-gray-500">
+                              License issue date
+                            </label>
+                            <input
+                              type="date"
+                              value={driverLicenseIssue ?? ""}
+                              onChange={(e) => {
+                                setDriverLicenseIssue(e.target.value || null);
+                                clearError("driverLicenseIssue");
+                              }}
+                              className={`w-full rounded-md border px-2 py-2 outline-emerald-200 ${
+                                errors.driverLicenseIssue
+                                  ? "border-red-400"
+                                  : "border-gray-300"
+                              }`}
+                            />
+                            {errors.driverLicenseIssue && (
+                              <div className="mt-1 text-xs text-red-500">
+                                {errors.driverLicenseIssue}
+                              </div>
+                            )}
+                          </div>
 
-                        {/* License issue date */}
-                        <div className="order-3 md:pr-2">
-                          <label className="text-xs text-gray-500">
-                            License issue date
-                          </label>
-                          <input
-                            type="date"
-                            value={driverLicenseIssue ?? ""}
-                            onChange={(e) => {
-                              setDriverLicenseIssue(e.target.value || null);
-                              clearError("driverLicenseIssue");
-                            }}
-                            className={`w-full rounded-md border px-2 py-2 outline-emerald-200 ${
-                              errors.driverLicenseIssue
-                                ? "border-red-400"
-                                : "border-gray-300"
-                            }`}
-                          />
-                          {errors.driverLicenseIssue && (
-                            <div className="mt-1 text-xs text-red-500">
-                              {errors.driverLicenseIssue}
-                            </div>
-                          )}
-                        </div>
-
-                        {/* License expire date */}
-                        <div className="order-4 md:order-3">
-                          <label className="text-xs text-gray-500">
-                            License expire date
-                          </label>
-                          <input
-                            type="date"
-                            lang="en"
-                            value={driverLicenseExpiry ?? ""}
-                            onChange={(e) => {
-                              setDriverLicenseExpiry(e.target.value || null);
-                              clearError("driverLicenseExpiry");
-                            }}
-                            className={`w-full rounded-md border px-3 py-2 outline-emerald-200 ${
-                              errors.driverLicenseExpiry
-                                ? "border-red-400"
-                                : "border-gray-300"
-                            }`}
-                          />
-                          {errors.driverLicenseExpiry && (
-                            <div className="mt-1 text-xs text-red-500">
-                              {errors.driverLicenseExpiry}
-                            </div>
-                          )}
+                          {/* License expire date */}
+                          <div className="w-full md:w-1/2 mt-2 md:mt-0">
+                            <label className="text-xs text-gray-500">
+                              License expire date
+                            </label>
+                            <input
+                              type="date"
+                              lang="en"
+                              value={driverLicenseExpiry ?? ""}
+                              onChange={(e) => {
+                                setDriverLicenseExpiry(e.target.value || null);
+                                clearError("driverLicenseExpiry");
+                              }}
+                              className={`w-full rounded-md border px-2 py-2 outline-emerald-200 ${
+                                errors.driverLicenseExpiry
+                                  ? "border-red-400"
+                                  : "border-gray-300"
+                              }`}
+                            />
+                            {errors.driverLicenseExpiry && (
+                              <div className="mt-1 text-xs text-red-500">
+                                {errors.driverLicenseExpiry}
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
 
