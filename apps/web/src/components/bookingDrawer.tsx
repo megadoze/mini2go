@@ -1335,7 +1335,7 @@ export function BookingDrawer({
                           <input
                             type="date"
                             placeholder="Input date"
-                            value={driverLicenseExpiry ?? ""}
+                            value={driverLicenseExpiry ?? "date"}
                             onChange={(e) => {
                               setDriverLicenseExpiry(e.target.value || null);
                               clearError("driverLicenseExpiry");
