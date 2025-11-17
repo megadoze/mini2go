@@ -1093,50 +1093,31 @@ export default function CatalogClient() {
           {/* list */}
           <section className="mx-auto max-w-5xl w-full px-4 pb-10 pt-0 md:pt-2">
             {(() => {
-              const isInitialLoading =
+              const isInitialLoadingCars =
                 !hydrated || (carsQ.isLoading && !carsQ.isFetched);
 
-              if (isInitialLoading) {
-                // можно взять разметку из закомментированного loading.tsx
-                return (
-                  <div className="mx-auto max-w-5xl px-4 py-8">
-                    <ul className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
-                      {Array.from({ length: 4 }).map((_, i) => (
-                        <li
-                          key={i}
-                          className="relative flex flex-col overflow-hidden rounded-2xl bg-white/60 backdrop-blur supports-backdrop-filter:bg-white/40 shadow-[0_2px_10px_rgba(0,0,0,0.06)] ring-1 ring-black/5 transition-all duration-300"
-                        >
-                          <div className="h-48 w-full sm:h-52 md:h-56 bg-linear-to-br from-zinc-100 to-zinc-200 animate-pulse" />
-                          <div className="p-5 space-y-3 animate-pulse">
-                            <div className="h-4 bg-gray-100 rounded w-2/3" />
-                            <div className="h-3 bg-gray-100 rounded w-1/3" />
-                            <div className="h-3 bg-gray-100 rounded w-1/2" />
-                            <div className="h-10 bg-gray-100 rounded-xl" />
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                );
-              }
               const bookingsReady =
                 bookingsGroupsKey !== null &&
                 availabilityState.key === bookingsGroupsKey &&
                 !availabilityState.loading;
 
-              const showAvailabilityChecking =
+              const isAvailabilityPending =
                 hydrated &&
                 start &&
                 end &&
                 filteredCars.length > 0 &&
                 !bookingsReady;
-              //  !isFetching;
 
-              if (showAvailabilityChecking) {
+              // 🔹 общий флаг – один скелетон на оба случая
+              const showSkeleton =
+                isInitialLoadingCars || isAvailabilityPending;
+
+              if (showSkeleton) {
                 const skeletonCount = Math.min(
-                  Math.max(filteredCars.length || 4, 4),
+                  Math.max(filteredCars.length || cars.length || 4, 4),
                   8
                 );
+
                 return (
                   <>
                     <div className="mt-4 mb-6 flex flex-col items-center gap-2">
@@ -1161,7 +1142,9 @@ export default function CatalogClient() {
                         />
                       </svg>
                       <p className="text-xs text-zinc-400">
-                        Checking availability…
+                        {isInitialLoadingCars
+                          ? "Loading cars..."
+                          : "Checking availability…"}
                       </p>
                     </div>
 
@@ -1184,6 +1167,8 @@ export default function CatalogClient() {
                   </>
                 );
               }
+
+              // ⬇️ дальше всё как у тебя было (empty, error, список машин и т.д.)
 
               if (
                 hydrated &&
