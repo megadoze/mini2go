@@ -51,13 +51,13 @@ export async function fetchLocationsByCountry(locationId: string) {
 }
 
 // Получение всех локаций
-export async function fetchLocationsByCountryBookings(locationId: string) {
-  const { data, error } = await supabase
-    .from("locations")
-    .select("*")
-    .eq("country_id", locationId);
+export async function fetchLocationsByCountryBookings(countryId: string) {
+  const { data, error } = await supabase.rpc("booking_locations_by_country", {
+    p_country_id: countryId,
+  });
+
   if (error) throw error;
-  return data;
+  return data ?? [];
 }
 
 export async function getCountryByName(name: string) {
