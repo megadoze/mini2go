@@ -1237,8 +1237,9 @@ export function BookingDrawer({
                         </p>
                       )}
 
-                      <div className="grid grid-cols-3 gap-2 items-start">
-                        <div>
+                      <div className="grid md:grid-cols-3 gap-x-2 gap-y-2 items-start">
+                        {/* DOB */}
+                        <div className="order-1">
                           <label className="text-xs text-gray-500">
                             Date of birth
                           </label>
@@ -1262,7 +1263,28 @@ export function BookingDrawer({
                           )}
                         </div>
 
-                        <div>
+                        {/* License number — сразу после DOB на мобиле, но ниже дат на десктопе */}
+                        <div className="order-2 md:order-4 md:col-span-3 mt-2">
+                          <input
+                            value={driverLicense}
+                            onChange={(e) => {
+                              setDriverLicense(e.target.value);
+                              clearError("driverLicense");
+                            }}
+                            placeholder="Driver license number *"
+                            className={`w-full rounded-md border border-gray-300 px-3 py-2 outline-emerald-200 placeholder:normal-case uppercase ${
+                              errors.driverLicense ? "border-red-400" : ""
+                            }`}
+                          />
+                          {errors.driverLicense && (
+                            <p className="-mt-2 text-xs text-red-500">
+                              {errors.driverLicense}
+                            </p>
+                          )}
+                        </div>
+
+                        {/* License issue date */}
+                        <div className="order-3">
                           <label className="text-xs text-gray-500">
                             License issue date
                           </label>
@@ -1286,12 +1308,14 @@ export function BookingDrawer({
                           )}
                         </div>
 
-                        <div>
+                        {/* License expire date */}
+                        <div className="order-4 md:order-3">
                           <label className="text-xs text-gray-500">
-                            License exp date
+                            License expire date
                           </label>
                           <input
                             type="date"
+                            lang="en"
                             value={driverLicenseExpiry ?? ""}
                             onChange={(e) => {
                               setDriverLicenseExpiry(e.target.value || null);
@@ -1311,24 +1335,7 @@ export function BookingDrawer({
                         </div>
                       </div>
 
-                      <input
-                        value={driverLicense}
-                        onChange={(e) => {
-                          setDriverLicense(e.target.value);
-                          clearError("driverLicense");
-                        }}
-                        placeholder="Driver license number *"
-                        className={`w-full rounded-md border border-gray-300 px-3 py-2 outline-emerald-200 placeholder:normal-case uppercase ${
-                          errors.driverLicense ? "border-red-400" : ""
-                        }`}
-                      />
-                      {errors.driverLicense && (
-                        <p className="-mt-2 text-xs text-red-500">
-                          {errors.driverLicense}
-                        </p>
-                      )}
-
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className="grid md:grid-cols-2 gap-3 md:gap-2 mt-2">
                         <div>
                           <input
                             value={driverPhone}
