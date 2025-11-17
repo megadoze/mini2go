@@ -34,9 +34,19 @@ export async function fetchAddressFromCoords(lat: number, lon: number) {
 }
 
 export async function fetchCountries(): Promise<Country[]> {
-  const { data, error } = await supabase.from("countries").select("*");
+  const { data, error } = await supabase
+    .from("countries")
+    .select("*")
+    .eq("is_active", true);
   if (error) throw error;
   return data;
+}
+
+export async function fetchBookingCountries() {
+  const { data, error } = await supabase.rpc("booking_countries");
+
+  if (error) throw error;
+  return data ?? [];
 }
 
 // Получение активных локаций

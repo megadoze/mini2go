@@ -26,7 +26,7 @@ import {
 } from "@/app/car/calendar/calendar.service";
 import { fetchBookingExtras } from "@/services/booking-extras.service";
 import {
-  fetchCountries,
+  fetchBookingCountries,
   fetchLocationsByCountryBookings,
 } from "@/services/geo.service";
 
@@ -233,7 +233,7 @@ export default function UserBookings() {
   /* -------------------- geo queries -------------------- */
   const countriesQ = useQuery<Country[], Error>({
     queryKey: ["countries"],
-    queryFn: fetchCountries,
+    queryFn: fetchBookingCountries,
     initialData: qc.getQueryData<Country[]>(["countries"]),
     staleTime: 24 * 60 * 60 * 1000,
     gcTime: 7 * 24 * 60 * 60 * 1000,
