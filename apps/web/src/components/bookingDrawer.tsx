@@ -1235,7 +1235,7 @@ export function BookingDrawer({
                     <div className="font-semibold text-xs text-gray-900 uppercase">
                       Driver
                     </div>
-                    <div className="mt-3 grid grid-cols-1 gap-3">
+                    <div className="mt-3 grid grid-cols-1 gap-3 w-full">
                       <input
                         ref={firstFocusRef}
                         value={driverName}
@@ -1254,9 +1254,9 @@ export function BookingDrawer({
                         </p>
                       )}
 
-                      <div className="grid md:grid-cols-3 md:gap-x-2 gap-y-2">
+                      <div className="grid md:grid-cols-3 gap-y-2">
                         {/* DOB */}
-                        <div className="order-1">
+                        <div className="order-1 md:pr-2">
                           <label className="text-xs text-gray-500">
                             Date of birth
                           </label>
@@ -1301,7 +1301,7 @@ export function BookingDrawer({
                         </div>
 
                         {/* License issue date */}
-                        <div className="order-3">
+                        <div className="order-3 md:pr-2">
                           <label className="text-xs text-gray-500">
                             License issue date
                           </label>
@@ -1326,7 +1326,7 @@ export function BookingDrawer({
                         </div>
 
                         {/* License expire date */}
-                        {/* <div className="order-4 md:order-3">
+                        <div className="order-4 md:order-3">
                           <label className="text-xs text-gray-500">
                             License expire date
                           </label>
@@ -1349,7 +1349,7 @@ export function BookingDrawer({
                               {errors.driverLicenseExpiry}
                             </div>
                           )}
-                        </div> */}
+                        </div>
                       </div>
 
                       <div className="grid md:grid-cols-2 gap-3 md:gap-2 mt-2">
