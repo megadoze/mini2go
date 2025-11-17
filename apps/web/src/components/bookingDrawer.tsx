@@ -1254,7 +1254,7 @@ export function BookingDrawer({
                         </p>
                       )}
 
-                      <div className="grid md:grid-cols-3 gap-x-4 gap-y-2 items-start w-fit">
+                      <div className="grid md:grid-cols-3 md:gap-x-2 gap-y-2">
                         {/* DOB */}
                         <div className="order-1">
                           <label className="text-xs text-gray-500">
@@ -1326,7 +1326,7 @@ export function BookingDrawer({
                         </div>
 
                         {/* License expire date */}
-                        <div className="order-4 md:order-3">
+                        {/* <div className="order-4 md:order-3">
                           <label className="text-xs text-gray-500">
                             License expire date
                           </label>
@@ -1349,7 +1349,7 @@ export function BookingDrawer({
                               {errors.driverLicenseExpiry}
                             </div>
                           )}
-                        </div>
+                        </div> */}
                       </div>
 
                       <div className="grid md:grid-cols-2 gap-3 md:gap-2 mt-2">
