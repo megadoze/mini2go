@@ -31,13 +31,13 @@ type BookingPayload = {
   priceTotal: number;
   currency: string;
   deposit: number;
-
   deliveryType: "car_address" | "by_address";
   deliveryFee: number;
   deliveryAddress: string;
   deliveryLat: number | null;
   deliveryLong: number | null;
-
+  locationId?: string | null;
+  countryId?: string | null;
   extras: BookingExtraClient[];
   driver: DriverPayload;
   extra_field?: string;
@@ -425,6 +425,8 @@ export async function POST(req: NextRequest) {
         delivery_long: raw.deliveryLong,
         status: "onApproval",
         mark: "booking",
+        location_id: raw.locationId ?? null,
+        country_id: raw.countryId ?? null,
       })
       .select()
       .single();

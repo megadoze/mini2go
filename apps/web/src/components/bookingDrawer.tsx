@@ -570,6 +570,8 @@ export function BookingDrawer({
         accepted_version: ACCEPTED_VERSION,
         price_total: grandTotal,
         delivery_fee: deliveryFee,
+        location_id: (car as any).location?.id ?? "",
+        country_id: (car as any).location?.country_id ?? "",
       };
 
       await Promise.resolve(onConfirm(opts));

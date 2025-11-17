@@ -536,6 +536,16 @@ export default function ClientCarLanding({
         )
       : 0;
 
+    const locationId =
+      typeof opts.location_id === "string" && opts.location_id
+        ? String(opts.location_id)
+        : null;
+
+    const countryId =
+      typeof opts.country_id === "string" && opts.country_id
+        ? String(opts.country_id)
+        : null;
+
     // 6) сколько дней брать для экстрас
     // можно использовать pricingResult.days если есть, иначе пересчитываем по датам
     const billableDays =
@@ -630,6 +640,8 @@ export default function ClientCarLanding({
           : null,
 
       extras: extrasDetailed,
+      locationId,
+      countryId,
       driver,
       extra_field: "",
     };
