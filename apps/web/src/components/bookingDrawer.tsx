@@ -1262,7 +1262,6 @@ export function BookingDrawer({
                           </label>
                           <input
                             type="date"
-                            placeholder="Input date"
                             value={driverDob ?? ""}
                             onChange={(e) => {
                               setDriverDob(e.target.value || null);
@@ -1308,7 +1307,6 @@ export function BookingDrawer({
                           </label>
                           <input
                             type="date"
-                            placeholder="Input date"
                             value={driverLicenseIssue ?? ""}
                             onChange={(e) => {
                               setDriverLicenseIssue(e.target.value || null);
@@ -1334,13 +1332,12 @@ export function BookingDrawer({
                           </label>
                           <input
                             type="date"
-                            placeholder="Input date"
-                            value={driverLicenseExpiry ?? "date"}
+                            value={driverLicenseExpiry ?? ""}
                             onChange={(e) => {
                               setDriverLicenseExpiry(e.target.value || null);
                               clearError("driverLicenseExpiry");
                             }}
-                            className={`w-full md:max-w-fit md:h-10 rounded-md border px-3 py-2 outline-emerald-200 ${
+                            className={`w-full md:max-w-fit md:h-10 rounded-md border px-2 py-2 outline-emerald-200 ${
                               errors.driverLicenseExpiry
                                 ? "border-red-400"
                                 : "border-gray-300"
