@@ -80,7 +80,8 @@ export async function fetchLocationsByCountry(locationId: string) {
   const { data, error } = await supabase
     .from("locations")
     .select("*")
-    .eq("country_id", locationId);
+    .eq("country_id", locationId)
+    .eq("is_active", true);
   if (error) throw error;
   return data ?? [];
 }
