@@ -631,6 +631,7 @@ export default function ClientCarLanding({
 
       extras: extrasDetailed,
       driver,
+      extra_field: "",
     };
 
     const res = await fetch("/api/bookings", {

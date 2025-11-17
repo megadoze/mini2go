@@ -40,6 +40,7 @@ type BookingPayload = {
 
   extras: BookingExtraClient[];
   driver: DriverPayload;
+  extra_field?: string;
 };
 
 // посчитать возраст по дате рождения (для profiles.age)
@@ -57,9 +58,59 @@ function calcAge(dobIso: string | null): number | null {
   return age >= 0 ? age : null;
 }
 
+type Bucket = { count: number; firstHit: number };
+const RATE_LIMIT_WINDOW_MS = 60_000; // 1 минута
+const RATE_LIMIT_MAX = 5; // 5 запросов / минуту с одного IP
+const ipBuckets = new Map<string, Bucket>();
+
+// 🔥 EMAIL-лимит: не больше 1 брони на email за 5 минут
+const EMAIL_RATE_LIMIT_WINDOW_MS = 5 * 60_000; // 5 минут
+
+function isRateLimited(ip: string): boolean {
+  const now = Date.now();
+  const bucket = ipBuckets.get(ip);
+
+  if (!bucket) {
+    ipBuckets.set(ip, { count: 1, firstHit: now });
+    return false;
+  }
+
+  // окно истекло — начинаем заново
+  if (now - bucket.firstHit > RATE_LIMIT_WINDOW_MS) {
+    ipBuckets.set(ip, { count: 1, firstHit: now });
+    return false;
+  }
+
+  bucket.count += 1;
+  ipBuckets.set(ip, bucket);
+
+  return bucket.count > RATE_LIMIT_MAX;
+}
+
 export async function POST(req: NextRequest) {
   try {
+    // ---- IP + rate limit ----
+    const ip =
+      req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+      // @ts-expect-error nah
+      req.ip ||
+      "unknown";
+
+    if (isRateLimited(ip)) {
+      return NextResponse.json(
+        { error: "Too many requests, please try again later." },
+        { status: 429 }
+      );
+    }
+
     const raw = (await req.json()) as Partial<BookingPayload>;
+
+    // 🔥 HONEYPOT: если extra_field не пустое — считаем, что это бот
+    const honeypot = (raw.extra_field ?? "").trim();
+    if (honeypot !== "") {
+      // Возвращаем "успех", но НИЧЕГО не создаем в базе
+      return NextResponse.json({ ok: true }, { status: 200 });
+    }
 
     if (!raw.carId || !raw.start || !raw.end) {
       return NextResponse.json(
@@ -116,9 +167,63 @@ export async function POST(req: NextRequest) {
       licenseFileUrl: raw.driver?.licenseFileUrl ?? null,
     };
 
-    if (!driver.email) {
+    // ---------- SERVER-SIDE VALIDATION (минимальный набор) ----------
+
+    // fullname
+    const nameTrimmed = driver.name.trim();
+
+    if (!nameTrimmed) {
       return NextResponse.json(
-        { error: "Driver email is required" },
+        { error: "Please enter your first and last name" },
+        { status: 400 }
+      );
+    }
+
+    const parts = nameTrimmed.split(/\s+/);
+
+    if (parts.length < 2) {
+      return NextResponse.json(
+        { error: "Please enter first and last name" },
+        { status: 400 }
+      );
+    }
+
+    const first = parts[0];
+    const last = parts[parts.length - 1];
+
+    if (first.length < 2 || last.length < 2) {
+      return NextResponse.json(
+        {
+          error: "First and last name must be at least 2 characters each",
+        },
+        { status: 400 }
+      );
+    }
+
+    // phone
+    if (!driver.phone || driver.phone.replace(/[\s-]/g, "").length < 7) {
+      return NextResponse.json(
+        { error: "Driver phone is invalid" },
+        { status: 400 }
+      );
+    }
+
+    // email
+    const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!driver.email || !emailRe.test(driver.email)) {
+      return NextResponse.json(
+        { error: "Driver email is invalid" },
+        { status: 400 }
+      );
+    }
+
+    // license nomber
+    if (
+      !driver.licenseNumber ||
+      driver.licenseNumber.replace(/[\s-]/g, "").length < 6
+    ) {
+      return NextResponse.json(
+        { error: "Driver license number is invalid" },
         { status: 400 }
       );
     }
@@ -236,6 +341,46 @@ export async function POST(req: NextRequest) {
       profileId = data.id;
     }
 
+    // ---------- 1.5 EMAIL RATE LIMIT: не больше 1 брони за 5 минут ----------
+    if (!profileId) {
+      return NextResponse.json(
+        { error: "Failed to resolve driver profile" },
+        { status: 500 }
+      );
+    }
+
+    const emailLimitSince = new Date(
+      Date.now() - EMAIL_RATE_LIMIT_WINDOW_MS
+    ).toISOString();
+
+    const { data: recentBookings, error: recentBookingsError } =
+      await supabaseServer
+        .from("bookings")
+        .select("id, created_at")
+        .eq("user_id", profileId)
+        .gte("created_at", emailLimitSince)
+        .limit(1);
+
+    if (recentBookingsError) {
+      console.error("email rate-limit check error", recentBookingsError);
+      // можно либо пустить дальше, либо порубить запрос как 500.
+      // я предлагаю порубить, чтобы не получать лавину дубликатов, если что-то пошло не так.
+      return NextResponse.json(
+        { error: "Failed to verify booking limits" },
+        { status: 500 }
+      );
+    }
+
+    if (recentBookings && recentBookings.length > 0) {
+      return NextResponse.json(
+        {
+          error:
+            "You have recently created a booking. Please wait a few minutes before creating another.",
+        },
+        { status: 429 }
+      );
+    }
+
     // ---------- 2. СОЗДАЁМ БРОНЬ ----------
 
     const startAt = new Date(raw.start);
@@ -244,6 +389,20 @@ export async function POST(req: NextRequest) {
     if (Number.isNaN(startAt.getTime()) || Number.isNaN(endAt.getTime())) {
       return NextResponse.json(
         { error: "Invalid start or end date" },
+        { status: 400 }
+      );
+    }
+
+    if (endAt <= startAt) {
+      return NextResponse.json(
+        { error: "End date must be after start date" },
+        { status: 400 }
+      );
+    }
+
+    if (pricePerDay < 0 || priceTotal < 0 || deposit < 0 || deliveryFee < 0) {
+      return NextResponse.json(
+        { error: "Price values must be non-negative" },
         { status: 400 }
       );
     }

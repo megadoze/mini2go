@@ -48,7 +48,7 @@ const AddressAutofill = dynamic(
 
 import Pin from "@/components/pin"; // если у тебя есть аналог
 import { fetchAddressFromCoords } from "@/services/geo.service"; // или свой сервис
-import { ClockIcon } from "@heroicons/react/24/solid";
+import { toast } from "sonner";
 
 type BookingDrawerProps = {
   open: boolean;
@@ -105,6 +105,8 @@ export function BookingDrawer({
   const brand = modelObj?.brands?.name;
   const model = modelObj?.name;
   const title = `${brand ?? ""} ${model ?? ""}`.trim();
+
+  const depositValue = Number(car.deposit || 0);
 
   // локальные поля — как у тебя
   const [pickedExtras, setPickedExtras] = useState<string[]>([]);
@@ -166,7 +168,6 @@ export function BookingDrawer({
   // refs + UI
   const panelRef = useRef<HTMLDivElement | null>(null);
   const firstFocusRef = useRef<HTMLInputElement | null>(null);
-  const lastFocusRef = useRef<HTMLButtonElement | null>(null);
   const mapRef = useRef<any>(null);
 
   // Delivery
@@ -517,8 +518,17 @@ export function BookingDrawer({
     };
   }, [licenseFile]);
 
+  const clearSubmitError = () =>
+    setErrors((prev) => {
+      const rest = { ...prev };
+      delete rest.submit; // аккуратно убираем только submit
+      return rest;
+    });
+
   const handleConfirm = async () => {
     if (submitting) return;
+
+    clearSubmitError();
 
     const ok = validate();
     if (!ok) return;
@@ -564,12 +574,19 @@ export function BookingDrawer({
 
       await Promise.resolve(onConfirm(opts));
       onClose();
-    } catch (err) {
+    } catch (err: any) {
       console.error("Booking failed", err);
+
+      const message =
+        err?.message && typeof err.message === "string"
+          ? err.message
+          : "Booking failed. Please try again.";
+
+      toast.error(message);
       setErrors((p) => ({
         ...p,
-        driverLicenseFile: "License upload failed. Try again.",
-        submit: "Booking failed. Try again.",
+        // driverLicenseFile трогать не будем, если ошибка не про файл
+        submit: message,
       }));
     } finally {
       setSubmitting(false);
@@ -888,7 +905,7 @@ export function BookingDrawer({
                     <div className="flex items-start justify-between text-gray-900">
                       <span>Deposit</span>
                       <span>
-                        {car.deposit.toFixed(2)} {currency}
+                        {depositValue.toFixed(2)} {currency}
                       </span>
                     </div>
                   </div>
