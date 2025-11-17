@@ -132,7 +132,7 @@ export const ModelsSection = () => {
     <section id="models" className="relative bg-white text-black">
       <div className="px-4 sm:px-6 lg:px-10 pt-20 py-10">
         <div className="text-center">
-          <h2 className="text-3xl sm:text-4xl lg:text-6xl font-oleo-script font-extrabold tracking-wide">
+          <h2 className="text-3xl sm:text-4xl lg:text-6xl font-oleo-script font-extrabold ">
             Which one will it be today?
           </h2>
           <p className="pt-1 md:pt-2 text-lg md:text-2xl text-neutral-600 font-roboto-condensed">
@@ -159,7 +159,7 @@ export const ModelsSection = () => {
                 aria-label={`Open ${c.title} preview`}
               >
                 <div
-                  className={` absolute top-5 text-4xl sm:text-7xl font-oleo-script font-bold z-50 transition-opacity duration-75 bg-zinc-300/60  bg-clip-text text-transparent ${
+                  className={` absolute top-4 text-4xl sm:text-7xl font-roboto-condensed font-bold z-50 transition-opacity duration-75 bg-zinc-300/60  bg-clip-text text-transparent ${
                     i === displayIdx ? "opacity-100" : "opacity-0"
                   }`}
                   aria-hidden={i !== displayIdx}
