@@ -1254,7 +1254,7 @@ export function BookingDrawer({
                         </p>
                       )}
 
-                      <div className="grid md:grid-cols-3 gap-x-2 gap-y-2 items-start">
+                      <div className="grid md:grid-cols-3 gap-x-2 gap-y-2 items-start w-full">
                         {/* DOB */}
                         <div className="order-1">
                           <label className="text-xs text-gray-500">
