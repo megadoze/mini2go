@@ -1312,7 +1312,7 @@ export function BookingDrawer({
                               setDriverLicenseIssue(e.target.value || null);
                               clearError("driverLicenseIssue");
                             }}
-                            className={`w-full rounded-md border px-2 py-2 outline-emerald-200 ${
+                            className={`w-full md:max-w-fit rounded-md border px-2 py-2 outline-emerald-200 ${
                               errors.driverLicenseIssue
                                 ? "border-red-400"
                                 : "border-gray-300"
@@ -1338,7 +1338,7 @@ export function BookingDrawer({
                               setDriverLicenseExpiry(e.target.value || null);
                               clearError("driverLicenseExpiry");
                             }}
-                            className={`w-full rounded-md border px-3 py-2 outline-emerald-200 ${
+                            className={`w-full md:max-w-fit rounded-md border px-3 py-2 outline-emerald-200 ${
                               errors.driverLicenseExpiry
                                 ? "border-red-400"
                                 : "border-gray-300"
