@@ -1262,6 +1262,7 @@ export function BookingDrawer({
                           </label>
                           <input
                             type="date"
+                            placeholder="Input date"
                             value={driverDob ?? ""}
                             onChange={(e) => {
                               setDriverDob(e.target.value || null);
@@ -1307,6 +1308,7 @@ export function BookingDrawer({
                           </label>
                           <input
                             type="date"
+                            placeholder="Input date"
                             value={driverLicenseIssue ?? ""}
                             onChange={(e) => {
                               setDriverLicenseIssue(e.target.value || null);
@@ -1332,7 +1334,7 @@ export function BookingDrawer({
                           </label>
                           <input
                             type="date"
-                            lang="en"
+                            placeholder="Input date"
                             value={driverLicenseExpiry ?? ""}
                             onChange={(e) => {
                               setDriverLicenseExpiry(e.target.value || null);
