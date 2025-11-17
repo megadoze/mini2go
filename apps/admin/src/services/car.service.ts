@@ -366,6 +366,14 @@ export async function addCar(car: Partial<NewCar>): Promise<{
     .single(); // ожидаем 1 строку
 
   if (error) throw error;
+
+  const { error: refreshError } = await supabase.rpc(
+    "refresh_locations_is_active"
+  );
+
+  if (refreshError) {
+    console.error("Failed to refresh locations.is_active", refreshError);
+  }
   return data!;
 }
 
@@ -398,6 +406,14 @@ export async function deleteCar(carId: string) {
 
   if (error) {
     throw new Error("Ошибка при удалении автомобиля: " + error.message);
+  }
+
+  const { error: refreshError } = await supabase.rpc(
+    "refresh_locations_is_active"
+  );
+
+  if (refreshError) {
+    console.error("Failed to refresh locations.is_active", refreshError);
   }
 }
 

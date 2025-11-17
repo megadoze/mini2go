@@ -1550,6 +1550,8 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
               delivery === "by_address" ? deliveryAddress : null,
             delivery_lat: delivery === "by_address" ? deliveryLat : null,
             delivery_long: delivery === "by_address" ? deliveryLong : null,
+            location_id: car?.location?.id ?? null,
+            country_id: car?.location?.country_id ?? null,
           } as any);
 
           if (saved.car_id) {

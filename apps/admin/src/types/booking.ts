@@ -16,4 +16,6 @@ export type Booking = {
   delivery_address?: string | null;
   delivery_lat?: number | null;
   delivery_long?: number | null;
+  location_id?: string | null;
+  country_id?: string | null;
 };

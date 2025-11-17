@@ -37,13 +37,17 @@ export async function fetchCountries(): Promise<Country[]> {
   const { data, error } = await supabase
     .from("countries")
     .select("*")
-    .eq("is_active", true);
+    .eq("is_active", true)
+    .order("name", { ascending: true });
   if (error) throw error;
   return data;
 }
 
-export async function fetchBookingCountries() {
-  const { data, error } = await supabase.rpc("booking_countries");
+export async function fetchCountriesForBookings(): Promise<Country[]> {
+  const { data, error } = await supabase
+    .from("countries")
+    .select("*")
+    .order("name", { ascending: true });
 
   if (error) throw error;
   return data ?? [];
