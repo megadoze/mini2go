@@ -216,7 +216,6 @@ export async function fetchBrands(): Promise<Brand[]> {
   return data;
 }
 
-
 // Получение списка моделей конкретной марки авто
 export async function fetchModelsByBrand(brandId: string) {
   const { data, error } = await supabase
@@ -229,41 +228,6 @@ export async function fetchModelsByBrand(brandId: string) {
   return data;
 }
 
-
-// Получение списка авто
-// export async function fetchCars(): Promise<CarWithRelations[]> {
-//   const { data } = await supabase
-//     .from("cars")
-//     .select(CARS_BASE_SELECT)
-//     .throwOnError();
-
-//   if (!data) return [];
-//   return data.map(mapCarRow);
-// }
-
-// Получение авто постранично (открытый доступ, только активные)
-// export async function fetchCarsPage(opts: {
-//   limit: number;
-//   offset: number;
-// }): Promise<{
-//   items: CarWithRelations[];
-//   count: number;
-// }> {
-//   const { limit, offset } = opts;
-
-//   const { data, error, count } = await supabase
-//     .from("cars")
-//     .select(CARS_BASE_SELECT, { count: "exact", head: false })
-//     .eq("status", "available")
-//     .order("created_at", { ascending: false })
-//     // В supabase .range — включительно по обоим концам
-//     .range(offset, offset + limit - 1);
-
-//   if (error) throw error;
-
-//   const items = (data ?? []).map(mapCarRow);
-//   return { items, count: count ?? items.length };
-// }
 export async function fetchCarsPage(opts: {
   limit: number;
   offset: number;
@@ -334,10 +298,9 @@ export async function fetchCarsPage(opts: {
     // supabase не умеет OR по json-реляциям в одной строке красиво,
     // поэтому чаще делают view или отдельный rpc.
     // Сделаем самый простой вариант: по модели
-    q = q.or(
-      `models.name.ilike.%${v}%,models.brands.name.ilike.%${v}%`,
-      { foreignTable: "models" }
-    );
+    q = q.or(`models.name.ilike.%${v}%,models.brands.name.ilike.%${v}%`, {
+      foreignTable: "models",
+    });
   }
 
   const { data, error, count } = await q
@@ -347,7 +310,6 @@ export async function fetchCarsPage(opts: {
   if (error) throw error;
 
   const items = (data ?? []).map(mapCarRow);
-
 
   return { items, count: count ?? items.length };
 }
@@ -373,7 +335,6 @@ export async function fetchCarsPageByHost(opts: {
   return { items, count: count ?? items.length };
 }
 
-
 // Получение авто хоста
 export async function fetchCarsByHost(
   ownerId: string
@@ -396,13 +357,13 @@ export type NewCar = Omit<
 
 // Добавление нового авто
 export async function addCar(car: Partial<NewCar>): Promise<{
-  id: string 
+  id: string;
 }> {
   const { data, error } = await supabase
     .from("cars")
     .insert(car)
-    .select("id")        // минимально
-    .single();           // ожидаем 1 строку
+    .select("id") // минимально
+    .single(); // ожидаем 1 строку
 
   if (error) throw error;
   return data!;

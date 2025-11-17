@@ -41,11 +41,9 @@ import { userBookingsLoader } from "./routes/userBookings.loader";
 import { authLoader } from "./routes/auth.loader";
 import ScrollToTop from "./components/scrollToTop";
 import HostPage from "./app/hosts/hostPage";
-import PublicCarPage from "./app/landingpage/carPage";
 import { usersLoader } from "./routes/usersLoader";
 import { settingsGlobalLoader } from "./routes/settingsGlobal.loader";
 import OfflineAwareErrorBoundary from "./components/offlineAwareErrorBoundary";
-import AllCarsPage from "./app/landingpage/catalog";
 
 export const router = createBrowserRouter([
   { path: "/auth", element: <AuthenticationPage /> },
@@ -168,10 +166,5 @@ export const router = createBrowserRouter([
       { path: "location/delivery", element: <Delivery /> },
       { path: "settings", element: <Settings /> },
     ],
-  },
-  { path: "/catalog", element: <AllCarsPage /> },
-  {
-    path: "/catalog/:brandSlug/:modelSlug/:carId",
-    element: <PublicCarPage />,
   },
 ]);
