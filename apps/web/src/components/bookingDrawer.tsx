@@ -152,6 +152,17 @@ export function BookingDrawer({
 
   const [acceptedTs, setAcceptedTs] = useState<string | null>(null);
 
+  const canSubmit =
+    driverName.trim().length > 0 &&
+    driverDob &&
+    driverLicense.trim().length > 0 &&
+    driverLicenseIssue &&
+    driverLicenseExpiry &&
+    driverPhone.trim().length > 0 &&
+    driverEmail.trim().length > 0 &&
+    acceptedTerms &&
+    !!licenseFile;
+
   // refs + UI
   const panelRef = useRef<HTMLDivElement | null>(null);
   const firstFocusRef = useRef<HTMLInputElement | null>(null);
@@ -1226,7 +1237,7 @@ export function BookingDrawer({
                         </p>
                       )}
 
-                      <div className="grid grid-cols-3 gap-2 items-end">
+                      <div className="grid grid-cols-3 gap-2 items-start">
                         <div>
                           <label className="text-xs text-gray-500">
                             Date of birth
@@ -1478,11 +1489,10 @@ export function BookingDrawer({
                   {/* desktop action row (как в BookingEditor) */}
                   <div className="hidden sm:flex items-center justify-center gap-3">
                     <button
-                      ref={lastFocusRef}
                       onClick={handleConfirm}
-                      disabled={submitting}
+                      disabled={submitting || !canSubmit}
                       className={`rounded-xl py-3 px-5 font-medium transition-all flex items-center justify-center gap-3 w-full cursor-pointer ${
-                        submitting
+                        submitting || !canSubmit
                           ? "bg-gray-100 text-gray-800 cursor-not-allowed"
                           : "bg-black text-white"
                       }`}
@@ -1514,11 +1524,10 @@ export function BookingDrawer({
           <div className="sm:hidden fixed left-0 right-0 bottom-0 z-50 border-gray-100 bg-white border-t p-3">
             <div className="mx-auto max-w-3xl flex items-center justify-between gap-3 font-roboto-condensed">
               <button
-                ref={lastFocusRef}
                 onClick={handleConfirm}
-                disabled={submitting}
+                disabled={submitting || !canSubmit}
                 className={`rounded-xl py-3 px-5 font-medium transition-all flex items-center justify-center gap-3 w-full cursor-pointer ${
-                  submitting
+                  submitting || !canSubmit
                     ? "bg-gray-100 text-gray-800 cursor-not-allowed"
                     : "bg-black text-white"
                 }`}
