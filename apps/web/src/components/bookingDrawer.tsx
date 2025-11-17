@@ -763,7 +763,7 @@ export function BookingDrawer({
           className="px-0 h-full flex flex-col overflow-auto md:overflow-hidden"
         >
           {/* Header */}
-          <div className="flex items-center justify-between px-4 md:px-6 py-2 mb-4 md:mb-5 bg-black text-white/95">
+          <div className="flex items-center justify-between px-4 md:px-6 py-3 mb-4 md:mb-5 bg-gray-100 md:bg-black text-white">
             <div className="text-lg md:text-xl font-roboto-condensed font-medium">
               Confirm booking
             </div>
@@ -902,7 +902,7 @@ export function BookingDrawer({
                       </span>
                     </div>
 
-                    <div className="flex items-start justify-between text-gray-900">
+                    <div className="flex items-start justify-between text-gray-900 -mt-1">
                       <span>Deposit</span>
                       <span>
                         {depositValue.toFixed(2)} {currency}
@@ -1466,7 +1466,7 @@ export function BookingDrawer({
                   </section>
                   {/* Terms */}
                   <section className={cardCls}>
-                    <label className="flex items-center gap-3">
+                    <label className="flex items-center gap-3 cursor-pointer">
                       <input
                         id="terms"
                         type="checkbox"
@@ -1480,6 +1480,7 @@ export function BookingDrawer({
                             setAcceptedTs(null);
                           }
                         }}
+                        className=" h-4 w-4 accent-black cursor-pointer"
                       />
                       <div className="text-sm">
                         I agree to the{" "}

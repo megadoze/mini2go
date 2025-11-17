@@ -63,7 +63,7 @@ export function BookingBar({
       id="booking"
       className="z-50 fixed inset-x-0 bottom-0 bg-white/70 backdrop-blur supports-backdrop-filter:bg-white/40 border-t border-gray-200/60"
     >
-      <div className="mx-auto max-w-7xl px-4 md:px-6 py-2 flex items-center justify-between">
+      <div className="mx-auto max-w-7xl px-4 md:px-6 py-3 flex items-center justify-between">
         <div className="flex items-center gap-4 md:gap-10 text-center font-semibold font-roboto-condensed">
           <div className="text-left">
             <div className="text-2xl md:text-4xl leading-none text-neutral-900">
@@ -106,7 +106,7 @@ export function BookingBar({
 
           <button
             onClick={openDrawer}
-            className="rounded-xl px-3 h-10 md:px-5 md:h-12 text-sm font-medium text-neutral-900 bg-white/40 backdrop-blur border border-neutral-600/60 shadow transition-all duration-200 flex items-center gap-1 cursor-pointer"
+            className="rounded-xl px-3 h-10 md:px-5 md:h-12 text-sm font-medium text-white bg-black/85 hover:bg-black/90 backdrop-blur border border-neutral-600/60 shadow transition-all duration-200 flex items-center gap-1 cursor-pointer"
             disabled={disabled}
           >
             <span>Book</span>
