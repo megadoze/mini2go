@@ -39,13 +39,23 @@ export async function fetchCountries(): Promise<Country[]> {
   return data;
 }
 
-// Получение списка моделей конкретной марки авто
+// Получение активных локаций
 export async function fetchLocationsByCountry(locationId: string) {
   const { data, error } = await supabase
     .from("locations")
     .select("*")
     .eq("country_id", locationId)
     .eq("is_active", true);
+  if (error) throw error;
+  return data;
+}
+
+// Получение всех локаций
+export async function fetchLocationsByCountryBookings(locationId: string) {
+  const { data, error } = await supabase
+    .from("locations")
+    .select("*")
+    .eq("country_id", locationId);
   if (error) throw error;
   return data;
 }

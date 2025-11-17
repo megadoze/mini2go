@@ -27,7 +27,7 @@ import {
 import { fetchBookingExtras } from "@/services/booking-extras.service";
 import {
   fetchCountries,
-  fetchLocationsByCountry,
+  fetchLocationsByCountryBookings,
 } from "@/services/geo.service";
 
 import type { BookingCard } from "@/types/bookingCard";
@@ -249,7 +249,7 @@ export default function BookingsList() {
 
   const locationsQ = useQuery<TLocation[], Error>({
     queryKey: ["locations", countryId],
-    queryFn: () => fetchLocationsByCountry(countryId!),
+    queryFn: () => fetchLocationsByCountryBookings(countryId!),
     enabled: !!countryId,
     initialData: countryId
       ? qc.getQueryData<TLocation[]>(["locations", countryId])
