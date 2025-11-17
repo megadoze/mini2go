@@ -763,7 +763,7 @@ export function BookingDrawer({
           className="px-0 h-full flex flex-col overflow-auto md:overflow-hidden"
         >
           {/* Header */}
-          <div className="flex items-center justify-between px-4 md:px-6 py-3 mb-4 md:mb-5 bg-gray-100 md:bg-black text-white">
+          <div className="flex items-center justify-between px-4 md:px-6 py-3 mb-4 md:mb-5 bg-black text-white">
             <div className="text-lg md:text-xl font-roboto-condensed font-medium">
               Confirm booking
             </div>
