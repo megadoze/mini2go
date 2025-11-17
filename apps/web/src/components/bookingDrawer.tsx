@@ -767,7 +767,7 @@ export function BookingDrawer({
               <div className="md:sticky md:top-6 md:space-y-4 md:max-h-[calc(100vh-6rem)]">
                 {/* Car card */}
                 <section className="rounded-2xl bg-white shadow-sm ring-1 ring-gray-200 p-4 sm:p-5">
-                  <div className="aspect-video w-full overflow-hidden rounded-xl h-40 object-cover">
+                  <div className="aspect-video w-full overflow-hidden rounded-xl h-40 object-cover bg-gray-50">
                     {car?.photos?.[0] ? (
                       <img
                         src={car.photos[0]}
@@ -782,7 +782,7 @@ export function BookingDrawer({
                   </div>
 
                   <div>
-                    <p className="font-semibold text-gray-900">
+                    <p className="font-semibold text-gray-900 pt-1">
                       {title} {car?.year}
                     </p>
                   </div>
@@ -931,7 +931,7 @@ export function BookingDrawer({
                                       p.filter((x) => x !== ex.extra_id)
                                     );
                                 }}
-                                className="mt-1 h-4 w-4"
+                                className="mt-1 h-4 w-4 accent-black "
                                 disabled={isLocked}
                               />
                               <div>
@@ -948,7 +948,7 @@ export function BookingDrawer({
 
                             <div className="flex items-center gap-3">
                               <div className="text-sm font-medium">
-                                {ex.price}€
+                                {ex.price} {currency}
                               </div>
                             </div>
                           </div>
