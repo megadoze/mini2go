@@ -408,6 +408,15 @@ export async function updateCar(id: string, data: CarUpdatePayload) {
   const { error } = await supabase.from("cars").update(snakeData).eq("id", id);
 
   if (error) throw error;
+
+  const { error: refreshError } = await supabase.rpc(
+    "refresh_locations_is_active"
+  );
+
+  if (refreshError) {
+    console.error("Failed to refresh locations.is_active", refreshError);
+  }
+
   carCache.delete(id);
 }
 

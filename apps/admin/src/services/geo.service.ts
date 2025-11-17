@@ -50,11 +50,11 @@ export async function fetchBookingCountries() {
 }
 
 // Получение активных локаций
-export async function fetchLocationsByCountry(locationId: string) {
+export async function fetchLocationsByCountry(countryId: string) {
   const { data, error } = await supabase
     .from("locations")
     .select("*")
-    .eq("country_id", locationId)
+    .eq("country_id", countryId)
     .eq("is_active", true);
   if (error) throw error;
   return data;

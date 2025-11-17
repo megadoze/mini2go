@@ -183,14 +183,6 @@ function Parking() {
     setAddress(full_address);
   };
 
-  console.log("LocalCoords", coords);
-  console.log("fullAddress", fullAddress);
-
-  // Меняем адрес вручную
-  // const handleChangeAddress = (e: React.ChangeEvent<HTMLInputElement>) => {
-  //   const value = e.target.value;
-  //   setAddress(value);
-  // };
 
   const handleChangeInfo = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInfo((prev) => ({ ...prev, [e.target.id]: e.target.value }));
