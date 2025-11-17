@@ -915,7 +915,7 @@ export function BookingDrawer({
 
             {/* RIGHT: form */}
             <div className="flex-1">
-              <div className="h-full pb-18 md:pb-20 md:overflow-y-scroll">
+              <div className="h-full pb-18 md:pb-22 md:overflow-y-scroll">
                 <div className="space-y-4 md:pr-6">
                   {/* Options (Extras) */}
                   <section className={cardCls}>
@@ -1510,7 +1510,7 @@ export function BookingDrawer({
                       </div>
                     </label>
                   </section>
-                  {/* desktop action row (как в BookingEditor) */}
+                  {/* desktop action row  */}
                   <div className="hidden sm:flex items-center justify-center gap-3">
                     <button
                       onClick={handleConfirm}

@@ -66,7 +66,10 @@ export async function fetchAddressFromCoords(lat: number, lon: number) {
 export async function fetchCountries(): Promise<Country[]> {
   const supabase = getSupabaseClient();
   if (!supabase) return []; // билд / нет env
-  const { data, error } = await supabase.from("countries").select("*");
+  const { data, error } = await supabase
+    .from("countries")
+    .select("*")
+    .eq("is_active", true);
   if (error) throw error;
   return data ?? [];
 }
