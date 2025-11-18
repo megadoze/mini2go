@@ -4,7 +4,7 @@ import { WELCOME_FEATURES } from "@/constants/carOptions";
 export const WelcomeSection = () => {
   return (
     <section id="welcome-mini-drive" className="bg-white">
-      <div className=" lg:px-10 pt-24">
+      <div className=" lg:px-10 pt-10 md:pt-20 pb-20">
         <div className="text-center">
           <h2 className="text-3xl sm:text-4xl lg:text-6xl font-oleo-script font-bold text-black">
             Welcome to MINI Drive

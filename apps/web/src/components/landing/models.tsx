@@ -130,7 +130,7 @@ export const ModelsSection = () => {
 
   return (
     <section id="models" className="relative bg-white text-black">
-      <div className="px-4 sm:px-6 lg:px-10 pt-20 py-10">
+      <div className="px-4 sm:px-6 lg:px-10 pt-20 md:pt-30 pb-20">
         <div className="text-center">
           <h2 className="text-3xl sm:text-4xl lg:text-6xl font-oleo-script font-extrabold ">
             Which one will it be today?

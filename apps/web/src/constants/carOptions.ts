@@ -63,10 +63,11 @@ export const VIDEO_TEASERS = [
   },
   {
     title: "MINI Cooper Aceman",
-    description: "The feeling of a go-kart with an open roof, 2+2 seats",
+    description:
+      "Compact electric crossover with urban spirit and agile handling, 5 seats",
     fuel: "Electro",
     src: "/videos/mini-aceman.mp4",
-    poster: "/img/aceman2.webp",
+    poster: "/img/miniaceman.webp",
   },
 ] as const;
 
