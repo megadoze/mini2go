@@ -862,8 +862,8 @@ export default function ClientCarLanding({
       </section>
 
       {/* HIGHLIGHTS */}
-      <section id="highlights" className="bg-white scroll-mt-24 pb-10">
-        <div className="lg:px-10 pt-10">
+      <section id="highlights" className="bg-white scroll-mt-24 pb-10 md:pb-20">
+        <div className="lg:px-10 pt-10 md:pt-30">
           <div className="text-center">
             <h2 className="text-3xl sm:text-4xl lg:text-6xl font-oleo-script font-bold text-black">
               Highlights
@@ -873,7 +873,7 @@ export default function ClientCarLanding({
             </p>
           </div>
 
-          <div className="mt-10 w-full max-w-[1200px] mx-auto space-y-12 md:space-y-16">
+          <div className="pt-10 md:pt-18 w-full max-w-[1200px] mx-auto space-y-12 md:space-y-16">
             {WELCOME_FEATURES.map((item, i) => {
               const reversed = i % 2 === 0;
               return (
@@ -916,7 +916,7 @@ export default function ClientCarLanding({
 
       {/* SERVICES */}
       <section id="services" className="bg-white scroll-mt-24">
-        <div className="px-[3vw] sm:px-6 lg:px-10 pt-10 mb-10">
+        <div className="px-[3vw] sm:px-6 lg:px-10 pt-10 md:pt-20 mb-10">
           <div className="text-center">
             <h2 className="text-3xl sm:text-4xl lg:text-6xl font-oleo-script font-bold text-black">
               Inclusive services
@@ -926,7 +926,7 @@ export default function ClientCarLanding({
             </p>
           </div>
 
-          <div className="mt-10 w-full max-w-[1200px] mx-auto flex flex-wrap justify-center gap-6 md:gap-8">
+          <div className="pt-10 md:pt-18 w-full max-w-[1200px] mx-auto flex flex-wrap justify-center gap-6 md:gap-8">
             {MINIMUM_REQS.map((item, i) => (
               <div
                 key={i}
@@ -953,7 +953,7 @@ export default function ClientCarLanding({
         </div>
       </section>
 
-      <div className="mb-36 md:mb-24" />
+      <div className="mb-36 md:mb-30" />
 
       <BookingBar
         car={car}

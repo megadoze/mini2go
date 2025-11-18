@@ -475,7 +475,7 @@ export const VideoSection = () => {
         </div>
 
         {/* ===== DESKTOP ===== */}
-        <div className="hidden md:flex justify-center mt-20">
+        <div className="hidden md:flex justify-center mt-18">
           <div className="flex w-full max-w-[1200px] items-start justify-center gap-8">
             {/* левая колонка */}
             <div className="flex flex-col items-center gap-8">

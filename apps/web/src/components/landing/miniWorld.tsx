@@ -74,7 +74,7 @@ export function MiniWorld() {
         </div>
 
         {/* DESKTOP/TABLET: сетка 3 колонки */}
-        <div className="hidden md:grid mt-20 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
+        <div className="hidden md:grid mt-18 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
           {items.map((p, i) => (
             <a
               key={i}

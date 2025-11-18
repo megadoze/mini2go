@@ -62,8 +62,6 @@ function isBlockingBooking(b: any) {
 
 const PAGE_SIZE = 10;
 
-/* ========== DEBUG FLAG ========== */
-// Включи в dev: localStorage.setItem('TRACE_CATALOG', '1')
 const TRACE =
   typeof window !== "undefined" &&
   localStorage.getItem("TRACE_CATALOG") === "1";
@@ -1002,7 +1000,7 @@ export default function CatalogClient() {
 
         <main className="flex-1 pb-24 pt-24 md:pt-32">
           {/* desktop filters */}
-          <div className="hidden sm:flex flex-wrap gap-3 items-center w-full mb-6 px-4 max-w-5xl mx-auto">
+          <div className="hidden sm:flex flex-wrap gap-3 items-center w-full px-4 max-w-5xl mx-auto">
             <CarFilters
               countries={countries}
               locations={locations}
@@ -1091,7 +1089,7 @@ export default function CatalogClient() {
           </Drawer>
 
           {/* list */}
-          <section className="mx-auto max-w-5xl w-full px-4 pb-10 pt-0 md:pt-2">
+          <section className="mx-auto max-w-5xl w-full px-4 pb-10 pt-4 md:pt-10">
             {(() => {
               const isInitialLoadingCars =
                 !hydrated || (carsQ.isLoading && !carsQ.isFetched);

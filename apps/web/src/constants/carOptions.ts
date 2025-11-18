@@ -21,11 +21,11 @@ export const CAR_CARDS = [
     subtitle: "Silent & zippy",
     price: "from €69/day",
     img: "/img/cabrio.png",
-    href: "/cars?model=electric",
+    href: "/cars?model=cabrio",
   },
   {
     title: "Aceman",
-    subtitle: "Электрический пиздец",
+    subtitle: "Electric city crossover",
     price: "from €88/day",
     img: "/img/aceman3.png",
     href: "/cars?model=aceman",
