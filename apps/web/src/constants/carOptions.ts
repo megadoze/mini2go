@@ -12,16 +12,23 @@ export const CAR_CARDS = [
   {
     title: "Cooper",
     subtitle: "Urban go-kart feel",
-    price: "from €89/day",
+    price: "from €59/day",
     img: "/img/one.png",
     href: "/cars?model=cooper-3d",
   },
   {
     title: "Cabrio",
     subtitle: "Silent & zippy",
-    price: "from €99/day",
+    price: "from €69/day",
     img: "/img/cabrio.png",
     href: "/cars?model=electric",
+  },
+  {
+    title: "Aceman",
+    subtitle: "Электрический пиздец",
+    price: "from €88/day",
+    img: "/img/aceman.webp",
+    href: "/cars?model=aceman",
   },
   {
     title: "Countryman",
