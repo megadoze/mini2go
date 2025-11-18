@@ -130,7 +130,7 @@ export const ModelsSection = () => {
 
   return (
     <section id="models" className="relative bg-white text-black">
-      <div className="px-4 sm:px-6 lg:px-10 pt-20 md:pt-30 pb-20">
+      <div className=" pt-18 md:pt-34 pb-30">
         <div className="text-center">
           <h2 className="text-3xl sm:text-4xl lg:text-6xl font-oleo-script font-extrabold ">
             Which one will it be today?
@@ -140,11 +140,11 @@ export const ModelsSection = () => {
           </p>
         </div>
 
-        <div className="relative mt-16">
+        <div className="relative mt-18">
           <div
             ref={sliderRef}
             onScroll={onSliderScroll}
-            className="relative flex gap-6 overflow-x-auto snap-x snap-mandatory scroll-smooth items-center [scrollbar-width:none] [&::-webkit-scrollbar]:hidden h-80 md:h-[456px]"
+            className="relative flex gap-34 2xl:gap-44 overflow-x-auto snap-x snap-mandatory scroll-smooth items-center [scrollbar-width:none] [&::-webkit-scrollbar]:hidden h-80 md:h-[456px]"
             style={{ paddingLeft: sidePad, paddingRight: sidePad }}
           >
             {CAR_CARDS.map((c, i) => (

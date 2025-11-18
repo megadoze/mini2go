@@ -195,12 +195,12 @@ export const HeroSection = () => {
       <div className="absolute inset-0 z-0 overflow-hidden">
         <Image
           src={mainBanner}
-          alt="" // декоративный фон — пустой alt
+          alt="Black MINI driving through the city"
           fill
           priority
           quality={90}
           placeholder="blur" // LQIP — Next сгенерировал blurDataURL
-          aria-hidden={true}
+          // aria-hidden={true}
           className="object-cover object-center saturate-90 blur-[0.9px] select-none"
           sizes="100vw"
         />
@@ -287,7 +287,7 @@ export const HeroSection = () => {
           {/* Steps — в том же контейнере, сразу над формой */}
           {stepsVisible && (
             <motion.div
-              className="hidden md:flex flex-wrap justify-center items-center gap-4 font-roboto-condensed text-shadow text-white mb-4"
+              className="hidden md:flex flex-wrap justify-center items-center gap-4 font-boogaloo tracking-wider text-shadow-md text-white mb-4"
               variants={{
                 hidden: { opacity: 0 },
                 visible: { opacity: 1, transition: { staggerChildren: 0.15 } },
@@ -296,10 +296,10 @@ export const HeroSection = () => {
               animate="visible"
             >
               {[
-                "Select location",
-                "Select period",
+                "Pick location",
+                "Set your dates",
                 "Choose your MINI",
-                "Pick up and go",
+                "Drive away",
               ].map((text, idx) => (
                 <motion.p
                   key={idx}
@@ -337,7 +337,7 @@ export const HeroSection = () => {
                     data={[
                       {
                         value: "",
-                        label: "Select location",
+                        label: "Choose location",
                         disabled: true,
                         hidden: true,
                       } as any,
@@ -409,7 +409,7 @@ export const HeroSection = () => {
                   withScrollArea={false}
                   variant="unstyled"
                   className="h-12 border border-gray-600 bg-white rounded-md content-center"
-                  placeholder="Select location"
+                  placeholder="Choose location"
                   clearButtonProps={{
                     onMouseDown: (e: React.MouseEvent) => {
                       e.preventDefault();
@@ -423,7 +423,7 @@ export const HeroSection = () => {
                       paddingLeft: "10px",
                       fontSize: "16px",
                       fontFamily: "var(--font-roboto-condensed)",
-                      cursor: "pointer"
+                      cursor: "pointer",
                     },
                     dropdown: { maxHeight: 200, overflowY: "auto" },
                   }}
@@ -442,7 +442,7 @@ export const HeroSection = () => {
                     ).toLocaleDateString()}`
                   : ""
               }
-              placeholder="Dates"
+              placeholder="Set your dates"
               aria-label="Dates"
               readOnly
               onClick={() => locationFilter && setPickerVisible(true)}
