@@ -64,9 +64,9 @@ export const VIDEO_TEASERS = [
   {
     title: "MINI Cooper Aceman",
     description: "The feeling of a go-kart with an open roof, 2+2 seats",
-    fuel: "Gasoline",
+    fuel: "Electro",
     src: "/videos/mini-aceman.mp4",
-    poster: "/img/aceman-poster.webp",
+    poster: "/img/aceman2.webp",
   },
 ] as const;
 

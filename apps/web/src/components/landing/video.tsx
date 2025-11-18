@@ -50,6 +50,98 @@ function waitFirstFrame(el: HTMLVideoElement): Promise<void> {
   });
 }
 
+type StoryCardProps = {
+  idx: number;
+  delay?: number;
+  video: {
+    src: string;
+    poster: string;
+    title: string;
+    description: string;
+  };
+  isActive: boolean; // mounted && hoveredStory === idx
+  setStoryRef: (el: HTMLVideoElement | null) => void;
+  onMouseEnter: () => void;
+  onMouseLeave: () => void;
+  onEnded: (el: HTMLVideoElement) => void;
+};
+
+const StoryCard = ({
+  idx,
+  delay = 0,
+  video,
+  isActive,
+  setStoryRef,
+  onMouseEnter,
+  onMouseLeave,
+  onEnded,
+}: StoryCardProps) => (
+  <motion.div
+    initial={{ opacity: 0, y: 24, scale: 0.98 }}
+    whileInView={{ opacity: 1, y: 0, scale: 1 }}
+    viewport={{ once: true, amount: 0.2 }}
+    transition={{
+      type: "spring",
+      duration: 0.55,
+      bounce: 0.28,
+      delay,
+    }}
+    className="group relative w-[88vw] max-w-[440px] md:w-[340px] lg:w-[380px] overflow-hidden rounded-2xl ring-1 ring-black/10 transition-[transform,box-shadow] duration-300 hover:shadow-xl"
+    onMouseEnter={onMouseEnter}
+    onMouseLeave={onMouseLeave}
+  >
+    <div className="relative aspect-9/16">
+      <video
+        ref={setStoryRef}
+        className="absolute inset-0 h-full w-full object-cover"
+        src={video.src}
+        muted
+        playsInline
+        preload="metadata"
+        loop
+        onEnded={(e) => onEnded(e.currentTarget)}
+      />
+
+      <Image
+        fill
+        sizes={CARD_SIZES}
+        src={video.poster}
+        alt=""
+        className={`pointer-events-none absolute inset-0 h-full w-full object-cover z-10 transition-opacity duration-200 ${
+          isActive ? "opacity-0" : "opacity-100"
+        }`}
+        draggable={false}
+      />
+
+      <div
+        className={`pointer-events-none absolute inset-0 z-10 bg-black/15 transition-opacity duration-200 ${
+          isActive ? "opacity-0" : "opacity-100"
+        }`}
+      />
+
+      <div className="pointer-events-none absolute top-0 left-0 right-0 z-20 p-4">
+        <span
+          className={`font-roboto-condensed inline-block px-2 py-1 text-white/90 transition-opacity duration-200 bg-linear-to-r from-zinc-900/50 to-neutral-400/0 rounded-lg ${
+            isActive ? "opacity-90" : "opacity-100"
+          }`}
+        >
+          {video.title}
+        </span>
+      </div>
+
+      <div className="pointer-events-none absolute bottom-0 left-0 right-0 z-10 p-4">
+        <span
+          className={`inline-block px-3 py-1 text-white/80 transition-opacity duration-200 bg-linear-to-r from-zinc-900/50 to-neutral-400/0 rounded-lg ${
+            isActive ? "opacity-90" : "opacity-100"
+          }`}
+        >
+          {video.description}
+        </span>
+      </div>
+    </div>
+  </motion.div>
+);
+
 export const VideoSection = () => {
   // ====== DESKTOP refs ======
   const storyRefs = useRef<(HTMLVideoElement | null)[]>([]);
@@ -270,7 +362,7 @@ export const VideoSection = () => {
             className="flex overflow-x-auto pl-[3vw] snap-x snap-mandatory gap-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
             style={{ WebkitOverflowScrolling: "touch" } as any}
           >
-            {[0, 1, 2].map((i) => (
+            {[0, 1, 2, 3].map((i) => (
               <div
                 key={i}
                 className="snap-start shrink-0 w-[82vw] max-w-[420px] touch-manipulation"
@@ -383,234 +475,68 @@ export const VideoSection = () => {
         </div>
 
         {/* ===== DESKTOP ===== */}
-        <div className="hidden md:flex justify-center mt-10">
+        <div className="hidden md:flex justify-center mt-20">
           <div className="flex w-full max-w-[1200px] items-start justify-center gap-8">
             {/* левая колонка */}
             <div className="flex flex-col items-center gap-8">
-              {/* CARD 0 */}
-              <motion.div
-                initial={{ opacity: 0, y: 24, scale: 0.98 }}
-                whileInView={{ opacity: 1, y: 0, scale: 1 }}
-                viewport={{ once: true, amount: 0.2 }}
-                transition={{ type: "spring", duration: 0.55, bounce: 0.28 }}
-                className="group relative w-[88vw] max-w-[440px] md:w-[340px] lg:w-[380px] overflow-hidden rounded-2xl ring-1 ring-black/10 transition-[transform,box-shadow] duration-300 hover:shadow-xl"
+              <StoryCard
+                idx={0}
+                delay={0}
+                video={VIDEO_TEASERS[0]}
+                isActive={mounted && hoveredStory === 0}
+                setStoryRef={setStoryRef(0)}
                 onMouseEnter={() => playDesktop(0)}
                 onMouseLeave={() => pauseDesktop(0)}
-              >
-                <div className="relative aspect-9/16">
-                  <video
-                    ref={setStoryRef(0)}
-                    className="absolute inset-0 h-full w-full object-cover"
-                    src={VIDEO_TEASERS[0].src}
-                    muted
-                    playsInline
-                    preload="metadata"
-                    loop
-                    onEnded={(e) => {
-                      stopAndPoster(e.currentTarget);
-                      setHoveredStory((p) => (p === 0 ? null : p));
-                    }}
-                  />
-
-                  <Image
-                    fill
-                    sizes={CARD_SIZES}
-                    src={VIDEO_TEASERS[0].poster}
-                    alt=""
-                    className={`pointer-events-none absolute inset-0 h-full w-full object-cover z-10 transition-opacity duration-300 ${
-                      mounted && hoveredStory === 0
-                        ? "opacity-0"
-                        : "opacity-100"
-                    }`}
-                    draggable={false}
-                  />
-
-                  <div
-                    className={`pointer-events-none absolute inset-0 z-10 bg-black/15 transition-opacity duration-200 ${
-                      mounted && hoveredStory === 0
-                        ? "opacity-0"
-                        : "opacity-100"
-                    }`}
-                  />
-
-                  <div className="pointer-events-none absolute top-0 left-0 right-0 z-20 p-4">
-                    <span
-                      className={`font-roboto-condensed inline-block px-2 py-1 text-white/90 transition-opacity duration-200 bg-linear-to-r from-zinc-900/50 to-neutral-400/0 rounded-lg ${
-                        mounted && hoveredStory === 0
-                          ? "opacity-90"
-                          : "opacity-100"
-                      }`}
-                    >
-                      {VIDEO_TEASERS[0].title}
-                    </span>
-                  </div>
-                  <div className="pointer-events-none absolute bottom-0 left-0 right-0 z-10 p-4">
-                    <span
-                      className={`inline-block px-3 py-1 text-white/80 transition-opacity duration-200 bg-linear-to-r from-zinc-900/50 to-neutral-400/0 rounded-lg ${
-                        mounted && hoveredStory === 0
-                          ? "opacity-90"
-                          : "opacity-100"
-                      }`}
-                    >
-                      {VIDEO_TEASERS[0].description}
-                    </span>
-                  </div>
-                </div>
-              </motion.div>
-
-              {/* CARD 2 */}
-              <motion.div
-                initial={{ opacity: 0, y: 24, scale: 0.98 }}
-                whileInView={{ opacity: 1, y: 0, scale: 1 }}
-                viewport={{ once: true, amount: 0.2 }}
-                transition={{
-                  type: "spring",
-                  duration: 0.55,
-                  bounce: 0.28,
-                  delay: 0.05,
+                onEnded={(el) => {
+                  stopAndPoster(el);
+                  setHoveredStory((p) => (p === 0 ? null : p));
                 }}
-                className="group relative w-[88vw] max-w-[440px] md:w-[340px] lg:w-[380px] overflow-hidden rounded-2xl ring-1 ring-black/10 transition-[transform,box-shadow] duration-300 hover:shadow-xl"
+              />
+
+              <StoryCard
+                idx={2}
+                delay={0.05}
+                video={VIDEO_TEASERS[2]}
+                isActive={mounted && hoveredStory === 2}
+                setStoryRef={setStoryRef(2)}
                 onMouseEnter={() => playDesktop(2)}
                 onMouseLeave={() => pauseDesktop(2)}
-              >
-                <div className="relative aspect-9/16">
-                  <video
-                    ref={setStoryRef(2)}
-                    className="absolute inset-0 h-full w-full object-cover"
-                    src={VIDEO_TEASERS[2].src}
-                    muted
-                    playsInline
-                    preload="metadata"
-                    loop
-                    onEnded={(e) => {
-                      stopAndPoster(e.currentTarget);
-                      setHoveredStory((p) => (p === 2 ? null : p));
-                    }}
-                  />
-                  <Image
-                    fill
-                    sizes={CARD_SIZES}
-                    src={VIDEO_TEASERS[2].poster}
-                    alt=""
-                    className={`pointer-events-none absolute inset-0 h-full w-full object-cover z-10 transition-opacity duration-200 ${
-                      mounted && hoveredStory === 2
-                        ? "opacity-0"
-                        : "opacity-100"
-                    }`}
-                    draggable={false}
-                  />
-
-                  <div
-                    className={`pointer-events-none absolute inset-0 z-10 bg-black/15 transition-opacity duration-200 ${
-                      mounted && hoveredStory === 2
-                        ? "opacity-0"
-                        : "opacity-100"
-                    }`}
-                  />
-
-                  <div className="pointer-events-none absolute top-0 left-0 right-0 z-20 p-4">
-                    <span
-                      className={`font-roboto-condensed inline-block px-2 py-1 text-white/90 transition-opacity duration-200 bg-linear-to-r from-zinc-900/50 to-neutral-400/0 rounded-lg ${
-                        mounted && hoveredStory === 2
-                          ? "opacity-90"
-                          : "opacity-100"
-                      }`}
-                    >
-                      {VIDEO_TEASERS[2].title}
-                    </span>
-                  </div>
-
-                  <div className="pointer-events-none absolute bottom-0 left-0 right-0 z-10 p-4">
-                    <span
-                      className={`inline-block px-3 py-1 text-white/80 transition-opacity duration-200 bg-linear-to-r from-zinc-900/50 to-neutral-400/0 rounded-lg ${
-                        mounted && hoveredStory === 2
-                          ? "opacity-90"
-                          : "opacity-100"
-                      }`}
-                    >
-                      {VIDEO_TEASERS[2].description}
-                    </span>
-                  </div>
-                </div>
-              </motion.div>
+                onEnded={(el) => {
+                  stopAndPoster(el);
+                  setHoveredStory((p) => (p === 2 ? null : p));
+                }}
+              />
             </div>
 
             {/* правая колонка */}
-            <div className="flex flex-col items-center gap-8 translate-y-[42%]">
-              <motion.div
-                initial={{ opacity: 0, y: 24, scale: 0.98 }}
-                whileInView={{ opacity: 1, y: 0, scale: 1 }}
-                viewport={{ once: true, amount: 0.2 }}
-                transition={{
-                  type: "spring",
-                  duration: 0.55,
-                  bounce: 0.28,
-                  delay: 0.03,
-                }}
-                className="group relative w-[88vw] max-w-[440px] md:w-[340px] lg:w-[380px] overflow-hidden rounded-2xl ring-1 ring-black/10 transition-[transform,box-shadow] duration-300 hover:shadow-xl"
+            <div className="flex flex-col items-center gap-8 mt-60">
+              <StoryCard
+                idx={1}
+                delay={0.03}
+                video={VIDEO_TEASERS[1]}
+                isActive={mounted && hoveredStory === 1}
+                setStoryRef={setStoryRef(1)}
                 onMouseEnter={() => playDesktop(1)}
                 onMouseLeave={() => pauseDesktop(1)}
-              >
-                <div className="relative aspect-9/16">
-                  <video
-                    ref={setStoryRef(1)}
-                    className="absolute inset-0 h-full w-full object-cover"
-                    src={VIDEO_TEASERS[1].src}
-                    muted
-                    playsInline
-                    preload="metadata"
-                    loop
-                    onEnded={(e) => {
-                      stopAndPoster(e.currentTarget);
-                      setHoveredStory((p) => (p === 1 ? null : p));
-                    }}
-                  />
-                  <Image
-                    fill
-                    sizes={CARD_SIZES}
-                    src={VIDEO_TEASERS[1].poster}
-                    alt=""
-                    className={`pointer-events-none absolute inset-0 h-full w-full object-cover z-10 transition-opacity duration-200 ${
-                      mounted && hoveredStory === 1
-                        ? "opacity-0"
-                        : "opacity-100"
-                    }`}
-                    draggable={false}
-                  />
+                onEnded={(el) => {
+                  stopAndPoster(el);
+                  setHoveredStory((p) => (p === 1 ? null : p));
+                }}
+              />
 
-                  <div
-                    className={`pointer-events-none absolute inset-0 z-10 bg-black/15 transition-opacity duration-200 ${
-                      mounted && hoveredStory === 1
-                        ? "opacity-0"
-                        : "opacity-100"
-                    }`}
-                  />
-
-                  <div className="pointer-events-none absolute top-0 left-0 right-0 z-20 p-4">
-                    <span
-                      className={`font-roboto-condensed inline-block px-2 py-1 text-white/90 transition-opacity duration-200 bg-linear-to-r from-zinc-900/50 to-neutral-400/0 rounded-lg ${
-                        mounted && hoveredStory === 1
-                          ? "opacity-90"
-                          : "opacity-100"
-                      }`}
-                    >
-                      {VIDEO_TEASERS[1].title}
-                    </span>
-                  </div>
-
-                  <div className="pointer-events-none absolute bottom-0 left-0 right-0 z-10 p-4">
-                    <span
-                      className={`inline-block px-3 py-1 text-white/80 transition-opacity duration-200 bg-linear-to-r from-zinc-900/50 to-neutral-400/0 rounded-lg ${
-                        mounted && hoveredStory === 1
-                          ? "opacity-90"
-                          : "opacity-100"
-                      }`}
-                    >
-                      {VIDEO_TEASERS[1].description}
-                    </span>
-                  </div>
-                </div>
-              </motion.div>
+              <StoryCard
+                idx={3}
+                delay={0.08}
+                video={VIDEO_TEASERS[3]}
+                isActive={mounted && hoveredStory === 3}
+                setStoryRef={setStoryRef(3)}
+                onMouseEnter={() => playDesktop(3)}
+                onMouseLeave={() => pauseDesktop(3)}
+                onEnded={(el) => {
+                  stopAndPoster(el);
+                  setHoveredStory((p) => (p === 3 ? null : p));
+                }}
+              />
             </div>
           </div>
         </div>

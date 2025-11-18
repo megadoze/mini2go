@@ -159,7 +159,7 @@ export const ModelsSection = () => {
                 aria-label={`Open ${c.title} preview`}
               >
                 <div
-                  className={` absolute top-4 text-4xl sm:text-7xl font-roboto-condensed font-bold z-50 transition-opacity duration-75 bg-zinc-300/60  bg-clip-text text-transparent ${
+                  className={` absolute top-4 text-5xl sm:text-7xl font-roboto-condensed font-bold z-50 transition-opacity duration-75 bg-zinc-300/60  bg-clip-text text-transparent ${
                     i === displayIdx ? "opacity-100" : "opacity-0"
                   }`}
                   aria-hidden={i !== displayIdx}

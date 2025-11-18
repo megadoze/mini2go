@@ -6,7 +6,7 @@ export function MiniWorld() {
 
   return (
     <section id="mini-world" className="bg-white">
-      <div className="w-full max-w-[1200px] mx-auto px-[3vw] pt-24 pb-6">
+      <div className="w-full max-w-[1200px] mx-auto px-[3vw] pt-24">
         <div className="text-center">
           <h2 className="text-3xl sm:text-4xl lg:text-6xl font-oleo-script font-extrabold tracking-wide">
             MINI World
@@ -18,7 +18,7 @@ export function MiniWorld() {
         </div>
 
         {/* MOBILE: карусель */}
-        <div className="md:hidden mt-10 -mx-[3vw] pl-[3vw] pr-3">
+        <div className="md:hidden mt-10 md:mt-20 -mx-[3vw] pl-[3vw] pr-3">
           <div className="flex overflow-x-auto snap-x snap-mandatory gap-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {items.map((p, i) => (
               <a
@@ -74,7 +74,7 @@ export function MiniWorld() {
         </div>
 
         {/* DESKTOP/TABLET: сетка 3 колонки */}
-        <div className="hidden md:grid mt-10 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
+        <div className="hidden md:grid mt-20 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
           {items.map((p, i) => (
             <a
               key={i}

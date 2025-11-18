@@ -95,7 +95,7 @@ export const RequirementsSection = () => {
         </div>
 
         {/* центр и ширины — как у видео/карточек */}
-        <div className="mt-10 w-full max-w-[1200px] mx-auto flex flex-wrap justify-center gap-6 md:gap-8">
+        <div className="mt-10 md:mt-20 w-full max-w-[1200px] mx-auto flex flex-wrap justify-center gap-6 md:gap-8">
           {MINIMUM_REQS.map((item, i) => (
             <div
               key={i}

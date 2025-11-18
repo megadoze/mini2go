@@ -15,7 +15,7 @@ export const WelcomeSection = () => {
         </div>
 
         {/* центрируем контент как у видео */}
-        <div className="mt-10 w-full max-w-[1200px] mx-auto space-y-10 md:space-y-16">
+        <div className="mt-10 md:mt-20 w-full max-w-[1200px] mx-auto space-y-10 md:space-y-16">
           {WELCOME_FEATURES.map((item, i) => {
             const reversed = i % 2 === 0; // зеркалим каждую вторую строку
             return (
