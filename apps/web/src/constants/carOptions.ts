@@ -27,7 +27,7 @@ export const CAR_CARDS = [
     title: "Aceman",
     subtitle: "Electric city crossover",
     price: "from €88/day",
-    img: "/img/aceman3.png",
+    img: "/img/aceman.png",
     href: "/cars?model=aceman",
   },
   {
