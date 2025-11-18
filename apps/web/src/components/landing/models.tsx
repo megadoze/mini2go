@@ -12,6 +12,7 @@ export const ModelsSection = () => {
   const [sidePad, setSidePad] = useState(0);
 
   const displayIdxRef = useRef(0);
+
   useEffect(() => {
     displayIdxRef.current = displayIdx;
   }, [displayIdx]);

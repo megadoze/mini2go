@@ -84,7 +84,7 @@ const MINIMUM_REQS = [
 export const RequirementsSection = () => {
   return (
     <section id="minimum-requirements" className="bg-white">
-      <div className="px-[3vw] sm:px-6 lg:px-10 pt-10 md:pt-20 pb-20">
+      <div className="px-[3vw] sm:px-6 lg:px-10 md:pt-20 pb-20">
         <div className="text-center">
           <h2 className="text-3xl sm:text-4xl lg:text-6xl font-oleo-script font-bold text-black">
             Minimum Requirements
@@ -110,9 +110,7 @@ export const RequirementsSection = () => {
                     <h3 className="text-lg md:text-xl font-roboto-condensed font-semibold text-black">
                       {item.title}
                     </h3>
-                    <p className="mt-2 text-black/70">
-                      {item.desc}
-                    </p>
+                    <p className="mt-2 text-black/70">{item.desc}</p>
                   </div>
                 </div>
               </div>
