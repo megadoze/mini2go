@@ -351,7 +351,7 @@ export const VideoSection = () => {
           <h2 className="text-3xl sm:text-4xl lg:text-6xl font-oleo-script font-bold text-black">
             Your MINI adventure starts now.
           </h2>
-          <p className="pt-1 md:pt-2 text-lg md:text-2xl text-neutral-600 font-roboto-condensed">
+          <p className="pt-1 px-4 md:pt-2 text-lg md:text-2xl text-neutral-600 font-roboto-condensed">
             Hit play and feel the drive.
           </p>
         </div>

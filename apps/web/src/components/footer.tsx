@@ -9,7 +9,7 @@ export function Footer() {
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-10 md:gap-12">
           {/* Region / Language */}
           <div>
-            <h4 className="text-sm font-semibold tracking-wide text-white/80">
+            <h4 className=" tracking-wide text-white/80 font-roboto-condensed">
               Language
             </h4>
             <div className="mt-4 flex flex-wrap items-center gap-3">
@@ -35,7 +35,7 @@ export function Footer() {
 
           {/* Explore */}
           <div>
-            <h4 className="text-sm font-semibold tracking-wide text-white/80">
+            <h4 className=" font-roboto-condensed tracking-wide text-white/80">
               Explore
             </h4>
             <ul className="mt-4 space-y-3 text-sm">
@@ -64,7 +64,7 @@ export function Footer() {
 
           {/* Help */}
           <div>
-            <h4 className="text-sm font-semibold tracking-wide text-white/80">
+            <h4 className=" font-roboto-condensed tracking-wide text-white/80">
               Help
             </h4>
             <ul className="mt-4 space-y-3 text-sm">
@@ -92,11 +92,11 @@ export function Footer() {
           </div>
           {/* Socials (с заголовком) */}
           <div>
-            <h4 className="text-sm font-semibold tracking-wide text-white/80 text-center sm:text-left">
+            <h4 className=" font-roboto-condensed tracking-wide text-white/80 text-center sm:text-left">
               Follow us
             </h4>
 
-            <div className="mt-4 flex items-center justify-center sm:justify-start gap-4">
+            <div className="mt-4 flex items-center justify-center md:justify-start sm:justify-start gap-4 -ml-2">
               <a
                 href="#"
                 aria-label="Instagram"
