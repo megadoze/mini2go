@@ -133,7 +133,7 @@ export const ModelsSection = () => {
     <section id="models" className="relative bg-white text-black">
       <div className=" pt-18 md:pt-20 pb-20">
         <div className="text-center">
-          <h2 className="text-3xl sm:text-4xl lg:text-6xl font-oleo-script font-extrabold ">
+          <h2 className="text-4xl px-4 sm:text-4xl lg:text-6xl font-oleo-script font-extrabold ">
             Which one will it be today?
           </h2>
           <p className="pt-1 md:pt-2 text-lg md:text-2xl text-neutral-600 font-roboto-condensed">
