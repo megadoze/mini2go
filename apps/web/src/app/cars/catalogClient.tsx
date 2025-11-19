@@ -1450,7 +1450,7 @@ function CatalogCardGlass({
           className={cn(
             "w-full rounded-xl bg-white/40 backdrop-blur supports-backdrop-filter:bg-white/20 cursor-pointer",
             "px-4 py-3 md:py-4 text-center",
-            "border border-neutral-600/60",
+            "border border-neutral-500",
             "shadow-[0_12px_24px_rgba(0,0,0,0.06)]",
             "hover:border-neutral-900 hover:bg-white/60 hover:shadow-[0_20px_40px_rgba(0,0,0,0.10)]",
             "transition-all duration-200",
@@ -1458,7 +1458,7 @@ function CatalogCardGlass({
             "focus:outline-none focus:ring-2 focus:ring-neutral-900/20 focus:ring-offset-1 focus:ring-offset-white"
           )}
         >
-          <span className="inline-flex items-center gap-1 text-[13px] font-medium">
+          <span className="inline-flex items-center gap-1 font-roboto-condensed text-black">
             <span>Book</span>
             <ArrowRightMini />
           </span>
