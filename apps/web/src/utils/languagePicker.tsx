@@ -36,13 +36,13 @@ export function LanguagePicker() {
   }, []);
 
   return (
-    <div className="relative" ref={menuRef}>
+    <div className="relative text-sm" ref={menuRef}>
       <button
         type="button"
         aria-haspopup="listbox"
         aria-expanded={open}
         onClick={() => setOpen((s) => !s)}
-        className="inline-flex items-center gap-2 rounded-full border border-white/20 px-3 py-1.5 text-sm text-white hover:bg-white/10"
+        className="inline-flex items-center gap-2 rounded-full border border-white/20 px-3 py-1.5 text-white hover:bg-white/10"
       >
         <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-white/10 text-[10px] leading-none ring-1 ring-white/15">
           {selected.flag}
