@@ -752,14 +752,14 @@ export default function ClientCarLanding({
           </button>
         </div>
 
-        <div className="mx-auto max-w-5xl px-4 grid grid-cols-1 mt-4 md:-mt-8">
+        <div className="mx-auto max-w-5xl px-4 grid grid-cols-1 mt-12">
           <div className="overflow-hidden">
             <div className="relative">
               {hero ? (
                 <img
                   src={hero}
                   alt={title}
-                  className="w-full h-full object-cover"
+                  className="w-full h-44 md:h-80 lg:h-96 object-cover rounded-2xl"
                 />
               ) : (
                 <div className="h-full w-full grid place-items-center text-neutral-400">
@@ -791,7 +791,7 @@ export default function ClientCarLanding({
             </div>
           </div>
 
-          <header className="flex flex-col items-center text-center -mt-5 md:-mt-20 z-10">
+          <header className="flex flex-col items-center text-center z-10">
             <h1 className="text-3xl sm:text-4xl lg:text-6xl font-roboto-condensed font-bold text-black">
               {title}
             </h1>
