@@ -1,7 +1,7 @@
 // app/cars/loading.tsx
 export default function Loading() {
   return (
-    <div>loading...</div>
+    <div></div>
     // <div className="mx-auto max-w-5xl px-4 py-8">
     //   <ul className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
     //     {Array.from({ length: 4 }).map((_, i) => (

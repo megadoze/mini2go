@@ -4,16 +4,13 @@ export default function Loading() {
   return (
     <div className="min-h-screen bg-white text-neutral-900 relative">
       {/* --- FAKE HeaderSection (без Mantine, только скелет) --- */}
-      <header className="absolute inset-x-0 top-4 z-50">
-        <div className="flex justify-between items-center px-4 sm:px-6 lg:px-10 mt-3">
+      <header className="absolute inset-x-0 top-3 z-50">
+        <div className="flex justify-between items-center px-4 sm:px-6 lg:px-10 mt-0">
           {/* burger */}
           <div className="h-8 w-8 rounded-md bg-neutral-100 animate-pulse" />
 
           {/* logo + MINI2GO */}
-          {/* <div className="w-14 md:w-20 flex flex-col items-center">
-            <div className="w-14 md:w-20 h-8 md:h-11 rounded-md bg-neutral-100 animate-pulse" />
-            <div className="mt-1 h-3 w-12 md:w-16 rounded-full bg-neutral-100 animate-pulse" />
-          </div> */}
+          <div className="w-14 md:w-18 h-14 md:h-18 rounded-full bg-neutral-100 animate-pulse" />
 
           {/* fingerprint button */}
           <div className="h-8 w-8 rounded-full bg-neutral-100 animate-pulse" />
@@ -25,10 +22,10 @@ export default function Loading() {
         {/* section overview, как у тебя */}
         <section id="overview" className="scroll-mt-24">
           {/* back-кнопка на sticky-полоске */}
-          <div className="sticky top-14 z-20 ml-0 md:ml-10 pt-6 font-roboto-condensed">
+          <div className="sticky top-14 z-20 ml-4 md:ml-10 pt-6 font-roboto-condensed">
             <div className="inline-flex items-center gap-2 rounded-full bg-white/90 backdrop-blur px-3 py-1.5 text-xs md:text-sm text-gray-700 shadow border border-neutral-200 animate-pulse">
               <div className="h-4 w-4 rounded-full bg-neutral-200" />
-              <div className="h-3 w-8 rounded-full bg-neutral-200" />
+              <div className="h-3 w-6 rounded-full bg-neutral-200" />
             </div>
           </div>
 
@@ -48,9 +45,9 @@ export default function Loading() {
               {/* bodyType · fuel · transmission */}
               <div className="h-8 w-72 max-w-full rounded-sm bg-neutral-100 animate-pulse" />
               {/* description */}
-              {/* <div className="h-4 w-64 max-w-full rounded-full bg-neutral-100 mt-2 animate-pulse" /> */}
+              <div className="h-4 w-64 max-w-full rounded-full bg-neutral-100 mt-2 animate-pulse" />
               {/* кнопка Book */}
-              {/* <div className="mt-5 h-11 w-32 rounded-full bg-neutral-900/90 animate-pulse" /> */}
+              <div className="mt-5 h-11 w-32 rounded-full bg-neutral-900/90 animate-pulse" />
             </header>
           </div>
         </section>
