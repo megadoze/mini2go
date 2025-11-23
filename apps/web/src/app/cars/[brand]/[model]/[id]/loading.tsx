@@ -45,7 +45,7 @@ export default function Loading() {
               {/* bodyType · fuel · transmission */}
               <div className="h-8 w-72 max-w-full rounded-sm bg-neutral-100 animate-pulse" />
               {/* description */}
-              <div className="h-8 w-64 max-w-full rounded-sm bg-neutral-100 mt-2 animate-pulse" />
+              {/* <div className="h-8 w-64 max-w-full rounded-sm bg-neutral-100 mt-2 animate-pulse" /> */}
               {/* кнопка Book */}
               <div className="mt-5 h-11 w-24 rounded-full bg-neutral-200 animate-pulse" />
             </header>
