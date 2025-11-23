@@ -255,7 +255,9 @@ export default function ClientCarLanding({
   // медиа
   const photos = useMemo(() => (car?.photos || []).filter(Boolean), [car]);
   const hero = photos[0];
-  const videoPoster = photos[1] || "/images/aceman2.webp";
+  const hoverImage = photos[1] || null;
+
+  const videoPoster = photos[2] || "/images/aceman2.webp";
 
   const modelObj = (car as any).model ?? (car as any).models ?? undefined;
 
@@ -754,13 +756,28 @@ export default function ClientCarLanding({
 
         <div className="mx-auto max-w-5xl px-4 grid grid-cols-1 mt-20 md:mt-12">
           <div className="overflow-hidden">
-            <div className="relative">
+            <div className="relative group">
               {hero ? (
-                <img
-                  src={hero}
-                  alt={title}
-                  className="w-full h-44 md:h-80 lg:h-96 object-cover rounded-2xl"
-                />
+                <>
+                  {/* основное фото */}
+                  <img
+                    src={hero}
+                    alt={title}
+                    className="w-full h-44 md:h-80 lg:h-96 object-cover rounded-2xl
+                   transition-opacity duration-500 group-hover:opacity-0"
+                  />
+
+                  {/* фото при наведении */}
+                  {hoverImage && (
+                    <img
+                      src={hoverImage}
+                      alt={title}
+                      className="w-full h-44 md:h-80 lg:h-96 object-cover rounded-2xl
+                     absolute inset-0 opacity-0
+                     transition-opacity duration-500 group-hover:opacity-100"
+                    />
+                  )}
+                </>
               ) : (
                 <div className="h-full w-full grid place-items-center text-neutral-400">
                   <svg
