@@ -30,7 +30,7 @@ export default function Loading() {
           </div>
 
           {/* hero + header, как в ClientCarLanding */}
-          <div className="mx-auto max-w-5xl px-4 grid grid-cols-1 mt-18 gap-6">
+          <div className="mx-auto max-w-5xl px-4 grid grid-cols-1 mt-20 md:mt-18 gap-6">
             {/* hero-картинка */}
             <div className="overflow-hidden">
               <div className="relative">

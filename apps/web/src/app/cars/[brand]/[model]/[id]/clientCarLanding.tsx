@@ -802,7 +802,7 @@ export default function ClientCarLanding({
               }`}
             </div>
 
-            <p className="pt-2 md:pt-4 md:text-xl text-neutral-800">
+            <p className="pt-4 md:text-xl text-neutral-800">
               An icon of urban driving. Light, maneuverable, and practical.
             </p>
 
