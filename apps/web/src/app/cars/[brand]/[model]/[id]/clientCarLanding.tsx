@@ -759,16 +759,9 @@ export default function ClientCarLanding({
         <div className="mx-auto max-w-5xl px-4 grid grid-cols-1 mt-20 md:mt-12">
           <div className="overflow-hidden">
             <div
-              className="relative group"
-              onMouseEnter={() => {
-                if (!isMobile && hoverImage) setShowAltImage(true);
-              }}
-              onMouseLeave={() => {
-                if (!isMobile && hoverImage) setShowAltImage(false);
-              }}
+              className="relative cursor-pointer"
               onClick={() => {
-                // на мобильных — по тапу переключаем
-                if (isMobile && hoverImage) {
+                if (hoverImage) {
                   setShowAltImage((v) => !v);
                 }
               }}
@@ -786,7 +779,7 @@ export default function ClientCarLanding({
                     }
                   />
 
-                  {/* альтернативное фото */}
+                  {/* фото при клике, если есть второе */}
                   {hoverImage && (
                     <img
                       src={hoverImage}
@@ -801,7 +794,6 @@ export default function ClientCarLanding({
                 </>
               ) : (
                 <div className="h-full w-full grid place-items-center text-neutral-400">
-                  {/* твой SVG как был */}
                   <svg
                     className="h-10 w-10"
                     viewBox="0 0 24 24"
