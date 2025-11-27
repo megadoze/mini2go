@@ -63,6 +63,8 @@ export default function ClientCarLanding({
   // десктоп/мобила
   const [isMobile, setIsMobile] = useState(false);
 
+  const [showAltImage, setShowAltImage] = useState(false);
+
   const [showNav, setShowNav] = useState(false);
 
   const shouldReduceMotion = useReducedMotion();
@@ -756,30 +758,50 @@ export default function ClientCarLanding({
 
         <div className="mx-auto max-w-5xl px-4 grid grid-cols-1 mt-20 md:mt-12">
           <div className="overflow-hidden">
-            <div className="relative group">
+            <div
+              className="relative group"
+              onMouseEnter={() => {
+                if (!isMobile && hoverImage) setShowAltImage(true);
+              }}
+              onMouseLeave={() => {
+                if (!isMobile && hoverImage) setShowAltImage(false);
+              }}
+              onClick={() => {
+                // на мобильных — по тапу переключаем
+                if (isMobile && hoverImage) {
+                  setShowAltImage((v) => !v);
+                }
+              }}
+            >
               {hero ? (
                 <>
                   {/* основное фото */}
                   <img
                     src={hero}
                     alt={title}
-                    className="w-full h-44 md:h-80 lg:h-96 object-cover rounded-2xl
-                   transition-opacity duration-500 group-hover:opacity-0"
+                    className={
+                      "w-full h-44 md:h-80 lg:h-96 object-cover rounded-2xl " +
+                      "transition-opacity duration-500 " +
+                      (showAltImage ? "opacity-0" : "opacity-100")
+                    }
                   />
 
-                  {/* фото при наведении */}
+                  {/* альтернативное фото */}
                   {hoverImage && (
                     <img
                       src={hoverImage}
                       alt={title}
-                      className="w-full h-44 md:h-80 lg:h-96 object-cover rounded-2xl
-                     absolute inset-0 opacity-0
-                     transition-opacity duration-500 group-hover:opacity-100"
+                      className={
+                        "w-full h-44 md:h-80 lg:h-96 object-cover rounded-2xl " +
+                        "absolute inset-0 transition-opacity duration-500 " +
+                        (showAltImage ? "opacity-100" : "opacity-0")
+                      }
                     />
                   )}
                 </>
               ) : (
                 <div className="h-full w-full grid place-items-center text-neutral-400">
+                  {/* твой SVG как был */}
                   <svg
                     className="h-10 w-10"
                     viewBox="0 0 24 24"
