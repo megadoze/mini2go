@@ -16,6 +16,10 @@ export type Car = {
   color?: string | null;
   doors?: number | null;
   photos?: string[] | null;
+  coverPhotos?: string[] | null; // (0 = main, 1 = hover)
+  galleryPhotos?: string[] | null; // (до 6 фоток)
+  videoPoster?: string | null;
+  videoUrl?: string | null;
   content?: string | null;
   lat?: number | null;
   long?: number | null;

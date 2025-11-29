@@ -1166,8 +1166,6 @@ export default function CatalogClient() {
                 );
               }
 
-              // ⬇️ дальше всё как у тебя было (empty, error, список машин и т.д.)
-
               if (
                 hydrated &&
                 isFetched &&
@@ -1328,7 +1326,7 @@ function CatalogCardGlass({
   const brand = car.models?.brands?.name ?? "—";
   const model = car.models?.name ?? "—";
   const year = car.year ?? "";
-  const photo = car.photos?.[0];
+  const photo = car.coverPhotos?.[0];
   const title = `${brand} ${model} ${year || ""}`.trim();
 
   const baseDailyPrice = pricingMeta?.baseDailyPrice ?? car.price ?? 0;

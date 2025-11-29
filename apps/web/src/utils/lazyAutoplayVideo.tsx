@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 import { useEffect, useRef, useState } from "react";
 
 /* LazyAutoplayVideo — немного упрощён, но сохраняет поведение */
@@ -8,8 +9,8 @@ export function LazyAutoplayVideo({
   loop = true,
   threshold = 0.6,
 }: {
-  src: string;
-  poster?: string;
+  src?: string | null;
+  poster?: string | null;
   className?: string;
   loop?: boolean;
   threshold?: number;
@@ -22,6 +23,7 @@ export function LazyAutoplayVideo({
   useEffect(() => {
     const el = videoRef.current;
     if (!el) return;
+    if (!src) return;
 
     const io = new IntersectionObserver(
       ([entry]) => {
@@ -29,7 +31,7 @@ export function LazyAutoplayVideo({
           entry.isIntersecting && entry.intersectionRatio >= (threshold ?? 0.6);
         if (inView) {
           if (!inViewLoaded) {
-            el.src = src;
+            el.src = src ?? "";
             setInViewLoaded(true);
           }
           const p = el.play();

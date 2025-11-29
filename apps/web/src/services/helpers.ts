@@ -54,8 +54,10 @@ export function toCamelCar(raw: any) {
     isSmoking: raw.is_smoking ?? raw.isSmoking ?? undefined,
     isPets: raw.is_pets ?? raw.isPets ?? undefined,
     isAbroad: raw.is_abroad ?? raw.isAbroad ?? undefined,
-
-    photos: raw.photos ?? [],
+    coverPhotos: raw.cover_photos ?? raw.coverPhotos ?? [],
+    galleryPhotos: raw.gallery_photos ?? raw.galleryPhotos ?? [],
+    videoPoster: raw.video_poster ?? raw.videoPoster ?? null,
+    videoUrl: raw.video_url ?? raw.videoUrl ?? null,
     content: raw.content ?? "",
     status: raw.status ?? "",
     owner: raw.owner ?? "",

@@ -255,11 +255,11 @@ export default function ClientCarLanding({
   }, [car.id, car.ownerId]);
 
   // медиа
-  const photos = useMemo(() => (car?.photos || []).filter(Boolean), [car]);
+  const photos = useMemo(() => (car?.coverPhotos || []).filter(Boolean), [car]);
   const hero = photos[0];
   const hoverImage = photos[1] || null;
 
-  const videoPoster = photos[2] || "/images/aceman2.webp";
+  const videoPoster = car.videoPoster || null;
 
   const modelObj = (car as any).model ?? (car as any).models ?? undefined;
 
@@ -267,30 +267,7 @@ export default function ClientCarLanding({
   const model = modelObj?.name;
   const title = `${brand ?? ""} ${model ?? ""}`.trim();
 
-  const video = {
-    s: "/videos/mini-one.mp4",
-    countryman: "/videos/mini-U25.mp4",
-    cabrio: "/videos/mini-cabrio.mp4",
-    aceman: "/videos/mini-aceman.mp4",
-  } as const;
-
-  function getVideoSrcByModelName(raw?: string) {
-    const name = (raw ?? "").toLowerCase();
-    switch (true) {
-      case name.includes("cabrio"):
-        return video.cabrio;
-      case name.includes("countryman"):
-        return video.countryman;
-      case name.includes("aceman"):
-        return video.aceman;
-      case name.includes("s"):
-        return video.s;
-      default:
-        return "";
-    }
-  }
-
-  const videoSrc = useMemo(() => getVideoSrcByModelName(model), [model]);
+  const videoSrc = car.videoUrl || null || "";
 
   // --- EFFECTIVE SETTINGS: сначала берем из car, потом из globalSettings ---
 
