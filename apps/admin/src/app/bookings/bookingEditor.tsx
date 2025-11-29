@@ -1518,7 +1518,7 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
             currency: saved.currency ?? effectiveCurrency,
             brand_name: car?.model?.brands?.name ?? "",
             model_name: car?.model?.name ?? "",
-            photos: car?.photos ?? null,
+            cover_photos: car?.coverPhotos ?? null,
             license_plate: (car as any)?.licensePlate ?? null,
             user_full_name: guest?.full_name ?? null,
           });
@@ -1573,7 +1573,7 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
             currency: effectiveCurrency,
             brand_name: car?.model?.brands?.name ?? "",
             model_name: car?.model?.name ?? "",
-            photos: car?.photos ?? null,
+            cover_photos: car?.coverPhotos ?? null,
             license_plate: (car as any)?.licensePlate ?? null,
             user_full_name: null,
           });
@@ -2781,9 +2781,9 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
           {/* [UI+] Car card in sidebar */}
           <section className="rounded-2xl bg-white shadow-sm ring-1 ring-gray-200 p-4 sm:p-5">
             <div className="aspect-video w-full overflow-hidden rounded-xl ring-1 ring-gray-200 bg-gray-100">
-              {car?.photos?.[0] ? (
+              {car?.coverPhotos?.[0] ? (
                 <img
-                  src={car.photos[0]}
+                  src={car.coverPhotos[0]}
                   className={`h-full w-full object-cover ${
                     isFinished ? "opacity-50" : ""
                   }`}

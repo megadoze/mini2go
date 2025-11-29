@@ -533,7 +533,7 @@ export const UserPage = () => {
                           <img
                             src={photo}
                             alt={`${brand} ${model}`}
-                            className="size-14 rounded-lg object-cover border border-gray-100"
+                            className="size-14 rounded-lg object-cover object-left border border-gray-100"
                           />
                         ) : (
                           <div className="h-10 w-10 rounded-lg border border-gray-100 bg-gray-100 grid place-items-center text-xs text-gray-500">

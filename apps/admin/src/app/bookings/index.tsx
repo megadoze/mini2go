@@ -527,7 +527,7 @@ export default function BookingsList() {
           </div>
         ) : list.length === 0 ? (
           <div className="p-6 rounded-2xl border text-gray-600 text-sm">
-            Броней пока нет.
+            There are no bookings yet.
           </div>
         ) : (
           <>
@@ -694,11 +694,7 @@ function mapDbRowToIndexRow(db: any) {
     // ВАЖНО: «правильные» поля для авто:
     brand_name: db.brand_name ?? db.car_brand ?? null, // на случай если денорм делаешь на сервере
     model_name: db.model_name ?? db.car_model ?? null,
-    photos: Array.isArray(db.photos)
-      ? db.photos
-      : db.car_photo
-      ? [db.car_photo]
-      : null,
+    cover_photos: Array.isArray(db.cover_photos) ? db.cover_photos : null,
     license_plate: db.license_plate ?? db.car_license_plate ?? null,
     // имя гостя (если есть денорм/вьюшка)
     user_full_name: db.user_full_name ?? null,
@@ -739,11 +735,7 @@ function pickCarMetaFromCache(qc: QueryClient, carId?: string) {
   return {
     brand_name: car?.model?.brands?.name ?? null,
     model_name: car?.model?.name ?? null,
-    photos: Array.isArray(car?.photos)
-      ? car.photos
-      : car?.photos
-      ? [car.photos]
-      : null,
+    cover_photos: Array.isArray(car?.cover_photos) ? car.cover_photos : null,
     license_plate: car?.licensePlate ?? null,
   };
 }

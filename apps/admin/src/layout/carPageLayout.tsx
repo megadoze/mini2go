@@ -332,9 +332,9 @@ export default function CarPageLayout() {
         onClick: toggle,
       },
       {
-        to: "photos",
+        to: "media",
         icon: <CameraIcon className="size-5" />,
-        label: "Photos",
+        label: "Media",
         onClick: toggle,
       },
       {
@@ -363,9 +363,9 @@ export default function CarPageLayout() {
     <>
       <div className="flex items-center gap-3">
         <img
-          src={car?.photos?.[0]}
+          src={car?.coverPhotos?.[0]}
           alt=""
-          className="rounded-full w-16 h-16 object-cover object-left"
+          className="rounded-full border w-16 h-16 object-cover object-left"
         />
         <div>
           <p className="font-medium leading-4">

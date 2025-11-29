@@ -67,6 +67,12 @@ function toCamelCar(raw: any) {
     isAbroad: raw.is_abroad ?? raw.isAbroad ?? undefined,
 
     photos: raw.photos ?? [],
+
+    coverPhotos: raw.cover_photos ?? raw.coverPhotos ?? [],
+    galleryPhotos: raw.gallery_photos ?? raw.galleryPhotos ?? [],
+    videoPoster: raw.video_poster ?? raw.videoPoster ?? null,
+    videoUrl: raw.video_url ?? raw.videoUrl ?? null,
+
     content: raw.content ?? "",
     status: raw.status ?? "",
     owner: raw.owner ?? "",
@@ -90,6 +96,12 @@ function carCamelToSnake(input: CarUpdatePayload) {
     color: input.color,
     doors: input.doors,
     photos: input.photos,
+
+    cover_photos: input.coverPhotos ?? [],
+    gallery_photos: input.galleryPhotos ?? [],
+    video_poster: input.videoPoster ?? null,
+    video_url: input.videoUrl ?? null,
+
     content: input.content,
     location_id: input.locationId,
     lat: input.lat,
@@ -132,6 +144,10 @@ const CARS_BASE_SELECT = `
   locations(name, countries(id, name)),
   status,
   photos,
+  cover_photos,
+  gallery_photos,
+  video_poster,
+  video_url,
   address,
   lat,
   long,
@@ -185,6 +201,10 @@ function mapCarRow(car: any): CarWithRelations {
     transmission: car.transmission,
     status: car.status,
     photos: car.photos || [],
+    coverPhotos: car.cover_photos || [],
+    galleryPhotos: car.gallery_photos || [],
+    videoPoster: car.video_poster || null,
+    videoUrl: car.video_url || null,
     address: car.address || "",
     lat: car.lat ?? null,
     long: car.long ?? null,
@@ -255,6 +275,10 @@ export async function fetchCarsPage(opts: {
         locations(name, countries(id, name)),
         status,
         photos,
+        cover_photos,
+        gallery_photos,
+        video_poster,
+        video_url,
         address,
         lat,
         long,
@@ -472,14 +496,77 @@ export async function uploadCarPhotos(files: File[], carId: string) {
   return uploadedUrls;
 }
 
+// Загрузка видео авто
+export async function uploadCarVideo(file: File, carId: string) {
+  if (!file || !(file instanceof File)) {
+    console.error("Некорректный файл видео:", file);
+    throw new Error("Некорректный файл для загрузки видео");
+  }
+
+  const fileExt = file.name.split(".").pop();
+  const filePath = `cars/${carId}/video-${Date.now()}-${Math.random()
+    .toString(36)
+    .slice(2, 10)}.${fileExt}`;
+
+  // ⚠️ тут использую бакет "car-videos" — создай его в Supabase
+  // или замени на свой (можно и "car-media"/"car-photos", если не хочешь делить)
+  const { error } = await supabase.storage
+    .from("car-videos")
+    .upload(filePath, file, {
+      contentType: file.type,
+      cacheControl: "3600",
+      upsert: false,
+    });
+
+  if (error) {
+    console.error("Ошибка Supabase Storage (video):", error);
+    throw new Error("Ошибка при загрузке видео");
+  }
+
+  const { data: publicUrlData } = supabase.storage
+    .from("car-videos")
+    .getPublicUrl(filePath);
+
+  if (!publicUrlData?.publicUrl) {
+    throw new Error("Не удалось получить public URL для видео");
+  }
+
+  return publicUrlData.publicUrl as string;
+}
+
+
 // Обновление массива photos у авто
-export async function updateCarPhotos(carId: string, photos: string[]) {
+// export async function updateCarPhotos(carId: string, photos: string[]) {
+//   const { error } = await supabase
+//     .from("cars")
+//     .update({ photos })
+//     .eq("id", carId);
+//   if (error) throw error;
+//   carCache.delete(carId); // ♻️
+// }
+
+// Обновление медиа у авто
+export async function updateCarPhotos(
+  carId: string,
+  media: {
+    coverPhotos: string[];
+    galleryPhotos: string[];
+    videoPoster: string | null;
+    videoUrl?: string | null;
+  }
+) {
   const { error } = await supabase
     .from("cars")
-    .update({ photos })
+    .update({
+      cover_photos: media.coverPhotos,
+      gallery_photos: media.galleryPhotos,
+      video_poster: media.videoPoster,
+      video_url: media.videoUrl ?? null,
+    })
     .eq("id", carId);
+
   if (error) throw error;
-  carCache.delete(carId); // ♻️
+  carCache.delete(carId);
 }
 
 // Получение всех доступных опций авто

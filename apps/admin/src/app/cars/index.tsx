@@ -156,7 +156,7 @@ export default function CarsPage() {
       driveType: db.drive_type ?? null,
       color: db.color ?? null,
       doors: db.doors ?? null,
-      photos: Array.isArray(db.photos) ? db.photos : [],
+      coverPhotos: Array.isArray(db.coverPhotos) ? db.coverPhotos : [],
       price: db.price ?? null,
       address: db.address ?? null,
       pickupInfo: db.pickupInfo ?? null,
@@ -211,11 +211,11 @@ export default function CarsPage() {
       licensePlate:
         row.licensePlate ?? full.licensePlate ?? full.license_plate ?? null,
 
-      photos:
-        (Array.isArray(row.photos) && row.photos.length > 0
-          ? row.photos
-          : Array.isArray(full.photos)
-          ? full.photos
+      coverPhotos:
+        (Array.isArray(row.coverPhotos) && row.coverPhotos.length > 0
+          ? row.coverPhotos
+          : Array.isArray(full.coverPhotos)
+          ? full.coverPhotos
           : []) ?? [],
 
       status: row.status ?? full.status ?? null,
@@ -365,10 +365,11 @@ export default function CarsPage() {
           updatedRow.licensePlate !== undefined
             ? updatedRow.licensePlate
             : oldDetail.licensePlate ?? oldDetail.license_plate ?? null,
-        photos:
-          Array.isArray(updatedRow.photos) && updatedRow.photos.length > 0
-            ? updatedRow.photos
-            : oldDetail.photos,
+        coverPhotos:
+          Array.isArray(updatedRow.coverPhotos) &&
+          updatedRow.coverPhotos.length > 0
+            ? updatedRow.coverPhotos
+            : oldDetail.coverPhotos,
       };
     });
   }

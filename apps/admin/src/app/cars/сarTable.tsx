@@ -27,7 +27,7 @@ export default function CarListView({ cars, search }: Props) {
         const model = car.models?.name ?? "";
         const plate = car.licensePlate ?? "";
         const location = car.locations?.name ?? "";
-        const photo = car.photos?.[0];
+        const photo = car.coverPhotos?.[0];
 
         return (
           <NavLink

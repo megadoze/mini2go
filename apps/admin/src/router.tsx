@@ -158,7 +158,7 @@ export const router = createBrowserRouter([
       { path: "bookings/:bookingId/edit", element: <BookingEditor /> },
       { path: "pricing", element: <Pricing /> },
       { path: "distance", element: <Distance /> },
-      { path: "photos", element: <Photos /> },
+      { path: "media", element: <Photos /> },
       { path: "extra", element: <Extras /> },
       { path: "extra/:extraId", element: <ExtraComponent /> },
       { path: "location", element: <Location /> },

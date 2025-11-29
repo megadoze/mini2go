@@ -30,7 +30,7 @@ export type BookingJoinedRow = {
   car: OneOrMany<{
     id: string;
     year: number | null;
-    photos: string[] | null;
+    cover_photos: string[] | null;
     license_plate: string | null;
     deposit: number | null;
     model_id: string | null;
@@ -62,7 +62,7 @@ export const SELECT_BOOKING_CARD = `
   id, start_at, end_at, status, mark, car_id, user_id, created_at, price_total,
   user:profiles!left(id, full_name, email),
   car:cars!inner(
-    id, year, photos, license_plate, model_id, deposit, owner_id,
+    id, year, cover_photos, license_plate, model_id, deposit, owner_id,
     model:models(
       id, name, brand_id,
       brand:brands( id, name )
@@ -94,7 +94,7 @@ export function mapRowToBookingCard(row: BookingJoinedRow): BookingCardType {
           year: car.year ?? null,
           licensePlate: car.license_plate ?? null,
           deposit: car.deposit ?? null,
-          photo: Array.isArray(car.photos) ? car.photos[0] ?? null : null,
+          photo: Array.isArray(car.cover_photos) ? car.cover_photos[0] ?? null : null,
           locationName: loc?.name ?? null,
           countryId: loc?.country_id ?? null,
         }
@@ -240,7 +240,7 @@ export type BookingsIndexRow = {
   price_total: number | null;
   owner_id: string;
   owner_full_name: string | null;
-  photos: string[] | null;
+  cover_photos: string[] | null;
   license_plate: string | null;
   year: number | null;
   deposit: number | null;
@@ -365,7 +365,7 @@ export function mapIndexRowToBookingCard(r: BookingsIndexRow): BookingCard {
       year: r.year ?? null,
       licensePlate: r.license_plate ?? null, // ← ГОСНОМЕР
       deposit: r.deposit ?? null,
-      photo: Array.isArray(r.photos) ? r.photos[0] ?? null : null,
+      photo: Array.isArray(r.cover_photos) ? r.cover_photos[0] ?? null : null,
       locationName: r.location_name ?? null,
       countryId: r.country_id ?? null,
     },
