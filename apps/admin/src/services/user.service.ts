@@ -48,9 +48,7 @@ export async function searchUsers(q: string) {
   let query = supabase
     .from("profiles")
     .select("id, full_name, email, phone")
-    .or(
-      `full_name.ilike.%${q}%,email.ilike.%${q}%,phone.ilike.%${q}%`
-    )
+    .or(`full_name.ilike.%${q}%,email.ilike.%${q}%,phone.ilike.%${q}%`)
     .limit(10);
 
   if (currentUid) {
@@ -70,7 +68,8 @@ export async function createUserProfile(payload: {
   driver_license_issue?: string;
   password?: string;
 }) {
-  const fnUrl = "https://keurknzlnafihotpbruj.functions.supabase.co/create-customer";
+  const fnUrl =
+    "https://keurknzlnafihotpbruj.functions.supabase.co/create-customer";
 
   const tempPassword =
     payload.password && payload.password.trim().length >= 6
@@ -109,7 +108,6 @@ export async function createUserProfile(payload: {
 
   return { user, profile, password: tempPassword };
 }
-
 
 export async function getUserById(id: string) {
   const { data, error } = await supabase
@@ -176,16 +174,18 @@ export async function fetchUserBookings(
 ): Promise<BookingItem[]> {
   let query = supabase
     .from("bookings")
-    .select(`
+    .select(
+      `
       id, user_id, car_id, start_at, end_at, status, mark,
       car:cars!inner (
-        id, year, photos, license_plate, model_id, deposit, owner_id,
+        id, year, cover_photos, license_plate, model_id, deposit, owner_id,
         model:models (
           id, name, brand_id,
           brand:brands ( id, name )
         )
       )
-    `)
+    `
+    )
     .eq("user_id", userId)
     .order("created_at", { ascending: false })
     .limit(20);
@@ -199,8 +199,6 @@ export async function fetchUserBookings(
   if (error) throw error;
   return (data ?? []) as BookingItem[];
 }
-
-
 
 // 👉 Заметки хоста о пользователе
 export type UserNoteItem = {
@@ -240,7 +238,6 @@ export async function createUserNote(payload: {
   return data as UserNoteItem;
 }
 
-
 // удаление заметки юзера
 export async function deleteUserNote(id: string) {
   const { error } = await supabase.from("user_notes").delete().eq("id", id);
@@ -251,11 +248,21 @@ export async function deleteUserNote(id: string) {
 export async function fetchUsersPage(
   params: UsersPageParams
 ): Promise<{ items: UserListRow[]; count: number }> {
-  const { limit, offset, q, status, sort = "full_name", dir = "asc", excludeUserId } = params;
+  const {
+    limit,
+    offset,
+    q,
+    status,
+    sort = "full_name",
+    dir = "asc",
+    excludeUserId,
+  } = params;
 
   let query = supabase
     .from("profiles")
-    .select("id, full_name, email, phone, status, avatar_url", { count: "exact" });
+    .select("id, full_name, email, phone, status, avatar_url", {
+      count: "exact",
+    });
 
   if (q && q.trim() !== "") {
     const safe = q.replace(/%/g, "\\%").replace(/_/g, "\\_");
@@ -280,7 +287,10 @@ export async function fetchUsersPage(
   const { data, error, count } = await query.range(from, to);
   if (error) throw error;
 
-  return { items: (data ?? []) as UserListRow[], count: count ?? data?.length ?? 0 };
+  return {
+    items: (data ?? []) as UserListRow[],
+    count: count ?? data?.length ?? 0,
+  };
 }
 
 export async function fetchHostUsersPage(opts: {
@@ -312,10 +322,11 @@ export async function fetchHostUsersPage(opts: {
   return { items, count } as { items: any[]; count: number };
 }
 
-
 export async function sendPasswordReset(email: string) {
   // укажи redirect URL на свою страницу смены пароля
   const redirectTo = `${window.location.origin}/auth/reset`;
-  const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo,
+  });
   if (error) throw error;
 }

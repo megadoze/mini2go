@@ -512,7 +512,7 @@ export const UserPage = () => {
                     (b.car as any)?.reg_number ??
                     "—") as string;
                   const short = shortId(b.id);
-                  const photo = getCarPhoto(b.car?.photos);
+                  const photo = getCarPhoto(b.car?.cover_photos);
 
                   return (
                     <li
