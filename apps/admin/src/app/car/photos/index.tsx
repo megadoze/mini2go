@@ -4,7 +4,9 @@ import {
   uploadCarPhotos,
   updateCarPhotos,
   uploadCarVideo,
+  deleteCarVideoByUrl,
 } from "@/services/car.service";
+
 import { toast } from "sonner";
 import { Dropzone, IMAGE_MIME_TYPE } from "@mantine/dropzone";
 import { SimpleGrid, Text, Button, Modal, Group } from "@mantine/core";
@@ -248,6 +250,7 @@ export default function Photos() {
   const [galleryPhotos, setGalleryPhotos] = useState<PhotoItem[]>([]);
   const [videoPoster, setVideoPoster] = useState<PhotoItem | null>(null);
   const [video, setVideo] = useState<VideoItem | null>(null);
+  const [videoRemoved, setVideoRemoved] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [photoToDelete, setPhotoToDelete] = useState<PhotoToDelete | null>(
@@ -441,6 +444,7 @@ export default function Photos() {
         url,
         isNew: true,
       });
+      setVideoRemoved(false);
     } catch (e: any) {
       if (e?.message?.includes("10MB")) {
         toast.error("Video size must be <= 10MB");
@@ -458,6 +462,7 @@ export default function Photos() {
       URL.revokeObjectURL(video.url);
     }
     setVideo(null);
+    setVideoRemoved(true);
   };
 
   // --------- сохранение ---------
@@ -466,7 +471,10 @@ export default function Photos() {
     if (!carId) return;
     setLoading(true);
     try {
-      // Фотки
+      // 💾 Запоминаем, что было в БД ДО любых изменений
+      const prevVideoUrl: string | null = car?.videoUrl ?? null;
+
+      // ---------- ФОТО ----------
       const newCoverFiles = coverPhotos
         .filter((p) => p.isNew && p.file)
         .map((p) => p.file!) as File[];
@@ -506,13 +514,21 @@ export default function Photos() {
           : videoPoster.url
         : null;
 
-      // 🎥 ВИДЕО
-      let finalVideoUrl: string | null = car?.videoUrl ?? null; // старое значение, если было
+      // ---------- ВИДЕО ----------
+      let finalVideoUrl: string | null = prevVideoUrl;
 
-      if (video && video.isNew && video.file) {
+      if (videoRemoved && !video) {
+        // пользователь удалил видео и не выбрал новое
+        finalVideoUrl = null;
+      } else if (video && video.isNew && video.file) {
+        // пользователь выбрал новое видео
         finalVideoUrl = await uploadCarVideo(video.file, carId);
+      } else if (video && !video.isNew) {
+        // видео оставили без изменений (старое)
+        finalVideoUrl = video.url;
       }
 
+      // Сохраняем в БД
       await updateCarPhotos(carId, {
         coverPhotos: finalCoverUrls,
         galleryPhotos: finalGalleryUrls,
@@ -520,19 +536,31 @@ export default function Photos() {
         videoUrl: finalVideoUrl,
       });
 
-      // Обновляем локальный стейт
+      // 🧹 Удаляем старое видео из storage, если оно БЫЛО и мы его заменили/убрали
+      if (prevVideoUrl && prevVideoUrl !== finalVideoUrl) {
+        try {
+          await deleteCarVideoByUrl(prevVideoUrl); // 👈 ТУТ ПЕРЕДАЁМ ИМЕННО URL, НЕ carId
+        } catch (e) {
+          console.error("Ошибка при удалении видео из storage:", e);
+        }
+      }
+
+      // ---------- обновляем локальный стейт ----------
+
       setCoverPhotos(
         finalCoverUrls.map((url, idx) => ({
           id: `cover-existing-${idx}`,
           url,
         }))
       );
+
       setGalleryPhotos(
         finalGalleryUrls.map((url, idx) => ({
           id: `gallery-existing-${idx}`,
           url,
         }))
       );
+
       setVideoPoster(
         finalPosterUrl
           ? {
@@ -541,6 +569,7 @@ export default function Photos() {
             }
           : null
       );
+
       setVideo(
         finalVideoUrl
           ? {
@@ -549,6 +578,8 @@ export default function Photos() {
             }
           : null
       );
+
+      setVideoRemoved(false);
 
       if (car) {
         setCar((prev) => {

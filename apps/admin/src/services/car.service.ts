@@ -508,8 +508,6 @@ export async function uploadCarVideo(file: File, carId: string) {
     .toString(36)
     .slice(2, 10)}.${fileExt}`;
 
-  // ⚠️ тут использую бакет "car-videos" — создай его в Supabase
-  // или замени на свой (можно и "car-media"/"car-photos", если не хочешь делить)
   const { error } = await supabase.storage
     .from("car-videos")
     .upload(filePath, file, {
@@ -534,16 +532,44 @@ export async function uploadCarVideo(file: File, carId: string) {
   return publicUrlData.publicUrl as string;
 }
 
+export function extractStoragePath(publicUrl: string): string | null {
+  try {
+    const url = new URL(publicUrl);
 
-// Обновление массива photos у авто
-// export async function updateCarPhotos(carId: string, photos: string[]) {
-//   const { error } = await supabase
-//     .from("cars")
-//     .update({ photos })
-//     .eq("id", carId);
-//   if (error) throw error;
-//   carCache.delete(carId); // ♻️
-// }
+    const match = url.pathname.match(/\/object\/public\/car-videos\/(.+)$/);
+
+    if (!match || !match[1]) {
+      console.warn("extractStoragePath: no match for", url.pathname);
+      return null;
+    }
+
+    // на всякий случай декодируем (если было car-videos%2F...)
+    return decodeURIComponent(match[1]);
+  } catch (e) {
+    console.error("extractStoragePath error:", e);
+    return null;
+  }
+}
+
+export async function deleteCarVideoByUrl(publicUrl: string) {
+  if (!publicUrl || !publicUrl.startsWith("http")) {
+    console.warn("[deleteCarVideoByUrl] expected full URL, got:", publicUrl);
+    return;
+  }
+
+  const path = extractStoragePath(publicUrl);
+  // console.log("[deleteCarVideoByUrl] path =", path);
+
+  if (!path) return;
+
+  const { error } = await supabase.storage.from("car-videos").remove([path]);
+
+  // console.log("[deleteCarVideoByUrl] remove result:", { path, data, error });
+
+  if (error) {
+    console.error("Ошибка удаления видео:", error);
+  }
+}
 
 // Обновление медиа у авто
 export async function updateCarPhotos(
