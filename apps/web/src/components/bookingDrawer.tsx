@@ -49,6 +49,8 @@ const AddressAutofill = dynamic(
 import Pin from "@/components/pin"; // если у тебя есть аналог
 import { fetchAddressFromCoords } from "@/services/geo.service"; // или свой сервис
 import { toast } from "sonner";
+import { format } from "date-fns";
+import { enUS } from "date-fns/locale";
 
 type BookingDrawerProps = {
   open: boolean;
@@ -85,7 +87,7 @@ export function BookingDrawer({
   end,
   days,
   onConfirm,
-  isMobile,
+  // isMobile,
   extras,
   loadingRemote,
   pricingResult,
@@ -138,6 +140,7 @@ export function BookingDrawer({
   const clearError = (field: string) => {
     setErrors((prev) => {
       if (!prev[field]) return prev;
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { [field]: _removed, ...rest } = prev;
       return rest;
     });
@@ -713,22 +716,22 @@ export function BookingDrawer({
     return parts.length ? parts.join(" ") : "0m";
   };
 
-  function formatDateTimeForLabel(dt: string) {
-    if (!dt) return "—";
-    try {
-      const d = new Date(dt);
-      const dd = String(d.getDate()).padStart(2, "0");
-      const mm = String(d.getMonth() + 1).padStart(2, "0");
-      const hh = String(d.getHours()).padStart(2, "0");
-      const min = String(d.getMinutes()).padStart(2, "0");
-      return `${dd}.${mm}, ${hh}:${min}`;
-    } catch {
-      return dt;
-    }
-  }
+  // function formatDateTimeForLabel(dt: string) {
+  //   if (!dt) return "—";
+  //   try {
+  //     const d = new Date(dt);
+  //     const dd = String(d.getDate()).padStart(2, "0");
+  //     const mm = String(d.getMonth() + 1).padStart(2, "0");
+  //     const hh = String(d.getHours()).padStart(2, "0");
+  //     const min = String(d.getMinutes()).padStart(2, "0");
+  //     return `${dd}.${mm}, ${hh}:${min}`;
+  //   } catch {
+  //     return dt;
+  //   }
+  // }
 
-  const startDate = formatDateTimeForLabel(start);
-  const endDate = formatDateTimeForLabel(end);
+  // const startDate = formatDateTimeForLabel(start);
+  // const endDate = formatDateTimeForLabel(end);
 
   return (
     <div
@@ -787,9 +790,9 @@ export function BookingDrawer({
                 {/* Car card */}
                 <section className="rounded-2xl bg-white shadow-sm ring-1 ring-gray-200 p-4 sm:p-5">
                   <div className="aspect-video w-full overflow-hidden rounded-xl h-40 object-cover bg-gray-50">
-                    {car?.photos?.[0] ? (
+                    {car?.coverPhotos?.[0] ? (
                       <img
-                        src={car.photos[0]}
+                        src={car.coverPhotos[0]}
                         className="h-full w-full object-cover"
                         alt="Car"
                       />
@@ -816,17 +819,30 @@ export function BookingDrawer({
                       </span>
                       <div className="flex items-center gap-1 pt-1">
                         <CalendarDateRangeIcon className="size-4" />
-                        <span className="text-sm font-medium text-gray-900">
+                        {/* <span className="text-sm font-medium text-gray-900">
                           {`${startDate} — ${endDate}`}
-                        </span>
+                        </span> */}
+                        <div className="flex items-center gap-2 text-sm text-gray-900">
+                          {/* <p className="m-0">{startDate}</p> */}
+                          <p>
+                            {format(start, "d MMM, HH:mm", { locale: enUS })}
+                          </p>
+
+                          {/* стрелка — центрируем внутри flex */}
+                          <span
+                            aria-hidden
+                            className="inline-flex items-center justify-center h-5 w-5 text-sm text-neutral-900"
+                          >
+                            →
+                          </span>
+                          <p>{format(end, "d MMM, HH:mm", { locale: enUS })}</p>
+                        </div>
                       </div>
                     </div>
 
-                    <div className="mt-1 text-sm text-gray-700">
-                      <span className="text-gray-600">Duration: </span>
-                      <span className="font-medium">
-                        {computeDurationPretty(start, end)}
-                      </span>
+                    <div className="mt-1 text-sm text-gray-800 font-medium">
+                      <span>Duration: </span>
+                      <span>{computeDurationPretty(start, end)}</span>
                     </div>
                   </div>
                 </section>
@@ -897,9 +913,9 @@ export function BookingDrawer({
 
                     <div className="border-t border-dashed border-gray-300 pt-1" />
 
-                    <div className="flex items-start justify-between">
-                      <span className="font-semibold text-gray-900">Total</span>
-                      <span className="text-base font-semibold text-gray-900">
+                    <div className="flex items-start justify-between font-semibold text-gray-900">
+                      <span>Total</span>
+                      <span>
                         {grandTotal.toFixed(2)} {currency}
                       </span>
                     </div>

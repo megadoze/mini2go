@@ -6,7 +6,7 @@ import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { usePathname, useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
-import { startOfDay } from "date-fns";
+import { format, startOfDay } from "date-fns";
 import { TextInput, Drawer } from "@mantine/core";
 import {
   MagnifyingGlassIcon,
@@ -37,6 +37,7 @@ import type { Country } from "@/types/country";
 import type { Location } from "@/types/location";
 import { HeaderSection } from "@/components/header";
 import { getSupabaseClient } from "@/lib/supabase";
+import { enUS, ru } from "date-fns/locale";
 
 function cn(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
@@ -1504,8 +1505,8 @@ function BottomStickyBar({
   };
   changePickerStatus: () => void;
 }) {
-  const startDate = formatDateTimeForLabel(start);
-  const endDate = formatDateTimeForLabel(end);
+  // const startDate = formatDateTimeForLabel(start);
+  // const endDate = formatDateTimeForLabel(end);
   const durationLabel =
     timing.days > 0
       ? `${timing.days}d${timing.restHours ? ` ${timing.restHours}h` : ""}`
@@ -1519,20 +1520,19 @@ function BottomStickyBar({
           ) : (
             <div className="flex items-center leading-tight truncate">
               <div className="flex items-center gap-2">
-                <p className="m-0">{startDate}</p>
+                <p>{format(start, "d MMM, HH:mm", { locale: enUS })}</p>
 
                 {/* стрелка — центрируем внутри flex */}
                 <span
                   aria-hidden
-                  className="inline-flex items-center justify-center h-5 w-5 text-sm text-neutral-900"
+                  className="inline-flex items-center justify-center h-5 w-5 text-sm text-neutral-900 pb-1"
                 >
                   →
                 </span>
-
-                <p className="m-0">{endDate}</p>
+                <p>{format(end, "d MMM, HH:mm", { locale: enUS })}</p>
               </div>
 
-              <span className="text-neutral-600 shrink-0 ml-3">
+              <span className="text-neutral-600 shrink-0 ml-2">
                 <span className="inline"> • </span>
                 {durationLabel}
               </span>
@@ -1576,19 +1576,19 @@ function EmptyState({
   );
 }
 
-function formatDateTimeForLabel(dt: string) {
-  if (!dt) return "—";
-  try {
-    const d = new Date(dt);
-    const dd = String(d.getDate()).padStart(2, "0");
-    const mm = String(d.getMonth() + 1).padStart(2, "0");
-    const hh = String(d.getHours()).padStart(2, "0");
-    const min = String(d.getMinutes()).padStart(2, "0");
-    return `${dd}.${mm}, ${hh}:${min}`;
-  } catch {
-    return dt;
-  }
-}
+// function formatDateTimeForLabel(dt: string) {
+//   if (!dt) return "—";
+//   try {
+//     const d = new Date(dt);
+//     const dd = String(d.getDate()).padStart(2, "0");
+//     const mm = String(d.getMonth() + 1).padStart(2, "0");
+//     const hh = String(d.getHours()).padStart(2, "0");
+//     const min = String(d.getMinutes()).padStart(2, "0");
+//     return `${dd}.${mm}, ${hh}:${min}`;
+//   } catch {
+//     return dt;
+//   }
+// }
 
 function useSyncQuery() {
   const router = useRouter();
