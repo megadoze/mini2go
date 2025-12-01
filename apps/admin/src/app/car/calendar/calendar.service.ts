@@ -9,7 +9,9 @@ export type BookingFull = Booking & {
   car?: Car | null;
 };
 
-export async function fetchBookingsByCarId(carId: string): Promise<BookingFull[]> {
+export async function fetchBookingsByCarId(
+  carId: string
+): Promise<BookingFull[]> {
   const { data, error } = await supabase
     .from("v_bookings_full")
     .select("*")
@@ -19,26 +21,22 @@ export async function fetchBookingsByCarId(carId: string): Promise<BookingFull[]
   return (data ?? []) as BookingFull[];
 }
 
-
 export async function fetchBookingById(id: string): Promise<BookingFull> {
   const { data, error } = await supabase
-  .from('v_bookings_full')
-  .select('*')
-  .eq('id', id)
-  .maybeSingle();
+    .from("v_bookings_full")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
 
-if (error) throw error;
+  if (error) throw error;
   if (!data) {
     const err = new Error("Booking not found");
     (err as any).code = "NOT_FOUND";
     throw err;
   }
 
-return data as BookingFull;
+  return data as BookingFull;
 }
-
-
-
 
 export async function createBooking(
   booking: Omit<Booking, "id">
@@ -64,10 +62,7 @@ export async function updateBooking(
   id: string,
   patch: Partial<Booking>
 ): Promise<BookingFull> {
-  const { error } = await supabase
-    .from("bookings")
-    .update(patch)
-    .eq("id", id);
+  const { error } = await supabase.from("bookings").update(patch).eq("id", id);
   if (error) throw error;
 
   // единая точка истины
