@@ -788,7 +788,7 @@ export function BookingDrawer({
             <div className="relative md:flex-none md:w-[360px] md:pl-6">
               <div className="md:sticky md:top-6 md:space-y-4 md:max-h-[calc(100vh-6rem)]">
                 {/* Car card */}
-                <section className="rounded-2xl bg-white shadow-sm ring-1 ring-gray-200 p-4 sm:p-5">
+                <section className="rounded-2xl bg-white shadow-sm ring-1 ring-gray-200 px-5 py-3">
                   <div className="aspect-video w-full overflow-hidden rounded-xl h-40 object-cover bg-gray-50">
                     {car?.coverPhotos?.[0] ? (
                       <img
@@ -863,7 +863,7 @@ export function BookingDrawer({
                         </span>
                       </div>
                       <div className="text-right">
-                        <span className="block font-medium text-gray-900">
+                        <span className="block font-medium text-gray-800">
                           {Number(car?.price || 0).toFixed(2)} {currency}
                         </span>
                       </div>
@@ -876,7 +876,7 @@ export function BookingDrawer({
                           </span>
                         </div>
                         <div className="text-right">
-                          <span className="block font-medium">
+                          <span className="block ">
                             {Number(pricingResult?.avgPerDay || 0).toFixed(2)}{" "}
                             {currency}
                           </span>
@@ -888,7 +888,7 @@ export function BookingDrawer({
                       <span className="text-gray-600 text-sm">
                         Rental subtotal
                       </span>
-                      <span className="font-medium text-gray-900">
+                      <span className="font-medium text-gray-800">
                         {baseTotal.toFixed(2)} {currency}
                       </span>
                     </div>
@@ -896,7 +896,7 @@ export function BookingDrawer({
                     {deliveryFee > 0 && (
                       <div className="flex items-start justify-between">
                         <span className="text-gray-600 text-sm">Delivery</span>
-                        <span className="font-medium text-gray-900">
+                        <span className=" text-gray-800">
                           {deliveryFee.toFixed(2)} {currency}
                         </span>
                       </div>
@@ -905,7 +905,7 @@ export function BookingDrawer({
                     {extrasTotal > 0 && (
                       <div className="flex items-start justify-between">
                         <span className="text-gray-600 text-sm">Extras</span>
-                        <span className="font-medium text-gray-900">
+                        <span className=" text-gray-800">
                           {extrasTotal.toFixed(2)} {currency}
                         </span>
                       </div>
