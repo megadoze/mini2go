@@ -184,10 +184,11 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
   const bookingQ = useQuery({
     queryKey: bookingId ? QK.booking(bookingId) : ["booking", "noop"],
     queryFn: () => fetchBookingById(bookingId!),
-    enabled: mode === "edit" && !!bookingId && !initialBooking,
+    enabled: mode === "edit" && !!bookingId,
     initialData: initialBooking,
-    staleTime: 60_000,
-    refetchOnMount: false,
+    // ВАЖНО: если мы пришли со snapshot'ом — считаем данные сразу устаревшими
+    staleTime: hasMatchingSnapshot ? 0 : 60_000,
+    refetchOnMount: hasMatchingSnapshot ? "always" : false,
   });
 
   useEffect(() => {
@@ -653,7 +654,6 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
 
     setDelivery(b.delivery_type ?? "car_address");
     setDeliveryFeeValue(Number(b.delivery_fee ?? 0));
-
     setDeliveryAddress(b.delivery_address ?? "");
     setDeliveryLat(typeof b.delivery_lat === "number" ? b.delivery_lat : null);
     setDeliveryLong(

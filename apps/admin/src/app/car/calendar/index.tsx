@@ -759,6 +759,9 @@ export default function Calendar() {
                     delivery_type:
                       (booking as any)?.delivery_type ?? "car_address",
                     delivery_fee: (booking as any)?.delivery_fee ?? 0,
+                    delivery_address: (booking as any)?.delivery_address ?? "",
+                    delivery_lat: (booking as any)?.delivery_lat ?? null,
+                    delivery_long: (booking as any)?.delivery_long ?? null,
                     currency: (booking as any)?.currency ?? "EUR",
                   },
                   booking_extras: Array.isArray(extras) ? extras : [],
