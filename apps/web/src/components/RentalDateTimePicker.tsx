@@ -607,7 +607,7 @@ export default function RentalDateTimePicker({
     // closeTime — момент закрытия, поэтому берём последний индекс, попадающий < closeTime
     return Math.min(
       timeStepsPerDay - 1,
-      Math.max(0, Math.ceil(closeTimeMinutes / minuteStep) - 1)
+      Math.max(0, Math.ceil(closeTimeMinutes / minuteStep) - 0)
     );
   }, [closeTimeMinutes, minuteStep, timeStepsPerDay]);
 
