@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLoaderData } from "react-router-dom";
+import { supabase } from "@/lib/supabase";
 import {
   useInfiniteQuery,
   useQueryClient,
@@ -41,7 +42,9 @@ type SortKey = "name" | "email";
 const PAGE_SIZE = 10;
 type Page = { items: UserRow[]; count: number };
 
-function statusColor(s?: string | null) {
+function statusColor(s?: string | null, blockedForHost?: boolean) {
+  if (blockedForHost) return "red"; // локальный блок для этого хоста
+
   const v = (s ?? "").toLowerCase();
   if (v === "active") return "green";
   if (v === "blocked" || v === "ban") return "red";
@@ -74,6 +77,7 @@ export default function UsersPage() {
   const [sortBy, setSortBy] = useState<SortKey>("name");
   const [reversed, setReversed] = useState(false);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  const [blockedMap, setBlockedMap] = useState<Record<string, boolean>>({});
 
   const currentKey = QK.usersByHostInfinite(ownerId, PAGE_SIZE, null);
 
@@ -131,6 +135,48 @@ export default function UsersPage() {
     () => pages.flatMap((p) => p.items) ?? [],
     [pages]
   );
+
+  useEffect(() => {
+    if (!ownerId) return;
+    if (users.length === 0) {
+      setBlockedMap({});
+      return;
+    }
+
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const ids = users.map((u) => u.id);
+
+        const { data, error } = await supabase
+          .from("host_user_blocks")
+          .select("user_id")
+          .eq("owner_id", ownerId)
+          .in("user_id", ids);
+
+        if (cancelled) return;
+
+        if (error) {
+          console.error("Failed to load host blocks for users list", error);
+          return;
+        }
+
+        const next: Record<string, boolean> = {};
+        (data ?? []).forEach((row: { user_id: string }) => {
+          next[row.user_id] = true;
+        });
+
+        setBlockedMap(next);
+      } catch (e) {
+        if (!cancelled) console.error(e);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [ownerId, users]);
 
   // уникальные статусы из уже загруженного (для селекта)
   const statuses = useMemo(() => {
@@ -410,13 +456,15 @@ export default function UsersPage() {
                     <div className=" col-start-4 col-span-2 mx-auto md:col-auto">
                       <Badge
                         variant="dot"
-                        color={statusColor(u.status)}
+                        color={statusColor(u.status, blockedMap[u.id])}
                         radius="lg"
                         fw={400}
                         className=" mx-auto"
                         size="sm"
                       >
-                        {u.status ?? "unknown"}
+                        {blockedMap[u.id]
+                          ? "Blocked for you"
+                          : u.status ?? "unknown"}
                       </Badge>
                     </div>
 

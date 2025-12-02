@@ -398,6 +398,13 @@ export const UserPage = () => {
     );
   }
 
+  // ——— Derived status for badge
+  const effectiveStatus: AppUser["status"] | "blocked_for_host" = currentIsAdmin
+    ? user?.status ?? "active"
+    : blockedForHost
+    ? "blocked_for_host"
+    : user?.status ?? "active";
+
   // ——— MAIN
   return (
     <div className="w-full max-w-screen-2xl mx-auto">
@@ -417,7 +424,7 @@ export const UserPage = () => {
           <h1 className="font-roboto text-xl md:text-2xl font-medium md:font-bold">
             User
           </h1>
-          {user && <StatusBadge status={(user.status as any) ?? "active"} />}
+          {user && <StatusBadge status={effectiveStatus} />}
         </div>
 
         {user && (
@@ -874,17 +881,21 @@ function Button({
   );
 }
 
-function StatusBadge({ status }: { status: AppUser["status"] }) {
+type StatusBadgeStatus = AppUser["status"] | "blocked_for_host";
+
+function StatusBadge({ status }: { status: StatusBadgeStatus }) {
   type Tone = "ok" | "bad" | "neutral" | "warn";
 
   const map: Record<string, { text: string; tone: Tone }> = {
     active: { text: "Active", tone: "ok" },
     blocked: { text: "Blocked", tone: "bad" },
     pending: { text: "Pending review", tone: "warn" },
+    blocked_for_host: { text: "Blocked for you", tone: "bad" },
   };
 
-  const cfg = map[String(status || "active")] || {
-    text: String(status),
+  const key = String(status || "active");
+  const cfg = map[key] || {
+    text: key,
     tone: "neutral" as const,
   };
 
