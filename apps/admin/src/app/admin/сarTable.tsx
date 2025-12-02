@@ -32,7 +32,7 @@ export default function CarTable({ cars, search }: Props) {
         return (
           <NavLink
             key={car.id}
-            to={`/cars/${car.id}`}
+            to={`/admin/cars/${car.id}`}
             className={cn(
               "group relative block w-full overflow-hidden rounded-2xl",
               // Borderless, glassy card

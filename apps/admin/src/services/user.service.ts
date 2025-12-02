@@ -112,9 +112,7 @@ export async function createUserProfile(payload: {
 export async function getUserById(id: string) {
   const { data, error } = await supabase
     .from("profiles")
-    .select(
-      "*"
-    )
+    .select("*")
     .eq("id", id)
     .single();
   if (error) throw error;
@@ -155,6 +153,40 @@ export async function updateUserStatus(
   if (error) throw error;
   return data as { id: string; status: "active" | "blocked" };
 }
+
+export async function toggleHostBlock(userId: string, ownerId: string) {
+  // ownerId тут должен === supabase.auth.getUser().data.user?.id
+  const { data: existing, error: selectError } = await supabase
+    .from("host_user_blocks")
+    .select("id")
+    .eq("owner_id", ownerId)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (selectError && selectError.code !== "PGRST116") {
+    // не "row not found"
+    throw selectError;
+  }
+
+  if (existing) {
+    const { error: delError } = await supabase
+      .from("host_user_blocks")
+      .delete()
+      .eq("id", existing.id);
+
+    if (delError) throw delError;
+    return { blocked: false };
+  } else {
+    const { error: insError } = await supabase.from("host_user_blocks").insert({
+      owner_id: ownerId,
+      user_id: userId,
+    });
+
+    if (insError) throw insError;
+    return { blocked: true };
+  }
+}
+
 
 // 👉 Последние бронирования пользователя (по твоей схеме таблицы)
 export type BookingItem = {

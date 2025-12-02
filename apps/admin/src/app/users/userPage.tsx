@@ -33,11 +33,16 @@ import {
   type BookingItem,
   type UserNoteItem,
   sendPasswordReset,
+  toggleHostBlock,
 } from "@/services/user.service";
 import { format, isSameDay, parseISO } from "date-fns";
 import { CreateUserCard } from "./createUserCard";
+import type { RootAuthData } from "@/routes/auth.loader";
 
+// =====================
 // Types
+// =====================
+
 export type AppUser = {
   id: string;
   full_name: string | null;
@@ -51,7 +56,6 @@ export type AppUser = {
 
   // роли
   is_host?: boolean | null;
-  is_admin?: boolean | null;
 
   // auth-часть
   auth_user_id?: string | null;
@@ -64,13 +68,18 @@ export type AppUser = {
   driver_license_file_url?: string | null;
 };
 
+// =====================
+// PAGE
+// =====================
+
 export const UserPage = () => {
   const { userId } = useParams();
 
-  const rootData = useRouteLoaderData("rootAuth") as
-    | { ownerId: string }
-    | undefined;
-  const ownerId = rootData?.ownerId ?? null;
+  const rootData = useRouteLoaderData("rootAuth") as RootAuthData | null;
+
+  const authUserId = rootData?.authUserId ?? null;
+  const currentIsAdmin = rootData?.isAdmin ?? false;
+  const ownerId = rootData?.ownerId ?? authUserId ?? null;
 
   const isCreate = userId === "new";
 
@@ -90,6 +99,7 @@ export const UserPage = () => {
   const [deletingNoteId, setDeletingNoteId] = useState<string | null>(null);
   const [toggling, setToggling] = useState(false);
   const [licenseUrl, setLicenseUrl] = useState<string | null>(null);
+  const [blockedForHost, setBlockedForHost] = useState<boolean>(false);
 
   const licenseFileName = useMemo(() => {
     const raw = user?.driver_license_file_url;
@@ -110,7 +120,6 @@ export const UserPage = () => {
         age: state.age ?? null,
         created_at: state.created_at ?? null,
         is_host: state.is_host ?? null,
-        is_admin: state.is_admin ?? null,
         auth_user_id: state.auth_user_id ?? null,
         driver_dob: state.driver_dob ?? null,
         driver_license_issue: state.driver_license_issue ?? null,
@@ -130,7 +139,6 @@ export const UserPage = () => {
         age: null,
         created_at: null,
         is_host: null,
-        is_admin: null,
         auth_user_id: null,
         driver_dob: null,
         driver_license_issue: null,
@@ -154,7 +162,6 @@ export const UserPage = () => {
       setError(null);
       try {
         const full = await getUserById(primed.id);
-
         if (!mounted) return;
         setUser(full as AppUser);
       } catch (e: any) {
@@ -169,6 +176,36 @@ export const UserPage = () => {
     };
   }, [isCreate, primed?.id]);
 
+  // ——— Load host-local block state
+  useEffect(() => {
+    if (!user || !ownerId) return;
+
+    let cancelled = false;
+
+    (async () => {
+      const { data, error } = await supabase
+        .from("host_user_blocks")
+        .select("id")
+        .eq("owner_id", ownerId)
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (cancelled) return;
+
+      if (error && error.code !== "PGRST116") {
+        console.error("Failed to load host block state", error);
+        return;
+      }
+
+      setBlockedForHost(!!data);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, ownerId]);
+
+  // ——— Signed URL for license
   useEffect(() => {
     const rawPath = user?.driver_license_file_url;
 
@@ -254,17 +291,27 @@ export const UserPage = () => {
   // ——— Actions
   const handleToggleStatus = async () => {
     if (!user) return;
+
     setToggling(true);
     try {
-      const next = user.status === "blocked" ? "active" : "blocked";
-      const updated = await updateUserStatus(
-        user.id,
-        next as "active" | "blocked"
-      );
-      setUser((u) => (u ? { ...u, status: updated.status } : u));
+      if (currentIsAdmin) {
+        // глобальный блок / разблок
+        const next = user.status === "blocked" ? "active" : "blocked";
+        const updated = await updateUserStatus(
+          user.id,
+          next as "active" | "blocked"
+        );
+        setUser((u) => (u ? { ...u, status: updated.status } : u));
+      } else if (ownerId) {
+        // локальный блок для конкретного хоста
+        const res = await toggleHostBlock(user.id, ownerId);
+        setBlockedForHost(res.blocked);
+      } else {
+        alert("У вас нет прав блокировать этого пользователя");
+      }
     } catch (e) {
       console.error(e);
-      alert("Не удалось изменить статус пользователя");
+      alert("Не удалось изменить статус");
     } finally {
       setToggling(false);
     }
@@ -309,6 +356,7 @@ export const UserPage = () => {
     }
   };
 
+  // ——— Create mode
   if (isCreate) {
     return (
       <div className="">
@@ -333,6 +381,7 @@ export const UserPage = () => {
     );
   }
 
+  // ——— No primed
   if (!primed) {
     return (
       <div className="w-full max-w-screen-2xl mx-auto">
@@ -349,6 +398,7 @@ export const UserPage = () => {
     );
   }
 
+  // ——— MAIN
   return (
     <div className="w-full max-w-screen-2xl mx-auto">
       {/* Header */}
@@ -379,7 +429,15 @@ export const UserPage = () => {
             <Button
               variant="ghost"
               onClick={handleToggleStatus}
-              title={user.status === "blocked" ? "Unblock" : "Block"}
+              title={
+                currentIsAdmin
+                  ? user.status === "blocked"
+                    ? "Unblock user (global)"
+                    : "Block user (global)"
+                  : blockedForHost
+                  ? "Unblock for this host"
+                  : "Block for this host"
+              }
               disabled={toggling}
               aria-busy={toggling}
             >
@@ -388,18 +446,31 @@ export const UserPage = () => {
                   <ArrowPathIcon className="size-4 animate-spin sm:mr-1" />
                   <span className="hidden sm:inline">Updating…</span>
                 </>
-              ) : user.status === "blocked" ? (
+              ) : currentIsAdmin ? (
+                user.status === "blocked" ? (
+                  <>
+                    <LockOpenIcon className="size-4 sm:mr-1" />
+                    <span className="hidden sm:inline">Unblock (global)</span>
+                  </>
+                ) : (
+                  <>
+                    <LockClosedIcon className="size-4 sm:mr-1" />
+                    <span className="hidden sm:inline">Block (global)</span>
+                  </>
+                )
+              ) : blockedForHost ? (
                 <>
                   <LockOpenIcon className="size-4 sm:mr-1" />
-                  <span className="hidden sm:inline">Unblock</span>
+                  <span className="hidden sm:inline">Unblock for you</span>
                 </>
               ) : (
                 <>
                   <LockClosedIcon className="size-4 sm:mr-1" />
-                  <span className="hidden sm:inline">Block</span>
+                  <span className="hidden sm:inline">Block for you</span>
                 </>
               )}
             </Button>
+
             {user?.email && (
               <Button
                 variant="ghost"
@@ -445,9 +516,6 @@ export const UserPage = () => {
                       </h2>
 
                       {user.is_host && <RolePill label="Host" variant="host" />}
-                      {user.is_admin && (
-                        <RolePill label="Admin" variant="admin" />
-                      )}
                     </div>
                     <p className="text-xs text-gray-500 mt-1">
                       User ID: {user.id}
@@ -959,20 +1027,14 @@ function EmptyState({
   );
 }
 
-function RolePill({
-  label,
-  variant,
-}: {
-  label: string;
-  variant: "host" | "admin";
-}) {
+function RolePill({ label, variant }: { label: string; variant: "host" }) {
   const base =
     "inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[11px] font-medium";
 
   const styles =
     variant === "host"
       ? "bg-blue-50 text-blue-700 border-blue-100"
-      : "bg-purple-50 text-purple-700 border-purple-100";
+      : "bg-blue-50 text-blue-700 border-blue-100";
 
   return <span className={`${base} ${styles}`}>{label}</span>;
 }

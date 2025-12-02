@@ -1,5 +1,4 @@
-import { useEffect, useState, useMemo, useCallback } from "react";
-import { useLocation, useNavigate, useLoaderData } from "react-router-dom";
+import { useEffect, useState, useMemo } from "react";
 import {
   useInfiniteQuery,
   useQuery,
@@ -13,8 +12,7 @@ import {
   FunnelIcon,
 } from "@heroicons/react/24/outline";
 
-import CarTable from "./сarTable"; // проверь, что тут не кириллическая `с`
-import { fetchCarsPageByHost } from "@/services/car.service";
+// import { fetchCarsPageByHost } from "@/services/car.service";
 import {
   fetchCountries,
   fetchLocationsByCountry,
@@ -27,19 +25,14 @@ import type { CarStatus } from "@/components/carFilters";
 import CarFilters from "@/components/carFilters";
 import { supabase } from "@/lib/supabase";
 import { QK } from "@/queryKeys";
+import CarTable from "./сarTable";
+import { fetchCarsPage } from "@/services/car.service";
 
 const PAGE_SIZE = 10;
 type Page = { items: CarWithRelations[]; count: number };
 
-export default function CarsPage() {
-  // ⭐️ ownerId приходит из loader (как в бронях)
-  const { ownerId } = (useLoaderData() as { ownerId: string | null }) ?? {
-    ownerId: null,
-  };
-
-  const navigate = useNavigate();
+export default function AdminCarsPage() {
   const qc = useQueryClient();
-  const loc = useLocation();
 
   // UI
   const [countryId, setCountryId] = useState<string | null>(null);
@@ -79,19 +72,18 @@ export default function CarsPage() {
   });
 
   /* -------- cars infinite query -------- */
-  const currentKey = ["carsByHost", PAGE_SIZE, ownerId] as const;
+  const currentKey = ["adminCars", PAGE_SIZE] as const;
 
   const carsQ = useInfiniteQuery<
     { items: CarWithRelations[]; count: number },
     Error
   >({
     queryKey: currentKey,
-    enabled: !!ownerId, // ключ известен сразу, thanks to loader
+    enabled: true, // ключ известен сразу, thanks to loader
     queryFn: async ({ pageParam }) => {
       const pageIndex = typeof pageParam === "number" ? pageParam : 0;
       const offset = pageIndex * PAGE_SIZE;
-      return fetchCarsPageByHost({
-        ownerId: ownerId as string,
+      return fetchCarsPage({
         limit: PAGE_SIZE,
         offset,
       });
@@ -109,9 +101,7 @@ export default function CarsPage() {
     refetchOnReconnect: true,
     retry: 1,
     // забираем прогретый в loader кэш как initial
-    initialData: ownerId
-      ? () => qc.getQueryData<InfiniteData<Page>>(currentKey)
-      : undefined,
+    initialData: () => qc.getQueryData<InfiniteData<Page>>(currentKey),
     // и держим старые страницы на экране при перефетче
     placeholderData: (prev) => prev,
   });
@@ -229,7 +219,7 @@ export default function CarsPage() {
     qc.setQueriesData(
       {
         predicate: (q: any) =>
-          Array.isArray(q.queryKey) && q.queryKey[0] === "carsByHost", // то же имя что в useInfiniteQuery
+          Array.isArray(q.queryKey) && q.queryKey[0] === "adminCars", // то же имя что в useInfiniteQuery
       },
       (old: any) => {
         if (!old?.pages?.length) {
@@ -272,7 +262,7 @@ export default function CarsPage() {
     qc.setQueriesData(
       {
         predicate: (q: any) =>
-          Array.isArray(q.queryKey) && q.queryKey[0] === "carsByHost",
+          Array.isArray(q.queryKey) && q.queryKey[0] === "adminCars",
       },
       (old: any) => {
         if (!old?.pages?.length) {
@@ -321,7 +311,7 @@ export default function CarsPage() {
     qc.setQueriesData(
       {
         predicate: (q: any) =>
-          Array.isArray(q.queryKey) && q.queryKey[0] === "carsByHost",
+          Array.isArray(q.queryKey) && q.queryKey[0] === "adminCars",
       },
       (old: any) => {
         if (!old?.pages?.length) return old;
@@ -375,17 +365,8 @@ export default function CarsPage() {
   }
 
   useEffect(() => {
-    return () => {
-      trimToFirstPage();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ownerId]);
-
-  useEffect(() => {
-    if (!ownerId) return;
-
     const ch = supabase
-      .channel("cars-list-realtime-" + ownerId)
+      .channel("cars-list-realtime-admin")
       .on(
         "postgres_changes",
         {
@@ -399,7 +380,6 @@ export default function CarsPage() {
 
           const rowAfter = payload.new as any; // INSERT / UPDATE
           const rowBefore = payload.old as any; // DELETE
-          const rowDb: any = rowAfter ?? rowBefore;
 
           if (evt === "DELETE") {
             // ✂ 1. просто удалить по id, вообще без проверки owner_id
@@ -407,12 +387,6 @@ export default function CarsPage() {
             if (deletedId) {
               removeCarRow(qc, String(deletedId));
             }
-            return;
-          }
-
-          // для INSERT/UPDATE продолжаем фильтровать по owner_id,
-          // потому что rowAfter.owner_id у нас есть
-          if (!rowDb?.owner_id || String(rowDb.owner_id) !== String(ownerId)) {
             return;
           }
 
@@ -430,7 +404,7 @@ export default function CarsPage() {
           qc.invalidateQueries({
             predicate: (q) =>
               Array.isArray(q.queryKey) &&
-              (q.queryKey[0] === "carsByHost" ||
+              (q.queryKey[0] === "adminCars" ||
                 (q.queryKey[0] === "car" &&
                   String(q.queryKey[1]) === String(rowAfter.id))),
           });
@@ -441,7 +415,7 @@ export default function CarsPage() {
     return () => {
       supabase.removeChannel(ch);
     };
-  }, [ownerId, qc]);
+  }, [qc]);
 
   const countries = countriesQ.data ?? [];
   const locations = locationsQ.data ?? [];
@@ -451,8 +425,6 @@ export default function CarsPage() {
 
   const cars: CarWithRelations[] =
     displayData?.pages.flatMap((p) => p.items) ?? [];
-
-  console.log(cars);
 
   const isFetchingNext = carsQ.isFetchingNextPage;
   const totalLoaded = cars.length;
@@ -489,19 +461,15 @@ export default function CarsPage() {
 
   /* -------- flags -------- */
   const contentLoading =
-    !!ownerId &&
     !displayData &&
     (carsQ.fetchStatus === "fetching" || carsQ.status === "pending");
   const showEmpty = carsQ.status === "success" && filteredCars.length === 0;
 
-  /* -------- actions -------- */
-  const addNewCar = useCallback(
-    () =>
-      navigate("/cars/add", {
-        state: { from: loc.pathname + loc.search + loc.hash },
-      }),
-    [navigate, loc.pathname, loc.search, loc.hash]
-  );
+  useEffect(() => {
+    return () => {
+      trimToFirstPage();
+    };
+  }, []);
 
   const resetFilters = () => {
     setSearch("");
@@ -510,13 +478,6 @@ export default function CarsPage() {
     setStatusFilter("");
     trimToFirstPage();
   };
-
-  /* -------- guests -------- */
-  if (ownerId === null) {
-    return (
-      <p className="text-zinc-500 text-sm mt-10">Sign in to see your cars</p>
-    );
-  }
 
   /* -------- render -------- */
   return (
@@ -528,13 +489,6 @@ export default function CarsPage() {
           </h1>
           {totalLoaded > 0 && <Badge color="black">{totalLoaded}</Badge>}
         </div>
-        <button
-          color="black"
-          onClick={addNewCar}
-          className="rounded-2xl md:rounded-3xl bg-black py-1 px-2 md:py-2 md:px-3 text-white text-sm hover:opacity-85"
-        >
-          + Add car
-        </button>
       </div>
 
       {/* Filters (как было) */}

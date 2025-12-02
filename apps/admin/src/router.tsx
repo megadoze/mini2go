@@ -31,7 +31,6 @@ import { carsLoader } from "./routes/carsLoader";
 import { dashboardLoader } from "./routes/dashboard.loader";
 import AuthenticationPage from "./app/auth/authenticationPage";
 import Protected from "./components/auth/protected";
-import UserLayout from "./layout/userLayout";
 import UserBookings from "./app/user/userBookings";
 import UserDashboard from "./app/user/userDashboard";
 import HomeRedirect from "./components/homeRedirect";
@@ -44,6 +43,10 @@ import HostPage from "./app/hosts/hostPage";
 import { usersLoader } from "./routes/usersLoader";
 import { settingsGlobalLoader } from "./routes/settingsGlobal.loader";
 import OfflineAwareErrorBoundary from "./components/offlineAwareErrorBoundary";
+import UserGate from "./components/auth/userGate";
+import AdminLayout from "./layout/adminLayout";
+import AdminCarsPage from "./app/admin/adminCarsPage";
+import AdminCarPage from "./app/admin/adminCarPage";
 
 export const router = createBrowserRouter([
   { path: "/auth", element: <AuthenticationPage /> },
@@ -114,7 +117,7 @@ export const router = createBrowserRouter([
       <Protected>
         <>
           <ScrollToTop />
-          <UserLayout />
+          <UserGate />
         </>
       </Protected>
     ),
@@ -133,6 +136,46 @@ export const router = createBrowserRouter([
       { path: "bookings/:bookingId", element: <BookingEditor /> },
       { path: "settings", element: <UserSettings /> },
       { path: "messages", element: <UserMessages /> },
+    ],
+  },
+  {
+    id: "adminAuth",
+    path: "admin",
+    loader: authLoader,
+    element: (
+      <Protected>
+        <>
+          <ScrollToTop />
+          <AdminLayout />
+        </>
+      </Protected>
+    ),
+    errorElement: <OfflineAwareErrorBoundary />,
+    HydrateFallback: HydrateFallback,
+    children: [
+      { index: true, element: <Dashboard /> },
+
+      { path: "dashboard", element: <Dashboard /> },
+      { path: "calendar", element: <CalendarPage /> },
+      { path: "cars", loader: carsLoader, element: <AdminCarsPage /> },
+      { path: "cars/:carId", element: <AdminCarPage /> },
+      {
+        path: "bookings",
+        loader: bookingsLoader,
+        element: <BookingsList />,
+      },
+      { path: "bookings/:bookingId", element: <BookingEditor /> },
+      {
+        path: "users",
+        loader: usersLoader,
+        element: <UsersPage />,
+      },
+      { path: "users/:userId", element: <UserPage /> },
+      {
+        path: "settings",
+        loader: settingsGlobalLoader,
+        element: <SettingsGlobal />,
+      },
     ],
   },
   {
