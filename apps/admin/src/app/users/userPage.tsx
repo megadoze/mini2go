@@ -6,6 +6,8 @@ import {
   useRouteLoaderData,
 } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
+import { supabase } from "@/lib/supabase";
+
 import {
   ArrowLeftIcon,
   EnvelopeIcon,
@@ -41,10 +43,25 @@ export type AppUser = {
   full_name: string | null;
   email: string | null;
   phone: string | null;
-  status: "active" | "blocked" | string | null;
+  status: "pending" | "active" | "blocked" | string | null;
   avatar_url: string | null;
   age?: number | null;
+
+  created_at?: string | null;
+
+  // роли
+  is_host?: boolean | null;
+  is_admin?: boolean | null;
+
+  // auth-часть
+  auth_user_id?: string | null;
+
+  // водительские данные
+  driver_dob?: string | null;
   driver_license_issue?: string | null;
+  driver_license_expiry?: string | null;
+  driver_license_number?: string | null;
+  driver_license_file_url?: string | null;
 };
 
 export const UserPage = () => {
@@ -72,6 +89,13 @@ export const UserPage = () => {
   const [savingNote, setSavingNote] = useState(false);
   const [deletingNoteId, setDeletingNoteId] = useState<string | null>(null);
   const [toggling, setToggling] = useState(false);
+  const [licenseUrl, setLicenseUrl] = useState<string | null>(null);
+
+  const licenseFileName = useMemo(() => {
+    const raw = user?.driver_license_file_url;
+    if (!raw) return null;
+    return raw.split("/").pop()?.split("?")[0] ?? raw;
+  }, [user?.driver_license_file_url]);
 
   // ——— Prime user from route state immediately (для мгновенного рендера)
   const primed = useMemo<AppUser | null>(() => {
@@ -83,6 +107,16 @@ export const UserPage = () => {
         phone: state.phone ?? null,
         status: (state.status as AppUser["status"]) ?? "active",
         avatar_url: state.avatar_url ?? null,
+        age: state.age ?? null,
+        created_at: state.created_at ?? null,
+        is_host: state.is_host ?? null,
+        is_admin: state.is_admin ?? null,
+        auth_user_id: state.auth_user_id ?? null,
+        driver_dob: state.driver_dob ?? null,
+        driver_license_issue: state.driver_license_issue ?? null,
+        driver_license_expiry: state.driver_license_expiry ?? null,
+        driver_license_number: state.driver_license_number ?? null,
+        driver_license_file_url: state.driver_license_file_url ?? null,
       };
     }
     if (userId) {
@@ -91,9 +125,19 @@ export const UserPage = () => {
         full_name: null,
         email: null,
         phone: null,
-        status: "active",
+        status: "pending",
         avatar_url: null,
-      } as AppUser;
+        age: null,
+        created_at: null,
+        is_host: null,
+        is_admin: null,
+        auth_user_id: null,
+        driver_dob: null,
+        driver_license_issue: null,
+        driver_license_expiry: null,
+        driver_license_number: null,
+        driver_license_file_url: null,
+      };
     }
     return null;
   }, [state, userId]);
@@ -110,18 +154,9 @@ export const UserPage = () => {
       setError(null);
       try {
         const full = await getUserById(primed.id);
+
         if (!mounted) return;
-        const merged: AppUser = {
-          id: primed.id,
-          full_name: (full as any)?.full_name ?? primed.full_name ?? null,
-          email: (full as any)?.email ?? primed.email ?? null,
-          phone: (full as any)?.phone ?? primed.phone ?? null,
-          status: (full as any)?.status ?? primed.status ?? "active",
-          avatar_url: (full as any)?.avatar_url ?? primed.avatar_url ?? null,
-          age: (full as any)?.age ?? null,
-          driver_license_issue: (full as any)?.driver_license_issue ?? null,
-        };
-        setUser(merged);
+        setUser(full as AppUser);
       } catch (e: any) {
         setError(e?.message || "Failed to load user");
       } finally {
@@ -133,6 +168,44 @@ export const UserPage = () => {
       mounted = false;
     };
   }, [isCreate, primed?.id]);
+
+  useEffect(() => {
+    const rawPath = user?.driver_license_file_url;
+
+    if (!rawPath) {
+      setLicenseUrl(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const path = rawPath.trim();
+
+        const { data, error } = await supabase.storage
+          .from("driver-licenses")
+          .createSignedUrl(path, 60 * 60); // 1 час
+
+        if (cancelled) return;
+
+        if (error) {
+          console.error("Failed to create signed URL", error);
+          setLicenseUrl(null);
+          return;
+        }
+
+        setLicenseUrl(data?.signedUrl ?? null);
+      } catch (e) {
+        console.error(e);
+        if (!cancelled) setLicenseUrl(null);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.driver_license_file_url]);
 
   // ——— Fetch bookings
   useEffect(() => {
@@ -222,15 +295,15 @@ export const UserPage = () => {
     if (!window.confirm("Удалить заметку?")) return;
 
     setDeletingNoteId(id);
-    const prev = notes; // сохраним для отката
-    setNotes(prev.filter((n) => n.id !== id)); // оптимистично убираем
+    const prev = notes;
+    setNotes(prev.filter((n) => n.id !== id));
 
     try {
       await deleteUserNote(id);
     } catch (e) {
       console.error(e);
       alert("Не удалось удалить заметку");
-      setNotes(prev); // откат
+      setNotes(prev);
     } finally {
       setDeletingNoteId(null);
     }
@@ -348,236 +421,324 @@ export const UserPage = () => {
         )}
       </div>
 
-      {/* Top card */}
-      <section className="mt-4 grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <SectionCard className="lg:col-span-2">
-          {loading ? (
-            <Skeleton lines={4} />
-          ) : error ? (
-            <InlineError message={error} />
-          ) : user ? (
-            <div className="flex flex-col items-start gap-4">
-              <div className="flex items-center gap-4">
-                <Avatar
-                  name={user.full_name ?? user.email ?? user.id}
-                  src={user.avatar_url}
-                />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <h2 className="text-lg md:text-xl font-semibold truncate">
-                      {user.full_name || "No name"}
-                    </h2>
-                  </div>
-                  <p className="text-sm text-gray-500">ID: {user.id}</p>
-                </div>
-              </div>
-
-              <div className="w-full">
-                <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-3">
-                  <InfoRow
-                    icon={<EnvelopeIcon className="w-5 h-5" />}
-                    label="Email"
-                    value={user.email || "—"}
-                    copy={user.email || undefined}
-                  />
-                  <InfoRow
-                    icon={<PhoneIcon className="w-5 h-5" />}
-                    label="Phone"
-                    value={user.phone || "—"}
-                    copy={user.phone || undefined}
-                  />
-                </div>
-
-                <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <KVP
-                    label="Age"
-                    value={isNil(user.age) ? "—" : String(user.age)}
-                  />
-                  <KVP
-                    label="Driver license issue date"
-                    value={formatDate(user.driver_license_issue)}
-                  />
-                </div>
-              </div>
-            </div>
-          ) : null}
-        </SectionCard>
-
-        {/* Notes */}
-        <SectionCard>
-          <h3 className="text-sm font-medium text-gray-900">Notes</h3>
-          <p className="text-sm text-gray-500 mt-2">
-            Host-only notes about the user.
-          </p>
-
-          <textarea
-            className="mt-3 w-full rounded-xl border border-gray-200 bg-white/60 p-3 text-sm outline-none focus:ring-2 focus:ring-gray-900/10"
-            rows={4}
-            placeholder="Type a note…"
-            value={noteText}
-            onChange={(e) => setNoteText(e.target.value)}
-            onKeyDown={(e) => {
-              if (
-                (e.metaKey || e.ctrlKey) &&
-                e.key === "Enter" &&
-                noteText.trim()
-              ) {
-                handleAddNote();
-              }
-            }}
-          />
-          <div className="mt-2 flex justify-between items-center">
-            <span className="text-xs text-gray-400">Visible only to hosts</span>
-            <button
-              onClick={handleAddNote}
-              disabled={savingNote || !noteText.trim()}
-              aria-busy={savingNote}
-              className=" border py-1 px-2 text-sm rounded-md text-white bg-black"
-            >
-              {savingNote ? "Saving…" : "Save note"}
-            </button>
-          </div>
-
-          <div className="mt-4 space-y-3 max-h-64 overflow-auto">
-            {notesLoading ? (
-              <Skeleton lines={3} />
-            ) : notes.length === 0 ? (
-              <EmptyState
-                title="No notes yet"
-                description="Add your first note."
-              />
-            ) : (
-              notes.map((n) => (
-                <div key={n.id} className="border p-3 rounded-xl text-sm">
-                  <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
-                    <div>
-                      <span>{n.author || "Host"}</span>
-                      {", "}
-                      <span>{formatDate(n.created_at)}</span>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        className="inline-flex items-center rounded-md border border-gray-200 p-1 hover:bg-gray-50 disabled:opacity-50"
-                        onClick={() => handleDeleteNote(n.id)}
-                        disabled={deletingNoteId === n.id}
-                        title="Delete note"
-                        aria-label="Delete note"
-                      >
-                        <TrashIcon className="size-3" />
-                      </button>
-                    </div>
-                  </div>
-                  <div className="text-gray-900 whitespace-pre-wrap">
-                    {n.text}
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </SectionCard>
-      </section>
-
-      {/* Bookings + Activity */}
-      <section className="mt-4 grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <SectionCard className="lg:col-span-2">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-medium text-gray-900">
-              Recent bookings
-            </h3>
-            <Link
-              to={`/bookings?userId=${primed.id}`}
-              className="text-sm text-gray-600 hover:text-gray-900"
-            >
-              View all
-            </Link>
-          </div>
-
-          <div className="mt-2 max-h-80 sm:max-h-96 overflow-auto pr-1">
-            {bookingsLoading ? (
+      {/* MAIN LAYOUT: верхний блок (user + docs), нижний (bookings + notes/activity) */}
+      <section className="mt-4 flex flex-col gap-4">
+        {/* TOP ROW */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-stretch">
+          {/* LEFT: USER / DRIVER INFO */}
+          <SectionCard className="lg:col-span-2">
+            {loading ? (
               <Skeleton lines={4} />
-            ) : bookings.length === 0 ? (
-              <EmptyState
-                title="No bookings yet"
-                description="When this user makes a booking, it will appear here."
-              />
-            ) : (
-              <ul className="space-y-2">
-                {bookings.slice(0, 20).map((b) => {
-                  const brand = b.car?.model?.brand.name ?? "—";
-                  const model = b.car?.model?.name ?? "—";
-                  const plate = (b.car?.license_plate ??
-                    (b.car as any)?.plate_number ??
-                    (b.car as any)?.reg_number ??
-                    "—") as string;
-                  const short = shortId(b.id);
-                  const photo = getCarPhoto(b.car?.cover_photos);
+            ) : error ? (
+              <InlineError message={error} />
+            ) : user ? (
+              <div className="flex flex-col items-start gap-4">
+                <div className="flex items-center gap-4 w-full">
+                  <Avatar
+                    name={user.full_name ?? user.email ?? user.id}
+                    src={user.avatar_url}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h2 className="text-lg md:text-xl font-semibold truncate">
+                        {user.full_name || "No name"}
+                      </h2>
 
-                  return (
-                    <li
-                      key={b.id}
-                      role="button"
-                      onClick={() =>
-                        navigate(`/bookings/${b.id}`, {
-                          state: {
-                            carId: b.car?.id || b.car_id,
-                            from: location.pathname,
-                          },
-                        })
-                      }
-                      className="group flex items-center justify-between gap-3 rounded-xl border border-gray-100 bg-white/60 px-3 py-2 hover:bg-gray-50 cursor-pointer"
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        {photo ? (
-                          <img
-                            src={photo}
-                            alt={`${brand} ${model}`}
-                            className="size-14 rounded-lg object-cover object-left border border-gray-100"
-                          />
-                        ) : (
-                          <div className="h-10 w-10 rounded-lg border border-gray-100 bg-gray-100 grid place-items-center text-xs text-gray-500">
-                            🚗
-                          </div>
-                        )}
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <p className="text-sm font-medium text-gray-900 truncate">
-                              {brand} {model}
+                      {user.is_host && <RolePill label="Host" variant="host" />}
+                      {user.is_admin && (
+                        <RolePill label="Admin" variant="admin" />
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                      User ID: {user.id}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="w-full">
+                  {/* Контакты */}
+                  <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <InfoRow
+                      icon={<EnvelopeIcon className="w-5 h-5" />}
+                      label="Email"
+                      value={user.email || "—"}
+                      copy={user.email || undefined}
+                    />
+                    <InfoRow
+                      icon={<PhoneIcon className="w-5 h-5" />}
+                      label="Phone"
+                      value={user.phone || "—"}
+                      copy={user.phone || undefined}
+                    />
+                  </div>
+
+                  {/* Общая инфа по аккаунту */}
+                  <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <KVP
+                      label="Date of birth"
+                      value={formatDate(user.driver_dob)}
+                    />
+                    <KVP
+                      label="Age"
+                      value={isNil(user.age) ? "—" : String(user.age)}
+                    />
+                    <KVP
+                      label="User since"
+                      value={formatDateTime(user.created_at)}
+                    />
+                    <KVP label="Auth ID" value={user.auth_user_id || "—"} />
+                  </div>
+
+                  {/* Водительские данные */}
+                  <div className="mt-6">
+                    <h3 className="text-xs font-medium uppercase tracking-wide text-gray-400">
+                      Driver details
+                    </h3>
+
+                    <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <KVP
+                        label="License number"
+                        value={user.driver_license_number || "—"}
+                      />
+                      <KVP
+                        label="Issue date"
+                        value={formatDate(user.driver_license_issue)}
+                      />
+                      <KVP
+                        label="Expiry date"
+                        value={formatDate(user.driver_license_expiry)}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+          </SectionCard>
+
+          {/* RIGHT: DOCUMENTS */}
+          <SectionCard>
+            <h3 className="text-sm font-medium text-gray-900">Documents</h3>
+            <p className="text-sm text-gray-500 mt-1">
+              Driver license and other uploaded documents.
+            </p>
+
+            <div className="mt-3">
+              <div className="text-xs text-gray-500 mb-1">Driver license</div>
+
+              {licenseUrl ? (
+                <a
+                  href={licenseUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block group"
+                >
+                  <div className="overflow-hidden rounded-xl border border-gray-100 bg-gray-50">
+                    <img
+                      src={licenseUrl}
+                      alt="Driver license preview"
+                      className="w-full max-h-72 object-contain group-hover:opacity-95 transition"
+                    />
+                  </div>
+                  {licenseFileName && (
+                    <div className="mt-1 text-xs text-gray-500 truncate">
+                      {licenseFileName}
+                    </div>
+                  )}
+                  <div className="mt-1 text-[11px] text-gray-400">
+                    Click to open full image
+                  </div>
+                </a>
+              ) : (
+                <div className="mt-2 rounded-xl border border-dashed border-gray-200 p-4 text-center text-sm text-gray-500">
+                  No driver license uploaded.
+                </div>
+              )}
+            </div>
+          </SectionCard>
+        </div>
+
+        {/* BOTTOM ROW */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-stretch">
+          {/* LEFT: BOOKINGS */}
+          <SectionCard className="lg:col-span-2">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-medium text-gray-900">
+                Recent bookings
+              </h3>
+              <Link
+                to={`/bookings?userId=${primed.id}`}
+                className="text-sm text-gray-600 hover:text-gray-900"
+              >
+                View all
+              </Link>
+            </div>
+
+            <div className="mt-2 max-h-80 sm:max-h-96 overflow-auto pr-1">
+              {bookingsLoading ? (
+                <Skeleton lines={4} />
+              ) : bookings.length === 0 ? (
+                <EmptyState
+                  title="No bookings yet"
+                  description="When this user makes a booking, it will appear here."
+                />
+              ) : (
+                <ul className="space-y-2">
+                  {bookings.slice(0, 20).map((b) => {
+                    const brand = b.car?.model?.brand.name ?? "—";
+                    const model = b.car?.model?.name ?? "—";
+                    const plate = (b.car?.license_plate ??
+                      (b.car as any)?.plate_number ??
+                      (b.car as any)?.reg_number ??
+                      "—") as string;
+                    const short = shortId(b.id);
+                    const photo = getCarPhoto(b.car?.cover_photos);
+
+                    return (
+                      <li
+                        key={b.id}
+                        role="button"
+                        onClick={() =>
+                          navigate(`/bookings/${b.id}`, {
+                            state: {
+                              carId: b.car?.id || b.car_id,
+                              from: location.pathname,
+                            },
+                          })
+                        }
+                        className="group flex items-center justify-between gap-3 rounded-xl border border-gray-100 bg-white/60 px-3 py-2 hover:bg-gray-50 cursor-pointer"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          {photo ? (
+                            <img
+                              src={photo}
+                              alt={`${brand} ${model}`}
+                              className="size-14 rounded-lg object-cover object-left border border-gray-100"
+                            />
+                          ) : (
+                            <div className="h-10 w-10 rounded-lg border border-gray-100 bg-gray-100 grid place-items-center text-xs text-gray-500">
+                              🚗
+                            </div>
+                          )}
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <p className="text-sm font-medium text-gray-900 truncate">
+                                {brand} {model}
+                              </p>
+                              <span className="text-sm text-gray-500">
+                                #{short}
+                              </span>
+                            </div>
+                            <p className="text-xs rounded border w-fit p-0.5 shadow-sm text-gray-600 truncate">
+                              {plate}
                             </p>
-                            <span className="text-sm text-gray-500">
-                              #{short}
-                            </span>
+                            <p className="text-xs text-gray-500">
+                              {formatDateRange(b.start_at, b.end_at)}
+                            </p>
                           </div>
-                          <p className="text-xs rounded border w-fit p-0.5 shadow-sm text-gray-600 truncate">
-                            {plate}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            {formatDateRange(b.start_at, b.end_at)}
-                          </p>
+                        </div>
+                        <div className="shrink-0">
+                          <StatusPill value={b.status || "—"} />
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+          </SectionCard>
+
+          {/* RIGHT: NOTES + ACTIVITY (стеком) */}
+          <div className="flex flex-col gap-4">
+            {/* Notes */}
+            <SectionCard>
+              <h3 className="text-sm font-medium text-gray-900">Notes</h3>
+              <p className="text-sm text-gray-500 mt-2">
+                Host-only notes about the user.
+              </p>
+
+              <textarea
+                className="mt-3 w-full rounded-xl border border-gray-200 bg-white/60 p-3 text-sm outline-none focus:ring-2 focus:ring-gray-900/10"
+                rows={4}
+                placeholder="Type a note…"
+                value={noteText}
+                onChange={(e) => setNoteText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (
+                    (e.metaKey || e.ctrlKey) &&
+                    e.key === "Enter" &&
+                    noteText.trim()
+                  ) {
+                    handleAddNote();
+                  }
+                }}
+              />
+              <div className="mt-2 flex justify-between items-center">
+                <span className="text-xs text-gray-400">
+                  Visible only to hosts
+                </span>
+                <button
+                  onClick={handleAddNote}
+                  disabled={savingNote || !noteText.trim()}
+                  aria-busy={savingNote}
+                  className=" border py-1 px-2 text-sm rounded-md text-white bg-black"
+                >
+                  {savingNote ? "Saving…" : "Save note"}
+                </button>
+              </div>
+
+              <div className="mt-4 space-y-3 max-h-64 overflow-auto">
+                {notesLoading ? (
+                  <Skeleton lines={3} />
+                ) : notes.length === 0 ? (
+                  <EmptyState
+                    title="No notes yet"
+                    description="Add your first note."
+                  />
+                ) : (
+                  notes.map((n) => (
+                    <div key={n.id} className="border p-3 rounded-xl text-sm">
+                      <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
+                        <div>
+                          <span>{n.author || "Host"}</span>
+                          {", "}
+                          <span>{formatDate(n.created_at)}</span>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            className="inline-flex items-center rounded-md border border-gray-200 p-1 hover:bg-gray-50 disabled:opacity-50"
+                            onClick={() => handleDeleteNote(n.id)}
+                            disabled={deletingNoteId === n.id}
+                            title="Delete note"
+                            aria-label="Delete note"
+                          >
+                            <TrashIcon className="size-3" />
+                          </button>
                         </div>
                       </div>
-                      <div className="shrink-0">
-                        <StatusPill value={b.status || "—"} />
+                      <div className="text-gray-900 whitespace-pre-wrap">
+                        {n.text}
                       </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </div>
-        </SectionCard>
+                    </div>
+                  ))
+                )}
+              </div>
+            </SectionCard>
 
-        <SectionCard>
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-medium text-gray-900">Activity</h3>
-            <span className="text-xs text-gray-500">Most recent</span>
+            {/* Activity */}
+            <SectionCard>
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-medium text-gray-900">Activity</h3>
+                <span className="text-xs text-gray-500">Most recent</span>
+              </div>
+              <EmptyState
+                title="No activity yet"
+                description="Profile updates, status changes, and notes will show here."
+              />
+            </SectionCard>
           </div>
-          <EmptyState
-            title="No activity yet"
-            description="Profile updates, status changes, and notes will show here."
-          />
-        </SectionCard>
+        </div>
       </section>
     </div>
   );
@@ -596,7 +757,7 @@ function SectionCard({
 }) {
   return (
     <div
-      className={`rounded-2xl border border-gray-100 bg-white/70 backdrop-blur-sm shadow-sm p-4 md:p-5 ${className}`}
+      className={`h-full rounded-2xl border border-gray-100 bg-white/70 backdrop-blur-sm shadow-sm p-4 md:p-5 ${className}`}
     >
       {children}
     </div>
@@ -646,30 +807,38 @@ function Button({
 }
 
 function StatusBadge({ status }: { status: AppUser["status"] }) {
-  const map: Record<string, { text: string; tone: "ok" | "bad" | "neutral" }> =
-    {
-      active: { text: "Active", tone: "ok" },
-      blocked: { text: "Blocked", tone: "bad" },
-    };
+  type Tone = "ok" | "bad" | "neutral" | "warn";
+
+  const map: Record<string, { text: string; tone: Tone }> = {
+    active: { text: "Active", tone: "ok" },
+    blocked: { text: "Blocked", tone: "bad" },
+    pending: { text: "Pending review", tone: "warn" },
+  };
+
   const cfg = map[String(status || "active")] || {
     text: String(status),
     tone: "neutral" as const,
   };
-  const tone =
+
+  const toneClass =
     cfg.tone === "ok"
       ? "bg-green-50 text-green-700 border-green-100"
       : cfg.tone === "bad"
       ? "bg-red-50 text-red-700 border-red-100"
+      : cfg.tone === "warn"
+      ? "bg-amber-50 text-amber-700 border-amber-100"
       : "bg-gray-50 text-gray-700 border-gray-100";
+
   const Icon =
     cfg.tone === "ok"
       ? CheckCircleIcon
       : cfg.tone === "bad"
       ? XCircleIcon
       : UserIcon;
+
   return (
     <span
-      className={` inline-flex items-center gap-1 rounded-full border px-2 py-1 text-xs ${tone}`}
+      className={`inline-flex items-center gap-1 rounded-full border px-2 py-1 text-xs ${toneClass}`}
     >
       <Icon className="size-4" /> {cfg.text}
     </span>
@@ -790,6 +959,24 @@ function EmptyState({
   );
 }
 
+function RolePill({
+  label,
+  variant,
+}: {
+  label: string;
+  variant: "host" | "admin";
+}) {
+  const base =
+    "inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[11px] font-medium";
+
+  const styles =
+    variant === "host"
+      ? "bg-blue-50 text-blue-700 border-blue-100"
+      : "bg-purple-50 text-purple-700 border-purple-100";
+
+  return <span className={`${base} ${styles}`}>{label}</span>;
+}
+
 function getInitials(name?: string | null) {
   if (!name) return "U";
   const parts = name.trim().split(/\s+/).slice(0, 2);
@@ -801,7 +988,6 @@ function isNil(v: any): v is null | undefined {
 }
 
 function openChat(userId: string) {
-  // адаптируй под свой маршрут/модалку с перепиской
   window.location.href = `/messages?userId=${userId}`;
 }
 
@@ -818,16 +1004,21 @@ function formatDate(value?: string | null) {
   if (!value) return "—";
   const d = parseISO(value);
   if (isNaN(d.getTime())) return String(value);
-  return format(d, "d MMM yy"); // напр., 5 Sep 2025
+  return format(d, "d MMM yy");
+}
+
+function formatDateTime(value?: string | null) {
+  if (!value) return "—";
+  const d = parseISO(value);
+  if (isNaN(d.getTime())) return String(value);
+  return format(d, "d MMM yy, HH:mm");
 }
 
 function shortId(id: string) {
-  // "732981a0-2233-4429-b0cd-16ac22e47244" -> "732981a0"
   return (id || "").split("-")[0] || id;
 }
 
 function getCarPhoto(photos?: string[] | null) {
   if (!photos || photos.length === 0) return null;
-  // если хранишь объекты {url}, поправь на photos[0].url
   return photos[0];
 }

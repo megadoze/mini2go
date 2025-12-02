@@ -113,7 +113,7 @@ export async function getUserById(id: string) {
   const { data, error } = await supabase
     .from("profiles")
     .select(
-      "id, full_name, email, phone, age, driver_license_issue, status, avatar_url"
+      "*"
     )
     .eq("id", id)
     .single();
