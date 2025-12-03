@@ -182,8 +182,6 @@ const AdminCarPage = () => {
 
   // --- effective settings: сначала из car, потом из global, потом дефолт ---
 
-  console.log(appSettings);
-
   const effectiveCurrency = car.currency ?? appSettings?.currency ?? "EUR";
 
   const effectiveMinRentPeriodDays =

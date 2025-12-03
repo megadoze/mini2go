@@ -452,8 +452,6 @@ export default function CarsPage() {
   const cars: CarWithRelations[] =
     displayData?.pages.flatMap((p) => p.items) ?? [];
 
-  console.log(cars);
-
   const isFetchingNext = carsQ.isFetchingNextPage;
   const totalLoaded = cars.length;
   const totalAvailable = displayData?.pages?.[0]?.count ?? totalLoaded;
@@ -549,24 +547,24 @@ export default function CarsPage() {
           onChangeLocation={setLocationFilter}
           onChangeStatus={setStatusFilter}
         />
-        <div className="relative flex-1 min-w-[300px]">
+        <div className="relative flex-1 min-w-[300px] items-center flex gap-3">
           <MagnifyingGlassIcon className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-zinc-500" />
           <TextInput
-            placeholder="Поиск по марке, модели или номеру"
+            placeholder="Search by make, model, or number"
             value={search}
             onChange={(e) => setSearch(e.currentTarget.value)}
             className="w-full rounded-xl bg-white/60 shadow-sm pl-9 pr-3 py-2 text-sm hover:bg-white/80 focus:ring-2 focus:ring-black/10"
           />
+          <button
+            type="button"
+            onClick={resetFilters}
+            className="p-2 rounded hover:bg-gray-100 active:bg-gray-200 transition"
+            aria-label="Reset filters"
+            title="Reset filters"
+          >
+            <XMarkIcon className="size-5 text-gray-800 stroke-1" />
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={resetFilters}
-          className="p-2 rounded hover:bg-gray-100 active:bg-gray-200 transition"
-          aria-label="Сбросить фильтры"
-          title="Сбросить фильтры"
-        >
-          <XMarkIcon className="size-5 text-gray-800 stroke-1" />
-        </button>
       </div>
 
       {/* Mobile search + drawer — без изменений */}

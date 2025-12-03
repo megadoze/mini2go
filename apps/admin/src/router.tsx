@@ -45,8 +45,8 @@ import { settingsGlobalLoader } from "./routes/settingsGlobal.loader";
 import OfflineAwareErrorBoundary from "./components/offlineAwareErrorBoundary";
 import UserGate from "./components/auth/userGate";
 import AdminLayout from "./layout/adminLayout";
-import AdminCarsPage from "./app/admin/adminCarsPage";
 import AdminCarPage from "./app/admin/adminCarPage";
+import AdminCarsList from "./app/admin/adminCarsList";
 
 export const router = createBrowserRouter([
   { path: "/auth", element: <AuthenticationPage /> },
@@ -157,7 +157,7 @@ export const router = createBrowserRouter([
 
       { path: "dashboard", element: <Dashboard /> },
       { path: "calendar", element: <CalendarPage /> },
-      { path: "cars", loader: carsLoader, element: <AdminCarsPage /> },
+      { path: "cars", loader: carsLoader, element: <AdminCarsList /> },
       { path: "cars/:carId", element: <AdminCarPage /> },
       {
         path: "bookings",

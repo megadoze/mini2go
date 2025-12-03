@@ -12,7 +12,6 @@ import {
   FunnelIcon,
 } from "@heroicons/react/24/outline";
 
-// import { fetchCarsPageByHost } from "@/services/car.service";
 import {
   fetchCountries,
   fetchLocationsByCountry,
@@ -31,7 +30,7 @@ import { fetchCarsPage } from "@/services/car.service";
 const PAGE_SIZE = 10;
 type Page = { items: CarWithRelations[]; count: number };
 
-export default function AdminCarsPage() {
+export default function AdminCarsList() {
   const qc = useQueryClient();
 
   // UI
@@ -503,7 +502,7 @@ export default function AdminCarsPage() {
           onChangeLocation={setLocationFilter}
           onChangeStatus={setStatusFilter}
         />
-        <div className="relative flex-1 min-w-[300px]">
+        <div className="relative flex-1 min-w-[300px] flex items-center gap-3">
           <MagnifyingGlassIcon className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-zinc-500" />
           <TextInput
             placeholder="Поиск по марке, модели или номеру"
@@ -511,16 +510,16 @@ export default function AdminCarsPage() {
             onChange={(e) => setSearch(e.currentTarget.value)}
             className="w-full rounded-xl bg-white/60 shadow-sm pl-9 pr-3 py-2 text-sm hover:bg-white/80 focus:ring-2 focus:ring-black/10"
           />
+          <button
+            type="button"
+            onClick={resetFilters}
+            className="p-2 rounded hover:bg-gray-100 active:bg-gray-200 transition"
+            aria-label="Сбросить фильтры"
+            title="Сбросить фильтры"
+          >
+            <XMarkIcon className="size-5 text-gray-800 stroke-1" />
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={resetFilters}
-          className="p-2 rounded hover:bg-gray-100 active:bg-gray-200 transition"
-          aria-label="Сбросить фильтры"
-          title="Сбросить фильтры"
-        >
-          <XMarkIcon className="size-5 text-gray-800 stroke-1" />
-        </button>
       </div>
 
       {/* Mobile search + drawer — без изменений */}
