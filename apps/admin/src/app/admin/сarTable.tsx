@@ -21,12 +21,14 @@ function cn(...classes: Array<string | false | null | undefined>) {
 // —— Component ——
 export default function CarTable({ cars, search }: Props) {
   return (
-    <div className="grid gap-5 sm:gap-6 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+    <div className="grid gap-5 sm:gap-6 grid-cols-1 sm:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3 max-w-5xl 2xl:max-w-7xl">
       {cars.map((car) => {
         const brand = car.models?.brands?.name ?? "";
         const model = car.models?.name ?? "";
+        const title = `${brand} ${model}`.trim();
         const plate = car.licensePlate ?? "";
         const location = car.locations?.name ?? "";
+        const vin = car.vin ?? "";
         const photo = car.coverPhotos?.[0];
 
         return (
@@ -51,7 +53,7 @@ export default function CarTable({ cars, search }: Props) {
                   src={photo}
                   alt={`${brand} ${model}`}
                   loading="lazy"
-                  className="h-48 w-full object-cover sm:h-52 md:h-56 transition-transform duration-500 group-hover:scale-[1.03]"
+                  className=" w-full object-cover aspect-video transition-transform duration-500 group-hover:scale-[1.03]"
                 />
               ) : (
                 <div className="h-48 w-full sm:h-52 md:h-56 bg-gradient-to-br from-zinc-100 to-zinc-200" />
@@ -79,18 +81,25 @@ export default function CarTable({ cars, search }: Props) {
 
             {/* Content */}
             <div className="p-4 sm:p-4">
-              {/* Title */}
-              <h3 className="text-lg font-semibold leading-snug text-zinc-900 line-clamp-1">
-                {highlightMatch(brand, search)} {highlightMatch(model, search)}{" "}
-                <span className="text-gray-500">{car.year}</span>
-              </h3>
+              <div className="flex justify-between">
+                {/* Title */}
+                <h3 className="text-lg font-semibold leading-snug text-zinc-900 line-clamp-1">
+                  {highlightMatch(title, search)}{" "}
+                  <span className="text-gray-500">{car.year}</span>
+                </h3>
+                <p>
+                  <span className=" font-semibold font-ptSans text-lg">
+                    {car.price} {car.currency}/day
+                  </span>
+                </p>
+              </div>
 
               {/* Meta */}
               <div className="mt-2 flex flex-wrap items-center gap-2.5 text-sm text-zinc-600">
                 {plate && (
-                  <span className="inline-flex items-center gap-1 rounded-md bg-zinc-50 px-2 py-1 font-mono text-[12px] tracking-wide shadow-sm ring-1 ring-inset ring-black/5">
+                  <span className="inline-flex items-center rounded-md bg-zinc-50 px-2 py-1 font-mono text-[12px] tracking-wide shadow-sm ring-1 ring-inset ring-black/5">
                     <IdentificationIcon
-                      className="h-4 w-4"
+                      className="h-4 w-4 mr-1"
                       aria-hidden="true"
                     />
                     {highlightMatch(plate, search)}
@@ -105,9 +114,15 @@ export default function CarTable({ cars, search }: Props) {
                 )}
 
                 {car.models?.brands?.name && (
-                  <span className=" inline-flex items-center gap-1 rounded-md bg-white/70 px-2 py-1 text-[12px] shadow-sm ring-1 ring-inset ring-black/5">
-                    <CircleStackIcon className="h-4 w-4" aria-hidden="true" />
-                    VIN: {car.vin}
+                  <span className=" inline-flex items-center rounded-md bg-white/70 px-2 py-1 text-[12px] shadow-sm ring-1 ring-inset ring-black/5">
+                    <span className="flex items-center mr-1">
+                      <CircleStackIcon
+                        className="h-4 w-4 mr-1"
+                        aria-hidden="true"
+                      />
+                      VIN:
+                    </span>
+                    {highlightMatch(vin, search)}
                   </span>
                 )}
               </div>

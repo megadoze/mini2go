@@ -1,7 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate, useRouteLoaderData } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
-import { ArrowLeftIcon } from "@heroicons/react/24/outline";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  ArrowLeftIcon,
+  LockOpenIcon,
+  LockClosedIcon,
+  ArrowPathIcon,
+} from "@heroicons/react/24/outline";
 import { Loader, Badge } from "@mantine/core";
 
 import {
@@ -14,7 +19,7 @@ import {
 import type { MapRef, ViewState } from "react-map-gl/mapbox";
 
 import { QK } from "@/queryKeys";
-import { fetchCarById } from "@/services/car.service";
+import { fetchCarById, updateCarStatus } from "@/services/car.service";
 import { getGlobalSettings } from "@/services/settings.service";
 import Pin from "@/components/pin";
 import type { AppSettings } from "@/types/setting";
@@ -29,6 +34,7 @@ const cardCls =
 const AdminCarPage = () => {
   const { carId } = useParams<{ carId: string }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   // ⚙️ текущий владелец (ownerId из rootLoader'a)
   const rootData = useRouteLoaderData("rootAuth") as
@@ -48,8 +54,26 @@ const AdminCarPage = () => {
     queryFn: () => fetchCarById(String(carId)),
   });
 
+  useEffect(() => {
+    if (!car) return;
+
+    const hasSnake = Object.keys(car as any).some((k) => k.includes("_"));
+    if (!hasSnake) return; // уже чистый — нечего делать
+
+    queryClient.setQueryData(QK.car(String(car.id)), (prev: any) => {
+      if (!prev) return prev;
+
+      const out: any = {};
+      for (const [k, v] of Object.entries(prev)) {
+        if (k.includes("_")) continue; // режем body_type, license_plate, cover_photos, owner_id...
+        out[k] = v;
+      }
+      return out;
+    });
+  }, [car, queryClient]);
+
   const settingsOwnerId: string | null =
-    (car as any)?.ownerId ?? (car as any)?.owner_id ?? rootOwnerId ?? null;
+    (car as any)?.ownerId ?? rootOwnerId ?? null;
 
   // 🌍 глобальные настройки владельца — как fallback
   const { data: appSettings } = useQuery<AppSettings | null, Error>({
@@ -81,6 +105,8 @@ const AdminCarPage = () => {
     padding: { top: 0, bottom: 0, left: 0, right: 0 },
   });
   const mapRef = useRef<MapRef | null>(null);
+
+  const [toggling, setToggling] = useState(false);
 
   useEffect(() => {
     if (!car) return;
@@ -136,7 +162,6 @@ const AdminCarPage = () => {
   const model = car.model?.name ?? "—";
   const plate = car.licensePlate ?? "—";
 
-  // город + страна
   // город + страна (страна из справочника countries по country_id)
   const rawLoc = car.location as any;
   let city: string | null = null;
@@ -144,7 +169,6 @@ const AdminCarPage = () => {
 
   if (rawLoc) {
     const locObj = Array.isArray(rawLoc) ? rawLoc[0] : rawLoc;
-
     city = locObj?.name ?? null;
 
     const countryId =
@@ -165,18 +189,27 @@ const AdminCarPage = () => {
 
   const status = car.status ?? "—";
 
-  const ownerProfile = car.owner as any;
+  const ownerProfile = (car as any).ownerProfile;
+  const ownerLabel = (car as any).ownerLabel as string | null;
+
   const ownerName =
-    ownerProfile?.full_name || ownerProfile?.email || car.ownerId || "—";
+    ownerProfile?.full_name ||
+    ownerProfile?.email ||
+    ownerLabel ||
+    car.ownerId ||
+    "—";
+
   const ownerEmail = ownerProfile?.email ?? null;
 
   const mainPhoto =
     car.coverPhotos?.[0] ?? car.photos?.[0] ?? car.galleryPhotos?.[0] ?? null;
 
+  const isBlocked = status === "unavailable";
+
   const statusTone =
     status === "available"
       ? "green"
-      : status === "blocked" || status === "inactive"
+      : status === "unavailable"
       ? "red"
       : "gray";
 
@@ -209,6 +242,89 @@ const AdminCarPage = () => {
 
   const priceText =
     car.price != null ? `${car.price} ${effectiveCurrency}`.trim() : "Not set";
+
+  // 🔒 toggle block / unblock
+  // AdminCarPage
+  const handleToggleBlock = async () => {
+    if (!car) return;
+
+    const currentStatus =
+      (car.status as "available" | "unavailable") || "available";
+
+    const next: "available" | "unavailable" =
+      currentStatus === "available" ? "unavailable" : "available";
+
+    setToggling(true);
+
+    // 1) оптимистично меняем кеш деталки
+    queryClient.setQueryData<CarDetails>(QK.car(String(car.id)), (prev: any) =>
+      prev ? { ...prev, status: next } : prev
+    );
+
+    // 2) оптимистично меняем кеш списка adminCars
+    queryClient.setQueriesData(
+      {
+        predicate: (q) =>
+          Array.isArray(q.queryKey) && q.queryKey[0] === "adminCars",
+      },
+      (old: any) => {
+        if (!old?.pages?.length) return old;
+
+        const pages = old.pages.map((p: any) => {
+          if (!Array.isArray(p?.items)) return p;
+
+          const items = p.items.map((c: any) =>
+            String(c.id) === String(car.id) ? { ...c, status: next } : c
+          );
+
+          return { ...p, items };
+        });
+
+        return { ...old, pages };
+      }
+    );
+
+    try {
+      await updateCarStatus(car.id, next);
+    } catch (e) {
+      console.error(e);
+
+      // ❌ откат деталки
+      queryClient.setQueryData<CarDetails>(
+        QK.car(String(car.id)),
+        (prev: any) => (prev ? { ...prev, status: currentStatus } : prev)
+      );
+
+      // ❌ откат списка
+      queryClient.setQueriesData(
+        {
+          predicate: (q) =>
+            Array.isArray(q.queryKey) && q.queryKey[0] === "adminCars",
+        },
+        (old: any) => {
+          if (!old?.pages?.length) return old;
+
+          const pages = old.pages.map((p: any) => {
+            if (!Array.isArray(p?.items)) return p;
+
+            const items = p.items.map((c: any) =>
+              String(c.id) === String(car.id)
+                ? { ...c, status: currentStatus }
+                : c
+            );
+
+            return { ...p, items };
+          });
+
+          return { ...old, pages };
+        }
+      );
+
+      alert("Не удалось изменить статус автомобиля");
+    } finally {
+      setToggling(false);
+    }
+  };
 
   return (
     <div className="w-full max-w-4xl text-gray-800">
@@ -270,7 +386,7 @@ const AdminCarPage = () => {
             </div>
           </div>
 
-          {/* right: price */}
+          {/* right: price + block button */}
           <div className="w-full md:w-56">
             <div>
               <div className="text-[11px] uppercase tracking-wide text-gray-500">
@@ -290,14 +406,42 @@ const AdminCarPage = () => {
                   ? `${effectiveMaxRentPeriodDays} day(s)`
                   : "—"}
               </div>
+
+              {/* 🔒 Block / Unblock car */}
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={handleToggleBlock}
+                  disabled={toggling}
+                  aria-busy={toggling}
+                  className="inline-flex items-center justify-center rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+                >
+                  {toggling ? (
+                    <>
+                      <ArrowPathIcon className="w-4 h-4 mr-1 animate-spin" />
+                      Updating…
+                    </>
+                  ) : isBlocked ? (
+                    <>
+                      <LockOpenIcon className="w-4 h-4 mr-1" />
+                      Unblock car
+                    </>
+                  ) : (
+                    <>
+                      <LockClosedIcon className="w-4 h-4 mr-1" />
+                      Block car
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </div>
       </header>
 
-      {/* MOBILE PHOTO CARD (сразу после header) */}
-      <section className={`${cardCls} lg:hidden mt-4`}>
-        <div className="overflow-hidden rounded-xl bg-gray-50 aspect-video md:aspect-[16/9]">
+      {/* 📸 MOBILE photo card — сразу после header */}
+      <section className={`${cardCls} mt-4 lg:hidden`}>
+        <div className="overflow-hidden rounded-xl bg-gray-50 aspect-video">
           {mainPhoto ? (
             <img
               src={mainPhoto}
@@ -427,7 +571,7 @@ const AdminCarPage = () => {
               </div>
             </div>
 
-            <div className="mt-3 space-y-1  text-gray-800">
+            <div className="mt-3 space-y-1 text-gray-800">
               <div className="flex items-center gap-1">
                 <span className="text-base">📍</span>
                 <span>
@@ -442,7 +586,7 @@ const AdminCarPage = () => {
             </div>
 
             <div className="mt-4">
-              <div className="relative z-0 h-60 overflow-hidden rounded-xl border border-gray-100  ">
+              <div className="relative z-0 h-60 overflow-hidden rounded-xl border border-gray-100">
                 <Map
                   ref={mapRef}
                   {...mapView}
@@ -474,13 +618,12 @@ const AdminCarPage = () => {
             </div>
           </section>
 
-          {/* DESCRIPTION */}
+          {/* DESCRIPTION (HTML) */}
           {car.content && (
             <section className={cardCls}>
               <h2 className="text-base font-semibold text-gray-900">
                 Description
               </h2>
-
               <div
                 className="mt-3 text-sm md:text-base text-gray-800 leading-relaxed prose prose-sm max-w-none"
                 dangerouslySetInnerHTML={{ __html: car.content }}

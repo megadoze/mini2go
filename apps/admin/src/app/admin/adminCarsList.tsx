@@ -16,7 +16,6 @@ import {
   fetchCountries,
   fetchLocationsByCountry,
 } from "@/services/geo.service";
-
 import type { CarWithRelations } from "@/types/carWithRelations";
 import type { Country } from "@/types/country";
 import type { Location } from "@/types/location";
@@ -29,6 +28,8 @@ import { fetchCarsPage } from "@/services/car.service";
 
 const PAGE_SIZE = 10;
 type Page = { items: CarWithRelations[]; count: number };
+
+type CarsPageRow = CarWithRelations; // то, что реально лежит в таблице на экране
 
 export default function AdminCarsList() {
   const qc = useQueryClient();
@@ -113,14 +114,7 @@ export default function AdminCarsList() {
     });
   };
 
-  // 👇 это надо ДО useEffect с каналом (лучше прямо в CarsPage сверху после типов)
-
-  type CarsPageRow = CarWithRelations; // то, что реально лежит в таблице на экране
-
   function mapDbRowToCarRow(db: any): CarWithRelations {
-    // db = payload.new / payload.old из realtime (сырая строка cars)
-    // у неё snake_case, без relations.
-    // Мы пытаемся собрать CarWithRelations настолько, насколько можем локально.
     const modelName = db.model_name ?? db.modelName ?? db.model ?? "";
     const brandName = db.brand_name ?? db.brandName ?? db.brand ?? "";
     const models = {
@@ -147,6 +141,7 @@ export default function AdminCarsList() {
       doors: db.doors ?? null,
       coverPhotos: Array.isArray(db.coverPhotos) ? db.coverPhotos : [],
       price: db.price ?? null,
+      currency: db.currency ?? null,
       address: db.address ?? null,
       pickupInfo: db.pickupInfo ?? null,
       returnInfo: db.returnInfo ?? null,
@@ -154,8 +149,6 @@ export default function AdminCarsList() {
       deliveryFee: db.deliveryFee ?? null,
       includeMileage: db.includeMileage ?? null,
       deposit: db.deposit ?? null,
-      // 👇 relations из realtime нам НЕ приходят.
-      // попробуем частично восстановить марку/модель из кеша по model_id.
       models,
       locations: db.locations
         ? {
@@ -256,7 +249,7 @@ export default function AdminCarsList() {
     );
   }
 
-  // удаляем машину из всех страниц кэша carsByHost
+  // удаляем машину из всех страниц кэша
   function removeCarRow(qc: any, carId: string) {
     qc.setQueriesData(
       {
@@ -337,30 +330,6 @@ export default function AdminCarsList() {
         return { ...old, pages };
       }
     );
-
-    // и на всякий подтюним detail-кеш, который CarDetails читает
-    qc.setQueryData(QK.car(String(updatedRow.id)), (oldDetail: any) => {
-      if (!oldDetail) return oldDetail;
-      return {
-        ...oldDetail,
-        // синкаем простые поля
-        status:
-          updatedRow.status !== undefined
-            ? updatedRow.status
-            : oldDetail.status,
-        price:
-          updatedRow.price !== undefined ? updatedRow.price : oldDetail.price,
-        licensePlate:
-          updatedRow.licensePlate !== undefined
-            ? updatedRow.licensePlate
-            : oldDetail.licensePlate ?? oldDetail.license_plate ?? null,
-        coverPhotos:
-          Array.isArray(updatedRow.coverPhotos) &&
-          updatedRow.coverPhotos.length > 0
-            ? updatedRow.coverPhotos
-            : oldDetail.coverPhotos,
-      };
-    });
   }
 
   useEffect(() => {
@@ -399,13 +368,9 @@ export default function AdminCarsList() {
             patchCarRow(qc, row);
           }
 
-          // страховка
           qc.invalidateQueries({
             predicate: (q) =>
-              Array.isArray(q.queryKey) &&
-              (q.queryKey[0] === "adminCars" ||
-                (q.queryKey[0] === "car" &&
-                  String(q.queryKey[1]) === String(rowAfter.id))),
+              Array.isArray(q.queryKey) && q.queryKey[0] === "adminCars",
           });
         }
       )
@@ -437,7 +402,7 @@ export default function AdminCarsList() {
     const byText = cars.filter((car) => {
       const t = `${car.models?.brands?.name ?? ""} ${car.models?.name ?? ""} ${
         car.licensePlate ?? ""
-      }`.toLowerCase();
+      } ${car.vin ?? ""}`.toLowerCase();
       return t.includes(text);
     });
 
@@ -478,7 +443,6 @@ export default function AdminCarsList() {
     trimToFirstPage();
   };
 
-  /* -------- render -------- */
   return (
     <>
       <div className="flex justify-between items-center mb-4">
@@ -491,7 +455,7 @@ export default function AdminCarsList() {
       </div>
 
       {/* Filters (как было) */}
-      <div className="hidden sm:flex flex-wrap gap-3 items-center w-full mb-6">
+      <div className="hidden sm:flex flex-wrap gap-3 items-center w-full mb-6 max-w-5xl 2xl:max-w-7xl">
         <CarFilters
           countries={countries}
           locations={locations}
@@ -505,7 +469,7 @@ export default function AdminCarsList() {
         <div className="relative flex-1 min-w-[300px] flex items-center gap-3">
           <MagnifyingGlassIcon className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-zinc-500" />
           <TextInput
-            placeholder="Поиск по марке, модели или номеру"
+            placeholder="Search by make, model, vin or number"
             value={search}
             onChange={(e) => setSearch(e.currentTarget.value)}
             className="w-full rounded-xl bg-white/60 shadow-sm pl-9 pr-3 py-2 text-sm hover:bg-white/80 focus:ring-2 focus:ring-black/10"
@@ -514,8 +478,8 @@ export default function AdminCarsList() {
             type="button"
             onClick={resetFilters}
             className="p-2 rounded hover:bg-gray-100 active:bg-gray-200 transition"
-            aria-label="Сбросить фильтры"
-            title="Сбросить фильтры"
+            aria-label="Reset filters"
+            title="Reset filters"
           >
             <XMarkIcon className="size-5 text-gray-800 stroke-1" />
           </button>
@@ -526,7 +490,7 @@ export default function AdminCarsList() {
       <div className="relative w-full mb-4 sm:hidden">
         <MagnifyingGlassIcon className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-zinc-500" />
         <TextInput
-          placeholder="Поиск по марке, модели или номеру"
+          placeholder="Search by make, model, vin or number"
           value={search}
           onChange={(e) => setSearch(e.currentTarget.value)}
           className="w-full rounded-xl bg-white/60 shadow-sm pl-9 pr-3 py-2 text-sm hover:bg-white/80 focus:ring-2 focus:ring-black/10"
@@ -538,7 +502,7 @@ export default function AdminCarsList() {
           type="button"
           onClick={() => setMobileFiltersOpen(true)}
           className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm shadow-md bg-black text-white active:opacity-80"
-          aria-label="Открыть фильтры"
+          aria-label="Open filters"
         >
           <FunnelIcon className="size-4" />
           Filters

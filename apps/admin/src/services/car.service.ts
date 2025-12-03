@@ -16,12 +16,18 @@ function toCamelCar(raw: any) {
       ? model.brands[0]
       : model.brands
     : null;
+
   const location = Array.isArray(raw.location) ? raw.location[0] : raw.location;
+
+  const ownerProfileRaw = Array.isArray(raw.owner_profile)
+    ? raw.owner_profile[0]
+    : raw.owner_profile;
 
   return {
     id: raw.id,
     vin: raw.vin ?? null,
     year: raw.year != null ? Number(raw.year) : null,
+
     licensePlate: raw.license_plate ?? raw.licensePlate ?? null,
     fuelType: raw.fuel_type ?? raw.fuelType ?? null,
     transmission: raw.transmission ?? null,
@@ -67,7 +73,6 @@ function toCamelCar(raw: any) {
     isAbroad: raw.is_abroad ?? raw.isAbroad ?? undefined,
 
     photos: raw.photos ?? [],
-
     coverPhotos: raw.cover_photos ?? raw.coverPhotos ?? [],
     galleryPhotos: raw.gallery_photos ?? raw.galleryPhotos ?? [],
     videoPoster: raw.video_poster ?? raw.videoPoster ?? null,
@@ -75,8 +80,11 @@ function toCamelCar(raw: any) {
 
     content: raw.content ?? "",
     status: raw.status ?? "",
-    owner: raw.owner ?? "",
+
+    // хозяин
+    ownerLabel: raw.owner ?? null,
     ownerId: raw.owner_id ?? null,
+    ownerProfile: ownerProfileRaw ?? null,
   };
 }
 
@@ -214,6 +222,7 @@ function mapCarRow(car: any): CarWithRelations {
     deliveryFee: car.delivery_fee || 0,
     includeMileage: car.include_mileage || 100,
     price: car.price || 0,
+    currency: car.currency || "",
     deposit: car.deposit || 0,
     owner: car.owner || "",
     ownerId: car.owner_id ?? null,
@@ -257,10 +266,8 @@ export async function fetchCarsPage(opts: {
 }): Promise<{ items: CarWithRelations[]; count: number }> {
   const { limit, offset, countryId, locationName, brandOrModel } = opts;
 
-  let q = supabase
-    .from("cars")
-    .select(
-      `
+  let q = supabase.from("cars").select(
+    `
         id,
         vin,
         model_id,
@@ -298,10 +305,8 @@ export async function fetchCarsPage(opts: {
         owner,
         owner_id
       `,
-      { count: "exact", head: false }
-    )
-    // публичке нужны только доступные
-    .eq("status", "available");
+    { count: "exact", head: false }
+  );
 
   // фильтр по стране
   if (countryId) {
@@ -410,7 +415,7 @@ export async function fetchCarById(id: string) {
       `
       *,
       model:models(id, name, brand_id, brands(*)),
-      owner:profiles(id, full_name, email),
+      owner_profile:profiles(id, full_name, email),
       location:locations(*, country_id)
     `
     )
@@ -734,4 +739,19 @@ export async function upsertCarExtra({
     .upsert({ car_id, extra_id, price }, { onConflict: "car_id,extra_id" });
   if (error) throw error;
   carCache.delete(car_id); // ♻️
+}
+
+// 👉 Изменение статуса (available | unavailable)
+// car.service.ts
+export async function updateCarStatus(
+  id: string,
+  status: "available" | "unavailable"
+) {
+  const { error } = await supabase.from("cars").update({ status }).eq("id", id);
+
+  if (error) throw error;
+
+  carCache.delete(id);
+
+  return { id, status };
 }
