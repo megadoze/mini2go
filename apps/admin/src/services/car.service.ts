@@ -105,10 +105,10 @@ function carCamelToSnake(input: CarUpdatePayload) {
     doors: input.doors,
     photos: input.photos,
 
-    cover_photos: input.coverPhotos ?? [],
-    gallery_photos: input.galleryPhotos ?? [],
-    video_poster: input.videoPoster ?? null,
-    video_url: input.videoUrl ?? null,
+    cover_photos: input.coverPhotos,
+    gallery_photos: input.galleryPhotos,
+    video_poster: input.videoPoster,
+    video_url: input.videoUrl,
 
     content: input.content,
     location_id: input.locationId,
@@ -449,6 +449,9 @@ export async function deleteCar(carId: string) {
 // Обновление данных авто
 export async function updateCar(id: string, data: CarUpdatePayload) {
   const snakeData = carCamelToSnake(data);
+
+  console.log("data", data);
+  console.log("snakeData", snakeData);
 
   const { error } = await supabase.from("cars").update(snakeData).eq("id", id);
 

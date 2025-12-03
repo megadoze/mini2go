@@ -350,28 +350,28 @@ export default function CarsPage() {
     );
 
     // и на всякий подтюним detail-кеш, который CarDetails читает
-    // qc.setQueryData(QK.car(String(updatedRow.id)), (oldDetail: any) => {
-    //   if (!oldDetail) return oldDetail;
-    //   return {
-    //     ...oldDetail,
-    //     // синкаем простые поля
-    //     status:
-    //       updatedRow.status !== undefined
-    //         ? updatedRow.status
-    //         : oldDetail.status,
-    //     price:
-    //       updatedRow.price !== undefined ? updatedRow.price : oldDetail.price,
-    //     licensePlate:
-    //       updatedRow.licensePlate !== undefined
-    //         ? updatedRow.licensePlate
-    //         : oldDetail.licensePlate ?? oldDetail.license_plate ?? null,
-    //     coverPhotos:
-    //       Array.isArray(updatedRow.coverPhotos) &&
-    //       updatedRow.coverPhotos.length > 0
-    //         ? updatedRow.coverPhotos
-    //         : oldDetail.coverPhotos,
-    //   };
-    // });
+    qc.setQueryData(QK.car(String(updatedRow.id)), (oldDetail: any) => {
+      if (!oldDetail) return oldDetail;
+      return {
+        ...oldDetail,
+        // синкаем простые поля
+        status:
+          updatedRow.status !== undefined
+            ? updatedRow.status
+            : oldDetail.status,
+        price:
+          updatedRow.price !== undefined ? updatedRow.price : oldDetail.price,
+        licensePlate:
+          updatedRow.licensePlate !== undefined
+            ? updatedRow.licensePlate
+            : oldDetail.licensePlate ?? oldDetail.license_plate ?? null,
+        coverPhotos:
+          Array.isArray(updatedRow.coverPhotos) &&
+          updatedRow.coverPhotos.length > 0
+            ? updatedRow.coverPhotos
+            : oldDetail.coverPhotos,
+      };
+    });
   }
 
   useEffect(() => {
@@ -427,13 +427,13 @@ export default function CarsPage() {
           }
 
           // страховка
-          // qc.invalidateQueries({
-          //   predicate: (q) =>
-          //     Array.isArray(q.queryKey) &&
-          //     (q.queryKey[0] === "carsByHost" ||
-          //       (q.queryKey[0] === "car" &&
-          //         String(q.queryKey[1]) === String(rowAfter.id))),
-          // });
+          qc.invalidateQueries({
+            predicate: (q) =>
+              Array.isArray(q.queryKey) &&
+              (q.queryKey[0] === "carsByHost" ||
+                (q.queryKey[0] === "car" &&
+                  String(q.queryKey[1]) === String(rowAfter.id))),
+          });
           // qc.invalidateQueries({
           //   predicate: (q) =>
           //     Array.isArray(q.queryKey) && q.queryKey[0] === "carsByHost",

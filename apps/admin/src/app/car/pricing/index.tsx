@@ -122,6 +122,9 @@ const Pricing = () => {
     [price]
   );
 
+  console.log(car);
+  
+
   const handleSavePrice = async () => {
     if (!carId) return;
     try {
