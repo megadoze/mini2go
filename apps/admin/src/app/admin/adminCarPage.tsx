@@ -273,7 +273,7 @@ const AdminCarPage = () => {
       <header className={cardCls}>
         <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
           {/* left: title + meta */}
-          <div className="space-y-3">
+          <div className=" space-y-3 md:space-y-5 flex flex-col justify-between">
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-lg md:text-xl font-semibold text-gray-900">
                 {brand} {model}
@@ -299,22 +299,22 @@ const AdminCarPage = () => {
               <div className="flex flex-wrap gap-2 text-xs text-gray-700">
                 {car.year && (
                   <Pill>
-                    Year: <b>{car.year}</b>
+                 {car.year}
                   </Pill>
                 )}
                 {car.fuelType && (
                   <Pill>
-                    Fuel: <b>{car.fuelType}</b>
+                  {car.fuelType}
                   </Pill>
                 )}
                 {car.transmission && (
                   <Pill>
-                    Transmission: <b>{car.transmission}</b>
+             {car.transmission}
                   </Pill>
                 )}
                 {car.bodyType && (
                   <Pill>
-                    Body: <b>{car.bodyType}</b>
+               {car.bodyType}
                   </Pill>
                 )}
               </div>
