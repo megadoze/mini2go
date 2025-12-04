@@ -188,12 +188,16 @@ const AdminCarPage = () => {
   const mainPhoto =
     car.coverPhotos?.[0] ?? car.photos?.[0] ?? car.galleryPhotos?.[0] ?? null;
 
-  const statusTone =
+  const statusGradient =
     status === "available"
-      ? "green"
+      ? { from: "teal", to: "cyan", deg: 90 }
       : status === "unavailable"
-      ? "red"
-      : "gray";
+      ? { from: "gray", to: "rgba(194, 194, 194, 1)", deg: 90 }
+      : status === "blocked"
+      ? { from: "rgba(31, 31, 31, 1)", to: "rgba(77, 77, 77, 1)", deg: 90 }
+      : status === "pending_review"
+      ? { from: "cyan", to: "blue", deg: 90 }
+      : { from: "gray", to: "rgba(194, 194, 194, 1)", deg: 90 };
 
   // --- effective settings: сначала из car, потом из global, потом дефолт ---
 
@@ -281,7 +285,12 @@ const AdminCarPage = () => {
                 </span>
               )}
 
-              <Badge color={statusTone} radius="xl" variant="gradient" fw={500}>
+              <Badge
+                radius="xl"
+                gradient={statusGradient}
+                variant="gradient"
+                fw={500}
+              >
                 {status}
               </Badge>
             </div>

@@ -18,6 +18,42 @@ function cn(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
 }
 
+// маппинг статус → градиент
+function getStatusGradient(status?: string | null) {
+  switch (status) {
+    case "available":
+      return { from: "teal", to: "cyan", deg: 90 };
+    case "unavailable":
+      return { from: "gray", to: "rgba(194, 194, 194, 1)", deg: 90 };
+    case "blocked":
+      return {
+        from: "rgba(31, 31, 31, 1)",
+        to: "rgba(77, 77, 77, 1)",
+        deg: 90,
+      };
+    case "pending_review":
+      return { from: "cyan", to: "blue", deg: 90 };
+    default:
+      return { from: "gray", to: "rgba(194, 194, 194, 1)", deg: 90 };
+  }
+}
+
+// маппинг статус → человекочитаемый текст
+function getStatusLabel(status?: string | null) {
+  switch (status) {
+    case "available":
+      return "Available";
+    case "unavailable":
+      return "Unavailable";
+    case "blocked":
+      return "Blocked";
+    case "pending_review":
+      return "Pending review";
+    default:
+      return status || "—";
+  }
+}
+
 // —— Component ——
 export default function CarTable({ cars, search }: Props) {
   return (
@@ -31,17 +67,17 @@ export default function CarTable({ cars, search }: Props) {
         const vin = car.vin ?? "";
         const photo = car.coverPhotos?.[0];
 
+        const statusGradient = getStatusGradient(car.status);
+        const statusLabel = getStatusLabel(car.status);
+
         return (
           <NavLink
             key={car.id}
             to={`/admin/cars/${car.id}`}
             className={cn(
               "group relative block w-full overflow-hidden rounded-2xl",
-              // Borderless, glassy card
               "bg-white/60 backdrop-blur supports-[backdrop-filter]:bg-white/40",
-              // Soft shadow + interactive elevation
               "shadow-[0_2px_10px_rgba(0,0,0,0.06)] hover:shadow-[0_12px_30px_rgba(0,0,0,0.10)]",
-              // Animation
               "transition-all duration-300"
             )}
             aria-label={`${brand} ${model} ${plate}`}
@@ -53,7 +89,7 @@ export default function CarTable({ cars, search }: Props) {
                   src={photo}
                   alt={`${brand} ${model}`}
                   loading="lazy"
-                  className=" w-full object-cover aspect-video transition-transform duration-500 group-hover:scale-[1.03]"
+                  className="w-full object-cover aspect-video transition-transform duration-500 group-hover:scale-[1.03]"
                 />
               ) : (
                 <div className="h-48 w-full sm:h-52 md:h-56 bg-gradient-to-br from-zinc-100 to-zinc-200" />
@@ -64,17 +100,8 @@ export default function CarTable({ cars, search }: Props) {
 
               {/* Status pill in the corner */}
               <div className="absolute left-3 top-3 ">
-                <Badge
-                  variant="gradient"
-                  gradient={
-                    car.status === "available"
-                      ? { from: "teal", to: "cyan", deg: 90 }
-                      : { from: "gray", to: "rgba(173, 173, 173, 1)", deg: 90 }
-                  }
-                  size="sm"
-                >
-                  {" "}
-                  ◉ {car.status}
+                <Badge variant="gradient" gradient={statusGradient} size="sm">
+                  ◉ {statusLabel}
                 </Badge>
               </div>
             </div>
@@ -88,7 +115,7 @@ export default function CarTable({ cars, search }: Props) {
                   <span className="text-gray-500">{car.year}</span>
                 </h3>
                 <p>
-                  <span className=" font-semibold font-ptSans text-lg">
+                  <span className="font-semibold font-ptSans text-lg">
                     {car.price} {car.currency}/day
                   </span>
                 </p>
@@ -114,7 +141,7 @@ export default function CarTable({ cars, search }: Props) {
                 )}
 
                 {car.models?.brands?.name && (
-                  <span className=" inline-flex items-center rounded-md bg-white/70 px-2 py-1 text-[12px] shadow-sm ring-1 ring-inset ring-black/5">
+                  <span className="inline-flex items-center rounded-md bg-white/70 px-2 py-1 text-[12px] shadow-sm ring-1 ring-inset ring-black/5">
                     <span className="flex items-center mr-1">
                       <CircleStackIcon
                         className="h-4 w-4 mr-1"

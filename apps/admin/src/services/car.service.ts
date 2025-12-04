@@ -164,7 +164,8 @@ const CARS_BASE_SELECT = `
   is_delivery, 
   delivery_fee, 
   include_mileage, 
-  price, 
+  price,
+  currency, 
   deposit,
   owner,
   owner_id 
