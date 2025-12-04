@@ -25,6 +25,7 @@ import Pin from "@/components/pin";
 import type { AppSettings } from "@/types/setting";
 import { fetchCountries } from "@/services/geo.service";
 import type { Country } from "@/types/country";
+import { patchCarCaches } from "@/utils/cache/car-cache";
 
 type CarDetails = Awaited<ReturnType<typeof fetchCarById>>;
 
@@ -238,70 +239,16 @@ const AdminCarPage = () => {
 
     setToggling(true);
 
-    // 1) оптимистично меняем кеш деталки
-    queryClient.setQueryData<CarDetails>(QK.car(String(car.id)), (prev: any) =>
-      prev ? { ...prev, status: next } : prev
-    );
-
-    // 2) оптимистично меняем кеш списка adminCars
-    queryClient.setQueriesData(
-      {
-        predicate: (q) =>
-          Array.isArray(q.queryKey) && q.queryKey[0] === "adminCars",
-      },
-      (old: any) => {
-        if (!old?.pages?.length) return old;
-
-        const pages = old.pages.map((p: any) => {
-          if (!Array.isArray(p?.items)) return p;
-
-          const items = p.items.map((c: any) =>
-            String(c.id) === String(car.id) ? { ...c, status: next } : c
-          );
-
-          return { ...p, items };
-        });
-
-        return { ...old, pages };
-      }
-    );
+    // ⚡ оптимистично патчим ВЕЗДЕ: деталка + все списки, включая adminCars
+    patchCarCaches(queryClient, String(car.id), { status: next });
 
     try {
       await updateCarStatus(car.id, next);
+      // всё ок — патч уже в кэше, ничего больше делать не надо
     } catch (e) {
       console.error(e);
-
-      // ❌ откат деталки
-      queryClient.setQueryData<CarDetails>(
-        QK.car(String(car.id)),
-        (prev: any) => (prev ? { ...prev, status: currentStatus } : prev)
-      );
-
-      // ❌ откат списка
-      queryClient.setQueriesData(
-        {
-          predicate: (q) =>
-            Array.isArray(q.queryKey) && q.queryKey[0] === "adminCars",
-        },
-        (old: any) => {
-          if (!old?.pages?.length) return old;
-
-          const pages = old.pages.map((p: any) => {
-            if (!Array.isArray(p?.items)) return p;
-
-            const items = p.items.map((c: any) =>
-              String(c.id) === String(car.id)
-                ? { ...c, status: currentStatus }
-                : c
-            );
-
-            return { ...p, items };
-          });
-
-          return { ...old, pages };
-        }
-      );
-
+      // ❌ откат, если не сохранилось
+      patchCarCaches(queryClient, String(car.id), { status: currentStatus });
       alert("Не удалось изменить статус автомобиля");
     } finally {
       setToggling(false);

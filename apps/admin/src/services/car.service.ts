@@ -450,9 +450,6 @@ export async function deleteCar(carId: string) {
 export async function updateCar(id: string, data: CarUpdatePayload) {
   const snakeData = carCamelToSnake(data);
 
-  console.log("data", data);
-  console.log("snakeData", snakeData);
-
   const { error } = await supabase.from("cars").update(snakeData).eq("id", id);
 
   if (error) throw error;

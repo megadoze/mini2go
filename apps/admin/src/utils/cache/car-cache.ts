@@ -11,6 +11,9 @@ const isCarsByHostKey = (key: QueryKey) =>
 const isCarsInfiniteKey = (key: QueryKey) =>
   Array.isArray(key) && key[0] === "carsInfinite";
 
+const isAdminCarsKey = (key: QueryKey) =>
+  Array.isArray(key) && key[0] === "adminCars";
+
 export type CarPatch = Partial<any>;
 
 // ===== helpers: универсальная правка/удаление для разных форматов =====
@@ -22,10 +25,14 @@ function removeFromListLike(list: any, carId: string) {
   if (!list) return list;
 
   if (Array.isArray(list)) return list.filter(idNE(carId));
-  if (Array.isArray(list.items))    return { ...list, items:   list.items.filter(idNE(carId)) };
-  if (Array.isArray(list.data))     return { ...list, data:    list.data.filter(idNE(carId)) };
-  if (Array.isArray(list.rows))     return { ...list, rows:    list.rows.filter(idNE(carId)) };
-  if (Array.isArray(list.results))  return { ...list, results: list.results.filter(idNE(carId)) };
+  if (Array.isArray(list.items))
+    return { ...list, items: list.items.filter(idNE(carId)) };
+  if (Array.isArray(list.data))
+    return { ...list, data: list.data.filter(idNE(carId)) };
+  if (Array.isArray(list.rows))
+    return { ...list, rows: list.rows.filter(idNE(carId)) };
+  if (Array.isArray(list.results))
+    return { ...list, results: list.results.filter(idNE(carId)) };
 
   return list;
 }
@@ -34,41 +41,57 @@ function patchInListLike(list: any, carId: string, patch: any) {
   if (!list) return list;
 
   if (Array.isArray(list)) return list.map(applyPatch(carId, patch));
-  if (Array.isArray(list.items))    return { ...list, items:   list.items.map(applyPatch(carId, patch)) };
-  if (Array.isArray(list.data))     return { ...list, data:    list.data.map(applyPatch(carId, patch)) };
-  if (Array.isArray(list.rows))     return { ...list, rows:    list.rows.map(applyPatch(carId, patch)) };
-  if (Array.isArray(list.results))  return { ...list, results: list.results.map(applyPatch(carId, patch)) };
+  if (Array.isArray(list.items))
+    return { ...list, items: list.items.map(applyPatch(carId, patch)) };
+  if (Array.isArray(list.data))
+    return { ...list, data: list.data.map(applyPatch(carId, patch)) };
+  if (Array.isArray(list.rows))
+    return { ...list, rows: list.rows.map(applyPatch(carId, patch)) };
+  if (Array.isArray(list.results))
+    return { ...list, results: list.results.map(applyPatch(carId, patch)) };
 
   return list;
 }
 
 // ================== PATCH ==================
-export function patchCarCaches(qc: QueryClient, carId: string, patch: CarPatch) {
+export function patchCarCaches(
+  qc: QueryClient,
+  carId: string,
+  patch: CarPatch
+) {
   if (!carId) return;
 
   // детальная карточка
-  qc.setQueryData(QK.car(carId), (prev: any) => (prev ? { ...prev, ...patch } : prev));
+  qc.setQueryData(QK.car(carId), (prev: any) =>
+    prev ? { ...prev, ...patch } : prev
+  );
 
-  // cars / carsList / carsByHost
+  // cars / carsList / carsByHost / adminCars
   qc.setQueriesData(
-    { predicate: (q) => isCarsListKey(q.queryKey) || isCarsByHostKey(q.queryKey) },
+    {
+      predicate: (q) =>
+        isCarsListKey(q.queryKey) ||
+        isCarsByHostKey(q.queryKey) ||
+        isAdminCarsKey(q.queryKey),
+    },
     (old: any) => {
       if (!old) return old;
-      // ВАЖНО: у carsByHost может быть infinite-форма { pages: [...] } (смотри твои логи)
       if (old.pages) {
         return {
           ...old,
           pages: old.pages.map((p: any) => patchInListLike(p, carId, patch)),
         };
       }
-      // обычные списки
       return patchInListLike(old, carId, patch);
     }
   );
 
-  // calendarWindow (если используется)
+  // calendarWindow
   qc.setQueriesData(
-    { predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === "calendarWindow" },
+    {
+      predicate: (q) =>
+        Array.isArray(q.queryKey) && q.queryKey[0] === "calendarWindow",
+    },
     (win: any) =>
       !win
         ? win
@@ -86,7 +109,10 @@ export function patchCarCaches(qc: QueryClient, carId: string, patch: CarPatch) 
     (old: any) =>
       !old?.pages
         ? old
-        : { ...old, pages: old.pages.map((p: any) => patchInListLike(p, carId, patch)) }
+        : {
+            ...old,
+            pages: old.pages.map((p: any) => patchInListLike(p, carId, patch)),
+          }
   );
 }
 
@@ -99,7 +125,10 @@ export function removeCarEverywhere(qc: QueryClient, carId: string) {
 
   // cars / carsList / carsByHost
   qc.setQueriesData(
-    { predicate: (q) => isCarsListKey(q.queryKey) || isCarsByHostKey(q.queryKey) },
+    {
+      predicate: (q) =>
+        isCarsListKey(q.queryKey) || isCarsByHostKey(q.queryKey),
+    },
     (old: any) => {
       if (!old) return old;
       // ВАЖНО: поддержка infinite-формы у carsByHost -> { pages: [...] }
@@ -116,13 +145,18 @@ export function removeCarEverywhere(qc: QueryClient, carId: string) {
 
   // calendarWindow
   qc.setQueriesData(
-    { predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === "calendarWindow" },
+    {
+      predicate: (q) =>
+        Array.isArray(q.queryKey) && q.queryKey[0] === "calendarWindow",
+    },
     (win: any) =>
       !win
         ? win
         : {
             ...win,
-            cars: Array.isArray(win.cars) ? win.cars.filter(idNE(carId)) : win.cars,
+            cars: Array.isArray(win.cars)
+              ? win.cars.filter(idNE(carId))
+              : win.cars,
           }
   );
 
@@ -132,12 +166,16 @@ export function removeCarEverywhere(qc: QueryClient, carId: string) {
     (old: any) =>
       !old?.pages
         ? old
-        : { ...old, pages: old.pages.map((p: any) => removeFromListLike(p, carId)) }
+        : {
+            ...old,
+            pages: old.pages.map((p: any) => removeFromListLike(p, carId)),
+          }
   );
 
   // связанные ресурсы
   qc.removeQueries({ queryKey: QK.carExtras(carId), exact: true });
-  if (QK.carFeatures) qc.removeQueries({ queryKey: QK.carFeatures(carId), exact: true });
+  if (QK.carFeatures)
+    qc.removeQueries({ queryKey: QK.carFeatures(carId), exact: true });
   qc.removeQueries({ queryKey: QK.bookingsByCarId(carId), exact: true });
 }
 
@@ -150,7 +188,8 @@ export function invalidateCarEverywhere(qc: QueryClient, carId: string) {
   });
 
   qc.invalidateQueries({
-    predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === "calendarWindow",
+    predicate: (q) =>
+      Array.isArray(q.queryKey) && q.queryKey[0] === "calendarWindow",
   });
 
   qc.invalidateQueries({
