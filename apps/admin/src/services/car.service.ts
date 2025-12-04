@@ -745,7 +745,7 @@ export async function upsertCarExtra({
 // car.service.ts
 export async function updateCarStatus(
   id: string,
-  status: "available" | "unavailable"
+  status: "available" | "blocked"
 ) {
   const { error } = await supabase.from("cars").update({ status }).eq("id", id);
 

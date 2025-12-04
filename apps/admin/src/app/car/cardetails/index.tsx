@@ -238,10 +238,15 @@ export default function CarDetails() {
   };
 
   const STAT_PENDING = "pending_review" as const;
+  const STAT_BLOCKED = "blocked" as const;
 
-  const editableStatuses = statuses.filter((s) => s !== STAT_PENDING);
+  const editableStatuses = statuses.filter(
+    (s) => s !== STAT_PENDING && s !== STAT_BLOCKED
+  );
 
   const isPending = form.status === STAT_PENDING;
+  const isBlocked = form.status === STAT_BLOCKED;
+
   const formIsValid = validateForm();
 
   const handleSubmit = async () => {
@@ -611,20 +616,6 @@ export default function CarDetails() {
         onChange={(e: string | number) => handleChange("content", e)}
       />
 
-      {/* <div className="mt-5 w-fit flex items-end gap-5">
-        <NativeSelect
-          label="Availability"
-          value={form.status}
-          onChange={(e) => handleChange("status", e.target.value)}
-          data={statuses}
-          disabled={!validateForm()}
-        />
-        {form.status === "unavailable" && validateForm() && (
-          <p className=" rounded-md p-2 text-sm w-52 bg-green-50/80 text-green-700/70">
-            Don't forget choose Available status to offer your car
-          </p>
-        )}
-      </div> */}
       <div className="mt-5 w-fit flex items-end gap-5">
         {isPending ? (
           // режим: тачка ещё не прошла проверку
@@ -640,6 +631,22 @@ export default function CarDetails() {
             <p className="text-xs text-yellow-700 mt-2 w-52">
               Your car is being reviewed. Once approved it can become available
               for booking.
+            </p>
+          </div>
+        ) : isBlocked ? (
+          // 🚫 режим: админ заблокировал машину
+          <div className="flex flex-col">
+            <label className="text-sm font-medium text-gray-900 mb-1">
+              Availability
+            </label>
+
+            <div className="px-3 py-2 rounded border text-sm bg-red-50 border-red-300 text-red-800 w-52">
+              Blocked by administration
+            </div>
+
+            <p className="text-xs text-red-700 mt-2 w-52">
+              Your car is blocked by the administration and can't be made
+              available. Please contact support if you think this is a mistake.
             </p>
           </div>
         ) : (

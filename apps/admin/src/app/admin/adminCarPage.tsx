@@ -171,6 +171,7 @@ const AdminCarPage = () => {
       : city || countryName || "—";
 
   const status = car.status ?? "—";
+  const isBlocked = status === "blocked";
 
   const ownerProfile = (car as any).ownerProfile;
   const ownerLabel = (car as any).ownerLabel as string | null;
@@ -186,8 +187,6 @@ const AdminCarPage = () => {
 
   const mainPhoto =
     car.coverPhotos?.[0] ?? car.photos?.[0] ?? car.galleryPhotos?.[0] ?? null;
-
-  const isBlocked = status === "unavailable";
 
   const statusTone =
     status === "available"
@@ -231,11 +230,9 @@ const AdminCarPage = () => {
   const handleToggleBlock = async () => {
     if (!car) return;
 
-    const currentStatus =
-      (car.status as "available" | "unavailable") || "available";
+    const currentStatus = (car.status as string) || "available";
 
-    const next: "available" | "unavailable" =
-      currentStatus === "available" ? "unavailable" : "available";
+    const next = currentStatus === "blocked" ? "available" : "blocked";
 
     setToggling(true);
 

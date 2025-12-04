@@ -11,8 +11,13 @@ export const bodyTypes = [
   "Minivan",
   "Pickup",
 ] as const;
-// export const statuses = ["available", "unavailable"] as const;
-export const statuses = ["available", "unavailable", "pending_review"] as const;
+
+export const statuses = [
+  "available",
+  "unavailable",
+  "pending_review",
+  "blocked",
+] as const;
 
 export const colors = [
   "White",
@@ -141,13 +146,13 @@ export const VIDEO_TEASERS = [
     src: "/videos/mini-cabrio.mp4",
     poster: "/img/minicabrioposter.webp",
   },
-    {
+  {
     title: "MINI Cooper Aceman",
     description: "The feeling of a go-kart with an open roof, 2+2 seats",
     fuel: "Gasoline",
     src: "/videos/mini-aceman.mp4",
     poster: "/img/aceman-poster.webp",
-  }
+  },
 ] as const;
 
 export const WELCOME_FEATURES = [
