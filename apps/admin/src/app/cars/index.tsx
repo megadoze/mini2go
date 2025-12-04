@@ -156,7 +156,11 @@ export default function CarsPage() {
       driveType: db.drive_type ?? null,
       color: db.color ?? null,
       doors: db.doors ?? null,
-      coverPhotos: Array.isArray(db.coverPhotos) ? db.coverPhotos : [],
+      coverPhotos: Array.isArray(db.cover_photos)
+        ? db.cover_photos
+        : Array.isArray(db.coverPhotos)
+        ? db.coverPhotos
+        : [],
       price: db.price ?? null,
       address: db.address ?? null,
       pickupInfo: db.pickupInfo ?? null,
@@ -332,6 +336,8 @@ export default function CarsPage() {
           const nextItems = p.items.map((c: any) => {
             if (String(c.id) !== String(updatedRow.id)) return c;
 
+            // Мёрджим аккуратно: оставляем relations от старого,
+            // обновляем простые поля (status, price etc)
             return {
               ...c,
               ...updatedRow,
@@ -358,8 +364,10 @@ export default function CarsPage() {
   useEffect(() => {
     if (!ownerId) return;
 
+    const channelName = "cars-list-realtime-" + ownerId;
+
     const ch = supabase
-      .channel("cars-list-realtime-" + ownerId)
+      .channel(channelName)
       .on(
         "postgres_changes",
         {
@@ -372,15 +380,9 @@ export default function CarsPage() {
 
           const rowAfter = payload.new as any;
           const rowBefore = payload.old as any;
+          const rowDb: any = rowAfter ?? rowBefore;
 
-          // 💡 чтобы не ловить чужие машины:
-          const ownerAfter = rowAfter?.owner_id ?? rowAfter?.ownerId;
-          const ownerBefore = rowBefore?.owner_id ?? rowBefore?.ownerId;
-
-          if (ownerAfter && ownerAfter !== ownerId && ownerBefore !== ownerId) {
-            return;
-          }
-
+          // ✂ DELETE: просто выкидываем машину из всех страниц
           if (evt === "DELETE") {
             const deletedId = rowBefore?.id;
             if (deletedId) {
@@ -389,7 +391,14 @@ export default function CarsPage() {
             return;
           }
 
+          // фильтр по owner_id, чтобы не ловить чужие машины
+          if (!rowDb?.owner_id || String(rowDb.owner_id) !== String(ownerId)) {
+            return;
+          }
+
+          // маппим сырую строку в CarWithRelations
           let row = mapDbRowToCarRow(rowAfter);
+          // подтягиваем из деталек бренд/локацию/фотки, если есть
           row = enrichCarRowFromCache(qc, row);
 
           if (evt === "INSERT") {
@@ -401,6 +410,7 @@ export default function CarsPage() {
       )
       .subscribe((status) => {
         if (status === "SUBSCRIBED") {
+          // 🔥 один раз жёстко синкаем список с сервером
           qc.invalidateQueries({
             queryKey: currentKey,
             refetchType: "all",
@@ -411,7 +421,7 @@ export default function CarsPage() {
     return () => {
       supabase.removeChannel(ch);
     };
-  }, [qc, ownerId]); // 👈 только эти зависят реально
+  }, [ownerId, qc]);
 
   const countries = countriesQ.data ?? [];
   const locations = locationsQ.data ?? [];
