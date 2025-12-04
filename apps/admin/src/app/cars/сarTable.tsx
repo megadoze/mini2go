@@ -56,8 +56,6 @@ function getStatusLabel(status?: string | null) {
 
 // —— Component ——
 export default function CarTable({ cars, search }: Props) {
-  console.log(cars);
-
   return (
     <div className="grid gap-5 sm:gap-6 grid-cols-1 sm:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3 max-w-5xl 2xl:max-w-7xl">
       {cars.map((car) => {
