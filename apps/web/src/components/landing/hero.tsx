@@ -13,7 +13,8 @@ import {
 } from "@/services/geo.service";
 import Link from "next/link";
 import Image from "next/image";
-import mainBanner from "/public/img/main6.webp";
+// import mainBanner from "/public/img/main_001.webp";
+import mainBanner from "/public/img/main_001.webp";
 
 export const HeroSection = () => {
   // Показываем NativeSelect на любом тач-устройстве (в т.ч. планшеты в landscape)
@@ -204,7 +205,8 @@ export const HeroSection = () => {
           className="object-cover object-center saturate-90 blur-[0.9px] select-none"
           sizes="100vw"
         />
-        <div className="absolute inset-0 bg-linear-to-b from-black/20 via-black/30 to-black/20" />
+        {/* <div className="absolute inset-0 bg-linear-to-b from-black/20 via-black/30 to-black/20" /> */}
+        <div className="absolute inset-0 bg-linear-to-b from-black/15 via-black/20 to-black/10" />
       </div>
 
       {/* Content */}

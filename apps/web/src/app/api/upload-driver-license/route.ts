@@ -1,6 +1,6 @@
 // app/api/upload-driver-license/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseServer } from "@/lib/supabaseServer"; // поправь путь если другой
+import { supabaseServer } from "@/lib/supabaseServer";
 
 const BUCKET = "driver-licenses";
 
