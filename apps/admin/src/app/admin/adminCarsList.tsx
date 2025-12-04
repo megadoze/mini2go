@@ -27,6 +27,7 @@ import CarTable from "./сarTable";
 import { fetchCarsPage } from "@/services/car.service";
 
 const PAGE_SIZE = 10;
+const ADMIN_CARS_KEY = ["adminCars", PAGE_SIZE] as const;
 type Page = { items: CarWithRelations[]; count: number };
 
 type CarsPageRow = CarWithRelations; // то, что реально лежит в таблице на экране
@@ -72,13 +73,12 @@ export default function AdminCarsList() {
   });
 
   /* -------- cars infinite query -------- */
-  const currentKey = ["adminCars", PAGE_SIZE] as const;
 
   const carsQ = useInfiniteQuery<
     { items: CarWithRelations[]; count: number },
     Error
   >({
-    queryKey: currentKey,
+    queryKey: ADMIN_CARS_KEY,
     enabled: true, // ключ известен сразу, thanks to loader
     queryFn: async ({ pageParam }) => {
       const pageIndex = typeof pageParam === "number" ? pageParam : 0;
@@ -101,14 +101,14 @@ export default function AdminCarsList() {
     refetchOnReconnect: true,
     retry: 1,
     // забираем прогретый в loader кэш как initial
-    initialData: () => qc.getQueryData<InfiniteData<Page>>(currentKey),
+    initialData: () => qc.getQueryData<InfiniteData<Page>>(ADMIN_CARS_KEY),
     // и держим старые страницы на экране при перефетче
     placeholderData: (prev) => prev,
   });
 
   // ✂️ обрезка кэша до первой страницы при уходе со страницы
   const trimToFirstPage = () => {
-    qc.setQueryData<InfiniteData<Page>>(currentKey, (old) => {
+    qc.setQueryData<InfiniteData<Page>>(ADMIN_CARS_KEY, (old) => {
       if (!old?.pages?.length) return old;
       return { pages: [old.pages[0]], pageParams: [0] };
     });
@@ -368,7 +368,7 @@ export default function AdminCarsList() {
         if (status === "SUBSCRIBED") {
           // 🔥 когда канал установился — один раз обновляем список с сервера
           qc.invalidateQueries({
-            queryKey: currentKey,
+            queryKey: ADMIN_CARS_KEY,
             refetchType: "all",
           });
         }
@@ -377,7 +377,7 @@ export default function AdminCarsList() {
     return () => {
       supabase.removeChannel(ch);
     };
-  }, [qc, currentKey]);
+  }, [qc]);
 
   const countries = countriesQ.data ?? [];
   const locations = locationsQ.data ?? [];
@@ -385,8 +385,10 @@ export default function AdminCarsList() {
   // данные для отображения (берём то, что уже в кэше/initialData)
   const displayData = carsQ.data;
 
-  const cars: CarWithRelations[] =
-    displayData?.pages.flatMap((p) => p.items) ?? [];
+  const cars: CarWithRelations[] = useMemo(
+    () => displayData?.pages.flatMap((p) => p.items) ?? [],
+    [displayData]
+  );
 
   const isFetchingNext = carsQ.isFetchingNextPage;
   const totalLoaded = cars.length;

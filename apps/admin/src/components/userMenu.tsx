@@ -13,7 +13,11 @@ import { supabase } from "@/lib/supabase";
 import type { User } from "@supabase/supabase-js";
 import { useIsHost } from "@/hooks/useIsHost";
 
-type Props = { onClick: () => void };
+type Props = {
+  onClick: () => void;
+  variant?: "user" | "admin";
+};
+
 type ProfileRow = { full_name: string | null; avatar_url: string | null };
 
 type MeCache = {
@@ -60,7 +64,7 @@ function slugify(input?: string | null) {
     .toLowerCase();
 }
 
-function UserMenu({ onClick }: Props) {
+function UserMenu({ onClick, variant = "user" }: Props) {
   const navigate = useNavigate();
 
   const loc = useLocation();
@@ -185,11 +189,26 @@ function UserMenu({ onClick }: Props) {
   const handleMenuClick = (e: React.MouseEvent<HTMLButtonElement>) => {
     const id = e.currentTarget.id;
 
+    // 🟥 ВЕТКА ДЛЯ АДМИНА
+    if (variant === "admin") {
+      switch (id) {
+        case "admin-profile":
+          navigate("/admin/profile");
+          break;
+        case "admin-messages":
+          navigate("/admin/messages");
+          break;
+        default:
+          break;
+      }
+      onClick();
+      return;
+    }
+
+    // 🟩 Обычная (хост/юзер) ветка — как было
     if (id === "host") {
-      // если ещё грузится — можно временно дизейблить пункт меню или ничего не делать
       if (hostLoading) return;
 
-      // ✅ главное: роутим по факту
       navigate(isHost ? "/dashboard" : "/cars/add", {
         state: { from: loc.pathname + loc.search + loc.hash },
       });
@@ -253,38 +272,71 @@ function UserMenu({ onClick }: Props) {
       </Menu.Target>
 
       <Menu.Dropdown>
-        <Menu.Item
-          id="profile"
-          leftSection={<UserCircleIcon className="size-4" />}
-          onClick={handleMenuClick}
-        >
-          Profile
-        </Menu.Item>
-        <Menu.Item
-          id="host"
-          leftSection={<RocketLaunchIcon className="size-4" />}
-          onClick={handleMenuClick}
-          disabled={hostLoading} // пока считаем — лучше отключить
-        >
-          {hostLoading ? "…" : isHost ? "Host" : "Become a host"}
-        </Menu.Item>
-        <Menu.Item
-          id="messages"
-          leftSection={<ChatBubbleOvalLeftIcon className="size-4" />}
-          onClick={handleMenuClick}
-        >
-          Messages
-        </Menu.Item>
+        {variant === "admin" ? (
+          <>
+            <Menu.Item
+              id="admin-profile"
+              leftSection={<UserCircleIcon className="size-4" />}
+              onClick={handleMenuClick}
+            >
+              Profile
+            </Menu.Item>
 
-        <Menu.Divider />
+            <Menu.Item
+              id="admin-messages"
+              leftSection={<ChatBubbleOvalLeftIcon className="size-4" />}
+              onClick={handleMenuClick}
+            >
+              Messages
+            </Menu.Item>
 
-        <Menu.Item
-          color="red"
-          leftSection={<ArrowLeftEndOnRectangleIcon className="size-4" />}
-          onClick={handleLogout}
-        >
-          Log out
-        </Menu.Item>
+            <Menu.Divider />
+
+            <Menu.Item
+              color="red"
+              leftSection={<ArrowLeftEndOnRectangleIcon className="size-4" />}
+              onClick={handleLogout}
+            >
+              Log out
+            </Menu.Item>
+          </>
+        ) : (
+          <>
+            {/* Обычное меню, как было */}
+            <Menu.Item
+              id="profile"
+              leftSection={<UserCircleIcon className="size-4" />}
+              onClick={handleMenuClick}
+            >
+              Profile
+            </Menu.Item>
+            <Menu.Item
+              id="host"
+              leftSection={<RocketLaunchIcon className="size-4" />}
+              onClick={handleMenuClick}
+              disabled={hostLoading}
+            >
+              {hostLoading ? "…" : isHost ? "Host" : "Become a host"}
+            </Menu.Item>
+            <Menu.Item
+              id="messages"
+              leftSection={<ChatBubbleOvalLeftIcon className="size-4" />}
+              onClick={handleMenuClick}
+            >
+              Messages
+            </Menu.Item>
+
+            <Menu.Divider />
+
+            <Menu.Item
+              color="red"
+              leftSection={<ArrowLeftEndOnRectangleIcon className="size-4" />}
+              onClick={handleLogout}
+            >
+              Log out
+            </Menu.Item>
+          </>
+        )}
       </Menu.Dropdown>
     </Menu>
   );

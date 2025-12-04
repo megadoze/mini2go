@@ -1,4 +1,4 @@
-// src/routes/carsLoader.ts
+// src/routes/carsAdminLoader.ts
 import type { LoaderFunction } from "react-router";
 import { queryClient } from "@/lib/queryClient";
 import { fetchCountries } from "@/services/geo.service";
@@ -6,39 +6,45 @@ import { fetchCarsPage } from "@/services/car.service";
 import type { InfiniteData } from "@tanstack/react-query";
 import type { CarWithRelations } from "@/types/carWithRelations";
 
-const PAGE_SIZE = 10;
+export const ADMIN_CARS_PAGE_SIZE = 10;
+
 type Page = { items: CarWithRelations[]; count: number };
 
-export const carsAdminLoader: LoaderFunction = async ({}) => {
-  // const url = new URL(request.url);
+export const ADMIN_CARS_QUERY_KEY = [
+  "adminCars",
+  ADMIN_CARS_PAGE_SIZE,
+] as const;
 
-  // справочники
+export const carsAdminLoader: LoaderFunction = async () => {
+  // 🌍 страны — справочник
   await queryClient.ensureQueryData({
     queryKey: ["countries"],
     queryFn: fetchCountries,
     staleTime: 24 * 60 * 60 * 1000,
   });
 
-  const key = ["adminCars", PAGE_SIZE] as const;
-
-  // ✅ прогреваем тем же ключом и в формате InfiniteData
+  // 🚗 первая страница машин для админа в форме InfiniteData
   await queryClient.ensureQueryData<InfiniteData<Page, number>>({
-    queryKey: key,
+    queryKey: ADMIN_CARS_QUERY_KEY,
     queryFn: async () => {
       const firstPage = await fetchCarsPage({
-        limit: PAGE_SIZE,
+        limit: ADMIN_CARS_PAGE_SIZE,
         offset: 0,
       });
-      return { pages: [firstPage], pageParams: [0] };
+
+      return {
+        pages: [firstPage],
+        pageParams: [0],
+      };
     },
     staleTime: 5 * 60_000,
   });
 
-  // (необязательно, но приятно) — дефолты для этого ключа
-  queryClient.setQueryDefaults(key, {
+  // дефолты для этого ключа (совпадают с компонентом)
+  queryClient.setQueryDefaults(ADMIN_CARS_QUERY_KEY, {
     staleTime: 5 * 60_000,
     gcTime: 7 * 24 * 60 * 60 * 1000,
   });
 
-  // return { ownerId };
+  return null;
 };

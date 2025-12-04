@@ -38,7 +38,7 @@ const AdminCarPage = () => {
   const queryClient = useQueryClient();
 
   // ⚙️ текущий владелец (ownerId из rootLoader'a)
-  const rootData = useRouteLoaderData("rootAuth") as
+  const rootData = useRouteLoaderData("adminAuth") as
     | { ownerId: string }
     | undefined;
   const rootOwnerId = rootData?.ownerId ?? null;

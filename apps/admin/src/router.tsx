@@ -169,6 +169,7 @@ export const router = createBrowserRouter([
         element: <BookingsList />,
       },
       { path: "bookings/:bookingId", element: <BookingEditor /> },
+      { path: "profile", element: <UserProfile /> },
       {
         path: "users",
         loader: usersLoader,

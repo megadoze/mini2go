@@ -429,8 +429,10 @@ export default function CarsPage() {
   // данные для отображения (берём то, что уже в кэше/initialData)
   const displayData = carsQ.data;
 
-  const cars: CarWithRelations[] =
-    displayData?.pages.flatMap((p) => p.items) ?? [];
+  const cars: CarWithRelations[] = useMemo(
+    () => displayData?.pages.flatMap((p) => p.items) ?? [],
+    [displayData]
+  );
 
   const isFetchingNext = carsQ.isFetchingNextPage;
   const totalLoaded = cars.length;
