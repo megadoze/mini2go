@@ -96,7 +96,7 @@ export default function AdminCarsList() {
     initialPageParam: 0,
     staleTime: 5 * 60 * 1000,
     gcTime: 7 * 24 * 60 * 60 * 1000,
-    refetchOnMount: false,
+    refetchOnMount: "always",
     refetchOnWindowFocus: true,
     refetchOnReconnect: true,
     retry: 1,
@@ -314,8 +314,6 @@ export default function AdminCarsList() {
           const nextItems = p.items.map((c: any) => {
             if (String(c.id) !== String(updatedRow.id)) return c;
 
-            // Мёрджим аккуратно: оставляем relations от старого,
-            // обновляем простые поля (status, price etc)
             return {
               ...c,
               ...updatedRow,
@@ -341,16 +339,14 @@ export default function AdminCarsList() {
           event: "*",
           schema: "public",
           table: "cars",
-          // без filter
         },
         (payload) => {
           const evt = payload.eventType as "INSERT" | "UPDATE" | "DELETE";
 
-          const rowAfter = payload.new as any; // INSERT / UPDATE
-          const rowBefore = payload.old as any; // DELETE
+          const rowAfter = payload.new as any;
+          const rowBefore = payload.old as any;
 
           if (evt === "DELETE") {
-            // ✂ 1. просто удалить по id, вообще без проверки owner_id
             const deletedId = rowBefore?.id;
             if (deletedId) {
               removeCarRow(qc, String(deletedId));
@@ -358,7 +354,6 @@ export default function AdminCarsList() {
             return;
           }
 
-          // маппим в формат UI
           let row = mapDbRowToCarRow(rowAfter);
           row = enrichCarRowFromCache(qc, row);
 
@@ -367,19 +362,22 @@ export default function AdminCarsList() {
           } else if (evt === "UPDATE") {
             patchCarRow(qc, row);
           }
-
-          qc.invalidateQueries({
-            predicate: (q) =>
-              Array.isArray(q.queryKey) && q.queryKey[0] === "adminCars",
-          });
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") {
+          // 🔥 когда канал установился — один раз обновляем список с сервера
+          qc.invalidateQueries({
+            queryKey: currentKey,
+            refetchType: "all",
+          });
+        }
+      });
 
     return () => {
       supabase.removeChannel(ch);
     };
-  }, [qc]);
+  }, [qc, currentKey]);
 
   const countries = countriesQ.data ?? [];
   const locations = locationsQ.data ?? [];

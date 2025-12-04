@@ -104,7 +104,7 @@ export default function CarsPage() {
     initialPageParam: 0,
     staleTime: 5 * 60 * 1000,
     gcTime: 7 * 24 * 60 * 60 * 1000,
-    refetchOnMount: false,
+    refetchOnMount: "always",
     refetchOnWindowFocus: true,
     refetchOnReconnect: true,
     retry: 1,
@@ -332,8 +332,6 @@ export default function CarsPage() {
           const nextItems = p.items.map((c: any) => {
             if (String(c.id) !== String(updatedRow.id)) return c;
 
-            // Мёрджим аккуратно: оставляем relations от старого,
-            // обновляем простые поля (status, price etc)
             return {
               ...c,
               ...updatedRow,
@@ -348,30 +346,6 @@ export default function CarsPage() {
         return { ...old, pages };
       }
     );
-
-    // и на всякий подтюним detail-кеш, который CarDetails читает
-    // qc.setQueryData(QK.car(String(updatedRow.id)), (oldDetail: any) => {
-    //   if (!oldDetail) return oldDetail;
-    //   return {
-    //     ...oldDetail,
-    //     // синкаем простые поля
-    //     status:
-    //       updatedRow.status !== undefined
-    //         ? updatedRow.status
-    //         : oldDetail.status,
-    //     price:
-    //       updatedRow.price !== undefined ? updatedRow.price : oldDetail.price,
-    //     licensePlate:
-    //       updatedRow.licensePlate !== undefined
-    //         ? updatedRow.licensePlate
-    //         : oldDetail.licensePlate ?? oldDetail.license_plate ?? null,
-    //     coverPhotos:
-    //       Array.isArray(updatedRow.coverPhotos) &&
-    //       updatedRow.coverPhotos.length > 0
-    //         ? updatedRow.coverPhotos
-    //         : oldDetail.coverPhotos,
-    //   };
-    // });
   }
 
   useEffect(() => {
@@ -392,17 +366,22 @@ export default function CarsPage() {
           event: "*",
           schema: "public",
           table: "cars",
-          // без filter
         },
         (payload) => {
           const evt = payload.eventType as "INSERT" | "UPDATE" | "DELETE";
 
-          const rowAfter = payload.new as any; // INSERT / UPDATE
-          const rowBefore = payload.old as any; // DELETE
-          const rowDb: any = rowAfter ?? rowBefore;
+          const rowAfter = payload.new as any;
+          const rowBefore = payload.old as any;
+
+          // 💡 чтобы не ловить чужие машины:
+          const ownerAfter = rowAfter?.owner_id ?? rowAfter?.ownerId;
+          const ownerBefore = rowBefore?.owner_id ?? rowBefore?.ownerId;
+
+          if (ownerAfter && ownerAfter !== ownerId && ownerBefore !== ownerId) {
+            return;
+          }
 
           if (evt === "DELETE") {
-            // ✂ 1. просто удалить по id, вообще без проверки owner_id
             const deletedId = rowBefore?.id;
             if (deletedId) {
               removeCarRow(qc, String(deletedId));
@@ -410,13 +389,6 @@ export default function CarsPage() {
             return;
           }
 
-          // для INSERT/UPDATE продолжаем фильтровать по owner_id,
-          // потому что rowAfter.owner_id у нас есть
-          if (!rowDb?.owner_id || String(rowDb.owner_id) !== String(ownerId)) {
-            return;
-          }
-
-          // маппим в формат UI
           let row = mapDbRowToCarRow(rowAfter);
           row = enrichCarRowFromCache(qc, row);
 
@@ -425,27 +397,21 @@ export default function CarsPage() {
           } else if (evt === "UPDATE") {
             patchCarRow(qc, row);
           }
-
-          // страховка
-          // qc.invalidateQueries({
-          //   predicate: (q) =>
-          //     Array.isArray(q.queryKey) &&
-          //     (q.queryKey[0] === "carsByHost" ||
-          //       (q.queryKey[0] === "car" &&
-          //         String(q.queryKey[1]) === String(rowAfter.id))),
-          // });
-          qc.invalidateQueries({
-            predicate: (q) =>
-              Array.isArray(q.queryKey) && q.queryKey[0] === "carsByHost",
-          });
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") {
+          qc.invalidateQueries({
+            queryKey: currentKey,
+            refetchType: "all",
+          });
+        }
+      });
 
     return () => {
       supabase.removeChannel(ch);
     };
-  }, [ownerId, qc]);
+  }, [qc, ownerId]); // 👈 только эти зависят реально
 
   const countries = countriesQ.data ?? [];
   const locations = locationsQ.data ?? [];
