@@ -271,7 +271,7 @@ const AdminCarPage = () => {
 
       {/* HEADER — в стиле брони */}
       <header className={cardCls}>
-        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+        <div className="flex flex-col gap-4 md:flex-row md:items-stretch md:justify-between">
           {/* left: title + meta */}
           <div className=" space-y-3 md:space-y-5 flex flex-col justify-between">
             <div className="flex flex-wrap items-center gap-2">
@@ -297,32 +297,16 @@ const AdminCarPage = () => {
 
             <div className="flex flex-wrap items-end gap-6">
               <div className="flex flex-wrap gap-2 text-xs text-gray-700">
-                {car.year && (
-                  <Pill>
-                 {car.year}
-                  </Pill>
-                )}
-                {car.fuelType && (
-                  <Pill>
-                  {car.fuelType}
-                  </Pill>
-                )}
-                {car.transmission && (
-                  <Pill>
-             {car.transmission}
-                  </Pill>
-                )}
-                {car.bodyType && (
-                  <Pill>
-               {car.bodyType}
-                  </Pill>
-                )}
+                {car.year && <Pill>{car.year}</Pill>}
+                {car.fuelType && <Pill>{car.fuelType}</Pill>}
+                {car.transmission && <Pill>{car.transmission}</Pill>}
+                {car.bodyType && <Pill>{car.bodyType}</Pill>}
               </div>
             </div>
           </div>
 
           {/* right: price + block button */}
-          <div className="w-full md:w-56">
+          <div className="w-full md:w-56 md:text-right">
             <div>
               <div className="text-[11px] uppercase tracking-wide text-gray-500">
                 Price per day
@@ -343,7 +327,7 @@ const AdminCarPage = () => {
               </div>
 
               {/* 🔒 Block / Unblock car */}
-              <div className="mt-3 flex flex-wrap gap-2">
+              <div className="mt-3 flex flex-wrap gap-2 justify-end">
                 <button
                   type="button"
                   onClick={handleToggleBlock}
