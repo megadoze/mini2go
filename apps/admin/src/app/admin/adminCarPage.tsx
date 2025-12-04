@@ -54,24 +54,6 @@ const AdminCarPage = () => {
     queryFn: () => fetchCarById(String(carId)),
   });
 
-  useEffect(() => {
-    if (!car) return;
-
-    const hasSnake = Object.keys(car as any).some((k) => k.includes("_"));
-    if (!hasSnake) return; // уже чистый — нечего делать
-
-    queryClient.setQueryData(QK.car(String(car.id)), (prev: any) => {
-      if (!prev) return prev;
-
-      const out: any = {};
-      for (const [k, v] of Object.entries(prev)) {
-        if (k.includes("_")) continue; // режем body_type, license_plate, cover_photos, owner_id...
-        out[k] = v;
-      }
-      return out;
-    });
-  }, [car, queryClient]);
-
   const settingsOwnerId: string | null =
     (car as any)?.ownerId ?? rootOwnerId ?? null;
 
@@ -244,7 +226,7 @@ const AdminCarPage = () => {
     car.price != null ? `${car.price} ${effectiveCurrency}`.trim() : "Not set";
 
   // 🔒 toggle block / unblock
-  // AdminCarPage
+
   const handleToggleBlock = async () => {
     if (!car) return;
 

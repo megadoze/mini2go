@@ -350,28 +350,28 @@ export default function CarsPage() {
     );
 
     // и на всякий подтюним detail-кеш, который CarDetails читает
-    qc.setQueryData(QK.car(String(updatedRow.id)), (oldDetail: any) => {
-      if (!oldDetail) return oldDetail;
-      return {
-        ...oldDetail,
-        // синкаем простые поля
-        status:
-          updatedRow.status !== undefined
-            ? updatedRow.status
-            : oldDetail.status,
-        price:
-          updatedRow.price !== undefined ? updatedRow.price : oldDetail.price,
-        licensePlate:
-          updatedRow.licensePlate !== undefined
-            ? updatedRow.licensePlate
-            : oldDetail.licensePlate ?? oldDetail.license_plate ?? null,
-        coverPhotos:
-          Array.isArray(updatedRow.coverPhotos) &&
-          updatedRow.coverPhotos.length > 0
-            ? updatedRow.coverPhotos
-            : oldDetail.coverPhotos,
-      };
-    });
+    // qc.setQueryData(QK.car(String(updatedRow.id)), (oldDetail: any) => {
+    //   if (!oldDetail) return oldDetail;
+    //   return {
+    //     ...oldDetail,
+    //     // синкаем простые поля
+    //     status:
+    //       updatedRow.status !== undefined
+    //         ? updatedRow.status
+    //         : oldDetail.status,
+    //     price:
+    //       updatedRow.price !== undefined ? updatedRow.price : oldDetail.price,
+    //     licensePlate:
+    //       updatedRow.licensePlate !== undefined
+    //         ? updatedRow.licensePlate
+    //         : oldDetail.licensePlate ?? oldDetail.license_plate ?? null,
+    //     coverPhotos:
+    //       Array.isArray(updatedRow.coverPhotos) &&
+    //       updatedRow.coverPhotos.length > 0
+    //         ? updatedRow.coverPhotos
+    //         : oldDetail.coverPhotos,
+    //   };
+    // });
   }
 
   useEffect(() => {
@@ -427,17 +427,17 @@ export default function CarsPage() {
           }
 
           // страховка
-          qc.invalidateQueries({
-            predicate: (q) =>
-              Array.isArray(q.queryKey) &&
-              (q.queryKey[0] === "carsByHost" ||
-                (q.queryKey[0] === "car" &&
-                  String(q.queryKey[1]) === String(rowAfter.id))),
-          });
           // qc.invalidateQueries({
           //   predicate: (q) =>
-          //     Array.isArray(q.queryKey) && q.queryKey[0] === "carsByHost",
+          //     Array.isArray(q.queryKey) &&
+          //     (q.queryKey[0] === "carsByHost" ||
+          //       (q.queryKey[0] === "car" &&
+          //         String(q.queryKey[1]) === String(rowAfter.id))),
           // });
+          qc.invalidateQueries({
+            predicate: (q) =>
+              Array.isArray(q.queryKey) && q.queryKey[0] === "carsByHost",
+          });
         }
       )
       .subscribe();
@@ -468,7 +468,7 @@ export default function CarsPage() {
     const byText = cars.filter((car) => {
       const t = `${car.models?.brands?.name ?? ""} ${car.models?.name ?? ""} ${
         car.licensePlate ?? ""
-      }`.toLowerCase();
+      } ${car.vin ?? ""}`.toLowerCase();
       return t.includes(text);
     });
 
@@ -539,8 +539,8 @@ export default function CarsPage() {
         </button>
       </div>
 
-      {/* Filters (как было) */}
-      <div className="hidden sm:flex flex-wrap gap-3 items-center w-full mb-6">
+      {/* Filters */}
+      <div className="hidden sm:flex flex-wrap gap-3 items-center w-full mb-6 max-w-5xl 2xl:max-w-7xl">
         <CarFilters
           countries={countries}
           locations={locations}
@@ -554,7 +554,7 @@ export default function CarsPage() {
         <div className="relative flex-1 min-w-[300px] items-center flex gap-3">
           <MagnifyingGlassIcon className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-zinc-500" />
           <TextInput
-            placeholder="Search by make, model, or number"
+            placeholder="Search by make, model, vin or number"
             value={search}
             onChange={(e) => setSearch(e.currentTarget.value)}
             className="w-full rounded-xl bg-white/60 shadow-sm pl-9 pr-3 py-2 text-sm hover:bg-white/80 focus:ring-2 focus:ring-black/10"
@@ -575,7 +575,7 @@ export default function CarsPage() {
       <div className="relative w-full mb-4 sm:hidden">
         <MagnifyingGlassIcon className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-zinc-500" />
         <TextInput
-          placeholder="Поиск по марке, модели или номеру"
+          placeholder="Search by make, model, vin or number"
           value={search}
           onChange={(e) => setSearch(e.currentTarget.value)}
           className="w-full rounded-xl bg-white/60 shadow-sm pl-9 pr-3 py-2 text-sm hover:bg-white/80 focus:ring-2 focus:ring-black/10"
@@ -587,7 +587,7 @@ export default function CarsPage() {
           type="button"
           onClick={() => setMobileFiltersOpen(true)}
           className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm shadow-md bg-black text-white active:opacity-80"
-          aria-label="Открыть фильтры"
+          aria-label="Open filters"
         >
           <FunnelIcon className="size-4" />
           Filters

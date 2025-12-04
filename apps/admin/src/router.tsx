@@ -48,6 +48,7 @@ import AdminLayout from "./layout/adminLayout";
 import AdminCarPage from "./app/admin/adminCarPage";
 import AdminCarsList from "./app/admin/adminCarsList";
 import { carsAdminLoader } from "./routes/carsAdminLoader";
+import AdminGate from "./components/auth/adminGate";
 
 export const router = createBrowserRouter([
   { path: "/auth", element: <AuthenticationPage /> },
@@ -145,10 +146,12 @@ export const router = createBrowserRouter([
     loader: authLoader,
     element: (
       <Protected>
-        <>
-          <ScrollToTop />
-          <AdminLayout />
-        </>
+        <AdminGate>
+          <>
+            <ScrollToTop />
+            <AdminLayout />
+          </>
+        </AdminGate>
       </Protected>
     ),
     errorElement: <OfflineAwareErrorBoundary />,
