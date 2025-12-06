@@ -49,6 +49,8 @@ import AdminCarPage from "./app/admin/adminCarPage";
 import AdminCarsList from "./app/admin/adminCarsList";
 import { carsAdminLoader } from "./routes/carsAdminLoader";
 import AdminGate from "./components/auth/adminGate";
+import AdminUsers from "./app/admin/adminUsers";
+import { usersAdminLoader } from "./routes/usersAdminLoader";
 
 export const router = createBrowserRouter([
   { path: "/auth", element: <AuthenticationPage /> },
@@ -172,8 +174,8 @@ export const router = createBrowserRouter([
       { path: "profile", element: <UserProfile /> },
       {
         path: "users",
-        loader: usersLoader,
-        element: <UsersPage />,
+        loader: usersAdminLoader,
+        element: <AdminUsers />,
       },
       { path: "users/:userId", element: <UserPage /> },
       {

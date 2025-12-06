@@ -17,8 +17,24 @@ export const QK = {
     ["bookingsIndexInfinite", { ownerId, limit }] as const,
   bookingsUserInfinite: (userId: string | null, limit: number) =>
     ["bookingsUserInfinite", { userId, limit }] as const,
-  usersByHostInfinite: (ownerId: string | null, pageSize: number, category?: string | null) =>
-    ["usersByHostInfinite", pageSize, ownerId, category ?? null] as const,
+  usersByHostInfinite: (
+    ownerId: string | null,
+    pageSize: number,
+    category?: string | null
+  ) => ["usersByHostInfinite", pageSize, ownerId, category ?? null] as const,
+  usersInfinite: (
+    pageSize: number,
+    q?: string | null,
+    status?: string | null,
+    sort?: string | null,
+    dir?: "asc" | "desc" | null,
+    excludeUserId?: string | null
+  ) =>
+    [
+      "users",
+      "infinite",
+      { pageSize, q, status, sort, dir, excludeUserId },
+    ] as const,
   booking: (id: string) => ["booking", id] as const,
   bookingExtras: (id: string) => ["bookingExtras", id] as const,
   user: (id: string) => ["user", id] as const,

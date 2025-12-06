@@ -3,20 +3,18 @@ import { EyeIcon, GlobeAltIcon, MapPinIcon } from "@heroicons/react/24/outline";
 import type { Country } from "@/types/country";
 import type { Location } from "@/types/location";
 
-export type CarStatus = "" | "available" | "unavailable";
+export type CarStatus = "" | "available" | "blocked" | "unavailable";
 
 type Props = {
   countries: Country[];
   locations: Location[];
   countryId: string | null;
   locationFilter: string;
-  // ↓↓↓ делаем опциональными
   statusFilter?: CarStatus;
   onChangeCountry: (id: string | null) => void;
   onChangeLocation: (name: string) => void;
   onChangeStatus?: (status: CarStatus) => void;
   className?: string;
-  // ↓↓↓ новый проп
   hideStatus?: boolean;
 };
 
@@ -98,6 +96,7 @@ export default function CarFilters({
             <option value="">Status</option>
             <option value="available">Available</option>
             <option value="unavailable">Unavailable</option>
+            <option value="blocked">Blocked</option>
           </NativeSelect>
         </div>
       )}

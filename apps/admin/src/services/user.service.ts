@@ -24,7 +24,7 @@ type UsersPageParams = {
   /** опционально — сортировка */
   sort?: "full_name" | "email" | "created_at";
   dir?: "asc" | "desc";
-  excludeUserId?: string;
+  excludeUserId?: string | null;
 };
 
 // Поиск по имени/почте/телефону
@@ -187,7 +187,6 @@ export async function toggleHostBlock(userId: string, ownerId: string) {
   }
 }
 
-
 // 👉 Последние бронирования пользователя (по твоей схеме таблицы)
 export type BookingItem = {
   car: any;
@@ -292,7 +291,7 @@ export async function fetchUsersPage(
 
   let query = supabase
     .from("profiles")
-    .select("id, full_name, email, phone, status, avatar_url", {
+    .select("id, full_name, email, phone, status, avatar_url, auth_user_id", {
       count: "exact",
     });
 
@@ -307,7 +306,6 @@ export async function fetchUsersPage(
     query = query.eq("status", status);
   }
 
-  // +++ исключаем текущего пользователя, если передан
   if (excludeUserId) {
     query = query.neq("id", excludeUserId);
   }

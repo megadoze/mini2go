@@ -25,7 +25,7 @@ import {
   EyeIcon,
 } from "@heroicons/react/24/outline";
 import { highlightMatch } from "@/utils/highlightMatch";
-import { fetchHostUsersPage } from "@/services/user.service";
+import { fetchUsersPage } from "@/services/user.service";
 import { QK } from "@/queryKeys";
 
 type UserRow = {
@@ -65,14 +65,16 @@ function cmp(a?: string | null, b?: string | null, reversed = false) {
   return reversed ? -r : r;
 }
 
-export default function UsersPage() {
+export default function AdminUsers() {
   const qc = useQueryClient();
 
-  const { ownerId } = (useLoaderData() as { ownerId: string | null }) ?? {
-    ownerId: null,
+  const { excludeUserId } = useLoaderData() as {
+    excludeUserId: string | null;
+    q: string;
+    status: string;
+    sort: "full_name" | "email" | "created_at";
+    dir: "asc" | "desc";
   };
-
-  console.log(ownerId);
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("");
@@ -81,37 +83,43 @@ export default function UsersPage() {
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [blockedMap, setBlockedMap] = useState<Record<string, boolean>>({});
 
-  const currentKey = QK.usersByHostInfinite(ownerId, PAGE_SIZE, null);
+  const currentKey = QK.usersInfinite(
+    PAGE_SIZE, // ← 1-й аргумент: pageSize (number)
+    null, // ← q
+    null, // ← status
+    null, // ← sort
+    null, // ← dir
+    excludeUserId // ← excludeUserId (string | null) как последний
+  );
 
   const usersQ = useInfiniteQuery<Page, Error>({
     queryKey: currentKey,
-    enabled: !!ownerId,
-    initialPageParam: 0,
-    queryFn: ({ pageParam }) => {
+    enabled: true,
+    queryFn: async ({ pageParam }) => {
       const pageIndex = typeof pageParam === "number" ? pageParam : 0;
-      return fetchHostUsersPage({
-        ownerId: ownerId!,
+      const offset = pageIndex * PAGE_SIZE;
+      return fetchUsersPage({
         limit: PAGE_SIZE,
-        offset: pageIndex * PAGE_SIZE,
+        offset,
+        excludeUserId: excludeUserId,
       });
     },
-    getNextPageParam: (last, all) => {
-      const loaded = all.reduce((acc, p) => acc + p.items.length, 0);
-      const total = last.count ?? loaded;
-      return loaded < total ? all.length : undefined;
+    getNextPageParam: (lastPage, allPages) => {
+      const loaded = allPages.reduce((acc, p) => acc + p.items.length, 0);
+      const total = lastPage.count ?? loaded;
+      return loaded < total ? allPages.length : undefined;
     },
-
-    // МГНОВЕННАЯ отрисовка:
-    initialData: ownerId
+    initialPageParam: 0,
+    staleTime: 5 * 60_000,
+    gcTime: 7 * 24 * 60 * 60 * 1000,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
+    retry: 1,
+    initialData: excludeUserId
       ? () => qc.getQueryData<InfiniteData<Page>>(currentKey)
       : undefined,
     placeholderData: (prev) => prev,
-
-    staleTime: 5 * 60_000,
-    gcTime: 7 * 24 * 60 * 60 * 1000,
-    refetchOnMount: false,
-    refetchOnWindowFocus: false,
-    retry: 1,
   });
 
   // ✂️ helper, чтобы обрезать кэш до первой страницы без сети (как у тебя в cars/users)
@@ -127,7 +135,7 @@ export default function UsersPage() {
       trimToFirstPage();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ownerId]);
+  }, [excludeUserId]);
 
   const EMPTY_PAGES: ReadonlyArray<Page> = [];
 
@@ -139,7 +147,7 @@ export default function UsersPage() {
   );
 
   useEffect(() => {
-    if (!ownerId) return;
+    if (!excludeUserId) return;
     if (users.length === 0) {
       setBlockedMap({});
       return;
@@ -154,7 +162,7 @@ export default function UsersPage() {
         const { data, error } = await supabase
           .from("host_user_blocks")
           .select("user_id")
-          .eq("owner_id", ownerId)
+          .eq("owner_id", excludeUserId)
           .in("user_id", ids);
 
         if (cancelled) return;
@@ -178,7 +186,7 @@ export default function UsersPage() {
     return () => {
       cancelled = true;
     };
-  }, [ownerId, users]);
+  }, [excludeUserId, users]);
 
   // уникальные статусы из уже загруженного (для селекта)
   const statuses = useMemo(() => {
@@ -297,13 +305,6 @@ export default function UsersPage() {
           {totalLoaded > 0 && <Badge color="black">{totalLoaded}</Badge>}
           {usersQ.isFetching && <Loader size="xs" color="gray" />}
         </div>
-
-        <Link
-          to="new"
-          className="inline-flex items-center rounded-xl px-3 py-2 text-sm border"
-        >
-          + New user
-        </Link>
       </div>
 
       {/* Desktop controls row (status + search + reset) */}
@@ -418,7 +419,7 @@ export default function UsersPage() {
               {filteredSorted.map((u) => (
                 <li key={u.id}>
                   <Link
-                    to={`/users/${u.id}`}
+                    to={`/admin/users/${u.id}`}
                     state={u}
                     className="grid grid-cols-[2fr,2fr,1.5fr,1fr,24px] items-center px-2 sm:px-3 py-3 bg-white hover:bg-emerald-50/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-black/20 rounded-[6px]"
                   >

@@ -75,11 +75,26 @@ export type AppUser = {
 export const UserPage = () => {
   const { userId } = useParams();
 
-  const rootData = useRouteLoaderData("rootAuth") as RootAuthData | null;
+  const hostRootData = useRouteLoaderData("rootAuth") as RootAuthData | null;
+  const adminRootData = useRouteLoaderData("adminAuth") as RootAuthData | null;
+
+  const rootData = hostRootData ?? adminRootData;
 
   const authUserId = rootData?.authUserId ?? null;
   const currentIsAdmin = rootData?.isAdmin ?? false;
   const ownerId = rootData?.ownerId ?? authUserId ?? null;
+
+  const bookingsOwnerId = currentIsAdmin ? undefined : ownerId ?? undefined;
+
+  // const isAdmin = rootData?.isAdmin ?? false;
+  // const isHost = rootData?.isHost ?? false;
+
+  // Если нужно явно различать “админ” и “хост”:
+  // const viewerRole: "admin" | "host" | "unknown" = isAdmin
+  //   ? "admin"
+  //   : isHost
+  //   ? "host"
+  //   : "unknown";
 
   const isCreate = userId === "new";
 
@@ -160,6 +175,7 @@ export const UserPage = () => {
       setLoading(true);
       setNotesLoading(true);
       setError(null);
+
       try {
         const full = await getUserById(primed.id);
         if (!mounted) return;
@@ -244,6 +260,8 @@ export const UserPage = () => {
     };
   }, [user?.driver_license_file_url]);
 
+  console.log(ownerId);
+
   // ——— Fetch bookings
   useEffect(() => {
     if (isCreate) return;
@@ -254,7 +272,7 @@ export const UserPage = () => {
 
       setBookingsLoading(true);
       try {
-        const data = await fetchUserBookings(primed.id, ownerId ?? undefined);
+        const data = await fetchUserBookings(primed.id, bookingsOwnerId);
         if (mounted) setBookings(data);
       } finally {
         if (mounted) setBookingsLoading(false);
@@ -264,7 +282,9 @@ export const UserPage = () => {
     return () => {
       mounted = false;
     };
-  }, [isCreate, primed?.id, ownerId]);
+  }, [isCreate, primed?.id, bookingsOwnerId]);
+
+  console.log(bookings);
 
   // ——— Fetch notes
   useEffect(() => {
@@ -405,6 +425,10 @@ export const UserPage = () => {
     ? "blocked_for_host"
     : user?.status ?? "active";
 
+  const isBlockedEffective = currentIsAdmin
+    ? user?.status === "blocked" // для админа — глобальный статус
+    : blockedForHost; // для хоста — локальный блок
+
   // ——— MAIN
   return (
     <div className="w-full max-w-screen-2xl mx-auto">
@@ -433,50 +457,32 @@ export const UserPage = () => {
               <ChatBubbleLeftRightIcon className="size-4 sm:mr-1" />
               <span className="hidden sm:inline">Message</span>
             </Button>
-            <Button
-              variant="ghost"
-              onClick={handleToggleStatus}
-              title={
-                currentIsAdmin
-                  ? user.status === "blocked"
-                    ? "Unblock user (global)"
-                    : "Block user (global)"
-                  : blockedForHost
-                  ? "Unblock for this host"
-                  : "Block for this host"
-              }
-              disabled={toggling}
-              aria-busy={toggling}
-            >
-              {toggling ? (
-                <>
-                  <ArrowPathIcon className="size-4 animate-spin sm:mr-1" />
-                  <span className="hidden sm:inline">Updating…</span>
-                </>
-              ) : currentIsAdmin ? (
-                user.status === "blocked" ? (
+            {user && (
+              <Button
+                variant="ghost"
+                onClick={handleToggleStatus}
+                title={isBlockedEffective ? "Unblock user" : "Block user"}
+                disabled={toggling}
+                aria-busy={toggling}
+              >
+                {toggling ? (
+                  <>
+                    <ArrowPathIcon className="size-4 animate-spin sm:mr-1" />
+                    <span className="hidden sm:inline">Updating…</span>
+                  </>
+                ) : isBlockedEffective ? (
                   <>
                     <LockOpenIcon className="size-4 sm:mr-1" />
-                    <span className="hidden sm:inline">Unblock (global)</span>
+                    <span className="hidden sm:inline">Unblock</span>
                   </>
                 ) : (
                   <>
                     <LockClosedIcon className="size-4 sm:mr-1" />
-                    <span className="hidden sm:inline">Block (global)</span>
+                    <span className="hidden sm:inline">Block</span>
                   </>
-                )
-              ) : blockedForHost ? (
-                <>
-                  <LockOpenIcon className="size-4 sm:mr-1" />
-                  <span className="hidden sm:inline">Unblock for you</span>
-                </>
-              ) : (
-                <>
-                  <LockClosedIcon className="size-4 sm:mr-1" />
-                  <span className="hidden sm:inline">Block for you</span>
-                </>
-              )}
-            </Button>
+                )}
+              </Button>
+            )}
 
             {user?.email && (
               <Button
