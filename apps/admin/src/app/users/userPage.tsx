@@ -260,8 +260,6 @@ export const UserPage = () => {
     };
   }, [user?.driver_license_file_url]);
 
-  console.log(ownerId);
-
   // ——— Fetch bookings
   useEffect(() => {
     if (isCreate) return;
@@ -283,8 +281,6 @@ export const UserPage = () => {
       mounted = false;
     };
   }, [isCreate, primed?.id, bookingsOwnerId]);
-
-  console.log(bookings);
 
   // ——— Fetch notes
   useEffect(() => {
