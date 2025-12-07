@@ -1091,7 +1091,7 @@ export default function CatalogClient() {
 
           {/* list */}
           <section className="mx-auto max-w-5xl w-full px-4 pb-10 pt-4 md:pt-10">
-            {(() => {
+            {/* {(() => {
               const isInitialLoadingCars =
                 !hydrated || (carsQ.isLoading && !carsQ.isFetched);
 
@@ -1108,8 +1108,10 @@ export default function CatalogClient() {
                 !bookingsReady;
 
               // 🔹 общий флаг – один скелетон на оба случая
-              const showSkeleton =
-                isInitialLoadingCars || isAvailabilityPending;
+              // const showSkeleton =
+              //   isInitialLoadingCars || isAvailabilityPending;
+
+              const showSkeleton = !hydrated || !isFetched || !bookingsReady;
 
               if (showSkeleton) {
                 const skeletonCount = Math.min(
@@ -1233,6 +1235,109 @@ export default function CatalogClient() {
                         className="px-5 py-2 rounded-2xl bg-black text-white text-sm hover:opacity-90 disabled:opacity-50"
                       >
                         {isFetchingNext ? "Loading..." : "Show more"}
+                      </button>
+                    </div>
+                  )}
+                </>
+              );
+            })()} */}
+            {(() => {
+              // 🔥 ОДНО ЕДИНСТВЕННОЕ условие загрузки
+              const loading =
+                !carsQ.isFetched || // машины ещё не загрузились
+                (start &&
+                  end && // даты есть
+                  filteredCars.length > 0 && // есть машины после фильтров
+                  (availabilityState.key !== bookingsGroupsKey ||
+                    availabilityState.loading)); // availability ещё не готова
+
+              // 🔥 Если что-то грузится → один скелетон + спиннер (никаких миганий)
+              if (loading) {
+                const skeletonCount = Math.min(
+                  Math.max(filteredCars.length || cars.length || 4, 4),
+                  8
+                );
+
+                return (
+                  <>
+                    <div className="mt-4 mb-6 flex flex-col items-center gap-2">
+                      <svg
+                        className="animate-spin h-5 w-5 text-zinc-500"
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                      >
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                        />
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                        />
+                      </svg>
+                      <p className="text-xs text-zinc-400">Loading cars…</p>
+                    </div>
+
+                    <ul className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
+                      {Array.from({ length: skeletonCount }).map((_, i) => (
+                        <li
+                          key={i}
+                          className="relative flex flex-col overflow-hidden rounded-2xl bg-white/60 backdrop-blur supports-backdrop-filter:bg-white/40 shadow-[0_2px_10px_rgba(0,0,0,0.06)] ring-1 ring-black/5 transition-all duration-300 animate-pulse"
+                        >
+                          <div className="h-48 w-full sm:h-52 md:h-56 bg-linear-to-br from-zinc-100 to-zinc-200" />
+                          <div className="p-5 space-y-3">
+                            <div className="h-4 bg-gray-100 rounded w-2/3" />
+                            <div className="h-3 bg-gray-100 rounded w-1/3" />
+                            <div className="h-3 bg-gray-100 rounded w-1/2" />
+                            <div className="h-10 bg-gray-100 rounded-xl" />
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                );
+              }
+
+              // 🔥 Когда загрузка закончилась → показываем список сразу
+              return (
+                <>
+                  <ul className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
+                    {availableCars.map((car) => (
+                      <CatalogCardGlass
+                        key={car.id}
+                        car={car}
+                        start={start}
+                        end={end}
+                        location={locationFilter}
+                        country={countryId || ""}
+                        ownerSettings={settingsByOwner[car.ownerId!] ?? null}
+                        onBook={() =>
+                          goToCar(
+                            car.models?.brands?.name ?? "car",
+                            car.models?.name ?? car.id,
+                            car.id
+                          )
+                        }
+                        highlight={search}
+                        pricingMeta={pricingMeta[car.id]}
+                      />
+                    ))}
+                  </ul>
+
+                  {canLoadMore && (
+                    <div className="w-full flex justify-center mt-8">
+                      <button
+                        onClick={() => carsQ.fetchNextPage()}
+                        disabled={carsQ.isFetchingNextPage}
+                        className="px-5 py-2 rounded-2xl bg-black text-white text-sm hover:opacity-90 disabled:opacity-50"
+                      >
+                        {carsQ.isFetchingNextPage ? "Loading..." : "Show more"}
                       </button>
                     </div>
                   )}
