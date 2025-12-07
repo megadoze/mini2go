@@ -51,28 +51,6 @@ export default function Loading() {
             </header>
           </div>
         </section>
-
-        {/* блок с CountUp (4 карточки) */}
-        {/* <section>
-          <div className="mx-auto max-w-5xl px-4 pt-8">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 font-roboto-condensed animate-pulse">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="rounded-2xl ring-1 ring-black/5 bg-white p-4 flex flex-col gap-3"
-                >
-                  <div className="h-6 w-20 rounded-full bg-neutral-100" />
-                  <div className="h-3 w-24 rounded-full bg-neutral-100" />
-                </div>
-              ))}
-            </div>
-          </div>
-        </section> */}
-
-        {/* видео-блок (LazyAutoplayVideo placeholder) */}
-        {/* <section className="mx-auto max-w-5xl px-4 py-10">
-          <div className="aspect-9/16 md:aspect-video rounded-2xl overflow-hidden bg-neutral-100 animate-pulse" />
-        </section> */}
       </main>
     </div>
   );
