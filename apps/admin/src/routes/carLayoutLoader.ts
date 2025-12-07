@@ -2,7 +2,7 @@
 import { redirect, type LoaderFunctionArgs } from "react-router";
 import { queryClient } from "@/lib/queryClient";
 import { QK } from "@/queryKeys";
-import { supabase } from "@/lib/supabase";           // ← добавили
+import { supabase } from "@/lib/supabase"; // ← добавили
 import { getGlobalSettings } from "@/services/settings.service";
 import {
   fetchCarById,
@@ -13,7 +13,7 @@ import {
   fetchPricingRules,
   fetchSeasonalRates,
 } from "@/services/pricing.service";
-import { fetchBookingsByCarId } from "@/app/car/calendar/calendar.service";
+import { fetchBookingsByCarId } from "@/services/calendar.service";
 
 const toCamelSettings = (raw: any) => ({
   currency: raw.currency,
@@ -35,7 +35,9 @@ export async function carLayoutLoader({ params }: LoaderFunctionArgs) {
   const carId = String(params.carId);
   if (!carId) throw new Response("Missing carId", { status: 400 });
 
-  const { data: { session } } = await supabase.auth.getSession();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
   if (!session) {
     throw redirect("/auth");
   }
@@ -47,8 +49,8 @@ export async function carLayoutLoader({ params }: LoaderFunctionArgs) {
   // если юзер не залогинен — настроек нет
   const appSettingsPromise = ownerId
     ? queryClient.ensureQueryData({
-        queryKey: QK.appSettingsByOwner(ownerId),        // ключ привязан к юзеру
-        queryFn: () => getGlobalSettings(ownerId),    // ← ПЕРЕДАЁМ ownerId
+        queryKey: QK.appSettingsByOwner(ownerId), // ключ привязан к юзеру
+        queryFn: () => getGlobalSettings(ownerId), // ← ПЕРЕДАЁМ ownerId
       })
     : Promise.resolve(null);
 
@@ -85,11 +87,9 @@ export async function carLayoutLoader({ params }: LoaderFunctionArgs) {
     }),
   ]);
 
-  
   if (!car || car.ownerId !== ownerId) {
-  throw new Response("Not found", { status: 404 });
+    throw new Response("Not found", { status: 404 });
   }
-
 
   const globalSettings = appSettings ? toCamelSettings(appSettings) : null;
 

@@ -23,7 +23,7 @@ import {
 import {
   fetchBookingById,
   fetchBookingsByCarId,
-} from "@/app/car/calendar/calendar.service";
+} from "@/services/calendar.service";
 import { fetchBookingExtras } from "@/services/booking-extras.service";
 import {
   fetchCountriesForBookings,
@@ -424,7 +424,7 @@ export default function UserBookings() {
         <div className="relative flex-1 min-w-[220px]">
           <MagnifyingGlassIcon className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-zinc-500" />
           <TextInput
-            placeholder="Поиск по марке, модели, номеру, гостю"
+            placeholder="Search by make, model, number, guest"
             value={search}
             onChange={(e) => setSearch(e.currentTarget.value)}
             className="w-full rounded-xl bg-white/60 shadow-sm pl-9 pr-3 py-2 text-sm hover:bg-white/80 focus:ring-2 focus:ring-black/10"
@@ -454,7 +454,7 @@ export default function UserBookings() {
       <div className="relative w-full mb-4 lg:hidden">
         <MagnifyingGlassIcon className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-zinc-500" />
         <TextInput
-          placeholder="Поиск по марке, модели, номеру, гостю"
+          placeholder="Search by make, model, number, guest"
           value={search}
           onChange={(e) => setSearch(e.currentTarget.value)}
           className="w-full rounded-xl bg-white/60 shadow-sm pl-9 pr-3 py-2 text-sm hover:bg-white/80 focus:ring-2 focus:ring-black/10"

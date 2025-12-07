@@ -51,6 +51,7 @@ import { carsAdminLoader } from "./routes/carsAdminLoader";
 import AdminGate from "./components/auth/adminGate";
 import AdminUsers from "./app/admin/adminUsers";
 import { usersAdminLoader } from "./routes/usersAdminLoader";
+import AdminBookings from "./app/admin/adminBookings";
 
 export const router = createBrowserRouter([
   { path: "/auth", element: <AuthenticationPage /> },
@@ -168,7 +169,7 @@ export const router = createBrowserRouter([
       {
         path: "bookings",
         loader: bookingsLoader,
-        element: <BookingsList />,
+        element: <AdminBookings />,
       },
       { path: "bookings/:bookingId", element: <BookingEditor /> },
       { path: "profile", element: <UserProfile /> },

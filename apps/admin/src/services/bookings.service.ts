@@ -94,7 +94,9 @@ export function mapRowToBookingCard(row: BookingJoinedRow): BookingCardType {
           year: car.year ?? null,
           licensePlate: car.license_plate ?? null,
           deposit: car.deposit ?? null,
-          photo: Array.isArray(car.cover_photos) ? car.cover_photos[0] ?? null : null,
+          photo: Array.isArray(car.cover_photos)
+            ? car.cover_photos[0] ?? null
+            : null,
           locationName: loc?.name ?? null,
           countryId: loc?.country_id ?? null,
         }
@@ -146,12 +148,21 @@ export function subscribeBooking<T = any>(
     .channel(`booking-${id}`)
     .on(
       "postgres_changes",
-      { event: "UPDATE", schema: "public", table: "bookings", filter: `id=eq.${id}` },
+      {
+        event: "UPDATE",
+        schema: "public",
+        table: "bookings",
+        filter: `id=eq.${id}`,
+      },
       (payload) => onChange(payload.new as T)
     )
     .subscribe();
 
-  return () => { try { supabase.removeChannel(ch); } catch {} };
+  return () => {
+    try {
+      supabase.removeChannel(ch);
+    } catch {}
+  };
 }
 
 export async function cancelAndUnlock(
@@ -256,6 +267,46 @@ export type BookingsIndexRow = {
   user_phone: string | null;
 };
 
+// Получение всех броней
+export async function fetchAllBookings(params: {
+  limit: number;
+  offset: number;
+  status?: string;
+  userId?: string;
+  countryId?: string;
+  location?: string;
+  q?: string;
+}): Promise<{ items: BookingsIndexRow[]; count: number }> {
+  const { limit, offset, status, userId, countryId, location, q } = params;
+
+  let qy = supabase
+    .from("bookings_index")
+    .select("*", { count: "exact" })
+    .order("created_at", { ascending: false })
+    .range(offset, offset + limit - 1);
+
+  if (status) qy = qy.eq("status", status.toLowerCase());
+  if (userId) qy = qy.eq("user_id", userId);
+  if (countryId) qy = qy.eq("country_id", countryId);
+  if (location) qy = qy.ilike("location_name", `%${location}%`);
+  if (q) {
+    const s = q.replace(/[%_]/g, (m) => `\\${m}`);
+    qy = qy.or(
+      [
+        `license_plate.ilike.%${s}%`,
+        `brand_name.ilike.%${s}%`,
+        `model_name.ilike.%${s}%`,
+        `user_full_name.ilike.%${s}%`,
+        `owner_full_name.ilike.%${s}%`,
+      ].join(",")
+    );
+  }
+
+  const { data, error, count } = await qy;
+  if (error) throw error;
+  return { items: (data ?? []) as BookingsIndexRow[], count: count ?? 0 };
+}
+
 export async function fetchBookingsIndexPage(params: {
   ownerId: string | null;
   limit: number;
@@ -297,7 +348,6 @@ export async function fetchBookingsIndexPage(params: {
   if (error) throw error;
   return { items: (data ?? []) as BookingsIndexRow[], count: count ?? 0 };
 }
-
 
 export async function fetchBookingsByUser(params: {
   limit: number;

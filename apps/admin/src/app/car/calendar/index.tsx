@@ -23,7 +23,7 @@ import {
   createBooking,
   deleteBooking,
   fetchBookingsByCarId,
-} from "./calendar.service";
+} from "../../../services/calendar.service";
 import { getUserById } from "@/services/user.service";
 import type { BookingEditorSnapshot } from "@/types/booking-ui";
 import { fetchBookingExtras } from "@/services/booking-extras.service";

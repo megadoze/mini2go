@@ -18,7 +18,7 @@ import {
   fetchBookingsByCarId,
   fetchBookingById,
   updateBooking,
-} from "@/app/car/calendar/calendar.service";
+} from "@/services/calendar.service";
 import { fetchBookingExtras } from "@/services/booking-extras.service";
 import {
   differenceInMinutes,

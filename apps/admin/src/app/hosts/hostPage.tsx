@@ -147,9 +147,9 @@ export default function HostPage() {
               description="This host hasn't added cars."
             />
           ) : (
-            <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-3">
               {cars.map((c) => {
-                const photo = c.photos?.[0] ?? null;
+                const photo = c.coverPhotos?.[0] ?? null;
                 const brand = c.models?.brands?.name ?? "—";
                 const model = c.models?.name ?? "—";
                 const price = c.price.toFixed?.(2) ?? null;
@@ -162,7 +162,14 @@ export default function HostPage() {
                     key={c.id}
                     className="border rounded-xl bg-white/60 p-3 hover:bg-gray-50"
                   >
-                    <Link to={`/catalog/${c.id}`} className="block">
+                    <a
+                      href={`https://mini2go-app.vercel.app/cars/${brand.toLowerCase()}/${model.toLowerCase()}/${
+                        c.id
+                      }`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block"
+                    >
                       <div className="aspect-[3/2] w-full overflow-hidden rounded-lg border border-gray-100">
                         {photo ? (
                           <img
@@ -188,7 +195,7 @@ export default function HostPage() {
                           {price} {currency}
                         </p>
                       </div>
-                    </Link>
+                    </a>
                   </li>
                 );
               })}

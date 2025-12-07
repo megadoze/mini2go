@@ -51,7 +51,7 @@ import BookingFilters from "@/components/bookingFilters";
 
 // постраничная загрузка
 import {
-  fetchBookingsIndexPage,
+  fetchAllBookings,
   mapIndexRowToBookingCard,
   type BookingsIndexRow,
 } from "@/services/bookings.service";
@@ -62,7 +62,7 @@ type LoaderData = { ownerId: string };
 
 const PAGE_SIZE = 10;
 
-export default function BookingsList() {
+export default function AdminBookings() {
   const { ownerId } = useLoaderData() as LoaderData;
 
   const qc = useQueryClient();
@@ -124,8 +124,7 @@ export default function BookingsList() {
     queryFn: ({ pageParam }) => {
       const pageIndex = pageParam; // pageParam: number
       const offset = pageIndex * PAGE_SIZE;
-      return fetchBookingsIndexPage({
-        ownerId,
+      return fetchAllBookings({
         limit: PAGE_SIZE,
         offset,
         status: statusFilter || undefined,
@@ -306,7 +305,7 @@ export default function BookingsList() {
 
     void prefetchBundle(qc, b.carId, b.id, b.userId ?? undefined);
 
-    navigate(`/bookings/${b.id}`, {
+    navigate(`/admin/bookings/${b.id}`, {
       state: {
         snapshot: {
           booking: {
@@ -537,7 +536,7 @@ export default function BookingsList() {
                 return (
                   <Link
                     key={b.id}
-                    to={`/bookings/${b.id}`}
+                    to={`/admin/bookings/${b.id}`}
                     className={`flex items-center bg-white hover:bg-emerald-50/40 transition ease-in-out duration-300 p-2 w-full rounded-2xl my-1 cursor-pointer border border-zinc-100 ${
                       openingId === b.id
                         ? "hover:bg-green-200/20 pointer-events-none"

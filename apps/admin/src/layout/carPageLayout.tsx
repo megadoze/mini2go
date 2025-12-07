@@ -30,7 +30,7 @@ import {
   fetchCarExtras,
   fetchExtras,
 } from "@/services/car.service";
-import { fetchBookingsByCarId } from "@/app/car/calendar/calendar.service";
+import { fetchBookingsByCarId } from "@/services/calendar.service";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCarsRealtime } from "@/hooks/useCarsRealtime";
 import { useCarFeaturesRealtimeRQ } from "@/hooks/useCarFeaturesRealtime";

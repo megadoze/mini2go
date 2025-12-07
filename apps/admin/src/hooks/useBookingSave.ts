@@ -1,10 +1,7 @@
 import { useState, useCallback } from "react";
 import { toast } from "sonner";
 import { differenceInMinutes, isAfter } from "date-fns";
-import {
-  updateBooking,
-  createBooking,
-} from "@/app/car/calendar/calendar.service";
+import { updateBooking, createBooking } from "@/services/calendar.service";
 import { upsertBookingExtras } from "@/services/booking-extras.service";
 import { QK } from "@/queryKeys";
 import { useQueryClient } from "@tanstack/react-query";

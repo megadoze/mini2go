@@ -25,7 +25,7 @@ import {
 import { FixedSizeList as List } from "react-window";
 import type { Booking } from "@/types/booking";
 import { getUserById } from "@/services/user.service";
-import { fetchBookingById } from "@/app/car/calendar/calendar.service";
+import { fetchBookingById } from "@/services/calendar.service";
 import { fetchBookingExtras } from "@/services/booking-extras.service";
 
 // ключи кэша
