@@ -37,7 +37,7 @@ import type { Country } from "@/types/country";
 import type { Location } from "@/types/location";
 import { HeaderSection } from "@/components/header";
 import { getSupabaseClient } from "@/lib/supabase";
-import { enUS, ru } from "date-fns/locale";
+import { enUS } from "date-fns/locale";
 
 function cn(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
@@ -122,12 +122,6 @@ export default function CatalogClient() {
 
   const countryChangeDebounceRef = useRef<number | null>(null);
   const pendingCountryRef = useRef<string | null>(null);
-
-  // detect hydration so we don't show client skeleton before hydration completes
-  const [hydrated, setHydrated] = useState(false);
-  useEffect(() => {
-    setHydrated(true);
-  }, []);
 
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -269,14 +263,6 @@ export default function CatalogClient() {
   );
   const totalAvailable = pages[0]?.count ?? cars.length;
   const canLoadMore = cars.length < totalAvailable;
-
-  // react-query flags
-
-  const isFetched = carsQ.isFetched;
-
-  // delayed empty state
-
-  const emptyTimerRef = useRef<number | null>(null);
 
   // pricing для новых машин
   useEffect(() => {
@@ -790,62 +776,6 @@ export default function CatalogClient() {
     availabilityState,
     settingsByOwner,
     bookingsGroupsKey,
-  ]);
-
-  const bookingsReady = useMemo(() => {
-    return (
-      bookingsGroupsKey !== null &&
-      availabilityState.key === bookingsGroupsKey &&
-      !availabilityState.loading
-    );
-  }, [bookingsGroupsKey, availabilityState]);
-
-  useEffect(() => {
-    // условие, при котором мы *бы хотели* показать Empty
-    const wantEmpty =
-      bookingsReady &&
-      availableCars.length === 0 &&
-      // guard: убедимся, что клиент гидрирован и initial fetch завершён
-      hydrated &&
-      isFetched &&
-      // опционально: требуем хотя бы 1 машин в фильтре (если хочешь)
-      filteredCars.length > 0;
-
-    // если хотим показать — ставим таймер, чтобы избежать мигания
-    if (wantEmpty) {
-      if (emptyTimerRef.current) window.clearTimeout(emptyTimerRef.current);
-      // увеличил delay — 350ms (меньше дергания)
-      emptyTimerRef.current = window.setTimeout(() => {
-        emptyTimerRef.current = null;
-      }, 350);
-      if (TRACE)
-        console.debug("[ui] scheduled showEmptyDelayed (350ms)", {
-          time: Date.now(),
-        });
-      return;
-    }
-
-    // иначе — отменяем таймер и скрываем Empty
-    if (emptyTimerRef.current) {
-      window.clearTimeout(emptyTimerRef.current);
-      emptyTimerRef.current = null;
-      if (TRACE)
-        console.debug("[ui] cancelled empty timer", { time: Date.now() });
-    }
-
-    // cleanup
-    return () => {
-      if (emptyTimerRef.current) {
-        window.clearTimeout(emptyTimerRef.current);
-        emptyTimerRef.current = null;
-      }
-    };
-  }, [
-    bookingsReady,
-    availableCars.length,
-    hydrated,
-    isFetched,
-    filteredCars.length,
   ]);
 
   // тост — только если реально что-то скрыли
