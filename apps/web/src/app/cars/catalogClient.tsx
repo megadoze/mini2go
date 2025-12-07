@@ -271,13 +271,11 @@ export default function CatalogClient() {
   const canLoadMore = cars.length < totalAvailable;
 
   // react-query flags
-  const isFetching = carsQ.isFetching;
+
   const isFetched = carsQ.isFetched;
-  const isError = Boolean(carsQ.isError);
-  const isFetchingNext = carsQ.isFetchingNextPage;
 
   // delayed empty state
-  const [showEmptyDelayed, setShowEmptyDelayed] = useState(false);
+
   const emptyTimerRef = useRef<number | null>(null);
 
   // pricing для новых машин
@@ -818,7 +816,6 @@ export default function CatalogClient() {
       if (emptyTimerRef.current) window.clearTimeout(emptyTimerRef.current);
       // увеличил delay — 350ms (меньше дергания)
       emptyTimerRef.current = window.setTimeout(() => {
-        setShowEmptyDelayed(true);
         emptyTimerRef.current = null;
       }, 350);
       if (TRACE)
@@ -835,7 +832,6 @@ export default function CatalogClient() {
       if (TRACE)
         console.debug("[ui] cancelled empty timer", { time: Date.now() });
     }
-    setShowEmptyDelayed(false);
 
     // cleanup
     return () => {
@@ -1091,156 +1087,6 @@ export default function CatalogClient() {
 
           {/* list */}
           <section className="mx-auto max-w-5xl w-full px-4 pb-10 pt-4 md:pt-10">
-            {/* {(() => {
-              const isInitialLoadingCars =
-                !hydrated || (carsQ.isLoading && !carsQ.isFetched);
-
-              const bookingsReady =
-                bookingsGroupsKey !== null &&
-                availabilityState.key === bookingsGroupsKey &&
-                !availabilityState.loading;
-
-              const isAvailabilityPending =
-                hydrated &&
-                start &&
-                end &&
-                filteredCars.length > 0 &&
-                !bookingsReady;
-
-              // 🔹 общий флаг – один скелетон на оба случая
-              // const showSkeleton =
-              //   isInitialLoadingCars || isAvailabilityPending;
-
-              const showSkeleton = !hydrated || !isFetched || !bookingsReady;
-
-              if (showSkeleton) {
-                const skeletonCount = Math.min(
-                  Math.max(filteredCars.length || cars.length || 4, 4),
-                  8
-                );
-
-                return (
-                  <>
-                    <div className="mt-4 mb-6 flex flex-col items-center gap-2">
-                      <svg
-                        className="animate-spin h-5 w-5 text-zinc-500"
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                      >
-                        <circle
-                          className="opacity-25"
-                          cx="12"
-                          cy="12"
-                          r="10"
-                          stroke="currentColor"
-                          strokeWidth="4"
-                        />
-                        <path
-                          className="opacity-75"
-                          fill="currentColor"
-                          d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-                        />
-                      </svg>
-                      <p className="text-xs text-zinc-400">
-                        {isInitialLoadingCars
-                          ? "Loading cars..."
-                          : "Checking availability…"}
-                      </p>
-                    </div>
-
-                    <ul className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
-                      {Array.from({ length: skeletonCount }).map((_, i) => (
-                        <li
-                          key={i}
-                          className="relative flex flex-col overflow-hidden rounded-2xl bg-white/60 backdrop-blur supports-backdrop-filter:bg-white/40 shadow-[0_2px_10px_rgba(0,0,0,0.06)] ring-1 ring-black/5 transition-all duration-300 animate-pulse"
-                        >
-                          <div className="h-48 w-full sm:h-52 md:h-56 bg-linear-to-br from-zinc-100 to-zinc-200" />
-                          <div className="p-5 space-y-3">
-                            <div className="h-4 bg-gray-100 rounded w-2/3" />
-                            <div className="h-3 bg-gray-100 rounded w-1/3" />
-                            <div className="h-3 bg-gray-100 rounded w-1/2" />
-                            <div className="h-10 bg-gray-100 rounded-xl" />
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                  </>
-                );
-              }
-
-              if (
-                hydrated &&
-                isFetched &&
-                !isFetching &&
-                !availabilityState.loading &&
-                start &&
-                end &&
-                filteredCars.length === 0
-              ) {
-                return (
-                  <EmptyState
-                    title="No car was found matching these filters."
-                    description="Try removing some filters or changing the time."
-                  />
-                );
-              }
-
-              if (isError)
-                return (
-                  <InlineError
-                    message={carsQ.error?.message || "Failed to load cars"}
-                  />
-                );
-
-              if (showEmptyDelayed) {
-                return (
-                  <EmptyState
-                    title="No car was found matching these filters."
-                    description="Try removing some filters or changing the time."
-                  />
-                );
-              }
-
-              return (
-                <>
-                  <ul className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
-                    {availableCars.map((car) => (
-                      <CatalogCardGlass
-                        key={car.id}
-                        car={car}
-                        start={start}
-                        end={end}
-                        location={locationFilter}
-                        country={countryId || ""}
-                        ownerSettings={settingsByOwner[car.ownerId!] ?? null}
-                        onBook={() =>
-                          goToCar(
-                            car.models?.brands?.name ?? "car",
-                            car.models?.name ?? car.id,
-                            car.id
-                          )
-                        }
-                        highlight={search}
-                        pricingMeta={pricingMeta[car.id]}
-                      />
-                    ))}
-                  </ul>
-
-                  {canLoadMore && (
-                    <div className="w-full flex justify-center mt-8">
-                      <button
-                        onClick={() => carsQ.fetchNextPage()}
-                        disabled={isFetchingNext}
-                        className="px-5 py-2 rounded-2xl bg-black text-white text-sm hover:opacity-90 disabled:opacity-50"
-                      >
-                        {isFetchingNext ? "Loading..." : "Show more"}
-                      </button>
-                    </div>
-                  )}
-                </>
-              );
-            })()} */}
             {(() => {
               // 🔥 ОДНО ЕДИНСТВЕННОЕ условие загрузки
               const loading =
@@ -1610,12 +1456,11 @@ function BottomStickyBar({
   };
   changePickerStatus: () => void;
 }) {
-  // const startDate = formatDateTimeForLabel(start);
-  // const endDate = formatDateTimeForLabel(end);
   const durationLabel =
     timing.days > 0
       ? `${timing.days}d${timing.restHours ? ` ${timing.restHours}h` : ""}`
       : `${timing.hours}h`;
+
   return (
     <div className=" fixed inset-x-0 bottom-0 bg-white/70 backdrop-blur supports-backdrop-filter:bg-white/40 border-t border-gray-200/60">
       <div className="h-20 font-roboto-condensed! mx-auto max-w-7xl px-4 md:px-6 py-0 flex items-center justify-between gap-3">
@@ -1625,16 +1470,16 @@ function BottomStickyBar({
           ) : (
             <div className="flex items-center leading-tight truncate">
               <div className="flex items-center gap-2">
-                <p>{format(start, "d MMM, HH:mm", { locale: enUS })}</p>
-
-                {/* стрелка — центрируем внутри flex */}
+                <p>
+                  {format(new Date(start), "d MMM, HH:mm", { locale: enUS })}
+                </p>
                 <span
                   aria-hidden
                   className="inline-flex items-center justify-center h-5 w-5 text-sm text-neutral-900 pb-1"
                 >
                   →
                 </span>
-                <p>{format(end, "d MMM, HH:mm", { locale: enUS })}</p>
+                <p>{format(new Date(end), "d MMM, HH:mm", { locale: enUS })}</p>
               </div>
 
               <span className="text-neutral-600 shrink-0 ml-2">
@@ -1655,45 +1500,6 @@ function BottomStickyBar({
     </div>
   );
 }
-
-function InlineError({ message }: { message: string }) {
-  return (
-    <div className="mx-auto max-w-5xl px-4 py-6">
-      <div className="rounded-xl border border-red-100 bg-red-50 text-red-700 p-3 text-sm">
-        {message}
-      </div>
-    </div>
-  );
-}
-
-function EmptyState({
-  title,
-  description,
-}: {
-  title: string;
-  description: string;
-}) {
-  return (
-    <div className="mx-auto max-w-5xl px-4 py-10 flex flex-col items-center justify-center rounded-xl border border-dashed border-gray-200 text-center">
-      <p className="mt-2 text-sm font-medium text-gray-900">{title}</p>
-      <p className="text-sm text-gray-500">{description}</p>
-    </div>
-  );
-}
-
-// function formatDateTimeForLabel(dt: string) {
-//   if (!dt) return "—";
-//   try {
-//     const d = new Date(dt);
-//     const dd = String(d.getDate()).padStart(2, "0");
-//     const mm = String(d.getMonth() + 1).padStart(2, "0");
-//     const hh = String(d.getHours()).padStart(2, "0");
-//     const min = String(d.getMinutes()).padStart(2, "0");
-//     return `${dd}.${mm}, ${hh}:${min}`;
-//   } catch {
-//     return dt;
-//   }
-// }
 
 function useSyncQuery() {
   const router = useRouter();
@@ -1728,8 +1534,6 @@ function useSyncQuery() {
         console.warn("[updateQuery] router.replace failed:", err);
       }
 
-      // Маленький таймаут: если URL в адресной строке не поменялся — делаем прямой history.replaceState
-      // Это гарантирует, что параметр появится в query независимо от гонок.
       setTimeout(() => {
         if (typeof window === "undefined") return;
         const current =
