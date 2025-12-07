@@ -37,7 +37,7 @@ import type { Country } from "@/types/country";
 import type { Location } from "@/types/location";
 import { HeaderSection } from "@/components/header";
 import { getSupabaseClient } from "@/lib/supabase";
-import { enUS, ru } from "date-fns/locale";
+import { enUS } from "date-fns/locale";
 
 function cn(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
@@ -123,12 +123,6 @@ export default function CatalogClient() {
   const countryChangeDebounceRef = useRef<number | null>(null);
   const pendingCountryRef = useRef<string | null>(null);
 
-  // detect hydration so we don't show client skeleton before hydration completes
-  const [hydrated, setHydrated] = useState(false);
-  useEffect(() => {
-    setHydrated(true);
-  }, []);
-
   const [menuOpen, setMenuOpen] = useState(false);
 
   // даты
@@ -175,7 +169,7 @@ export default function CatalogClient() {
     Record<string, OwnerSettings>
   >({});
 
-  // ========== availability state (replaces mix refs) ==========
+  // ========== availability state ==========
   const [availabilityState, setAvailabilityState] = useState<{
     key: string | null;
     loading: boolean;
@@ -264,7 +258,6 @@ export default function CatalogClient() {
   const pages = useMemo(() => carsQ.data?.pages ?? [], [carsQ.data?.pages]);
   const cars: CarWithRelations[] = useMemo(
     () => pages.flatMap((p) => p.items ?? []),
-    // depend only on `pages` value (react-query will replace pages when it truly changes)
     [pages]
   );
   const totalAvailable = pages[0]?.count ?? cars.length;
@@ -272,13 +265,8 @@ export default function CatalogClient() {
 
   // react-query flags
   const isFetching = carsQ.isFetching;
-  const isFetched = carsQ.isFetched;
   const isError = Boolean(carsQ.isError);
   const isFetchingNext = carsQ.isFetchingNextPage;
-
-  // delayed empty state
-  const [showEmptyDelayed, setShowEmptyDelayed] = useState(false);
-  const emptyTimerRef = useRef<number | null>(null);
 
   // pricing для новых машин
   useEffect(() => {
@@ -373,7 +361,7 @@ export default function CatalogClient() {
   // realtime
   useEffect(() => {
     const supabase = getSupabaseClient();
-    if (!supabase) return; // на билде / без env — просто выходим
+    if (!supabase) return;
 
     const ch = supabase
       .channel("public-cars-realtime")
@@ -448,15 +436,13 @@ export default function CatalogClient() {
     return JSON.stringify({ start, end, groups: entries });
   }, [filteredCars, start, end, settingsByOwner]);
 
-  // ========== NEW: debounced grouped fetch effect ==========
+  // debounced grouped fetch
   useEffect(() => {
-    // clear any pending debounce
     if (availabilityDebounceRef.current) {
       window.clearTimeout(availabilityDebounceRef.current);
       availabilityDebounceRef.current = null;
     }
 
-    // if no filtered cars or no dates — clear availabilityState
     if (!filteredCars.length || !start || !end || !bookingsGroupsKey) {
       if (TRACE)
         console.debug("[availability] no bookingsGroupsKey -> clearing state", {
@@ -471,19 +457,14 @@ export default function CatalogClient() {
           (!prev.bookings || prev.bookings.length === 0) &&
           prev.requestId === null;
 
-        if (isEmpty) {
-          // nothing to change — return prev to avoid extra re-render
-          return prev;
-        }
+        if (isEmpty) return prev;
 
-        // otherwise reset to empty state
         return { key: null, loading: false, bookings: [], requestId: null };
       });
 
       return;
     }
 
-    // if key didn't change AND we already have it -> no-op
     if (
       availabilityState.key === bookingsGroupsKey &&
       !availabilityState.loading
@@ -499,12 +480,9 @@ export default function CatalogClient() {
 
     let alive = true;
 
-    // debounce short bursts (100ms)
     availabilityDebounceRef.current = window.setTimeout(() => {
-      // increment requestId
       const reqId = ++availabilityCounterRef.current;
 
-      // set loading state immediately (so UI becomes deterministic)
       setAvailabilityState((s) => ({ ...s, loading: true, requestId: reqId }));
 
       if (TRACE)
@@ -554,7 +532,6 @@ export default function CatalogClient() {
                   return data ?? [];
                 } catch (err) {
                   if (process.env.NODE_ENV !== "production") {
-                    // eslint-disable-next-line no-console
                     console.warn(
                       `[catalog-availability] group fetch failed (buffer=${bufferMinutes}):`,
                       err
@@ -569,9 +546,7 @@ export default function CatalogClient() {
           const results = await Promise.all(promises);
           if (!alive) return;
 
-          // After getting results, check if a newer request started
           setAvailabilityState((prev) => {
-            // if requestId changed meanwhile, ignore applying this
             if (prev.requestId !== reqId) {
               if (TRACE)
                 console.debug("[availability] discard stale response", {
@@ -594,7 +569,6 @@ export default function CatalogClient() {
                 time: Date.now(),
               });
 
-            // apply
             return {
               key: bookingsGroupsKey,
               loading: false,
@@ -604,11 +578,9 @@ export default function CatalogClient() {
           });
         } catch (err) {
           if (!alive) return;
-          // on error: if this request is still current, clear bookings and key so next attempt can run
           setAvailabilityState((prev) => {
             if (prev.requestId !== reqId) return prev;
             if (process.env.NODE_ENV !== "production") {
-              // eslint-disable-next-line no-console
               console.error(
                 "[catalog-availability] grouped fetch failed:",
                 err
@@ -625,7 +597,6 @@ export default function CatalogClient() {
         }
       })();
 
-      // cleanup marker not strictly needed here but keep pattern
       return () => {
         alive = false;
         if (availabilityDebounceRef.current) {
@@ -633,16 +604,14 @@ export default function CatalogClient() {
           availabilityDebounceRef.current = null;
         }
       };
-    }, 100); // debounce 100ms
+    }, 100);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bookingsGroupsKey, filteredCars, start, end, settingsByOwner]);
 
   // финальная фильтрация с учётом настроек owner’а
   const availableCars = useMemo(() => {
-    // если даты не заданы, просто возвращаем фильтрованный список
     if (!start || !end) return filteredCars;
 
-    // если у нас нет сформированного ключа (значит ещё не готовы groups) — считаем, что данные не готовы
     if (!bookingsGroupsKey) {
       if (TRACE)
         console.debug("[availableCars] no bookingsGroupsKey -> returning []", {
@@ -653,7 +622,6 @@ export default function CatalogClient() {
       return [];
     }
 
-    // bookings ready: availabilityState.key matches key and not loading
     const bookingsReady =
       availabilityState.key === bookingsGroupsKey && !availabilityState.loading;
     if (!bookingsReady) {
@@ -673,7 +641,6 @@ export default function CatalogClient() {
       return filteredCars;
     }
 
-    // сгруппуем брони по машине
     const blocking = (availabilityState.bookings ?? []).filter(
       isBlockingBooking
     );
@@ -687,7 +654,6 @@ export default function CatalogClient() {
     const result: CarWithRelations[] = [];
 
     for (const car of filteredCars) {
-      // 1) занятость
       const blocks = byCar[car.id];
       if (blocks?.length) {
         const clash = blocks.some((b) =>
@@ -696,11 +662,9 @@ export default function CatalogClient() {
         if (clash) continue;
       }
 
-      // 2) настройки конкретного владельца
       const ownerId = car.ownerId ? String(car.ownerId) : null;
       const ownerSt = ownerId ? settingsByOwner[ownerId] : null;
 
-      // Если для этой машины ещё не пришли настройки владельца — не показываем её (предотвращаем мигание)
       if (ownerId && !ownerSt) continue;
 
       const openTime =
@@ -802,55 +766,14 @@ export default function CatalogClient() {
     );
   }, [bookingsGroupsKey, availabilityState]);
 
-  useEffect(() => {
-    // условие, при котором мы *бы хотели* показать Empty
-    const wantEmpty =
-      bookingsReady &&
-      availableCars.length === 0 &&
-      // guard: убедимся, что клиент гидрирован и initial fetch завершён
-      hydrated &&
-      isFetched &&
-      // опционально: требуем хотя бы 1 машин в фильтре (если хочешь)
-      filteredCars.length > 0;
+  // === единый флаг для скелетона ===
+  const needsAvailability = Boolean(start && end && filteredCars.length > 0);
 
-    // если хотим показать — ставим таймер, чтобы избежать мигания
-    if (wantEmpty) {
-      if (emptyTimerRef.current) window.clearTimeout(emptyTimerRef.current);
-      // увеличил delay — 350ms (меньше дергания)
-      emptyTimerRef.current = window.setTimeout(() => {
-        setShowEmptyDelayed(true);
-        emptyTimerRef.current = null;
-      }, 350);
-      if (TRACE)
-        console.debug("[ui] scheduled showEmptyDelayed (350ms)", {
-          time: Date.now(),
-        });
-      return;
-    }
+  const availabilityReady = !needsAvailability || bookingsReady;
 
-    // иначе — отменяем таймер и скрываем Empty
-    if (emptyTimerRef.current) {
-      window.clearTimeout(emptyTimerRef.current);
-      emptyTimerRef.current = null;
-      if (TRACE)
-        console.debug("[ui] cancelled empty timer", { time: Date.now() });
-    }
-    setShowEmptyDelayed(false);
+  const carsReady = !carsQ.isLoading && carsQ.isFetched;
 
-    // cleanup
-    return () => {
-      if (emptyTimerRef.current) {
-        window.clearTimeout(emptyTimerRef.current);
-        emptyTimerRef.current = null;
-      }
-    };
-  }, [
-    bookingsReady,
-    availableCars.length,
-    hydrated,
-    isFetched,
-    filteredCars.length,
-  ]);
+  const showSkeleton = !carsReady || !availabilityReady;
 
   // тост — только если реально что-то скрыли
   useEffect(() => {
@@ -873,7 +796,7 @@ export default function CatalogClient() {
     }
   }, [pickerOpen]);
 
-  // календарь теперь ничего не режет
+  // календарь - синк с query
   const handleCalendarChange = (next: {
     startAt: Date | null;
     endAt: Date | null;
@@ -884,37 +807,30 @@ export default function CatalogClient() {
     setStart(startIso);
     setEnd(endIso);
 
-    // сразу синхронизируем URL (замена, чтобы не плодить history)
     updateQuery({ start: startIso || null, end: endIso || null });
   };
 
   const handleChangeCountry = useCallback(
     (nextCountryId: string | null) => {
-      // Быстрая локальная оптимистичная установка, чтобы UI отреагировал
       setCountryId(nextCountryId);
 
-      // Если nextCountryId отсутствует — очистим локально locations/filter сразу
       if (!nextCountryId) {
         setLocations([]);
         setLocationFilter("");
       }
 
-      // Сброс/перезапланирование дебаунса
       if (countryChangeDebounceRef.current) {
         window.clearTimeout(countryChangeDebounceRef.current);
         countryChangeDebounceRef.current = null;
       }
 
-      // Поместим в pending — последний вызов победит
       pendingCountryRef.current = nextCountryId;
 
-      // Планируем единичный updateQuery через небольшой интервал
       countryChangeDebounceRef.current = window.setTimeout(() => {
         const toApply = pendingCountryRef.current;
         pendingCountryRef.current = null;
         countryChangeDebounceRef.current = null;
 
-        // если null -> удаляем country + location из URL
         if (!toApply) {
           setLocations([]);
           setLocationFilter("");
@@ -923,23 +839,17 @@ export default function CatalogClient() {
           return;
         }
 
-        // иначе ставим страну и очищаем параметр location
         setLocationFilter("");
-        // ensure we pass string
         updateQuery({ country: String(toApply), location: null });
         console.debug("[debug] apply country ->", toApply);
-      }, 120); // 120ms — коалесцирует быстрые переключения
+      }, 120);
     },
-    // updateQuery — из useSyncQuery, включим его в зависимости
     [updateQuery]
   );
 
   const handleChangeLocation = useCallback(
     (nextLocation: string) => {
-      // обновляем локальное состояние
       setLocationFilter(nextLocation ?? "");
-
-      // синхронизируем URL — если пустая строка или null -> удаляем param
       updateQuery({ location: nextLocation ? String(nextLocation) : null });
     },
     [updateQuery]
@@ -1092,24 +1002,13 @@ export default function CatalogClient() {
           {/* list */}
           <section className="mx-auto max-w-5xl w-full px-4 pb-10 pt-4 md:pt-10">
             {(() => {
-              const isInitialLoadingCars =
-                !hydrated || (carsQ.isLoading && !carsQ.isFetched);
-
-              const bookingsReady =
-                bookingsGroupsKey !== null &&
-                availabilityState.key === bookingsGroupsKey &&
-                !availabilityState.loading;
-
-              const isAvailabilityPending =
-                hydrated &&
-                start &&
-                end &&
-                filteredCars.length > 0 &&
-                !bookingsReady;
-
-              // 🔹 общий флаг – один скелетон на оба случая
-              const showSkeleton =
-                isInitialLoadingCars || isAvailabilityPending;
+              if (isError) {
+                return (
+                  <InlineError
+                    message={carsQ.error?.message || "Failed to load cars"}
+                  />
+                );
+              }
 
               if (showSkeleton) {
                 const skeletonCount = Math.min(
@@ -1140,11 +1039,7 @@ export default function CatalogClient() {
                           d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
                         />
                       </svg>
-                      <p className="text-xs text-zinc-400">
-                        {isInitialLoadingCars
-                          ? "Loading cars..."
-                          : "Checking availability…"}
-                      </p>
+                      <p className="text-xs text-zinc-400">Loading cars…</p>
                     </div>
 
                     <ul className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
@@ -1167,14 +1062,13 @@ export default function CatalogClient() {
                 );
               }
 
+              // когда есть даты, данные по availability готовы и ничего не подошло
               if (
-                hydrated &&
-                isFetched &&
-                !isFetching &&
-                !availabilityState.loading &&
                 start &&
                 end &&
-                filteredCars.length === 0
+                bookingsReady &&
+                availableCars.length === 0 &&
+                filteredCars.length > 0
               ) {
                 return (
                   <EmptyState
@@ -1184,22 +1078,17 @@ export default function CatalogClient() {
                 );
               }
 
-              if (isError)
-                return (
-                  <InlineError
-                    message={carsQ.error?.message || "Failed to load cars"}
-                  />
-                );
-
-              if (showEmptyDelayed) {
+              // когда вообще нет машин после фильтров, даже без дат
+              if (!start && !end && filteredCars.length === 0 && !isFetching) {
                 return (
                   <EmptyState
-                    title="No car was found matching these filters."
-                    description="Try removing some filters or changing the time."
+                    title="No car was found."
+                    description="Try changing filters."
                   />
                 );
               }
 
+              // нормальный список
               return (
                 <>
                   <ul className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
@@ -1505,8 +1394,6 @@ function BottomStickyBar({
   };
   changePickerStatus: () => void;
 }) {
-  // const startDate = formatDateTimeForLabel(start);
-  // const endDate = formatDateTimeForLabel(end);
   const durationLabel =
     timing.days > 0
       ? `${timing.days}d${timing.restHours ? ` ${timing.restHours}h` : ""}`
@@ -1520,16 +1407,16 @@ function BottomStickyBar({
           ) : (
             <div className="flex items-center leading-tight truncate">
               <div className="flex items-center gap-2">
-                <p>{format(start, "d MMM, HH:mm", { locale: enUS })}</p>
-
-                {/* стрелка — центрируем внутри flex */}
+                <p>
+                  {format(new Date(start), "d MMM, HH:mm", { locale: enUS })}
+                </p>
                 <span
                   aria-hidden
                   className="inline-flex items-center justify-center h-5 w-5 text-sm text-neutral-900 pb-1"
                 >
                   →
                 </span>
-                <p>{format(end, "d MMM, HH:mm", { locale: enUS })}</p>
+                <p>{format(new Date(end), "d MMM, HH:mm", { locale: enUS })}</p>
               </div>
 
               <span className="text-neutral-600 shrink-0 ml-2">
@@ -1576,20 +1463,6 @@ function EmptyState({
   );
 }
 
-// function formatDateTimeForLabel(dt: string) {
-//   if (!dt) return "—";
-//   try {
-//     const d = new Date(dt);
-//     const dd = String(d.getDate()).padStart(2, "0");
-//     const mm = String(d.getMonth() + 1).padStart(2, "0");
-//     const hh = String(d.getHours()).padStart(2, "0");
-//     const min = String(d.getMinutes()).padStart(2, "0");
-//     return `${dd}.${mm}, ${hh}:${min}`;
-//   } catch {
-//     return dt;
-//   }
-// }
-
 function useSyncQuery() {
   const router = useRouter();
   const pathname = usePathname();
@@ -1597,8 +1470,6 @@ function useSyncQuery() {
 
   const updateQuery = useCallback(
     (patch: Record<string, string | null>) => {
-      // Берём актуальные params из useSearchParams (если оно доступно),
-      // иначе — из window.location.search (в fallback-режиме).
       const base =
         typeof window !== "undefined"
           ? searchParams?.toString()
@@ -1616,15 +1487,12 @@ function useSyncQuery() {
       const qs = params.toString();
       const href = qs ? `${pathname}?${qs}` : pathname;
 
-      // Первично пробуем через router.replace (чтобы Next знал о навигации)
       try {
         router.replace(href);
       } catch (err) {
         console.warn("[updateQuery] router.replace failed:", err);
       }
 
-      // Маленький таймаут: если URL в адресной строке не поменялся — делаем прямой history.replaceState
-      // Это гарантирует, что параметр появится в query независимо от гонок.
       setTimeout(() => {
         if (typeof window === "undefined") return;
         const current =

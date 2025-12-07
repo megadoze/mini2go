@@ -11,7 +11,6 @@ import RentalDateTimePicker from "@/components/RentalDateTimePicker";
 import { startOfDay } from "date-fns";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { fetchCarExtras } from "@/services/car.service";
-import { fetchBookingsByCarId } from "@/services/calendar.service";
 import { fetchPricingRules } from "@/services/pricing.service";
 import { getGlobalSettings } from "@/services/settings.service";
 import { CarExtraWithMeta } from "@/types/carExtra";
@@ -221,26 +220,18 @@ export default function ClientCarLanding({
     (async () => {
       setLoadingRemote(true);
       try {
-        const [extrasRes, bookingsRes, pricingRes, globalRes] =
+        const [extrasRes, bookingsJson, pricingRes, globalRes] =
           await Promise.all([
-            typeof fetchCarExtras === "function"
-              ? fetchCarExtras(String(car.id))
-              : fetch(`/api/cars/${car.id}/extras`).then((r) => r.json()),
-            typeof fetchBookingsByCarId === "function"
-              ? fetchBookingsByCarId(String(car.id))
-              : fetch(`/api/cars/${car.id}/bookings`).then((r) => r.json()),
-            typeof fetchPricingRules === "function"
-              ? fetchPricingRules(String(car.id))
-              : fetch(`/api/pricing-rules/${car.id}`).then((r) => r.json()),
-            typeof getGlobalSettings === "function"
-              ? getGlobalSettings(String(car.ownerId))
-              : fetch(`/api/global-settings`)
-                  .then((r) => r.json())
-                  .catch(() => null),
+            fetchCarExtras(String(car.id)),
+            fetch(`/api/car-bookings?carId=${car.id}`).then((r) => r.json()),
+            fetchPricingRules(String(car.id)),
+            getGlobalSettings(String(car.ownerId)),
           ]);
+
         if (cancelled) return;
+
         setExtrasData(normalizeExtras(extrasRes ?? []));
-        setBookingsData(bookingsRes ?? []);
+        setBookingsData(bookingsJson ?? []); // <-- ВАЖНО: сюда уже массив, а не Response
         setPricingRulesData(pricingRes ?? []);
         setGlobalSettings(globalRes ?? null);
       } catch (err) {

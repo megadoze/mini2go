@@ -1035,11 +1035,11 @@ export default function RentalDateTimePicker({
             </div>
           )}
           {tempRange.startAt && disabledIntervals.length > 0 && (
-            <div className="mt-1 text-xs text-gray-700 font-roboto-condensed">
+            <div className="mt-1 text-xs text-gray-700">
               {tempRange.startAt && (
-                <div className="mt-1 text-xs text-gray-700 font-roboto-condensed">
+                <div>
                   {tempRange.startAt && (
-                    <div className="mt-1 text-xs text-gray-700 font-roboto-condensed">
+                    <div>
                       {formatDayHint(
                         "start",
                         tempRange.startAt,
@@ -1087,9 +1087,9 @@ export default function RentalDateTimePicker({
             </div>
           )}
           {tempRange.endAt && disabledIntervals.length > 0 && (
-            <div className="mt-1 text-xs text-gray-700 font-roboto-condensed">
+            <div className="mt-1 text-xs text-gray-700">
               {tempRange.endAt && (
-                <div className="mt-1 text-xs text-gray-700 font-roboto-condensed">
+                <div>
                   {formatDayHint(
                     "end",
                     tempRange.endAt,
