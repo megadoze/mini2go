@@ -6,7 +6,11 @@ import {
   useLocation,
 } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { fetchCalendarWindowByMonthForOwner } from "@/services/calendar-window.service";
+import {
+  fetchCalendarWindowByMonth,
+  type CalendarWindow,
+  type CarWithBookings,
+} from "@/services/calendar-window.service";
 import {
   addMonths,
   eachDayOfInterval,
@@ -36,14 +40,6 @@ import { supabase } from "@/lib/supabase";
 
 /* -------------------- types -------------------- */
 
-// type CarLite = { id: string; name: string };
-type CarLite = {
-  id: string;
-  brand: string | null;
-  model: string | null;
-  license_plate: string | null;
-};
-type CarWithBookings = CarLite & { bookings: Booking[] };
 type LoaderShape = { monthISO?: string };
 
 type RTBooking = Pick<
@@ -74,13 +70,13 @@ const intersectsDay = (booking: Booking, day: Date) => {
   );
 };
 
-export default function CalendarPage() {
+export default function AdminCalendar() {
   const { monthISO: monthFromLoader } = (useLoaderData() as LoaderShape) ?? {};
   const navigate = useNavigate();
   const location = useLocation();
   const qc = useQueryClient();
 
-  const [meId, setMeId] = useState<string | null | undefined>(undefined);
+  // const [meId, setMeId] = useState<string | null | undefined>(undefined);
 
   // управляемый месяц (от лоадера или now)
   const [month, setMonth] = useState<Date>(
@@ -88,31 +84,20 @@ export default function CalendarPage() {
   );
   const monthKeyISO = useMemo(() => startOfMonth(month).toISOString(), [month]);
 
-  useEffect(() => {
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
-      setMeId(s?.user?.id ?? null);
-    });
-    return () => sub.subscription.unsubscribe();
-  }, []);
-
-  type CalendarWindow = {
-    monthISO: string;
-    rangeStart: string;
-    rangeEnd: string;
-    cars: CarWithBookings[];
-  };
+  // useEffect(() => {
+  //   const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
+  //     setMeId(s?.user?.id ?? null);
+  //   });
+  //   return () => sub.subscription.unsubscribe();
+  // }, []);
 
   // читаем окно календаря из кэша/сети (месяц ±1)
   const calQ = useQuery<CalendarWindow, Error>({
-    queryKey: QK.calendarWindow(`${monthKeyISO}-${meId ?? "guest"}`),
-    enabled: meId !== undefined && !!meId,
-    queryFn: () =>
-      fetchCalendarWindowByMonthForOwner(meId as string, monthKeyISO),
-
+    queryKey: QK.calendarWindow(monthKeyISO),
+    queryFn: () => fetchCalendarWindowByMonth(monthKeyISO),
     initialData: qc.getQueryData<CalendarWindow>(
-      QK.calendarWindow(`${monthKeyISO}-${meId ?? "guest"}`)
+      QK.calendarWindow(monthKeyISO)
     ),
-
     staleTime: 60_000,
     refetchOnMount: false,
     refetchOnWindowFocus: false,
@@ -171,10 +156,9 @@ export default function CalendarPage() {
 
   const prefetchMonth = (m: Date) => {
     const iso = startOfMonth(m).toISOString();
-    if (!meId) return;
     void qc.prefetchQuery({
-      queryKey: QK.calendarWindow(`${iso}-${meId}`),
-      queryFn: () => fetchCalendarWindowByMonthForOwner(meId, iso),
+      queryKey: QK.calendarWindow(iso),
+      queryFn: () => fetchCalendarWindowByMonth(iso),
       staleTime: 60_000,
     });
   };
@@ -452,7 +436,7 @@ export default function CalendarPage() {
     const iso = mStart.toISOString();
 
     navigate({
-      pathname: "/calendar",
+      pathname: "/admin/calendar",
       search: `?month=${encodeURIComponent(iso)}`,
     });
 
@@ -490,20 +474,13 @@ export default function CalendarPage() {
     closeCreatePopover();
   };
 
-  // пока не знаем meId — скелет
-  // if (meId === undefined) {
+  // if (meId === null) {
   //   return (
-  //     <div className="p-6 text-sm text-gray-500">Loading…</div>
+  //     <div className="p-6 text-sm text-gray-500">
+  //       Sign in to see your calendar
+  //     </div>
   //   );
   // }
-  // не авторизован
-  if (meId === null) {
-    return (
-      <div className="p-6 text-sm text-gray-500">
-        Sign in to see your calendar
-      </div>
-    );
-  }
 
   /* ---------- bars & rows ---------- */
 
@@ -687,7 +664,7 @@ export default function CalendarPage() {
             ringClass = "focus-visible:ring-lime-400";
           }
 
-          const url = `/bookings/${booking.id}`;
+          const url = `/admin/bookings/${booking.id}`;
 
           return (
             <Link
@@ -946,7 +923,7 @@ export default function CalendarPage() {
             end.setDate(end.getDate() + 1);
 
             navigate(
-              `/bookings/new?carId=${createPopover.carId}` +
+              `/admin/bookings/new?carId=${createPopover.carId}` +
                 `&start=${encodeURIComponent(start.toISOString())}` +
                 `&end=${encodeURIComponent(end.toISOString())}`,
               { state: { from: location.pathname + location.search } }
@@ -1060,7 +1037,7 @@ export default function CalendarPage() {
                 <button
                   className="px-2 py-1 border rounded hover:bg-gray-50"
                   onClick={() => {
-                    const url = `/bookings/${b.id}`;
+                    const url = `/admin/bookings/${b.id}`;
                     navigate(url, {
                       state: {
                         snapshot: {

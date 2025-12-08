@@ -255,7 +255,7 @@ export default function SettingsGlobal() {
   return (
     <main className="mb-4 w-full xl:max-w-2xl">
       <h2 className="font-roboto text-xl md:text-2xl font-medium md:font-bold">
-        Global booking settings
+        Global settings
       </h2>
 
       {/* Currency */}

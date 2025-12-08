@@ -51,28 +51,27 @@ export function AuthenticationForm({
       return;
     }
 
-    if (typeof window !== "undefined" && window.matchMedia) {
-      const mq = window.matchMedia("(prefers-color-scheme: light)");
-      setIsLight(mq.matches);
-
-      const handleChange = (event: MediaQueryListEvent) => {
-        setIsLight(event.matches);
-      };
-
-      if (mq.addEventListener) {
-        mq.addEventListener("change", handleChange);
-        return () => mq.removeEventListener("change", handleChange);
-      } else {
-        // @ts-ignore
-        mq.addListener(handleChange);
-        return () => {
-          // @ts-ignore
-          mq.removeListener(handleChange);
-        };
-      }
-    } else {
+    if (typeof window === "undefined" || !window.matchMedia) {
       setIsLight(false);
+      return;
     }
+
+    const mq = window.matchMedia("(prefers-color-scheme: light)");
+
+    // начальное значение
+    setIsLight(mq.matches);
+
+    // слушатель изменений
+    const handleChange = (event: MediaQueryListEvent) => {
+      setIsLight(event.matches);
+    };
+
+    // современный API
+    mq.addEventListener("change", handleChange);
+
+    return () => {
+      mq.removeEventListener("change", handleChange);
+    };
   }, [themeMode]);
 
   function cycleThemeMode() {
@@ -129,6 +128,7 @@ export function AuthenticationForm({
       }
     } catch (err: any) {
       setAuthError(err.message || "Auth failed");
+    } finally {
       setSubmitting(false);
     }
   }

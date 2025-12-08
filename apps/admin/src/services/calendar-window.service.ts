@@ -44,7 +44,9 @@ export async function fetchCalendarWindowByMonthForOwner(
   const lite: CarLite[] =
     (cars ?? []).map((c: any) => {
       const model = Array.isArray(c.models) ? c.models[0] : c.models;
-      const brand = Array.isArray(model?.brands) ? model.brands[0] : model?.brands;
+      const brand = Array.isArray(model?.brands)
+        ? model.brands[0]
+        : model?.brands;
       return {
         id: c.id,
         brand: brand?.name ?? null,
@@ -54,7 +56,12 @@ export async function fetchCalendarWindowByMonthForOwner(
     }) ?? [];
 
   if (lite.length === 0) {
-    return { monthISO: monthStart.toISOString(), rangeStart: from, rangeEnd: to, cars: [] };
+    return {
+      monthISO: monthStart.toISOString(),
+      rangeStart: from,
+      rangeEnd: to,
+      cars: [],
+    };
   }
 
   // 2) брони для этих машин, которые ПЕРЕСЕКАЮТ окно [from, to]

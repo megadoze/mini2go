@@ -52,6 +52,8 @@ import AdminGate from "./components/auth/adminGate";
 import AdminUsers from "./app/admin/adminUsers";
 import { usersAdminLoader } from "./routes/usersAdminLoader";
 import AdminBookings from "./app/admin/adminBookings";
+import AdminCalendar from "./app/admin/adminCalendar";
+import AdminSettings from "./app/admin/adminSettings";
 
 export const router = createBrowserRouter([
   { path: "/auth", element: <AuthenticationPage /> },
@@ -163,7 +165,7 @@ export const router = createBrowserRouter([
       { index: true, element: <Dashboard /> },
 
       { path: "dashboard", element: <Dashboard /> },
-      { path: "calendar", element: <CalendarPage /> },
+      { path: "calendar", element: <AdminCalendar /> },
       { path: "cars", loader: carsAdminLoader, element: <AdminCarsList /> },
       { path: "cars/:carId", element: <AdminCarPage /> },
       {
@@ -181,8 +183,8 @@ export const router = createBrowserRouter([
       { path: "users/:userId", element: <UserPage /> },
       {
         path: "settings",
-        loader: settingsGlobalLoader,
-        element: <SettingsGlobal />,
+        // loader: settingsGlobalLoader,
+        element: <AdminSettings />,
       },
     ],
   },
