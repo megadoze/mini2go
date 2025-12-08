@@ -72,8 +72,6 @@ export default function UsersPage() {
     ownerId: null,
   };
 
-  console.log(ownerId);
-
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [sortBy, setSortBy] = useState<SortKey>("name");

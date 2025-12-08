@@ -22,7 +22,7 @@ export async function fetchBookingsIntersectingRange(
   const { data, error } = await supabase
     .from("bookings")
     .select(
-      "id, start_at, end_at, mark, status, car_id, user_id, price_total, created_at"
+      "id, start_at, end_at, mark, status, car_id, user_id, price_total, delivery_lat, delivery_long, created_at"
     )
     .in("car_id", carIds)
     .lte("start_at", toISO)

@@ -447,10 +447,15 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
     (snapshot?.booking?.delivery_address as string) ?? ""
   );
   const [deliveryLat, setDeliveryLat] = useState<number | null>(
-    (snapshot?.booking?.delivery_lat as number) ?? null
+    ((snapshot?.booking?.delivery_lat as number) ||
+      (location?.state?.delivery_lat as number)) ??
+      null
   );
+
   const [deliveryLong, setDeliveryLong] = useState<number | null>(
-    (snapshot?.booking?.delivery_long as number) ?? null
+    ((snapshot?.booking?.delivery_long as number) ||
+      (location?.state?.delivery_long as number)) ??
+      null
   );
 
   const [deliveryCountry, setDeliveryCountry] = useState<string>(
@@ -474,6 +479,21 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
     pitch: 0,
     padding: { top: 0, bottom: 0, left: 0, right: 0 },
   });
+
+  useEffect(() => {
+    if (
+      delivery === "by_address" &&
+      deliveryLat != null &&
+      deliveryLong != null
+    ) {
+      setMapView((prev) => ({
+        ...prev,
+        latitude: deliveryLat,
+        longitude: deliveryLong,
+        zoom: Math.max(prev.zoom, 14),
+      }));
+    }
+  }, [delivery, deliveryLat, deliveryLong]);
 
   const mapRef = useRef<MapRef | null>(null);
 
@@ -1518,6 +1538,11 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
     now.getTime(),
   ]);
 
+  useEffect(() => {
+    if (!error) return;
+    toast.error(error);
+  }, [error]);
+
   const statusView = useMemo(() => {
     const s = status;
     if (s === "rent") return { text: s, cls: "green" };
@@ -1588,11 +1613,6 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
     "rounded-2xl bg-white shadow-sm ring-1 ring-gray-200 px-4 py-4 sm:px-5 sm:py-5";
 
   if (isLoading) return <div className="p-4">Loading…</div>;
-
-  if (error) {
-    // покажем тост для любой ошибки
-    toast.error(error);
-  }
 
   return (
     <div className={`text-gray-800 max-w-4xl ${containerPad}`}>

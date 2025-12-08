@@ -128,7 +128,7 @@ export default function HostLayout() {
         <Burger opened={opened} onClick={toggle} hiddenFrom="md" size="sm" />
 
         <div className="hidden lg:block">
-          <UserMenu onClick={toggle} />
+          <UserMenu onClick={toggle} variant="host" />
         </div>
       </AppShell.Header>
 
@@ -165,7 +165,7 @@ export default function HostLayout() {
           </div>
           <SidebarMenu />
           <div className="lg:hidden fixed left-7 right-7 bottom-4 text-black/80 border border-white/80 rounded-xl">
-            <UserMenu onClick={toggle} />
+            <UserMenu onClick={toggle} variant="host" />
           </div>
         </Drawer>
       )}

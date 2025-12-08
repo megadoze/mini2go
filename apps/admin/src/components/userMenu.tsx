@@ -15,7 +15,7 @@ import { useIsHost } from "@/hooks/useIsHost";
 
 type Props = {
   onClick: () => void;
-  variant?: "user" | "admin";
+  variant?: "user" | "host" | "admin";
 };
 
 type ProfileRow = { full_name: string | null; avatar_url: string | null };
@@ -310,14 +310,17 @@ function UserMenu({ onClick, variant = "user" }: Props) {
             >
               Profile
             </Menu.Item>
-            <Menu.Item
-              id="host"
-              leftSection={<RocketLaunchIcon className="size-4" />}
-              onClick={handleMenuClick}
-              disabled={hostLoading}
-            >
-              {hostLoading ? "…" : isHost ? "Host" : "Become a host"}
-            </Menu.Item>
+            {variant !== "host" && (
+              <Menu.Item
+                id="host"
+                leftSection={<RocketLaunchIcon className="size-4" />}
+                onClick={handleMenuClick}
+                disabled={hostLoading}
+              >
+                {hostLoading ? "…" : isHost ? "Host" : "Become a host"}
+              </Menu.Item>
+            )}
+
             <Menu.Item
               id="messages"
               leftSection={<ChatBubbleOvalLeftIcon className="size-4" />}

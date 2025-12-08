@@ -1029,6 +1029,7 @@ export default function DashboardPage() {
               <TableCard title="Upcoming bookings">
                 {(() => {
                   const list = upcoming;
+
                   return list.length === 0 ? (
                     <div className="py-6 text-center text-zinc-500 text-sm">
                       No entries
