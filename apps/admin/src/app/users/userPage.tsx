@@ -86,7 +86,8 @@ export const UserPage = () => {
 
   const bookingsOwnerId = currentIsAdmin ? undefined : ownerId ?? undefined;
 
-  // const isAdmin = rootData?.isAdmin ?? false;
+  const isAdmin = rootData?.isAdmin ?? false;
+
   // const isHost = rootData?.isHost ?? false;
 
   // Если нужно явно различать “админ” и “хост”:
@@ -643,7 +644,7 @@ export const UserPage = () => {
                 Recent bookings
               </h3>
               <Link
-                to={`/bookings?userId=${primed.id}`}
+                to={`/${isAdmin ? "admin/" : ""}bookings?userId=${primed.id}`}
                 className="text-sm text-gray-600 hover:text-gray-900"
               >
                 View all
@@ -675,12 +676,15 @@ export const UserPage = () => {
                         key={b.id}
                         role="button"
                         onClick={() =>
-                          navigate(`/bookings/${b.id}`, {
-                            state: {
-                              carId: b.car?.id || b.car_id,
-                              from: location.pathname,
-                            },
-                          })
+                          navigate(
+                            `/${isAdmin ? "admin/" : ""}bookings/${b.id}`,
+                            {
+                              state: {
+                                carId: b.car?.id || b.car_id,
+                                from: location.pathname,
+                              },
+                            }
+                          )
                         }
                         className="group flex items-center justify-between gap-3 rounded-xl border border-gray-100 bg-white/60 px-3 py-2 hover:bg-gray-50 cursor-pointer"
                       >
