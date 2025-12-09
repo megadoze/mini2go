@@ -1,5 +1,6 @@
 // src/app/dashboard/DashboardPage.tsx
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Link, useLoaderData } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import {
@@ -41,14 +42,13 @@ import {
   addWeeks,
   addMonths,
 } from "date-fns";
-
-import { fetchCarsByHost } from "@/services/car.service";
+import { fetchCarsForAdmin } from "@/services/car.service";
 import type { CarWithRelations } from "@/types/carWithRelations";
-import { Link, useLoaderData } from "react-router";
 import {
   fetchBookingsIntersectingRange,
   fetchBookingsSince,
 } from "@/services/booking-lite.service";
+import { toast } from "sonner";
 
 /* =================== types & helpers =================== */
 
@@ -184,27 +184,29 @@ function getStatusGroup(row: BookingRow): StatusGroup {
 
 /* =================== main component =================== */
 
-export default function DashboardPage() {
+export default function AdminDashboard() {
   const qc = useQueryClient();
 
-  const { ownerId: ownerIdFromLoader } =
-    (useLoaderData() as { ownerId: string }) ?? {};
-  const ownerId = ownerIdFromLoader; // единственный источник
+  const loaderData = useLoaderData() as
+    | { fromISO: string; toISO: string }
+    | undefined;
 
   type RangeV = [Date | string | null, Date | string | null];
 
-  const now = new Date();
-  const initialFrom = startOfMonth(now);
-  const initialTo = endOfMonth(now);
-
-  const [range, setRange] = useState<RangeV>([initialFrom, initialTo]);
+  const [range, setRange] = useState<RangeV>(() => {
+    if (loaderData?.fromISO && loaderData?.toISO) {
+      return [parseISO(loaderData.fromISO), parseISO(loaderData.toISO)];
+    }
+    const now = new Date();
+    return [startOfMonth(now), endOfMonth(now)];
+  });
 
   const [fromSel, toSel] = range;
 
   const fromDate = safeDate(fromSel, startOfMonth(new Date()));
-  const toDate = safeDate(toSel, new Date());
+  const toDate = safeDate(toSel, endOfMonth(new Date()));
   const fromISO = safeISOStart(fromSel, startOfMonth(new Date()));
-  const toISO = safeISOEnd(toSel, new Date());
+  const toISO = safeISOEnd(toSel, endOfMonth(new Date()));
 
   const [carId, setCarId] = useState<string>("all");
   const [status, setStatus] = useState<"all" | StatusGroup>("all");
@@ -215,10 +217,15 @@ export default function DashboardPage() {
   /* -------------------- queries -------------------- */
 
   const carsQ = useQuery<CarWithRelations[], Error>({
-    queryKey: ["carsByHost", ownerId],
-    queryFn: () => fetchCarsByHost(ownerId),
-    initialData: qc.getQueryData<CarWithRelations[]>(["carsByHost", ownerId]),
-    enabled: !!ownerId,
+    queryKey: ["adminCars"],
+    queryFn: async () => {
+      const res = await fetchCarsForAdmin();
+      return res;
+    },
+    initialData: () => {
+      const cached = qc.getQueryData<CarWithRelations[]>(["adminCars"]);
+      return cached;
+    },
     staleTime: 24 * 60 * 60 * 1000,
     gcTime: 7 * 24 * 60 * 60 * 1000,
     refetchOnMount: false,
@@ -229,26 +236,23 @@ export default function DashboardPage() {
   });
 
   const cars = carsQ.data ?? [];
-
   const carIds = useMemo(() => cars.map((c) => c.id!).filter(Boolean), [cars]);
 
   // Выбранный период — для таблиц/аналитики
   const bookingsQ = useQuery<BookingRow[], Error>({
-    queryKey: ["dashboardBookings", ownerId, "range", fromISO, toISO],
-    queryFn: () => fetchBookingsIntersectingRange(carIds, fromISO, toISO),
+    queryKey: ["dashboardBookings", "admin", "range", fromISO, toISO],
+    queryFn: async () => {
+      const res = await fetchBookingsIntersectingRange(carIds, fromISO, toISO);
+      return res;
+    },
     initialData: () => {
       const cached = qc.getQueryData<BookingRow[]>([
         "dashboardBookings",
-        ownerId,
+        "admin",
         "range",
         fromISO,
         toISO,
       ]);
-      console.log(
-        "[HostDashboard] bookingsQ.initialData from cache:",
-        !!cached,
-        { fromISO, toISO }
-      );
       return cached;
     },
     enabled: carIds.length > 0,
@@ -259,15 +263,24 @@ export default function DashboardPage() {
     placeholderData: (prev) => prev,
   });
 
+  useEffect(() => {
+    if (carsQ.error) toast.error(carsQ.error.message);
+  }, [carsQ.error]);
+
+  useEffect(() => {
+    if (bookingsQ.error) toast.error(bookingsQ.error.message);
+  }, [bookingsQ.error]);
+
   // "Сейчас" — отдельная выборка, чтобы KPI не зависел от диапазона
   const nowRef = useRef<string>(new Date().toISOString());
+
   const bookingsNowQ = useQuery<BookingRow[], Error>({
-    queryKey: ["dashboardBookings", ownerId, "now"],
+    queryKey: ["dashboardBookings", "admin", "now"],
     queryFn: () =>
       fetchBookingsIntersectingRange(carIds, nowRef.current, nowRef.current),
     initialData: qc.getQueryData<BookingRow[]>([
       "dashboardBookings",
-      ownerId,
+      "admin",
       "now",
     ]),
     enabled: carIds.length > 0,
@@ -280,13 +293,14 @@ export default function DashboardPage() {
 
   // 6 месяцев — для тренда выручки
   const sixStart = startOfMonth(subMonths(new Date(), 5));
+
   const bookings6mQ = useQuery<BookingRow[], Error>({
-    queryKey: ["dashboardBookings", ownerId, "last6m"],
+    queryKey: ["dashboardBookings", "admin", "last6m"],
     queryFn: () =>
       fetchBookingsSince(carIds, startOfDay(sixStart).toISOString()),
     initialData: qc.getQueryData<BookingRow[]>([
       "dashboardBookings",
-      ownerId,
+      "admin",
       "last6m",
     ]),
     enabled: carIds.length > 0,
@@ -625,6 +639,12 @@ export default function DashboardPage() {
       .sort((a, b) => b.count - a.count)
       .slice(0, 5);
   }, [filtered, carsById]);
+
+  // const loading =
+  //   carsQ.isLoading ||
+  //   bookingsQ.isLoading ||
+  //   bookings6mQ.isLoading ||
+  //   bookingsNowQ.isLoading;
 
   /* -------------------- presets / reset -------------------- */
 

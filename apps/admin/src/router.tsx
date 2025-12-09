@@ -54,6 +54,8 @@ import { usersAdminLoader } from "./routes/usersAdminLoader";
 import AdminBookings from "./app/admin/adminBookings";
 import AdminCalendar from "./app/admin/adminCalendar";
 import AdminSettings from "./app/admin/adminSettings";
+import AdminDashboard from "./app/admin/adminDashboard";
+import { adminDashboardLoader } from "./routes/adminDashboard.loader";
 
 export const router = createBrowserRouter([
   { path: "/auth", element: <AuthenticationPage /> },
@@ -133,7 +135,10 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <Navigate to="profile" replace /> },
       { path: "profile", element: <UserProfile /> },
-      { path: "dashboard", element: <UserDashboard /> },
+      {
+        path: "dashboard",
+        element: <UserDashboard />,
+      },
       {
         id: "userBookings",
         path: "bookings",
@@ -164,7 +169,11 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <Dashboard /> },
 
-      { path: "dashboard", element: <Dashboard /> },
+      {
+        path: "dashboard",
+        loader: adminDashboardLoader,
+        element: <AdminDashboard />,
+      },
       { path: "calendar", element: <AdminCalendar /> },
       { path: "cars", loader: carsAdminLoader, element: <AdminCarsList /> },
       { path: "cars/:carId", element: <AdminCarPage /> },

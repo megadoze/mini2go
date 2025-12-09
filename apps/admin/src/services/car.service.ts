@@ -258,6 +258,17 @@ export async function fetchModelsByBrand(brandId: string) {
   return data;
 }
 
+export async function fetchCarsForAdmin(): Promise<CarWithRelations[]> {
+  const { data, error } = await supabase
+    .from("cars")
+    .select(CARS_BASE_SELECT)
+    .throwOnError();
+
+  if (error) throw error;
+  if (!data) return [];
+  return data.map(mapCarRow);
+}
+
 export async function fetchCarsPage(opts: {
   limit: number;
   offset: number;
