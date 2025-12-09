@@ -76,8 +76,6 @@ export default function AdminCalendar() {
   const location = useLocation();
   const qc = useQueryClient();
 
-  // const [meId, setMeId] = useState<string | null | undefined>(undefined);
-
   // управляемый месяц (от лоадера или now)
   const [month, setMonth] = useState<Date>(
     startOfMonth(new Date(monthFromLoader ?? new Date().toISOString()))

@@ -9,19 +9,21 @@ export const adminCalendarLoader: LoaderFunction = async ({ request }) => {
   const url = new URL(request.url);
   const monthParam = url.searchParams.get("month");
 
+  // базовый месяц: либо из query, либо текущий
   const baseMonth = monthParam
     ? startOfMonth(parseISO(monthParam))
     : startOfMonth(new Date());
 
   const monthISO = baseMonth.toISOString();
 
-  const window = await queryClient.ensureQueryData({
+  // основное окно (месяц ±1) — твоя fetchCalendarWindowByMonth уже этим занимается
+  await queryClient.ensureQueryData({
     queryKey: QK.calendarWindow(monthISO),
     queryFn: () => fetchCalendarWindowByMonth(monthISO),
     staleTime: 60_000,
   });
 
-  // префетч соседей — как было
+  // опционально: заранее прогреем соседние месяцы для плавной навигации Prev/Next
   const prevISO = startOfMonth(addMonths(baseMonth, -1)).toISOString();
   const nextISO = startOfMonth(addMonths(baseMonth, 1)).toISOString();
 
@@ -37,5 +39,5 @@ export const adminCalendarLoader: LoaderFunction = async ({ request }) => {
     staleTime: 60_000,
   });
 
-  return { monthISO, window };
+  return { monthISO };
 };
