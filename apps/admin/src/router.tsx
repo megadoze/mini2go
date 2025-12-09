@@ -53,7 +53,7 @@ import AdminUsers from "./app/admin/adminUsers";
 import { usersAdminLoader } from "./routes/usersAdminLoader";
 import AdminBookings from "./app/admin/adminBookings";
 import AdminCalendar from "./app/admin/adminCalendar";
-import AdminSettings from "./app/admin/adminSettings";
+// import AdminSettings from "./app/admin/adminSettings";
 import AdminDashboard from "./app/admin/adminDashboard";
 import { adminDashboardLoader } from "./routes/adminDashboard.loader";
 import { adminCalendarLoader } from "./routes/adminCalendar.loader";
@@ -195,11 +195,11 @@ export const router = createBrowserRouter([
         element: <AdminUsers />,
       },
       { path: "users/:userId", element: <UserPage /> },
-      {
-        path: "settings",
-        // loader: settingsGlobalLoader,
-        element: <AdminSettings />,
-      },
+      // {
+      //   path: "settings",
+      //   // loader: settingsGlobalLoader,
+      //   element: <AdminSettings />,
+      // },
     ],
   },
   {
@@ -233,5 +233,9 @@ export const router = createBrowserRouter([
       { path: "location/delivery", element: <Delivery /> },
       { path: "settings", element: <Settings /> },
     ],
+  },
+  {
+    path: "*",
+    element: <Navigate to="/dashboard" replace />,
   },
 ]);

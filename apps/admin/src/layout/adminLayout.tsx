@@ -2,7 +2,7 @@ import { AppShell, Burger, Drawer } from "@mantine/core";
 import { useDisclosure, useMediaQuery } from "@mantine/hooks";
 import { NavLink, Outlet } from "react-router-dom";
 import {
-  AdjustmentsHorizontalIcon,
+  // AdjustmentsHorizontalIcon,
   CalendarDaysIcon,
   ChartBarSquareIcon,
   RocketLaunchIcon,
@@ -54,12 +54,12 @@ export default function AdminLayout() {
       label: "Users",
       onClick: toggle,
     },
-    {
-      to: "settings",
-      icon: <AdjustmentsHorizontalIcon className="size-5" />,
-      label: "Settings",
-      onClick: toggle,
-    },
+    // {
+    //   to: "settings",
+    //   icon: <AdjustmentsHorizontalIcon className="size-5" />,
+    //   label: "Settings",
+    //   onClick: toggle,
+    // },
   ];
 
   const SidebarMenu = () => {
