@@ -29,7 +29,7 @@ import {
 } from "date-fns";
 import { Badge } from "@mantine/core";
 import { getUserById } from "@/services/user.service";
-import { ShareIcon } from "@heroicons/react/24/outline";
+import { ArrowLeftIcon, ShareIcon } from "@heroicons/react/24/outline";
 import { subscribeBooking } from "@/services/bookings.service";
 import { QK } from "@/queryKeys";
 import RentalDateTimePicker from "@/components/RentalDateTimePicker";
@@ -1616,6 +1616,16 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
 
   return (
     <div className={`text-gray-800 max-w-4xl ${containerPad}`}>
+      {/* back */}
+      <div className="mb-3">
+        <button
+          onClick={() => navigate(-1)}
+          className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900"
+        >
+          <ArrowLeftIcon className="w-4 h-4" />
+          <span className="inline">Back</span>
+        </button>
+      </div>
       {/* Header */}
       <header className="mb-6 rounded-2xl bg-white shadow-sm ring-1 ring-gray-200 px-4 py-4 sm:px-6 sm:py-5">
         <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
