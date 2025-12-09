@@ -36,7 +36,7 @@ import { supabase } from "@/lib/supabase";
 
 /* -------------------- types -------------------- */
 
-type LoaderShape = { monthISO?: string; meId?: string | null };
+// type LoaderShape = { monthISO?: string; meId?: string | null };
 
 type CalendarWindow = {
   monthISO: string;
@@ -83,32 +83,23 @@ const intersectsDay = (booking: Booking, day: Date) => {
 };
 
 export default function CalendarPage() {
-  const { monthISO: monthFromLoader, meId } =
-    (useLoaderData() as LoaderShape) ?? {};
+  const { monthISO: monthFromLoader, meId } = useLoaderData();
 
   const navigate = useNavigate();
   const location = useLocation();
   const qc = useQueryClient();
 
-  // управляемый месяц (от лоадера или now)
-  const [month, setMonth] = useState<Date>(
-    startOfMonth(new Date(monthFromLoader ?? new Date().toISOString()))
-  );
-  const monthKeyISO = useMemo(() => startOfMonth(month).toISOString(), [month]);
+  const [month, setMonth] = useState(() => parseISO(monthFromLoader));
+
+  const monthISO = month.toISOString();
+  const queryKey = QK.calendarWindow(`${monthISO}-${meId}`);
 
   // читаем окно календаря из кэша/сети (месяц ±1)
   const calQ = useQuery<CalendarWindow, Error>({
-    queryKey: QK.calendarWindow(`${monthKeyISO}-${meId}`),
+    queryKey,
     enabled: !!meId,
-    queryFn: () =>
-      fetchCalendarWindowByMonthForOwner(meId as string, monthKeyISO),
-
-    initialData: meId
-      ? qc.getQueryData<CalendarWindow>(
-          QK.calendarWindow(`${monthKeyISO}-${meId}`)
-        )
-      : undefined,
-
+    queryFn: () => fetchCalendarWindowByMonthForOwner(meId as string, monthISO),
+    initialData: () => qc.getQueryData(queryKey),
     staleTime: 60_000,
     refetchOnMount: false,
     refetchOnWindowFocus: false,
