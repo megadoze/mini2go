@@ -640,12 +640,6 @@ export default function AdminDashboard() {
       .slice(0, 5);
   }, [filtered, carsById]);
 
-  // const loading =
-  //   carsQ.isLoading ||
-  //   bookingsQ.isLoading ||
-  //   bookings6mQ.isLoading ||
-  //   bookingsNowQ.isLoading;
-
   /* -------------------- presets / reset -------------------- */
 
   const applyPreset = (
@@ -734,17 +728,6 @@ export default function AdminDashboard() {
           ))}
         </div>
       </div>
-
-      {/* Mobile search */}
-      {/* <div className="relative w-full sm:hidden">
-        <MagnifyingGlassIcon className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-zinc-500" />
-        <TextInput
-          placeholder="Search (ID, car)"
-          value={q}
-          onChange={(e) => setQ(e.currentTarget.value)}
-          className="w-full rounded-xl bg-white/60 shadow-sm pl-9 pr-3 py-2 text-sm hover:bg-white/80 focus:ring-2 focus:ring-black/10"
-        />
-      </div> */}
 
       {/* Mobile Filters */}
       <div className="lg:hidden">
@@ -1002,7 +985,7 @@ export default function AdminDashboard() {
                     <div role="rowgroup" className="mt-2 space-y-2">
                       {activeNowRows.map((b) => (
                         <Link
-                          to={`/bookings/${b.id}`}
+                          to={`/admin/bookings/${b.id}`}
                           state={b}
                           key={b.id}
                           role="row"
@@ -1051,7 +1034,7 @@ export default function AdminDashboard() {
                     <div role="rowgroup" className="mt-2 space-y-2">
                       {endingSoonRows.map((b) => (
                         <Link
-                          to={`/bookings/${b.id}`}
+                          to={`/admin/bookings/${b.id}`}
                           state={b}
                           key={b.id}
                           role="row"
@@ -1104,7 +1087,7 @@ export default function AdminDashboard() {
                       <div role="rowgroup" className="mt-2 space-y-2">
                         {list.map((b) => (
                           <Link
-                            to={`/bookings/${b.id}`}
+                            to={`/admin/bookings/${b.id}`}
                             state={b}
                             key={b.id}
                             role="row"
@@ -1153,7 +1136,7 @@ export default function AdminDashboard() {
                     <div role="rowgroup" className="mt-2 space-y-2">
                       {overdue.map((b) => (
                         <Link
-                          to={`/bookings/${b.id}`}
+                          to={`/admin/bookings/${b.id}`}
                           state={b}
                           key={b.id}
                           role="row"
