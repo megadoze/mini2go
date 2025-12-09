@@ -36,6 +36,15 @@ import { supabase } from "@/lib/supabase";
 
 /* -------------------- types -------------------- */
 
+type LoaderShape = { monthISO?: string; meId?: string | null };
+
+type CalendarWindow = {
+  monthISO: string;
+  rangeStart: string;
+  rangeEnd: string;
+  cars: CarWithBookings[];
+};
+
 // type CarLite = { id: string; name: string };
 type CarLite = {
   id: string;
@@ -44,7 +53,6 @@ type CarLite = {
   license_plate: string | null;
 };
 type CarWithBookings = CarLite & { bookings: Booking[] };
-type LoaderShape = { monthISO?: string };
 
 type RTBooking = Pick<
   Booking,
@@ -75,12 +83,12 @@ const intersectsDay = (booking: Booking, day: Date) => {
 };
 
 export default function CalendarPage() {
-  const { monthISO: monthFromLoader } = (useLoaderData() as LoaderShape) ?? {};
+  const { monthISO: monthFromLoader, meId } =
+    (useLoaderData() as LoaderShape) ?? {};
+
   const navigate = useNavigate();
   const location = useLocation();
   const qc = useQueryClient();
-
-  const [meId, setMeId] = useState<string | null | undefined>(undefined);
 
   // управляемый месяц (от лоадера или now)
   const [month, setMonth] = useState<Date>(
@@ -88,30 +96,18 @@ export default function CalendarPage() {
   );
   const monthKeyISO = useMemo(() => startOfMonth(month).toISOString(), [month]);
 
-  useEffect(() => {
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
-      setMeId(s?.user?.id ?? null);
-    });
-    return () => sub.subscription.unsubscribe();
-  }, []);
-
-  type CalendarWindow = {
-    monthISO: string;
-    rangeStart: string;
-    rangeEnd: string;
-    cars: CarWithBookings[];
-  };
-
   // читаем окно календаря из кэша/сети (месяц ±1)
   const calQ = useQuery<CalendarWindow, Error>({
-    queryKey: QK.calendarWindow(`${monthKeyISO}-${meId ?? "guest"}`),
-    enabled: meId !== undefined && !!meId,
+    queryKey: QK.calendarWindow(`${monthKeyISO}-${meId}`),
+    enabled: !!meId,
     queryFn: () =>
       fetchCalendarWindowByMonthForOwner(meId as string, monthKeyISO),
 
-    initialData: qc.getQueryData<CalendarWindow>(
-      QK.calendarWindow(`${monthKeyISO}-${meId ?? "guest"}`)
-    ),
+    initialData: meId
+      ? qc.getQueryData<CalendarWindow>(
+          QK.calendarWindow(`${monthKeyISO}-${meId}`)
+        )
+      : undefined,
 
     staleTime: 60_000,
     refetchOnMount: false,
@@ -490,12 +486,6 @@ export default function CalendarPage() {
     closeCreatePopover();
   };
 
-  // пока не знаем meId — скелет
-  // if (meId === undefined) {
-  //   return (
-  //     <div className="p-6 text-sm text-gray-500">Loading…</div>
-  //   );
-  // }
   // не авторизован
   if (meId === null) {
     return (
