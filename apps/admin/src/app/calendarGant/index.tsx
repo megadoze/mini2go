@@ -36,8 +36,6 @@ import { supabase } from "@/lib/supabase";
 
 /* -------------------- types -------------------- */
 
-// type LoaderShape = { monthISO?: string; meId?: string | null };
-
 type CalendarWindow = {
   monthISO: string;
   rangeStart: string;
@@ -83,38 +81,30 @@ const intersectsDay = (booking: Booking, day: Date) => {
 };
 
 export default function CalendarPage() {
-  const { monthISO: monthFromLoader } = useLoaderData();
+  const { monthISO: monthFromLoader, ownerId } = useLoaderData() as {
+    monthISO: string;
+    ownerId: string;
+  };
 
   const navigate = useNavigate();
   const location = useLocation();
   const qc = useQueryClient();
 
-  const { ownerId: ownerIdFromLoader } =
-    (useLoaderData() as { ownerId: string }) ?? {};
-  const ownerId = ownerIdFromLoader; // единственный источник
-
   const [month, setMonth] = useState(() => parseISO(monthFromLoader));
 
   const monthISO = month.toISOString();
-  const queryKey = QK.calendarWindow(`${monthISO}`);
+  const queryKey = QK.calendarWindow(ownerId, monthISO);
 
   // читаем окно календаря из кэша/сети (месяц ±1)
   const calQ = useQuery<CalendarWindow, Error>({
     queryKey,
-    queryFn: () =>
-      fetchCalendarWindowByMonthForOwner(ownerId as string, monthISO),
-    // enabled: !!ownerId,
-    // initialData: () => qc.getQueryData(queryKey),
-    // staleTime: 60_000,
-    // refetchOnMount: false,
-    // refetchOnWindowFocus: false,
-    // placeholderData: (prev) => prev,
+    queryFn: () => fetchCalendarWindowByMonthForOwner(ownerId, monthISO),
     enabled: !!ownerId,
-    staleTime: 24 * 60 * 60 * 1000,
-    gcTime: 7 * 24 * 60 * 60 * 1000,
-    refetchOnMount: false,
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
+    staleTime: 60 * 60 * 1000,
+    gcTime: 4 * 60 * 60 * 1000,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
     retry: 1,
     placeholderData: (prev) => prev,
   });
@@ -173,7 +163,7 @@ export default function CalendarPage() {
     const iso = startOfMonth(m).toISOString();
     if (!ownerId) return;
     void qc.prefetchQuery({
-      queryKey: QK.calendarWindow(`${iso}`),
+      queryKey: QK.calendarWindow(ownerId, iso),
       queryFn: () => fetchCalendarWindowByMonthForOwner(ownerId, iso),
       staleTime: 60_000,
     });

@@ -18,7 +18,7 @@ export const adminCalendarLoader: LoaderFunction = async ({ request }) => {
 
   // основное окно (месяц ±1)
   await queryClient.ensureQueryData({
-    queryKey: QK.calendarWindow(monthISO),
+    queryKey: QK.calendarWindowAdmin(monthISO),
     queryFn: () => fetchCalendarWindowByMonth(monthISO),
     staleTime: 60_000,
   });
@@ -28,13 +28,13 @@ export const adminCalendarLoader: LoaderFunction = async ({ request }) => {
   const nextISO = startOfMonth(addMonths(baseMonth, 1)).toISOString();
 
   void queryClient.prefetchQuery({
-    queryKey: QK.calendarWindow(prevISO),
+    queryKey: QK.calendarWindowAdmin(prevISO),
     queryFn: () => fetchCalendarWindowByMonth(prevISO),
     staleTime: 60_000,
   });
 
   void queryClient.prefetchQuery({
-    queryKey: QK.calendarWindow(nextISO),
+    queryKey: QK.calendarWindowAdmin(nextISO),
     queryFn: () => fetchCalendarWindowByMonth(nextISO),
     staleTime: 60_000,
   });

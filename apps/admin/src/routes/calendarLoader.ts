@@ -25,37 +25,26 @@ export const calendarLoader: LoaderFunction = async ({ request }) => {
 
   const monthISO = baseMonth.toISOString();
 
-  // берём текущего юзера у клиента (SPA-лоадер, можно использовать supabase-js)
-  // const {
-  //   data: { user },
-  // } = await supabase.auth.getUser();
-
-  // const ownerId = user?.id ?? null;
-
-  // // если юзера нет — просто вернём monthISO, компонент сам покажет "Sign in..."
-  // if (!ownerId) {
-  //   return { monthISO, meId: null };
-  // }
-
-  // основное окно для owner-а
-  await queryClient.ensureQueryData({
-    queryKey: QK.calendarWindow(`${monthISO}`),
-    queryFn: () => fetchCalendarWindowByMonthForOwner(ownerId, monthISO),
-    staleTime: 60_000,
-  });
-
   // прогреем соседние месяцы
   const prevISO = startOfMonth(addMonths(baseMonth, -1)).toISOString();
   const nextISO = startOfMonth(addMonths(baseMonth, 1)).toISOString();
 
+  // основное окно для owner-а
+  await queryClient.ensureQueryData({
+    queryKey: QK.calendarWindow(ownerId, monthISO),
+    queryFn: () => fetchCalendarWindowByMonthForOwner(ownerId, monthISO),
+    staleTime: 60_000,
+  });
+
+  // прогрев соседних
   void queryClient.prefetchQuery({
-    queryKey: QK.calendarWindow(`${prevISO}`),
+    queryKey: QK.calendarWindow(ownerId, prevISO),
     queryFn: () => fetchCalendarWindowByMonthForOwner(ownerId, prevISO),
     staleTime: 60_000,
   });
 
   void queryClient.prefetchQuery({
-    queryKey: QK.calendarWindow(`${nextISO}`),
+    queryKey: QK.calendarWindow(ownerId, nextISO),
     queryFn: () => fetchCalendarWindowByMonthForOwner(ownerId, nextISO),
     staleTime: 60_000,
   });

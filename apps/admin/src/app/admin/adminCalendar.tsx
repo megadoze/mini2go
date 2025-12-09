@@ -84,10 +84,10 @@ export default function AdminCalendar() {
 
   // читаем окно календаря из кэша/сети (месяц ±1)
   const calQ = useQuery<CalendarWindow, Error>({
-    queryKey: QK.calendarWindow(monthKeyISO),
+    queryKey: QK.calendarWindowAdmin(monthKeyISO),
     queryFn: () => fetchCalendarWindowByMonth(monthKeyISO),
     initialData: qc.getQueryData<CalendarWindow>(
-      QK.calendarWindow(monthKeyISO)
+      QK.calendarWindowAdmin(monthKeyISO)
     ),
     staleTime: 60_000,
     refetchOnMount: false,
@@ -148,7 +148,7 @@ export default function AdminCalendar() {
   const prefetchMonth = (m: Date) => {
     const iso = startOfMonth(m).toISOString();
     void qc.prefetchQuery({
-      queryKey: QK.calendarWindow(iso),
+      queryKey: QK.calendarWindowAdmin(iso),
       queryFn: () => fetchCalendarWindowByMonth(iso),
       staleTime: 60_000,
     });

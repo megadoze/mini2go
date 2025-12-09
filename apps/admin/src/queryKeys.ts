@@ -40,5 +40,9 @@ export const QK = {
   user: (id: string) => ["user", id] as const,
   carsByHost: (ownerId: string) => ["carsByHost", ownerId] as const,
   bookingsIndex: (ownerId: string) => ["bookingsIndex", ownerId] as const,
-  calendarWindow: (monthISO: string) => ["calendarWindow", monthISO] as const,
+  // calendarWindow: (monthISO: string) => ["calendarWindow", monthISO] as const,
+  calendarWindowAdmin: (monthISO: string) =>
+    ["calendarWindow", "admin", monthISO] as const,
+  calendarWindow: (ownerId: string, monthISO: string) =>
+    ["calendarWindow", ownerId, monthISO] as const,
 };
