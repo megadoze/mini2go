@@ -83,26 +83,39 @@ const intersectsDay = (booking: Booking, day: Date) => {
 };
 
 export default function CalendarPage() {
-  const { monthISO: monthFromLoader, meId } = useLoaderData();
+  const { monthISO: monthFromLoader } = useLoaderData();
 
   const navigate = useNavigate();
   const location = useLocation();
   const qc = useQueryClient();
 
+  const { ownerId: ownerIdFromLoader } =
+    (useLoaderData() as { ownerId: string }) ?? {};
+  const ownerId = ownerIdFromLoader; // единственный источник
+
   const [month, setMonth] = useState(() => parseISO(monthFromLoader));
 
   const monthISO = month.toISOString();
-  const queryKey = QK.calendarWindow(`${monthISO}-${meId}`);
+  const queryKey = QK.calendarWindow(`${monthISO}`);
 
   // читаем окно календаря из кэша/сети (месяц ±1)
   const calQ = useQuery<CalendarWindow, Error>({
     queryKey,
-    enabled: !!meId,
-    queryFn: () => fetchCalendarWindowByMonthForOwner(meId as string, monthISO),
-    initialData: () => qc.getQueryData(queryKey),
-    staleTime: 60_000,
+    queryFn: () =>
+      fetchCalendarWindowByMonthForOwner(ownerId as string, monthISO),
+    // enabled: !!ownerId,
+    // initialData: () => qc.getQueryData(queryKey),
+    // staleTime: 60_000,
+    // refetchOnMount: false,
+    // refetchOnWindowFocus: false,
+    // placeholderData: (prev) => prev,
+    enabled: !!ownerId,
+    staleTime: 24 * 60 * 60 * 1000,
+    gcTime: 7 * 24 * 60 * 60 * 1000,
     refetchOnMount: false,
     refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    retry: 1,
     placeholderData: (prev) => prev,
   });
 
@@ -158,10 +171,10 @@ export default function CalendarPage() {
 
   const prefetchMonth = (m: Date) => {
     const iso = startOfMonth(m).toISOString();
-    if (!meId) return;
+    if (!ownerId) return;
     void qc.prefetchQuery({
-      queryKey: QK.calendarWindow(`${iso}-${meId}`),
-      queryFn: () => fetchCalendarWindowByMonthForOwner(meId, iso),
+      queryKey: QK.calendarWindow(`${iso}`),
+      queryFn: () => fetchCalendarWindowByMonthForOwner(ownerId, iso),
       staleTime: 60_000,
     });
   };
@@ -478,7 +491,7 @@ export default function CalendarPage() {
   };
 
   // не авторизован
-  if (meId === null) {
+  if (ownerId === null) {
     return (
       <div className="p-6 text-sm text-gray-500">
         Sign in to see your calendar

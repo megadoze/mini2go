@@ -16,7 +16,7 @@ export const adminCalendarLoader: LoaderFunction = async ({ request }) => {
 
   const monthISO = baseMonth.toISOString();
 
-  // основное окно (месяц ±1) — твоя fetchCalendarWindowByMonth уже этим занимается
+  // основное окно (месяц ±1)
   await queryClient.ensureQueryData({
     queryKey: QK.calendarWindow(monthISO),
     queryFn: () => fetchCalendarWindowByMonth(monthISO),

@@ -81,16 +81,6 @@ export const router = createBrowserRouter([
         id: "calendar",
         path: "calendar",
         loader: calendarLoader,
-        shouldRevalidate: ({
-          currentUrl,
-          nextUrl,
-          defaultShouldRevalidate,
-        }) => {
-          if (currentUrl.pathname === nextUrl.pathname) {
-            return currentUrl.search !== nextUrl.search;
-          }
-          return defaultShouldRevalidate;
-        },
         element: <CalendarPage />,
       },
       { id: "cars", path: "cars", loader: carsLoader, element: <CarsPage /> },
