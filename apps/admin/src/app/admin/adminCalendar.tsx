@@ -84,13 +84,6 @@ export default function AdminCalendar() {
   );
   const monthKeyISO = useMemo(() => startOfMonth(month).toISOString(), [month]);
 
-  // useEffect(() => {
-  //   const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
-  //     setMeId(s?.user?.id ?? null);
-  //   });
-  //   return () => sub.subscription.unsubscribe();
-  // }, []);
-
   // читаем окно календаря из кэша/сети (месяц ±1)
   const calQ = useQuery<CalendarWindow, Error>({
     queryKey: QK.calendarWindow(monthKeyISO),
