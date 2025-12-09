@@ -5,6 +5,7 @@ import { updateBooking, createBooking } from "@/services/calendar.service";
 import { upsertBookingExtras } from "@/services/booking-extras.service";
 import { QK } from "@/queryKeys";
 import { useQueryClient } from "@tanstack/react-query";
+import type { Booking } from "@/types/booking";
 
 // =============================
 // types
@@ -58,6 +59,7 @@ export type UseBookingSaveParams = {
 export type UseBookingSaveReturn = {
   saving: boolean;
   saved: boolean;
+  savedBooking: Booking | null;
   error: string | null;
 
   handleSave: () => Promise<void>;
@@ -73,6 +75,7 @@ export function useBookingSave(
   const qc = useQueryClient();
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [savedBooking, setSavedBooking] = useState<Booking | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const {
@@ -253,6 +256,10 @@ export function useBookingSave(
     setSaving(true);
 
     try {
+      setSaving(true);
+      setSaved(false);
+      setSavedBooking(null);
+
       if (mode === "create") {
         //
         // ============================
@@ -282,6 +289,8 @@ export function useBookingSave(
           };
 
           const saved = await createBooking(payload as any);
+
+          setSavedBooking(saved);
 
           if (saved?.car_id) {
             qc.invalidateQueries({
@@ -317,6 +326,8 @@ export function useBookingSave(
             const extrasPayload = buildExtrasPayload();
             await upsertBookingExtras(newBookingId, extrasPayload);
           }
+
+          setSavedBooking(saved);
 
           // инвалидации
           qc.invalidateQueries({ queryKey: QK.booking(newBookingId) });
@@ -359,7 +370,9 @@ export function useBookingSave(
           patch.price_total = null;
         }
 
-        await updateBooking(bookingId, patch as any);
+        // await updateBooking(bookingId, patch as any);
+
+        const saved = await updateBooking(bookingId, patch as any);
 
         // extras только для booking
         if (mark === "booking") {
@@ -371,6 +384,8 @@ export function useBookingSave(
           }
           qc.invalidateQueries({ queryKey: QK.bookingExtras(bookingId) });
         }
+
+        setSavedBooking(saved);
 
         // инвалидации для edit
         qc.invalidateQueries({ queryKey: QK.booking(bookingId) });
@@ -398,29 +413,31 @@ export function useBookingSave(
   }, [
     saving,
     validateInput,
-    assertNoConflicts,
     carId,
+    mark,
+    assertNoConflicts,
     startDateInp,
     endDateInp,
     mode,
     bookingId,
-    mark,
     guestPayloadBuilder,
+    qc,
     delivery,
+    deliveryFee,
+    effectiveCurrency,
     deliveryAddress,
     deliveryLat,
     deliveryLong,
-    deliveryFee,
-    effectiveCurrency,
     price_total,
+    deposit,
     pickedExtras.length,
     buildExtrasPayload,
-    qc,
   ]);
 
   return {
     saving,
     saved,
+    savedBooking,
     error,
     handleSave,
   };

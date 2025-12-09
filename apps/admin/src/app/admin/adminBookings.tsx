@@ -83,6 +83,7 @@ export default function AdminBookings() {
   const [countryId, setCountryId] = useState<string | null>(null);
   const [locationFilter, setLocationFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState<BookingStatus>("");
+
   const [search, setSearch] = useState("");
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
@@ -140,7 +141,6 @@ export default function AdminBookings() {
       return loaded < total ? allPages.length : undefined; // вернём индекс следующей страницы (number)
     },
     staleTime: 5 * 60 * 1000,
-    refetchOnMount: false,
     refetchOnWindowFocus: true,
     refetchOnReconnect: true,
   });
@@ -509,7 +509,7 @@ export default function AdminBookings() {
               setLocationFilter("");
               setStatusFilter("");
               clearUserFilter();
-              trimToFirstPage(); // ⬅️ и здесь тоже
+              trimToFirstPage();
             }}
             className="text-sm text-zinc-500 underline underline-offset-4"
           >

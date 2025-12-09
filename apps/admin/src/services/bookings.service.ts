@@ -285,7 +285,7 @@ export async function fetchAllBookings(params: {
     .order("created_at", { ascending: false })
     .range(offset, offset + limit - 1);
 
-  if (status) qy = qy.eq("status", status.toLowerCase());
+  if (status) qy = qy.ilike("status", status);
   if (userId) qy = qy.eq("user_id", userId);
   if (countryId) qy = qy.eq("country_id", countryId);
   if (location) qy = qy.ilike("location_name", `%${location}%`);
@@ -303,6 +303,7 @@ export async function fetchAllBookings(params: {
   }
 
   const { data, error, count } = await qy;
+
   if (error) throw error;
   return { items: (data ?? []) as BookingsIndexRow[], count: count ?? 0 };
 }
@@ -327,7 +328,7 @@ export async function fetchBookingsIndexPage(params: {
     .order("created_at", { ascending: false })
     .range(offset, offset + limit - 1);
 
-  if (status) qy = qy.eq("status", status.toLowerCase());
+  if (status) qy = qy.ilike("status", status);
   if (userId) qy = qy.eq("user_id", userId);
   if (countryId) qy = qy.eq("country_id", countryId);
   if (location) qy = qy.ilike("location_name", `%${location}%`);
@@ -372,7 +373,7 @@ export async function fetchBookingsByUser(params: {
     .order("created_at", { ascending: false })
     .range(offset, offset + limit - 1);
 
-  if (status) qy = qy.eq("status", status.toLowerCase());
+  if (status) qy = qy.ilike("status", status);
   if (countryId) qy = qy.eq("country_id", countryId);
   if (location) qy = qy.ilike("location_name", `%${location}%`);
   if (q) {

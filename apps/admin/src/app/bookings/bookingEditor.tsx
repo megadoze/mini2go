@@ -54,6 +54,9 @@ import { BookingCarCard } from "./bookingCarCard";
 import { BookingTopActions } from "./bookingTopActions";
 import { useBookingSave } from "@/hooks/useBookingSave";
 import { getGlobalSettings } from "@/services/settings.service";
+import type { RootAuthData } from "@/routes/auth.loader";
+import { GuestMiniCardForAdmin } from "@/components/guestMiniCardForAdmin";
+import { HostMiniCardForAdmin } from "@/components/hostMiniCardForAdmin";
 
 const GUEST_CANCEL_MIN_MS = 24 * 60 * 60 * 1000; // сутки
 
@@ -251,24 +254,30 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
     snapshot?.booking?.user_id ??
     undefined;
 
-  const rootData = useRouteLoaderData("rootAuth") as
-    | { ownerId: string }
-    | undefined;
+  const rootData = useRouteLoaderData("rootAuth") as RootAuthData | undefined;
+  const adminData = useRouteLoaderData("adminAuth") as RootAuthData | undefined;
+
+  // кто сейчас залогинен (хост или админ)
+  const authData = rootData ?? adminData;
+
+  // const isAdmin = rootData?.isAdmin ?? false;
 
   const [currentUserId, setCurrentUserId] = useState<string | null>(
-    rootData?.ownerId ?? null
+    authData?.ownerId ?? null
   );
 
-  const ownerId = rootData?.ownerId ?? null;
+  const carOwnerId = (car as any)?.owner_id ?? (car as any)?.ownerId ?? null;
+
+  const settingsOwnerId = carOwnerId ?? authData?.ownerId ?? null;
 
   const appSettingsQ = useQuery({
-    queryKey: ownerId
-      ? QK.appSettingsByOwner(ownerId)
+    queryKey: settingsOwnerId
+      ? QK.appSettingsByOwner(settingsOwnerId)
       : ["appSettings", "noop"],
-    queryFn: () => getGlobalSettings(ownerId!),
-    enabled: !!ownerId,
-    initialData: ownerId
-      ? qc.getQueryData(QK.appSettingsByOwner(ownerId))
+    queryFn: () => getGlobalSettings(settingsOwnerId!),
+    enabled: !!settingsOwnerId,
+    initialData: settingsOwnerId
+      ? qc.getQueryData(QK.appSettingsByOwner(settingsOwnerId))
       : undefined,
     staleTime: 5 * 60_000,
     refetchOnMount: false,
@@ -371,7 +380,7 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
   }, [currentUserId]);
 
   const bookingUserId = userIdForQ ?? userId ?? null;
-  const carOwnerId = (car as any)?.owner_id ?? (car as any)?.ownerId ?? null;
+  // const carOwnerId = (car as any)?.owner_id ?? (car as any)?.ownerId ?? null;
 
   const viewingAsGuest =
     !!currentUserId && !!bookingUserId && currentUserId === bookingUserId;
@@ -1253,6 +1262,7 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
   const {
     saving,
     saved,
+    savedBooking,
     error: saveError,
     handleSave,
   } = useBookingSave({
@@ -1293,14 +1303,15 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
   });
 
   useEffect(() => {
-    if (!saved) return;
+    if (!savedBooking) return;
 
-    // та же логика, что раньше была в handleSave
+    // 1) Жёстко патчим все нужные кэши
+    touchBookingCache(qc, savedBooking);
+    patchCalendarWindowsCache(qc, savedBooking);
+
+    // 2) Логика возврата назад / в календарь
     if ((carFromCtx as any)?.id === carId) {
-      // триггернём обновление контекста машины
       setCar?.((prev: any) => prev);
-
-      // остаёмся в календаре этой машины
       const to = location.state?.from ?? `/cars/${carId}/calendar`;
       navigate(to, { replace: true });
     } else {
@@ -1311,7 +1322,7 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
         navigate(-1);
       }
     }
-  }, [saved, carFromCtx, carId, setCar, location.state, navigate]);
+  }, [savedBooking, qc, carFromCtx, carId, setCar, location.state, navigate]);
 
   useEffect(() => {
     if (saveError) {
@@ -1875,8 +1886,8 @@ export default function BookingEditor(props: BookingEditorProps = {}) {
 
               {!viewingAsGuest && !viewingAsHost && (
                 <>
-                  <HostMiniCard host={host} />
-                  <GuestMiniCard guest={guest} />
+                  <HostMiniCardForAdmin host={host} />
+                  <GuestMiniCardForAdmin guest={guest} />
                 </>
               )}
             </div>

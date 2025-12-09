@@ -1045,7 +1045,7 @@ export default function RentalDateTimePicker({
                         tempRange.startAt,
                         disabledIntervals,
                         openTimeMinutes,
-                        closeTimeMinutes,
+                        closeTimeMinutes
                         // minuteStep,
                         // locale
                       )}
@@ -1095,7 +1095,7 @@ export default function RentalDateTimePicker({
                     tempRange.endAt,
                     disabledIntervals,
                     openTimeMinutes,
-                    closeTimeMinutes,
+                    closeTimeMinutes
                     // minuteStep,
                     // locale
                   )}

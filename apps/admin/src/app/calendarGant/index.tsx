@@ -102,7 +102,7 @@ export default function CalendarPage() {
     enabled: !!ownerId,
     staleTime: 60 * 60 * 1000,
     gcTime: 4 * 60 * 60 * 1000,
-    refetchOnMount: true,
+    refetchOnMount: "always",
     refetchOnWindowFocus: true,
     refetchOnReconnect: true,
     retry: 1,

@@ -89,9 +89,12 @@ export default function AdminCalendar() {
     initialData: qc.getQueryData<CalendarWindow>(
       QK.calendarWindowAdmin(monthKeyISO)
     ),
-    staleTime: 60_000,
-    refetchOnMount: false,
-    refetchOnWindowFocus: false,
+    staleTime: 60 * 60 * 1000,
+    gcTime: 4 * 60 * 60 * 1000,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
+    retry: 1,
     placeholderData: (prev) => prev,
   });
 

@@ -141,7 +141,6 @@ export default function BookingsList() {
       return loaded < total ? allPages.length : undefined; // вернём индекс следующей страницы (number)
     },
     staleTime: 5 * 60 * 1000,
-    refetchOnMount: false,
     refetchOnWindowFocus: true,
     refetchOnReconnect: true,
   });
