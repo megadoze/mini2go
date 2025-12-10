@@ -716,23 +716,6 @@ export function BookingDrawer({
     return parts.length ? parts.join(" ") : "0m";
   };
 
-  // function formatDateTimeForLabel(dt: string) {
-  //   if (!dt) return "—";
-  //   try {
-  //     const d = new Date(dt);
-  //     const dd = String(d.getDate()).padStart(2, "0");
-  //     const mm = String(d.getMonth() + 1).padStart(2, "0");
-  //     const hh = String(d.getHours()).padStart(2, "0");
-  //     const min = String(d.getMinutes()).padStart(2, "0");
-  //     return `${dd}.${mm}, ${hh}:${min}`;
-  //   } catch {
-  //     return dt;
-  //   }
-  // }
-
-  // const startDate = formatDateTimeForLabel(start);
-  // const endDate = formatDateTimeForLabel(end);
-
   return (
     <div
       className={`fixed inset-0 z-50 pointer-events-none transition-all ${

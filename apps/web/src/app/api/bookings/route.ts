@@ -318,8 +318,6 @@ export async function POST(req: NextRequest) {
           ? new Date(driver.licenseExpiry).toISOString()
           : null,
         driver_license_file_url: driver.licenseFileUrl || null,
-
-        is_admin: false,
         is_host: false,
         status: "active",
       };
