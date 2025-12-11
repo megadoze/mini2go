@@ -659,7 +659,7 @@ export default function UserProfile() {
                 </div>
 
                 {/* DOB then Age (age is read-only, calculated) */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-x-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Date of birth
@@ -668,7 +668,7 @@ export default function UserProfile() {
                       type="date"
                       value={dob}
                       onChange={(e) => setDob(e.target.value)}
-                      className="w-full md:max-w-full md:h-11 rounded-xl border border-gray-200 bg-white/60 p-2.5 text-sm outline-none focus:ring-2 focus:ring-gray-900/10"
+                      className="flex justify-stretch w-full md:max-w-full md:h-11 rounded-xl border border-gray-200 bg-white/60 p-2 text-sm outline-none focus:ring-2 focus:ring-gray-900/10"
                     />
                   </div>
 
@@ -680,7 +680,7 @@ export default function UserProfile() {
                       type="number"
                       value={age === "" ? "" : age}
                       readOnly
-                      className="w-full md:max-w-full md:h-11 rounded-xl border border-gray-200 bg-gray-50 p-2.5 text-sm text-gray-700"
+                      className="w-full md:max-w-full md:h-11 rounded-xl border border-gray-200 bg-gray-50 p-2 text-sm text-gray-700"
                       placeholder="Auto-calculated"
                     />
                   </div>
