@@ -659,8 +659,8 @@ export default function UserProfile() {
                 </div>
 
                 {/* DOB then Age (age is read-only, calculated) */}
-                <div className="flex flex-col md:flex-row gap-4 w-full">
-                  <div className="flex-1 max-w-full mr-4">
+                <div className="flex flex-col md:flex-row w-full gap-y-4">
+                  <div className="flex-1 mr-4">
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Date of birth
                     </label>
@@ -672,7 +672,7 @@ export default function UserProfile() {
                     />
                   </div>
 
-                  <div className="flex-1  w-full">
+                  <div className="flex-1 w-full">
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Age
                     </label>
@@ -680,7 +680,7 @@ export default function UserProfile() {
                       type="number"
                       value={age === "" ? "" : age}
                       readOnly
-                      className="w-full md:h-11 rounded-xl border border-gray-200 bg-gray-50 p-2 text-sm text-gray-700"
+                      className="w-full md:h-11 md:max-w-full   rounded-xl border border-gray-200 bg-gray-50 p-2 text-sm text-gray-700"
                       placeholder="Auto-calculated"
                     />
                   </div>
@@ -711,8 +711,8 @@ export default function UserProfile() {
                   />
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
+                <div className="flex flex-col md:flex-row w-full gap-y-4">
+                  <div className="flex-1 mr-4">
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Issue date
                     </label>
@@ -720,10 +720,10 @@ export default function UserProfile() {
                       type="date"
                       value={dlIssue}
                       onChange={(e) => setDlIssue(e.target.value)}
-                      className="w-full rounded-xl border border-gray-200 bg-white/60 p-2.5 text-sm outline-none focus:ring-2 focus:ring-gray-900/10"
+                      className="w-full md:max-w-full rounded-xl border border-gray-200 bg-white/60 p-2.5 text-sm outline-none focus:ring-2 focus:ring-gray-900/10"
                     />
                   </div>
-                  <div>
+                  <div className="flex-1">
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Expiry date
                     </label>
@@ -731,7 +731,7 @@ export default function UserProfile() {
                       type="date"
                       value={dlExpiry}
                       onChange={(e) => setDlExpiry(e.target.value)}
-                      className="w-full rounded-xl border border-gray-200 bg-white/60 p-2.5 text-sm outline-none focus:ring-2 focus:ring-gray-900/10"
+                      className="w-full md:max-w-full rounded-xl border border-gray-200 bg-white/60 p-2.5 text-sm outline-none focus:ring-2 focus:ring-gray-900/10"
                     />
                   </div>
                 </div>
