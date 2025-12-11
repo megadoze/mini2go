@@ -659,7 +659,7 @@ export default function UserProfile() {
                 </div>
 
                 {/* DOB then Age (age is read-only, calculated) */}
-                <div className="flex flex-col md:flex-row w-full gap-y-4">
+                <div className="flex flex-col md:flex-row w-full gap-4">
                   <div className="flex-1 mr-4">
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Date of birth
@@ -711,7 +711,7 @@ export default function UserProfile() {
                   />
                 </div>
 
-                <div className="flex flex-col md:flex-row w-full gap-y-4">
+                <div className="flex flex-col md:flex-row w-full gap-4">
                   <div className="flex-1 mr-4">
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Issue date
@@ -720,7 +720,7 @@ export default function UserProfile() {
                       type="date"
                       value={dlIssue}
                       onChange={(e) => setDlIssue(e.target.value)}
-                      className="w-full md:max-w-full rounded-xl border border-gray-200 bg-white/60 p-2.5 text-sm outline-none focus:ring-2 focus:ring-gray-900/10"
+                      className="w-full md:h-11 rounded-xl border border-gray-200 bg-white/60 p-2.5 text-sm outline-none focus:ring-2 focus:ring-gray-900/10"
                     />
                   </div>
                   <div className="flex-1">
@@ -731,7 +731,7 @@ export default function UserProfile() {
                       type="date"
                       value={dlExpiry}
                       onChange={(e) => setDlExpiry(e.target.value)}
-                      className="w-full md:max-w-full rounded-xl border border-gray-200 bg-white/60 p-2.5 text-sm outline-none focus:ring-2 focus:ring-gray-900/10"
+                      className="w-full md:h-11 rounded-xl border border-gray-200 bg-white/60 p-2.5 text-sm outline-none focus:ring-2 focus:ring-gray-900/10"
                     />
                   </div>
                 </div>
