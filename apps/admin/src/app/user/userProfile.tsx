@@ -660,7 +660,7 @@ export default function UserProfile() {
 
                 {/* DOB then Age (age is read-only, calculated) */}
                 <div className="flex flex-col md:flex-row gap-4 w-full">
-                  <div className=" w-full">
+                  <div className="flex-1 max-w-full mr-4">
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Date of birth
                     </label>
@@ -668,11 +668,11 @@ export default function UserProfile() {
                       type="date"
                       value={dob}
                       onChange={(e) => setDob(e.target.value)}
-                      className=" w-full md:h-11 rounded-xl border border-gray-200 bg-white/60 p-2 text-sm outline-none focus:ring-2 focus:ring-gray-900/10"
+                      className=" w-full md:max-w-full md:h-11 rounded-xl border border-gray-200 bg-white/60 p-2 text-sm outline-none focus:ring-2 focus:ring-gray-900/10"
                     />
                   </div>
 
-                  <div className=" w-full">
+                  <div className="flex-1  w-full">
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Age
                     </label>
@@ -680,7 +680,7 @@ export default function UserProfile() {
                       type="number"
                       value={age === "" ? "" : age}
                       readOnly
-                      className="flex-1 w-full md:h-11 rounded-xl border border-gray-200 bg-gray-50 p-2 text-sm text-gray-700"
+                      className="w-full md:h-11 rounded-xl border border-gray-200 bg-gray-50 p-2 text-sm text-gray-700"
                       placeholder="Auto-calculated"
                     />
                   </div>
