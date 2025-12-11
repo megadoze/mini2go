@@ -720,7 +720,7 @@ export default function UserProfile() {
                       type="date"
                       value={dlIssue}
                       onChange={(e) => setDlIssue(e.target.value)}
-                      className="w-full md:h-11 rounded-xl border border-gray-200 bg-white/60 p-2.5 text-sm outline-none focus:ring-2 focus:ring-gray-900/10"
+                      className="w-full md:max-w-full md:h-11 rounded-xl border border-gray-200 bg-white/60 p-2.5 text-sm outline-none focus:ring-2 focus:ring-gray-900/10"
                     />
                   </div>
                   <div className="flex-1">
@@ -731,7 +731,7 @@ export default function UserProfile() {
                       type="date"
                       value={dlExpiry}
                       onChange={(e) => setDlExpiry(e.target.value)}
-                      className="w-full md:h-11 rounded-xl border border-gray-200 bg-white/60 p-2.5 text-sm outline-none focus:ring-2 focus:ring-gray-900/10"
+                      className="w-full md:max-w-full md:h-11 rounded-xl border border-gray-200 bg-white/60 p-2.5 text-sm outline-none focus:ring-2 focus:ring-gray-900/10"
                     />
                   </div>
                 </div>
