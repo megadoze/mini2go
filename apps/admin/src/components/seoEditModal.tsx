@@ -1,4 +1,5 @@
-import { Modal, TextInput, Textarea, Button } from "@mantine/core";
+import { Drawer, TextInput, Textarea, Button } from "@mantine/core";
+import { useMediaQuery } from "@mantine/hooks";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { SeoCarRow } from "@/types/seoCarRow";
 import { toast } from "sonner";
@@ -87,8 +88,8 @@ async function copyToClipboard(text: string, label: string) {
   }
 }
 
-/** Copy button (stable width, no jitter) */
-function CopyButton(props: {
+/** Copy button (fixed width, no layout shift) */
+export function CopyButton(props: {
   label: string;
   value: string;
   disabled?: boolean;
@@ -96,6 +97,7 @@ function CopyButton(props: {
 }) {
   const { label, value, disabled, kind = "text" } = props;
   const [copied, setCopied] = useState(false);
+  const tRef = useRef<number | null>(null);
 
   const Icon = copied
     ? CheckIcon
@@ -103,23 +105,21 @@ function CopyButton(props: {
     ? CodeBracketSquareIcon
     : ClipboardIcon;
 
-  const tRef = useRef<number | null>(null);
-
-  const onClick = async () => {
-    if (!value) return;
-    const ok = await copyToClipboard(value, label);
-    if (!ok) return;
-
-    setCopied(true);
-    if (tRef.current) window.clearTimeout(tRef.current);
-    tRef.current = window.setTimeout(() => setCopied(false), 700);
-  };
-
   useEffect(() => {
     return () => {
       if (tRef.current) window.clearTimeout(tRef.current);
     };
   }, []);
+
+  const onClick = async () => {
+    if (!value || disabled) return;
+    const ok = await copyToClipboard(value, label);
+    if (!ok) return;
+
+    setCopied(true);
+    if (tRef.current) window.clearTimeout(tRef.current);
+    tRef.current = window.setTimeout(() => setCopied(false), 900);
+  };
 
   return (
     <button
@@ -127,8 +127,9 @@ function CopyButton(props: {
       onClick={onClick}
       disabled={disabled || !value}
       className={[
-        "h-7 w-[96px] shrink-0 rounded-lg border text-xs",
+        "h-7 px-2 shrink-0 rounded-lg border",
         "inline-flex items-center justify-center",
+        "text-xs leading-none",
         "transition-colors duration-150 hover:bg-zinc-50",
         "disabled:opacity-50 disabled:cursor-not-allowed",
         copied
@@ -138,10 +139,9 @@ function CopyButton(props: {
       aria-label={`Copy ${label}`}
       title={`Copy ${label}`}
     >
-      <span className="inline-flex items-center justify-center gap-1.5">
-        <Icon className="w-3.5 h-3.5" />
-        {/* фикс ширина текста */}
-        <span className="relative w-[48px] text-center leading-none">
+      <span className="inline-flex items-center justify-center gap-1">
+        <Icon className="h-3.5 w-3.5" />
+        <span className="relative text-left">
           <span
             className={[
               "absolute inset-0 transition-opacity duration-150",
@@ -374,20 +374,23 @@ export function SeoEditModal(props: {
     description: string,
     isCustom: boolean
   ) => Promise<void>;
-  onAutofill: () => Promise<AutofillResult>; // ⚠️ должен возвращать ШАБЛОН (force)
+  onAutofill: () => Promise<AutofillResult>;
 }) {
   const { opened, onClose, row, onSave, onAutofill } = props;
+
+  // ✅ full width on mobile, 1/3 on desktop
+  const isMobile = useMediaQuery("(max-width: 48em)");
+  const drawerSize = isMobile ? "100%" : "33%";
 
   const [title, setTitle] = useState("");
   const [desc, setDesc] = useState("");
 
   const [saving, setSaving] = useState(false);
-  const [autofilling, setAutofilling] = useState(false);
+  const [templateLoading, setTemplateLoading] = useState(false);
 
   const [initialTitle, setInitialTitle] = useState("");
   const [initialDesc, setInitialDesc] = useState("");
 
-  // ✅ baseline шаблона (именно по нему решаем Template vs Custom)
   const [templateTitle, setTemplateTitle] = useState("");
   const [templateDesc, setTemplateDesc] = useState("");
 
@@ -401,14 +404,15 @@ export function SeoEditModal(props: {
     setInitialTitle(t);
     setInitialDesc(d);
 
-    // baseline на открытии = то, что пришло из БД (может быть и Custom)
-    // но baseline шаблона мы обновим при Auto-fill
     setTemplateTitle("");
     setTemplateDesc("");
+
+    setTemplateLoading(false);
+    setSaving(false);
   }, [row?.car_id, row?.seo_title, row?.seo_description]);
 
   const disabled = !row;
-  const busy = saving || autofilling;
+  const busy = saving || templateLoading;
 
   const titleCount = title.length;
   const descCount = desc.length;
@@ -467,16 +471,15 @@ export function SeoEditModal(props: {
     row?.country_name,
   ]);
 
-  // ✅ если шаблон ещё не подтянут — считаем, что willBeCustom по сравнению с baseline из БД нельзя
-  // поэтому сначала Auto-fill (подтянуть шаблон), дальше Save уже честно.
   const canDetermineCustom =
-    templateTitle.trim() !== "" || templateDesc.trim() !== "";
+    templateTitle.trim() !== "" && templateDesc.trim() !== "";
 
   const willBeCustom = useMemo(() => {
-    if (!canDetermineCustom) return true; // пока нет шаблона — безопасно считаем Custom
-    const t = title.trim();
-    const d = desc.trim();
-    return !(t === templateTitle.trim() && d === templateDesc.trim());
+    if (!canDetermineCustom) return true;
+    return !(
+      title.trim() === templateTitle.trim() &&
+      desc.trim() === templateDesc.trim()
+    );
   }, [title, desc, templateTitle, templateDesc, canDetermineCustom]);
 
   const slugBrand = useMemo(
@@ -492,25 +495,22 @@ export function SeoEditModal(props: {
   );
 
   const handleAutofill = async () => {
-    if (disabled) return;
-    setAutofilling(true);
-    try {
-      // ⚠️ ВАЖНО: onAutofill должен быть force=true в Edge (см. ниже)
-      const res = await onAutofill();
+    if (!row) return;
 
-      const t = (res.title ?? "").trim();
-      const d = (res.description ?? "").trim();
+    setTemplateLoading(true);
+    try {
+      const tpl = await onAutofill();
+      const t = (tpl.title ?? "").trim();
+      const d = (tpl.description ?? "").trim();
 
       if (!t || !d) {
         toast.error("Template returned empty values");
         return;
       }
 
-      // ✅ подставляем шаблон в поля
       setTitle(t);
       setDesc(d);
 
-      // ✅ обновляем baseline шаблона
       setTemplateTitle(t);
       setTemplateDesc(d);
 
@@ -518,12 +518,13 @@ export function SeoEditModal(props: {
     } catch (e: any) {
       toast.error(e?.message ?? "Autofill failed");
     } finally {
-      setAutofilling(false);
+      setTemplateLoading(false);
     }
   };
 
   const handleSave = async () => {
     if (!row) return;
+
     const t = title.trim();
     const d = desc.trim();
 
@@ -540,6 +541,7 @@ export function SeoEditModal(props: {
       setInitialTitle(t);
       setInitialDesc(d);
       toast.success(isCustom ? "Saved as Custom" : "Saved as Template");
+      onClose();
     } catch (e: any) {
       toast.error(e?.message ?? "Save failed");
     } finally {
@@ -557,13 +559,34 @@ export function SeoEditModal(props: {
     [title, desc]
   );
 
+  const canAutofill = !!row && !saving;
+
   return (
-    <Modal
+    <Drawer
       opened={opened}
       onClose={onClose}
-      title="Edit SEO (EN)"
-      centered
-      size="lg"
+      position="right"
+      size={drawerSize}
+      withCloseButton
+      withinPortal
+      keepMounted
+      overlayProps={{ opacity: 0.2, blur: 2 }}
+      styles={{
+        content: { borderTopLeftRadius: 16, borderBottomLeftRadius: 16 },
+        header: { paddingBottom: 6 },
+        body: { paddingTop: 8, paddingBottom: 16 },
+      }}
+      title={
+        <div className="flex items-center justify-between w-full pr-2">
+          <div>
+            <div className="text-sm font-semibold text-zinc-900">Edit SEO (EN)</div>
+            <div className="text-xs text-zinc-500 truncate max-w-[260px]">
+              {row ? `${row.brand_name} ${row.model_name} ${row.year ?? ""}` : "—"}
+            </div>
+          </div>
+          {dirty && <div className="text-xs text-zinc-500">Unsaved</div>}
+        </div>
+      }
     >
       {/* SCORE + actions */}
       <div className="mb-4 rounded-xl border border-zinc-200 bg-white p-3">
@@ -577,29 +600,20 @@ export function SeoEditModal(props: {
                 )}`}
               >
                 {scoreResult.score}
-                <span className="text-zinc-400 text-sm font-normal">
-                  {" "}
-                  / 100
-                </span>
+                <span className="text-zinc-400 text-sm font-normal"> / 100</span>
               </div>
             </div>
-
-            {dirty && (
-              <div className="text-xs text-zinc-500 mt-6">Unsaved changes</div>
-            )}
           </div>
 
-          <div className="flex items-center gap-2">
-            <Button
-              variant="default"
-              onClick={handleAutofill}
-              disabled={disabled || saving}
-              loading={autofilling}
-              className="h-9"
-            >
-              Auto-fill
-            </Button>
-          </div>
+          <Button
+            variant="default"
+            onClick={handleAutofill}
+            disabled={!canAutofill}
+            loading={templateLoading}
+            className="h-9"
+          >
+            Auto-fill
+          </Button>
         </div>
 
         <div className="mt-3 space-y-1">
@@ -642,11 +656,7 @@ export function SeoEditModal(props: {
         label={
           <div className="flex items-center justify-between pb-1">
             <span className="mr-2">SEO title</span>
-            <CopyButton
-              label="Title"
-              value={title}
-              disabled={disabled || busy}
-            />
+            <CopyButton label="Title" value={title} disabled={disabled || busy} />
           </div>
         }
         value={title}
@@ -655,13 +665,9 @@ export function SeoEditModal(props: {
       />
 
       <div className="flex items-center justify-between text-xs mt-1 mb-3">
-        <span className={toneClass(titleLenHint.tone)}>
-          {titleLenHint.text}
-        </span>
+        <span className={toneClass(titleLenHint.tone)}>{titleLenHint.text}</span>
         <div className="flex items-center gap-3">
-          <span className={toneClass(titlePxHint.tone)}>
-            {titlePxHint.text}
-          </span>
+          <span className={toneClass(titlePxHint.tone)}>{titlePxHint.text}</span>
           <span className="text-zinc-500">
             {titleCount} chars • {titleWords} words
           </span>
@@ -696,7 +702,7 @@ export function SeoEditModal(props: {
 
       {/* FOOTER */}
       <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <Button
             onClick={handleSave}
             loading={saving}
@@ -709,11 +715,7 @@ export function SeoEditModal(props: {
           <div className="text-xs text-zinc-500">
             Will be:{" "}
             <span className="font-medium text-zinc-900">
-              {canDetermineCustom
-                ? willBeCustom
-                  ? "Custom"
-                  : "Template"
-                : "Custom"}
+              {canDetermineCustom ? (willBeCustom ? "Custom" : "Template") : "Custom"}
             </span>
           </div>
 
@@ -725,22 +727,17 @@ export function SeoEditModal(props: {
           />
         </div>
 
-        <Button
-          variant="default"
-          onClick={onClose}
-          disabled={busy}
-          className="h-9"
-        >
+        <Button variant="default" onClick={onClose} disabled={busy} className="h-9">
           Close
         </Button>
       </div>
 
       {!canDetermineCustom && (
         <div className="mt-3 text-xs text-zinc-500">
-          Tip: click <span className="font-medium">Auto-fill</span> once to load
-          the template baseline.
+          Tip: click <span className="font-medium">Auto-fill</span> once to load the
+          template baseline.
         </div>
       )}
-    </Modal>
+    </Drawer>
   );
 }

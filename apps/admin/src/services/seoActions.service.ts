@@ -1,4 +1,3 @@
-// services/seoActions.service.ts
 import { supabase } from "@/lib/supabase";
 
 export async function seoGenerate(carId: string) {
@@ -12,6 +11,14 @@ export async function seoGenerate(carId: string) {
 export async function seoReset(carId: string) {
   const { data, error } = await supabase.functions.invoke("generate-car-seo", {
     body: { action: "reset", car_id: carId, locale: "en" },
+  });
+  if (error) throw error;
+  return data;
+}
+
+export async function seoTemplate(carId: string) {
+  const { data, error } = await supabase.functions.invoke("generate-car-seo", {
+    body: { action: "template", car_id: carId, locale: "en" },
   });
   if (error) throw error;
   return data;

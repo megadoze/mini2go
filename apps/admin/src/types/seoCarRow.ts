@@ -1,4 +1,5 @@
 export type SeoCarRow = {
+  created_at: string | null | undefined;
   car_id: string;
   vin: string | null;
   year: number | null;
@@ -19,4 +20,5 @@ export type SeoCarRow = {
   seo_is_custom: boolean | null;
   seo_title: string | null;
   seo_description: string | null;
+  seo_updated_at?: string | null;
 };

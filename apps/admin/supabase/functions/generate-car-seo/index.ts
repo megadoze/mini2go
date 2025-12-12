@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 
-type Action = "generate" | "save" | "reset";
+type Action = "generate" | "save" | "reset" | "template";
 
 type Payload = {
   action?: Action; // default: "generate"
@@ -37,7 +37,6 @@ function buildSeo(locale: string, car: any) {
   const transmission = car?.transmission ?? "";
   const fuel = car?.fuel_type ?? "";
   const mileage = car?.include_mileage ?? 200;
-  const deposit = car?.deposit ?? null;
   const delivery = !!car?.is_delivery;
 
   const titlePartsEN = [
@@ -53,7 +52,6 @@ function buildSeo(locale: string, car: any) {
   if (transmission) bits.push(`Transmission: ${transmission}`);
   if (fuel) bits.push(`Fuel: ${fuel}`);
   if (mileage) bits.push(`Included mileage: ${mileage} km`);
-  if (deposit != null) bits.push(`Deposit: ${deposit} ${currency}`.trim());
   if (delivery) bits.push(`Delivery available`);
   if (price != null && currency) bits.push(`From ${price} ${currency}`);
 
@@ -194,7 +192,52 @@ serve(async (req) => {
       force = false;
     }
 
-    // ---------- ACTION: SAVE (CUSTOM) — только админ ----------
+    // ---------- ACTION: TEMPLATE (NO WRITE) ----------
+    if (action === "template") {
+      // хостам разрешаем (это безопасно, без записи)
+      // но проверка владельца выше уже сделана для non-admin
+
+      const { data: car, error: carErr } = await adminClient
+        .from("cars")
+        .select(
+          `
+      id, year, price, currency, transmission, fuel_type, include_mileage, deposit,
+      is_delivery, address,
+      models (
+        name,
+        brands ( name )
+      ),
+      locations (
+        name,
+        countries ( name, id )
+      )
+    `
+        )
+        .eq("id", car_id)
+        .single();
+
+      if (carErr || !car) {
+        return new Response(
+          JSON.stringify({ error: "Car not found", details: carErr?.message }),
+          { status: 404, headers: { "Content-Type": "application/json" } }
+        );
+      }
+
+      const { title, description } = buildSeo(locale, car);
+
+      return new Response(
+        JSON.stringify({ ok: true, template: { title, description } }),
+        {
+          status: 200,
+          headers: {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+          },
+        }
+      );
+    }
+
+    // ---------- ACTION: SAVE — admin only (CUSTOM or TEMPLATE) ----------
     if (action === "save") {
       if (!admin) {
         return new Response(
@@ -206,24 +249,80 @@ serve(async (req) => {
         );
       }
 
-      const seo_title = String(payload.seo_title || "").trim();
-      const seo_description = String(payload.seo_description || "").trim();
+      const wantCustom = payload.is_custom === true;
 
-      if (!seo_title || !seo_description) {
-        return new Response(
-          JSON.stringify({
-            error: "seo_title and seo_description are required for action=save",
-          }),
-          { status: 400, headers: { "Content-Type": "application/json" } }
-        );
+      // если сохраняем TEMPLATE/Auto — игнорим входные title/desc и генерим шаблон
+      let seo_title = "";
+      let seo_description = "";
+
+      if (wantCustom) {
+        seo_title = String(payload.seo_title || "").trim();
+        seo_description = String(payload.seo_description || "").trim();
+
+        if (!seo_title || !seo_description) {
+          return new Response(
+            JSON.stringify({
+              error:
+                "seo_title and seo_description are required for custom save",
+            }),
+            { status: 400, headers: { "Content-Type": "application/json" } }
+          );
+        }
+      } else {
+        // TEMPLATE SAVE: считаем шаблон и сохраняем его как is_custom=false
+        const { data: car, error: carErr } = await adminClient
+          .from("cars")
+          .select(
+            `
+        id, year, price, currency, transmission, fuel_type, include_mileage, deposit,
+        is_delivery, address,
+        models (
+          name,
+          brands ( name )
+        ),
+        locations (
+          name,
+          countries ( name, id )
+        )
+      `
+          )
+          .eq("id", car_id)
+          .single();
+
+        if (carErr || !car) {
+          return new Response(
+            JSON.stringify({
+              error: "Car not found",
+              details: carErr?.message,
+            }),
+            { status: 404, headers: { "Content-Type": "application/json" } }
+          );
+        }
+
+        const built = buildSeo(locale, car);
+        seo_title = String(built.title || "").trim();
+        seo_description = String(built.description || "").trim();
+
+        if (!seo_title || !seo_description) {
+          return new Response(
+            JSON.stringify({
+              error: "Template generation returned empty values",
+            }),
+            { status: 500, headers: { "Content-Type": "application/json" } }
+          );
+        }
       }
-
-      const is_custom = payload.is_custom === true;
 
       const { data: upserted, error: upsertErr } = await adminClient
         .from("car_seo")
         .upsert(
-          { car_id, locale, seo_title, seo_description, is_custom }, // ✅
+          {
+            car_id,
+            locale,
+            seo_title,
+            seo_description,
+            is_custom: wantCustom, // ✅ ВОТ ОНО
+          },
           { onConflict: "car_id,locale" }
         )
         .select(
@@ -237,10 +336,7 @@ serve(async (req) => {
             error: "Upsert failed",
             details: upsertErr.message,
           }),
-          {
-            status: 500,
-            headers: { "Content-Type": "application/json" },
-          }
+          { status: 500, headers: { "Content-Type": "application/json" } }
         );
       }
 
