@@ -195,9 +195,9 @@ export function AuthenticationForm({
         />
       </div>
 
-      <div className="relative z-10 w-full max-w-4xl px-4 py-8">
+      <div className="relative z-10 w-full max-w-3xl px-4 py-8">
         <div
-          className={`relative grid overflow-hidden rounded-3xl border shadow-2xl backdrop-blur-xl md:grid-cols-[1.1fr_1fr] ${
+          className={`relative grid overflow-hidden rounded-3xl border shadow-2xl backdrop-blur-xl md:grid-cols-[1.1fr_1.2fr] ${
             isLight
               ? "border-slate-200 bg-white/90"
               : "border-white/10 bg-slate-900/70"
@@ -224,7 +224,7 @@ export function AuthenticationForm({
                 <img
                   src={mainPhoto}
                   alt="People working at laptops"
-                  className="max-h-[600px] w-full object-cover"
+                  className="min-h-[566px] w-full object-cover"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-slate-900/70 via-slate-900/10 to-transparent" />
                 <div className="absolute inset-x-0 bottom-0 p-8 text-slate-50">
@@ -251,7 +251,7 @@ export function AuthenticationForm({
                 <img
                   src={mainPhoto}
                   alt="People working at laptops"
-                  className="max-h-[600px] w-full object-cover"
+                  className="min-h-[566px] w-full object-cover"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/40 to-transparent" />
                 <div className="absolute inset-x-0 bottom-0 p-8 text-slate-50">
