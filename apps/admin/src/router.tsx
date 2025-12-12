@@ -57,7 +57,7 @@ import AdminCalendar from "./app/admin/adminCalendar";
 import AdminDashboard from "./app/admin/adminDashboard";
 import { adminDashboardLoader } from "./routes/adminDashboard.loader";
 import { adminCalendarLoader } from "./routes/adminCalendar.loader";
-import AdminSeoCarsList from "./app/seo";
+import AdminSeoCarsList from "./app/admin/adminSeoCars";
 
 export const router = createBrowserRouter([
   { path: "/auth", element: <AuthenticationPage /> },

@@ -326,6 +326,7 @@ export default function AdminSeoCarsList() {
 
   const isFetchingNext = q.isFetchingNextPage;
   const totalLoaded = rows.length;
+
   const totalAvailable = q.data?.pages?.[0]?.count ?? totalLoaded;
   const canLoadMore = totalLoaded < totalAvailable;
 
