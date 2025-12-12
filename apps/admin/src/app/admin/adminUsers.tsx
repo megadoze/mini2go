@@ -68,7 +68,7 @@ function cmp(a?: string | null, b?: string | null, reversed = false) {
 export default function AdminUsers() {
   const qc = useQueryClient();
 
-  const { excludeUserId } = useLoaderData() as {
+  const { excludeUserId, q, status, sort, dir } = useLoaderData() as {
     excludeUserId: string | null;
     q: string;
     status: string;
@@ -84,12 +84,12 @@ export default function AdminUsers() {
   const [blockedMap, setBlockedMap] = useState<Record<string, boolean>>({});
 
   const currentKey = QK.usersInfinite(
-    PAGE_SIZE, // ← 1-й аргумент: pageSize (number)
-    null, // ← q
-    null, // ← status
-    null, // ← sort
-    null, // ← dir
-    excludeUserId // ← excludeUserId (string | null) как последний
+    PAGE_SIZE,
+    q || undefined,
+    status || undefined,
+    sort,
+    dir,
+    excludeUserId
   );
 
   const usersQ = useInfiniteQuery<Page, Error>({
@@ -101,7 +101,11 @@ export default function AdminUsers() {
       return fetchUsersPage({
         limit: PAGE_SIZE,
         offset,
-        excludeUserId: excludeUserId,
+        q: q || undefined,
+        status: status || undefined,
+        sort,
+        dir,
+        excludeUserId: excludeUserId ?? undefined,
       });
     },
     getNextPageParam: (lastPage, allPages) => {
@@ -112,13 +116,10 @@ export default function AdminUsers() {
     initialPageParam: 0,
     staleTime: 5 * 60_000,
     gcTime: 7 * 24 * 60 * 60 * 1000,
-    refetchOnMount: "always",
+    refetchOnMount: false,
     refetchOnWindowFocus: true,
     refetchOnReconnect: true,
     retry: 1,
-    initialData: excludeUserId
-      ? () => qc.getQueryData<InfiniteData<Page>>(currentKey)
-      : undefined,
     placeholderData: (prev) => prev,
   });
 

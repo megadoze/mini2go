@@ -53,7 +53,6 @@ export const usersAdminLoader: LoaderFunction = async ({ request }) => {
     staleTime: 5 * 60_000,
   });
 
-  // можно что-то вернуть в компонент, если нужно
   return {
     excludeUserId,
     q: q ?? "",

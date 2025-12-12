@@ -260,7 +260,6 @@ export default function UsersPage() {
   // const loadingInitial = usersQ.isLoading && !usersQ.data;
   const isFetchingNext = usersQ.isFetchingNextPage;
   const totalLoaded = users.length;
-
   const totalAvailable = usersQ.data?.pages[0]?.count ?? totalLoaded;
   const canLoadMore = totalLoaded < totalAvailable;
 

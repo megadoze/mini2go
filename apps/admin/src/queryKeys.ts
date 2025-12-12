@@ -29,12 +29,7 @@ export const QK = {
     sort?: string | null,
     dir?: "asc" | "desc" | null,
     excludeUserId?: string | null
-  ) =>
-    [
-      "users",
-      "infinite",
-      { pageSize, q, status, sort, dir, excludeUserId },
-    ] as const,
+  ) => ["usersAdmin", { pageSize, q, status, sort, dir, excludeUserId }] as const,
   booking: (id: string) => ["booking", id] as const,
   bookingExtras: (id: string) => ["bookingExtras", id] as const,
   user: (id: string) => ["user", id] as const,
