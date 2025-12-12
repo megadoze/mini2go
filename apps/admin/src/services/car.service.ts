@@ -397,25 +397,36 @@ export type NewCar = Omit<
 >;
 
 // Добавление нового авто
-export async function addCar(car: Partial<NewCar>): Promise<{
-  id: string;
-}> {
+export async function addCar(car: Partial<NewCar>): Promise<{ id: string }> {
   const { data, error } = await supabase
     .from("cars")
     .insert(car)
-    .select("id") // минимально
-    .single(); // ожидаем 1 строку
+    .select("id")
+    .single();
 
   if (error) throw error;
 
+  // 1) refresh locations
   const { error: refreshError } = await supabase.rpc(
     "refresh_locations_is_active"
   );
-
-  if (refreshError) {
+  if (refreshError)
     console.error("Failed to refresh locations.is_active", refreshError);
+
+  // 2) generate SEO (EN-only)
+  const { error: seoErr } = await supabase.functions.invoke(
+    "generate-car-seo",
+    {
+      body: { action: "generate", car_id: data.id, locale: "en" },
+    }
+  );
+
+  if (seoErr) {
+    console.error("Failed to generate car SEO", seoErr);
+    // не throw!
   }
-  return data!;
+
+  return { id: data.id };
 }
 
 export async function fetchCarById(id: string) {
@@ -463,15 +474,25 @@ export async function updateCar(id: string, data: CarUpdatePayload) {
   const snakeData = carCamelToSnake(data);
 
   const { error } = await supabase.from("cars").update(snakeData).eq("id", id);
-
   if (error) throw error;
 
   const { error: refreshError } = await supabase.rpc(
     "refresh_locations_is_active"
   );
-
-  if (refreshError) {
+  if (refreshError)
     console.error("Failed to refresh locations.is_active", refreshError);
+
+  // generate SEO (EN-only)
+  const { error: seoErr } = await supabase.functions.invoke(
+    "generate-car-seo",
+    {
+      body: { action: "generate", car_id: id, locale: "en" },
+    }
+  );
+
+  if (seoErr) {
+    console.error("Failed to generate car SEO", seoErr);
+    // не throw!
   }
 
   carCache.delete(id);

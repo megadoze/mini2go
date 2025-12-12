@@ -232,11 +232,10 @@ export function AuthenticationForm({
                     Welcome
                   </p>
                   <h2 className="mt-3 text-2xl font-semibold">
-                    Добро пожаловать в панель
+                    Welcome to the panel
                   </h2>
                   <p className="mt-2 text-sm text-slate-200/80">
-                    Управляй своим проектом в одном месте — достаточно одного
-                    логина.
+                    Manage your project in one place—all you need is one login.
                   </p>
                 </div>
               </motion.div>
@@ -260,11 +259,10 @@ export function AuthenticationForm({
                     Welcome
                   </p>
                   <h2 className="mt-3 text-2xl font-semibold">
-                    Добро пожаловать в панель
+                    Welcome to the panel
                   </h2>
                   <p className="mt-2 text-sm text-slate-200/80">
-                    Управляй своим проектом в одном месте — достаточно одного
-                    логина.
+                    Manage your project in one place—all you need is one login.
                   </p>
                 </div>
               </motion.div>
@@ -295,9 +293,7 @@ export function AuthenticationForm({
                       isLight ? "text-slate-900" : "text-slate-50"
                     }`}
                   >
-                    {type === "login"
-                      ? "С возвращением 👋"
-                      : "Присоединяйся 🚀"}
+                    {type === "login" ? "Welcome back 👋" : "Join us 🚀"}
                   </h1>
                   <p
                     className={`mt-1 text-sm ${
@@ -305,8 +301,8 @@ export function AuthenticationForm({
                     }`}
                   >
                     {type === "login"
-                      ? "Введи свои данные, чтобы продолжить."
-                      : "Заполни поля, чтобы начать."}
+                      ? "Please enter your details to continue."
+                      : "Fill in the fields to get started."}
                   </p>
                 </div>
 
@@ -431,7 +427,7 @@ export function AuthenticationForm({
                         isLight ? "text-slate-400" : "text-slate-500"
                       }`}
                     >
-                      или
+                      or
                     </span>
                     <div
                       className={`h-px flex-1 ${
@@ -451,9 +447,9 @@ export function AuthenticationForm({
                           : "border-slate-700/80 bg-slate-900/60 text-slate-200 hover:border-slate-500 hover:bg-slate-800"
                       }`}
                     >
-                      Войти через Google
+                      Login with Google
                     </button>
-                    <button
+                    {/* <button
                       type="button"
                       className={`flex flex-1 items-center justify-center gap-2 rounded-xl border px-3 py-2 text-xs font-medium transition ${
                         isLight
@@ -462,7 +458,7 @@ export function AuthenticationForm({
                       }`}
                     >
                       Войти через GitHub
-                    </button>
+                    </button> */}
                   </div>
                 </div>
 
@@ -473,7 +469,7 @@ export function AuthenticationForm({
                 >
                   {type === "login" ? (
                     <>
-                      Нет аккаунта?{" "}
+                      Don't have an account?{" "}
                       <button
                         type="button"
                         onClick={() => setType("register")}
@@ -483,12 +479,12 @@ export function AuthenticationForm({
                             : "text-emerald-400 hover:underline"
                         }`}
                       >
-                        Зарегистрироваться
+                        Register
                       </button>
                     </>
                   ) : (
                     <>
-                      Уже есть аккаунт?{" "}
+                      Already have an account?{" "}
                       <button
                         type="button"
                         onClick={() => setType("login")}
@@ -498,7 +494,7 @@ export function AuthenticationForm({
                             : "text-emerald-400 hover:underline"
                         }`}
                       >
-                        Войти
+                        Login
                       </button>
                     </>
                   )}

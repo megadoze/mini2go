@@ -609,6 +609,7 @@ export default function CarDetails() {
       <p className="text-lg font-medium text-gray-800 mt-8 mb-2">Description</p>
       <p className="mb-5">
         Tell guests what makes your car unique and why they'll love driving it.
+        (Describe the car in more detail, it affects how customers see it)
       </p>
 
       <Editor

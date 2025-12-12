@@ -26,6 +26,7 @@ import type { AppSettings } from "@/types/setting";
 import { fetchCountries } from "@/services/geo.service";
 import type { Country } from "@/types/country";
 import { patchCarCaches } from "@/utils/cache/car-cache";
+import { supabase } from "@/lib/supabase";
 
 type CarDetails = Awaited<ReturnType<typeof fetchCarById>>;
 
@@ -256,6 +257,18 @@ const AdminCarPage = () => {
     }
   };
 
+  const onClick = async () => {
+    const { data, error } = await supabase.functions.invoke(
+      "generate-car-seo",
+      {
+        body: { action: "generate", car_id: carId, locale: "en" },
+      }
+    );
+
+    console.log("SEO invoke result:", { data, error });
+    alert(error ? error.message : "OK — смотри console");
+  };
+
   return (
     <div className="w-full max-w-4xl text-gray-800">
       {/* back */}
@@ -268,6 +281,8 @@ const AdminCarPage = () => {
           <span className="hidden sm:inline">Back</span>
         </button>
       </div>
+
+      <button onClick={onClick}>Test generate-car-seo</button>
 
       {/* HEADER — в стиле брони */}
       <header className={cardCls}>

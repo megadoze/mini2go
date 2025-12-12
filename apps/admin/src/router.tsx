@@ -57,6 +57,7 @@ import AdminCalendar from "./app/admin/adminCalendar";
 import AdminDashboard from "./app/admin/adminDashboard";
 import { adminDashboardLoader } from "./routes/adminDashboard.loader";
 import { adminCalendarLoader } from "./routes/adminCalendar.loader";
+import AdminSeoCarsList from "./app/seo";
 
 export const router = createBrowserRouter([
   { path: "/auth", element: <AuthenticationPage /> },
@@ -195,6 +196,11 @@ export const router = createBrowserRouter([
         element: <AdminUsers />,
       },
       { path: "users/:userId", element: <UserPage /> },
+      {
+        path: "seo",
+        // loader: settingsGlobalLoader,
+        element: <AdminSeoCarsList />,
+      },
       // {
       //   path: "settings",
       //   // loader: settingsGlobalLoader,

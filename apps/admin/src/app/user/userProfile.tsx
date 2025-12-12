@@ -660,7 +660,7 @@ export default function UserProfile() {
 
                 {/* DOB then Age (age is read-only, calculated) */}
                 <div className="flex flex-col md:flex-row w-full gap-4">
-                  <div className="flex-1 mr-4">
+                  <div className="flex-1">
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Date of birth
                     </label>

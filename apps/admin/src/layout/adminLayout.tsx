@@ -2,6 +2,7 @@ import { AppShell, Burger, Drawer } from "@mantine/core";
 import { useDisclosure, useMediaQuery } from "@mantine/hooks";
 import { NavLink, Outlet } from "react-router-dom";
 import {
+  ArrowTrendingUpIcon,
   // AdjustmentsHorizontalIcon,
   CalendarDaysIcon,
   ChartBarSquareIcon,
@@ -52,6 +53,12 @@ export default function AdminLayout() {
       to: "users",
       icon: <UserGroupIcon className="size-5" />,
       label: "Users",
+      onClick: toggle,
+    },
+    {
+      to: "seo",
+      icon: <ArrowTrendingUpIcon className="size-5" />,
+      label: "SEO",
       onClick: toggle,
     },
     // {
