@@ -9,6 +9,7 @@ const nextConfig: NextConfig = {
     };
     return config;
   },
+  htmlLimitedBots: /.*/,
 
   images: {
     qualities: [75, 90], // ✅ разрешаем 90
