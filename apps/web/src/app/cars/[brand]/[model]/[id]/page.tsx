@@ -1,54 +1,62 @@
 // app/cars/[brand]/[model]/[id]/page.tsx
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { cache } from "react";
-
 import ClientCarLanding from "./clientCarLanding";
-import type { CarWithRelations } from "@/types/carWithRelations";
 import { fetchCarByIdServer } from "@/services/car.server";
 import { fetchCarSeoServer } from "@/services/carSeo.server";
+import type { CarWithRelations } from "@/types/carWithRelations";
 
-type Params = { brand?: string; model?: string; id?: string };
-type Props = { params: Promise<Params> };
+type RouteParams = { brand: string; model: string; id: string };
 
-// ✅ cache() чтобы в рамках одного запроса не было 2 одинаковых запросов
-const getCar = cache(async (id: string) => {
-  return (await fetchCarByIdServer(id)) as CarWithRelations | null;
-});
-
-const getSeo = cache(async (id: string, locale: string) => {
-  return await fetchCarSeoServer(id, locale);
-});
+// ВАЖНО: params — Promise
+type Props = { params: Promise<RouteParams> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { id: carId } = await params;
+  const { id: carId, brand, model } = await params;
 
   if (!carId) return {};
 
-  const [car, seo] = await Promise.all([getCar(carId), getSeo(carId, "en")]);
+  const [car, seo] = await Promise.all([
+    fetchCarByIdServer(carId),
+    fetchCarSeoServer(carId, "en"),
+  ]);
 
   if (!car) return {};
 
-  const modelObj = (car as any).model ?? (car as any).models ?? undefined;
-  const fallbackTitle = `${modelObj?.brands?.name ?? ""} ${
-    modelObj.name ?? ""
+  const fallbackTitle = `${car.model?.brands?.name ?? ""} ${
+    car.model?.name ?? ""
   } ${car.year ?? ""}`.trim();
 
-  const title = seo?.seo_title?.trim() || fallbackTitle;
-  const description = seo?.seo_description?.trim() || undefined;
+  const stripTags = (s?: string | null) =>
+    (s ?? "").replace(/<[^>]*>/g, "").trim();
+
+  const title = stripTags(seo?.seo_title) || fallbackTitle;
+
+  const descRaw = stripTags(seo?.seo_description);
+  const description = descRaw.length ? descRaw : undefined;
+
+  const ogImage = (car.coverPhotos?.[0] as string | undefined) ?? undefined;
+  const urlPath = `/cars/${brand}/${model}/${carId}`;
 
   return {
     title,
-    description,
+    ...(description ? { description } : {}),
+    alternates: { canonical: urlPath },
     openGraph: {
       title,
-      description,
+      ...(description ? { description } : {}),
       type: "website",
+      url: urlPath,
+      ...(ogImage ? { images: [{ url: ogImage, alt: title }] } : {}),
     },
     twitter: {
-      card: "summary_large_image",
+      card: ogImage ? "summary_large_image" : "summary",
       title,
-      description,
+      ...(description ? { description } : {}),
+      ...(ogImage ? { images: [ogImage] } : {}),
     },
   };
 }
@@ -59,15 +67,13 @@ export default async function Page({ params }: Props) {
   if (!carId) return notFound();
 
   let car: CarWithRelations | null = null;
-
   try {
-    car = await getCar(carId);
+    car = await fetchCarByIdServer(carId);
   } catch (err) {
     console.error("fetchCarByIdServer error:", err);
     return notFound();
   }
 
   if (!car) return notFound();
-
   return <ClientCarLanding serverCar={car} />;
 }

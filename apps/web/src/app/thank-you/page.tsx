@@ -1,4 +1,3 @@
-// apps/web/app/cars/page.tsx
 import { Suspense } from "react";
 import { Metadata } from "next";
 import ThankYouClient from "./thankyoupage";
