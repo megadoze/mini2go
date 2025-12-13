@@ -39,7 +39,13 @@ const boogaloo = Boogaloo({
   display: "swap",
 });
 
+// export const metadata: Metadata = {
+//   title: "MINI2GO",
+//   description: "Rent MINI - drive dream!",
+// };
+
 export const metadata: Metadata = {
+  metadataBase: new URL("https://mini2go-app.vercel.app/"),
   title: "MINI2GO",
   description: "Rent MINI - drive dream!",
 };
